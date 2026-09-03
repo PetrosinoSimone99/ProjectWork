@@ -1,0 +1,24 @@
+Quelle a più righe sono per powershell windows e non per windows prompt dei comandi
+
+curl -X POST -H "Content-Type: application/json" -d "{\"username\":\"francesca.conti\",\"password\":\"demo1234\"}" http://localhost:80/ProgettoITS_Web/API/login.php
+
+
+
+curl.exe -X POST "http://localhost/ProgettoITS_Web/API/register.php" ` -H "Content-Type: application/json" ` --data-raw '{"nome":"nome","cognome":"cognome","username":"nomecognome","email":"email@gmail.com","password":"demo1234","descrizione_servizio":"offro giardinaggio"}'
+
+
+curl.exe -i -G "http://localhost/ProgettoITS_Web/API/ricerca.php" ` -H "Authorization: Bearer 81da3065a6b6897fbe51354e0f67f23c836cc4a78f28bc61a443f12e1f2a9786ee928b8efda463b7ce0ffbf75ca07b794eb591c16f9b7394ad0fead56da2f213.eyJpZCI6MTEsImV4cCI6MTc4NzU4NzMwMX0=" ` --data-urlencode "q=matematica"
+
+Note: Il parametro q è unico: la stessa parola viene cercata contemporaneamente in titolo, descrizione e località.
+
+
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/inviti.php" `
+  -H "Authorization: Bearer TOKEN_INVITANTE" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"azione":"genera"}'
+
+
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/inviti.php" `
+  -H "Authorization: Bearer TOKEN_AMICO" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"azione":"riscatta","codice":"CODICE_RICEVUTO"}'

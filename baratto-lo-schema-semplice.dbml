@@ -1,0 +1,110 @@
+Enum stato_accordo {
+  PROPOSTO
+  ACCETTATO
+  IN_ESECUZIONE
+  COMPLETATO
+  CONTESTATO
+  ANNULLATO
+}
+
+Table utenti {
+  id int [pk, increment]
+  nome varchar(50)
+  cognome varchar(50)
+  username varchar(50) [not null, unique]
+  email varchar(45) [not null, unique]
+  password_hash varchar(255) [not null]
+  ruolo varchar(20) [not null, default: 'UTENTE', note: 'UTENTE, STAFF o ADMIN']
+  stato varchar(20) [not null, default: 'ATTIVO', note: 'ATTIVO, SOSPESO o BLOCCATO']
+  saldo_disponibile int [not null, default: 0]
+  saldo_bloccato int [not null, default: 0]
+  creato_il timestamp [not null]
+  descrizione_servizio varchar(100) [not null]
+}
+
+Table inviti {
+  id int [pk, increment]
+  invitante_id int [not null]
+  invitato_id int [unique, note: 'NULL finche il codice non viene riscattato']
+  codice char(8) [not null, unique, note: '8 caratteri maiuscoli alfanumerici']
+  mese_invito date [not null, note: 'Primo giorno del mese solare di validita; unico per invitante']
+  creato_il timestamp [not null]
+  riscattato_il timestamp [note: 'Valorizzato insieme a invitato_id']
+
+  indexes {
+    (invitante_id, mese_invito) [unique]
+  }
+}
+
+Table richieste {
+  id int [pk, increment]
+  utente_id int [not null]
+  titolo varchar(100) [not null]
+  descrizione text [not null]
+  tariffa_oraria_crediti int [note: 'Facoltativa per le richieste']
+  durata_minuti int
+  localita varchar(100)
+  creato_il timestamp [not null]
+}
+
+Table chat {
+  id int [pk, increment]
+  utente_1 int [not null]
+  utente_2 int [not null]
+}
+
+Table contenuto_chat {
+  id int [pk, increment]
+  messaggio text
+  id_utente int
+  id_chat int
+  timestamp_messaggio timestamp
+}
+
+Table accordo_1_a_1 {
+  id int [pk, increment]
+  data_creazione timestamp
+  utente_1 int
+  utente_2 int
+  durata_attivita_utente1 int
+  durata_attivita_utente2 int
+  accettazione_utente1 boolean
+  accettazione_utente2 boolean
+  completamento_utente1 boolean
+  completamento_utente2 boolean
+  stato stato_accordo
+}
+
+Table accordo_richiesta {
+  id int [pk, increment]
+  data_creazione timestamp
+  utente_richiedente int
+  utente_erogatore int
+  durata_attivita_erogatore int
+  tariffa_credito int
+  accettazione_utente_erogatore boolean
+  completamento_utente_richiedente boolean
+  stato stato_accordo
+}
+
+Ref: richieste.utente_id > utenti.id
+
+Ref: inviti.invitante_id > utenti.id
+
+Ref: inviti.invitato_id > utenti.id
+
+Ref: chat.utente_1 > utenti.id
+
+Ref: chat.utente_2 > utenti.id
+
+Ref: contenuto_chat.id_utente > utenti.id
+
+Ref: contenuto_chat.id_chat > chat.id
+
+Ref: accordo_1_a_1.utente_1 > utenti.id
+
+Ref: accordo_1_a_1.utente_2 > utenti.id
+
+Ref: accordo_richiesta.utente_richiedente > utenti.id
+
+Ref: accordo_richiesta.utente_erogatore > utenti.id
