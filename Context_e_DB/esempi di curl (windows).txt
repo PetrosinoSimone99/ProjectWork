@@ -22,3 +22,9 @@ curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/inviti.php" `
   -H "Authorization: Bearer TOKEN_AMICO" `
   -H "Content-Type: application/json" `
   --data-raw '{"azione":"riscatta","codice":"CODICE_RICEVUTO"}'
+
+
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/richieste.php" `
+  -H "Authorization: Bearer TOKEN_UTENTE" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"titolo":"Ripetizioni di informatica","descrizione":"Offro aiuto con PHP e database MySQL.","tariffa_oraria_crediti":10,"durata_minuti":60,"localita":"Firenze"}'
