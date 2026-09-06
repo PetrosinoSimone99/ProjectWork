@@ -26,9 +26,7 @@ if($_SERVER["REQUEST_METHOD"] === "GET"){
         else{
             echo json_encode(["error" => "400 Bad Request"]);
         }
-
     }
-
 }
 
 function ottieniUltimoMessaggioLetto($connection, $utente){
