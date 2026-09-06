@@ -13,7 +13,7 @@ if($_SERVER["REQUEST_METHOD"] === "GET"){
 
     if(!$tokenManager->validate($token)){
         $haErrore = true;
-        echo json_encode(["code" => "401 Unauthorized"]);
+        echo json_encode(["errore" => "401 Unauthorized"]);
     }
 
     if(!$haErrore){
@@ -24,7 +24,7 @@ if($_SERVER["REQUEST_METHOD"] === "GET"){
             echo json_encode($idMessaggio);
         }
         else{
-            echo json_encode(["error" => "400 Bad Request"]);
+            echo json_encode(["errore" => "400 Bad Request"]);
         }
 
     }

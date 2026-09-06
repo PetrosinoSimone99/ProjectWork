@@ -23,7 +23,7 @@ if($_SERVER["REQUEST_METHOD"] === "POST"){
         $connection = new DbConnector("localhost", "root", "root","barattolo");
         $chatId = cercaChat($connection, $post["utenteAttuale"], $post["membroChat"]);
         if(!$chatId){
-            createNewChat($connection, $post["utenteAttuale"], $post["membroChat"]);
+            creaNuovaChat($connection, $post["utenteAttuale"], $post["membroChat"]);
             $chatId = cercaChat($connection, $post["utenteAttuale"], $post["membroChat"]);
         }
         
@@ -53,7 +53,7 @@ function cercaChat($connection, $utenteAttuale, $membroChat){
     }
 }
 
-function createNewChat($connection,$utenteAttuale, $membroChat){
+function creaNuovaChat($connection,$utenteAttuale, $membroChat){
     $statement = $connection->prepare('
         INSERT INTO chat() VALUES();
 

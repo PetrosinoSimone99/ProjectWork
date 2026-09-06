@@ -18,7 +18,7 @@ if($_SERVER["REQUEST_METHOD"] === "GET"){
         echo json_encode($randomString.".".$tokenSSE);
     }
     else{
-        echo json_encode(["error" => "401 Unauthorized"]);
+        echo json_encode(["errore" => "401 Unauthorized"]);
     }
 
 }
