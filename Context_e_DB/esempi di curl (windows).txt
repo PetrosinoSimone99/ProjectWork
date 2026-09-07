@@ -34,3 +34,57 @@ curl.exe -i -X GET "http://localhost/ProgettoITS_Web/API/ricercaHomepage.php" `
   -H "Authorization: Bearer TOKEN_UTENTE"
 
 Note: ricercaHomepage.php non richiede il parametro q e mostra tutte le richieste degli utenti attivi.
+
+
+@@ USER STATO MANAGER @@
+
+
+# Sospende l'utente con id 4. TOKEN_STAFF può essere anche un token ADMIN.
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/userStatoManager.php" `
+  -H "Authorization: Bearer TOKEN_STAFF_O_ADMIN" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"utente_id":4,"stato":"SOSPESO"}'
+
+
+# Blocca l'utente con id 4.
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/userStatoManager.php" `
+  -H "Authorization: Bearer TOKEN_STAFF_O_ADMIN" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"utente_id":4,"stato":"BLOCCATO"}'
+
+
+# Riattiva l'utente con id 4.
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/userStatoManager.php" `
+  -H "Authorization: Bearer TOKEN_STAFF_O_ADMIN" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"utente_id":4,"stato":"ATTIVO"}'
+
+
+Note: STAFF può gestire solo account con ruolo UTENTE. ADMIN può gestire UTENTE e STAFF, ma nessuno può modificare sé stesso o un altro ADMIN.
+
+
+@@ USER ROLE MANAGER @@
+
+
+# Uno STAFF può promuovere un account con ruolo UTENTE a STAFF.
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/userRoleManager.php" `
+  -H "Authorization: Bearer TOKEN_STAFF" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"utente_id":4,"ruolo":"STAFF"}'
+
+
+# Un ADMIN può assegnare il ruolo ADMIN a un altro account.
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/userRoleManager.php" `
+  -H "Authorization: Bearer TOKEN_ADMIN" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"utente_id":4,"ruolo":"ADMIN"}'
+
+
+# Un ADMIN può retrocedere un altro account al ruolo UTENTE.
+curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/userRoleManager.php" `
+  -H "Authorization: Bearer TOKEN_ADMIN" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"utente_id":4,"ruolo":"UTENTE"}'
+
+
+Note: STAFF può gestire soltanto bersagli che hanno attualmente il ruolo UTENTE e può assegnare solo UTENTE o STAFF. ADMIN può gestire qualunque altro account e assegnare tutti i ruoli; nessuno può modificare il proprio ruolo.
