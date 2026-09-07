@@ -28,3 +28,9 @@ curl.exe -i -X POST "http://localhost/ProgettoITS_Web/API/richieste.php" `
   -H "Authorization: Bearer TOKEN_UTENTE" `
   -H "Content-Type: application/json" `
   --data-raw '{"titolo":"Ripetizioni di informatica","descrizione":"Offro aiuto con PHP e database MySQL.","tariffa_oraria_crediti":10,"durata_minuti":60,"localita":"Firenze"}'
+
+
+curl.exe -i -X GET "http://localhost/ProgettoITS_Web/API/ricercaHomepage.php" `
+  -H "Authorization: Bearer TOKEN_UTENTE"
+
+Note: ricercaHomepage.php non richiede il parametro q e mostra tutte le richieste degli utenti attivi.
