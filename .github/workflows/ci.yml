@@ -1,0 +1,46 @@
+name: CI
+
+# Parte quando qualcuno apre/aggiorna una PR verso main, e a ogni push su main.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  # --- Backend PHP: controlla la sintassi di ogni file .php prima del merge ---
+  php-lint:
+    name: PHP syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verifica sintassi PHP
+        run: |
+          for f in $(find API -name "*.php"); do
+            php -l "$f" || exit 1
+          done
+
+  # --- Frontend Expo (React/JS): lint + build di controllo ---
+  # Gira solo quando Frontend/ è presente su main (cioè dopo il merge del frontend).
+  # Finché non lo è, il job si salta invece di restare rosso a vuoto sulle PR di backend.
+  frontend:
+    name: Frontend lint + build
+    runs-on: ubuntu-latest
+    if: hashFiles('Frontend/package.json') != ''
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - name: Installa dipendenze
+        run: npm ci
+      - name: Lint
+        run: npx expo lint
+      - name: Build di controllo
+        run: npx expo export --platform web
