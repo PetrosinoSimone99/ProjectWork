@@ -7,15 +7,8 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type,authorization");
 
-
-$post["erogatore"] = 5;
-$post["beneficiario"] = 8;
-$post["durata"] = 70;
-$post["crediti"] = 10;
-$post["tipo"] = "Richiesta";
-
 if($_SERVER["REQUEST_METHOD"] === "POST"){
-    $post = json_decode(file_get_contents("php://input"), true);*/
+    $post = json_decode(file_get_contents("php://input"), true);
     $haErrore = false;
     $tokenManager = new TokenManager();
     $token = $tokenManager->getBearerToken();
