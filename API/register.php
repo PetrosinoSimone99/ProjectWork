@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/cors.php';
+
 // L'endpoint restituisce sempre risposte JSON.
 header('Content-Type: application/json; charset=utf-8');
 

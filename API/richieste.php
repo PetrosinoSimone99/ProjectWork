@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/cors.php';
+
 // Questo file restituisce sempre una risposta in formato JSON.
 header('Content-Type: application/json; charset=utf-8');
 
