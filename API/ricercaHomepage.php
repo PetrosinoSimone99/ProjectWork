@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Header CORS (origine, metodi, header autorizzati) + risposta 204 al preflight OPTIONS.
+require_once __DIR__ . '/cors.php';
+
 // Questo endpoint restituisce sempre una risposta in formato JSON.
 header('Content-Type: application/json; charset=utf-8');
 

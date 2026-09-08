@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../DbConnector.php';
+require_once __DIR__ . '/sseConfig.php';
 
 header("Access-Control-Allow-Origin: *");
 header('Content-Type: text/event-stream');
@@ -26,7 +27,7 @@ else{
 
 while($connessioneAttiva){
     if($connection == null){
-        $connection = new DbConnector("localhost", "root", "root", "barattolo");
+        $connection = new DbConnector("localhost", "root", "", "barattolo");
     }
     $messaggi = ottieniNuoviMessagi($connection, $utente, $idMessaggio);
 
@@ -49,8 +50,17 @@ while($connessioneAttiva){
 exit();
 
 function validaTokenSSE($utente,$sseToken){
+    // Guard sul token malformato: deve essere una stringa con esattamente 2 parti
+    // (randomString.firma). Senza questo controllo $parts[1] non esiste e PHP
+    // risponderebbe con un errore invece di rifiutare il token.
+    if (!is_string($sseToken) || $sseToken === '') {
+        return false;
+    }
     $parts = explode(".", $sseToken);
-    if (hash_equals($parts[1], hash_hmac('sha512', $utente.$parts[0], 'abc123'))){
+    if (count($parts) !== 2) {
+        return false;
+    }
+    if (hash_equals($parts[1], hash_hmac('sha512', $utente.$parts[0], sseSecret()))){
         return true;
     }
     else{
