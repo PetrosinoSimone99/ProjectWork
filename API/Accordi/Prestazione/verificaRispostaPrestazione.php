@@ -2,12 +2,12 @@
 require_once __DIR__ . "/../../DbConnector.php";
 require_once __DIR__ . "/../../TokenManager.php";
 require_once __DIR__ . "/decrementaCreditiBeneficiario.php";
+require_once __DIR__ . "/recuperaRuoloUtente.php";
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type,authorization");
 
-/*$post["risposta"] deve essere 0 o 1 */
 
 if($_SERVER["REQUEST_METHOD"] === "POST"){
     $post = json_decode(file_get_contents("php://input"), true);
@@ -23,9 +23,7 @@ if($_SERVER["REQUEST_METHOD"] === "POST"){
     if(!$haErrore){
         $connection = new DbConnector("localhost", "root", "root","barattolo");
 
-        $result = controllerStatoPrestazione($connection, $post["accordo"], $post["utente"], $post["risposta"]);
-
-        if($result){
+        if(controllerStatoPrestazione($connection, $post["accordo"], $post["utente"], $post["risposta"])){
             echo json_encode(["successo" => "200 OK"]);
         }
         else{
@@ -36,35 +34,35 @@ if($_SERVER["REQUEST_METHOD"] === "POST"){
 
 function controllerStatoPrestazione($connection, $accordo, $utente, $risposta){
     try{
-        rispostaAccettazionePrestazione($connection, $accordo, $utente, $risposta);
+        $risultato = recuperaRuoloUtente($connection, $accordo, $utente);
+        if($risultato["ruolo"] === "Beneficiario" && $risposta){
+            $verificaCrediti = verificaCreditiBeneficiario($connection, $utente, $accordo);
+            if(!$verificaCrediti["esito"]){
+                return false;
+            }
+            decrementaCreditiBeneficiario($connection, $utente, $accordo);
+        }
+        
+        impostaAccettazionePrestazione($connection, $accordo, $utente, $risposta);
 
         $conteggioRisposte = verificaAccettazioneAccordo($connection, $accordo);
-
         if($conteggioRisposte["risultato"] == 2){
             $stato = "ACCETTATO";
-
             impostaStatoAccordo($connection, $accordo, $stato);
-
-            $risultato = recuperaRuoloUtente($connection, $accordo, $utente);
-
-            if($risultato["ruolo"] === "Beneficiario"){
-                decrementaCreditiBeneficiario($connection, $utente, $accordo);
-            }
         }
-
         if($conteggioRisposte["risultato"] == 1 && !$risposta){
             $stato = "ANNULLATO";
             impostaStatoAccordo($connection, $accordo, $stato);
-            incrementaCreditiBeneficiario($connection, $accordo);
+            rimborsaCreditiBeneficiario($connection, $accordo);
         }
 
-    return true;
+        return true;
     }
     catch(PDOException $e){
         return false;
     }
 }
-function rispostaAccettazionePrestazione($connection, $accordo, $utente, $risposta){
+function impostaAccettazionePrestazione($connection, $accordo, $utente, $risposta){
     $statement = $connection->prepare('
         UPDATE partecipanti_accordo_prestazione
         SET accettazione = :risposta
@@ -131,7 +129,7 @@ function impostaStatoAccordo($connection, $accordo, $stato){
     }
 }
 
-function incrementaCreditiBeneficiario($connection, $accordo){
+function rimborsaCreditiBeneficiario($connection, $accordo){
     $statement = $connection->prepare('
         UPDATE utenti
         SET saldo_disponibile = saldo_disponibile + (SELECT crediti FROM accordi_prestazione WHERE id = :accordo)
@@ -157,15 +155,13 @@ function incrementaCreditiBeneficiario($connection, $accordo){
         throw $e;
     }
 }
-function recuperaRuoloUtente($connection, $accordo, $utente){
+function verificaCreditiBeneficiario($connection, $beneficiario, $accordo){
     $statement = $connection->prepare('
-        SELECT ruolo
-        FROM partecipanti_accordo_prestazione
-        WHERE id_accordo = :accordo AND id_utente = :utente
+        SELECT IF((SELECT saldo_disponibile FROM utenti WHERE id = :beneficiario) >= (SELECT crediti FROM accordi_prestazione WHERE id = :accordo), true, false) as "esito";
     ');
 
+    $statement->bindParam(":beneficiario", $beneficiario);
     $statement->bindParam(":accordo", $accordo);
-    $statement->bindParam(":utente", $utente);
 
     try{
         $statement->execute();
@@ -178,6 +174,5 @@ function recuperaRuoloUtente($connection, $accordo, $utente){
         throw $e;
     }
 }
-
 
 ?>

@@ -7,6 +7,7 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type,authorization");
 
+
 if($_SERVER["REQUEST_METHOD"] === "POST"){
     $post = json_decode(file_get_contents("php://input"), true);
     $haErrore = false;
@@ -22,7 +23,7 @@ if($_SERVER["REQUEST_METHOD"] === "POST"){
         $connection = new DbConnector("localhost", "root", "root","barattolo");
 
         if($post["tipo"] === "Richiesta"){
-            if(prestazioneRichiestaController($connection, $post["erogatore"], $post["beneficiario"], $post["durata"], $post["crediti"])){
+            if(prestazioneRichiestaController($connection, $post["erogatore"], $post["beneficiario"], $post["durata"], $post["crediti"], $post["dataInizio"], $post["dataFine"])){
                 echo json_encode(["successo" => "200 OK"]);
             }
             else{
@@ -31,7 +32,7 @@ if($_SERVER["REQUEST_METHOD"] === "POST"){
         }
 
         if($post["tipo"] === "Offerta"){
-            if(prestazioneOffertaController($connection, $post["erogatore"], $post["beneficiario"], $post["durata"], $post["crediti"])){
+            if(prestazioneOffertaController($connection, $post["erogatore"], $post["beneficiario"], $post["durata"], $post["crediti"], $post["dataInizio"], $post["dataFine"])){
                 echo json_encode(["successo" => "200 OK"]);
             }
             else{
@@ -40,13 +41,22 @@ if($_SERVER["REQUEST_METHOD"] === "POST"){
         }
     }
 }
-function prestazioneRichiestaController($connection, $erogatore, $beneficiario, $durata, $crediti){
+function prestazioneRichiestaController($connection, $erogatore, $beneficiario, $durata, $crediti, $dataInizio, $dataFine){
     try{
         if(cercaAccordoDaiPartecipanti($connection, $erogatore, $beneficiario)){
             return false;
         }
-        $idAccordo = creaPrestazioneRichiesta($connection, $erogatore, $beneficiario, $durata, $crediti);
-        decrementaCreditiBeneficiario($connection, $beneficiario, $idAccordo);
+
+        $verificaCrediti = verificaCreditiBeneficiario($connection, $beneficiario, $crediti);
+        
+        if(!$verificaCrediti["esito"]){
+            return false;
+        }
+
+        creaPrestazioneRichiesta($connection, $erogatore, $beneficiario, $durata, $crediti, $dataInizio, $dataFine);
+        $risultato = ottieniAccordoDaiPartecipanti($connection, $erogatore, $beneficiario);
+
+        decrementaCreditiBeneficiario($connection, $beneficiario, $risultato["id_accordo"]);
 
         return true;
     }
@@ -55,13 +65,13 @@ function prestazioneRichiestaController($connection, $erogatore, $beneficiario, 
     }
 }
 
-function prestazioneOffertaController($connection, $erogatore, $beneficiario, $durata, $crediti){
+function prestazioneOffertaController($connection, $erogatore, $beneficiario, $durata, $crediti, $dataInizio, $dataFine){
     try{
         if(cercaAccordoDaiPartecipanti($connection, $erogatore, $beneficiario)){
             return false;
         }
 
-        creaPrestazioneOfferta($connection, $erogatore, $beneficiario, $durata, $crediti);
+        creaPrestazioneOfferta($connection, $erogatore, $beneficiario, $durata, $crediti, $dataInizio, $dataFine);
         return true;
     }
     catch(PDOException $e){
@@ -72,8 +82,8 @@ function prestazioneOffertaController($connection, $erogatore, $beneficiario, $d
 function creaPrestazioneRichiesta($connection, $erogatore, $beneficiario, $durata, $crediti){
     
     $statement = $connection->prepare('
-        INSERT INTO accordi_prestazione(tipo, durata_attivita, crediti, stato)
-        VALUES("Richiesta", :durata, :crediti, "PROPOSTO");
+        INSERT INTO accordi_prestazione(tipo, durata_attivita, crediti, stato, data_inizio, data_fine)
+        VALUES("Richiesta", :durata, :crediti, "PROPOSTO", :dataInizio, :dataFine);
 
         SET @id_accordo = LAST_INSERT_ID();
 
@@ -87,10 +97,13 @@ function creaPrestazioneRichiesta($connection, $erogatore, $beneficiario, $durat
     $statement->bindParam(":erogatore", $erogatore);
     $statement->bindParam(":durata", $durata);
     $statement->bindParam(":crediti", $crediti);
+    $statement->bindParam(":dataInizio", $dataInizio);
+    $statement->bindParam(":dataFine", $dataFine);
 
     try{
         $statement->execute();
-        return $connection->lastInsertId();
+        
+        return true;
     }
     catch(PDOException $e){
         throw $e;
@@ -98,10 +111,10 @@ function creaPrestazioneRichiesta($connection, $erogatore, $beneficiario, $durat
 
 }
 
-function creaPrestazioneOfferta($connection, $erogatore, $beneficiario, $durata, $crediti){
+function creaPrestazioneOfferta($connection, $erogatore, $beneficiario, $durata, $crediti, $dataInizio, $dataFine){
     $statement = $connection->prepare('
-        INSERT INTO accordi_prestazione(tipo, durata_attivita, crediti, stato)
-        VALUES("Offerta", :durata, :crediti, "PROPOSTO");
+        INSERT INTO accordi_prestazione(tipo, durata_attivita, crediti, stato, data_inizio, data_fine)
+        VALUES("Offerta", :durata, :crediti, "PROPOSTO", :dataInizio, :dataFine);
 
         SET @id_accordo = LAST_INSERT_ID();
 
@@ -115,6 +128,8 @@ function creaPrestazioneOfferta($connection, $erogatore, $beneficiario, $durata,
     $statement->bindParam(":erogatore", $erogatore);
     $statement->bindParam(":durata", $durata);
     $statement->bindParam(":crediti", $crediti);
+    $statement->bindParam(":dataInizio", $dataInizio);
+    $statement->bindParam(":dataFine", $dataFine);
 
     try{
         $statement->execute();
@@ -147,6 +162,49 @@ function cercaAccordoDaiPartecipanti($connection, $erogatore, $beneficiario){
         return true;
 
     }catch(PDOException $e){
+        throw $e;
+    }
+}
+
+function ottieniAccordoDaiPartecipanti($connection, $partecipante1, $partecipante2){
+    $statement = $connection->prepare('
+        SELECT DISTINCT id_accordo
+        FROM partecipanti_accordo_prestazione as pap JOIN accordi_prestazione as ap ON pap.id_accordo = ap.id
+        WHERE id_utente in (:partecipante1, :partecipante2) AND stato NOT IN ("COMPLETATO", "ANNULLATO")
+        GROUP BY id_accordo
+        HAVING COUNT(id_utente) = 2
+    ');
+    
+    $statement->bindParam(":partecipante1", $partecipante1);
+    $statement->bindParam(":partecipante2", $partecipante2);
+
+    try{
+        $statement->execute();
+        $result = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return $result;
+
+    }catch(PDOException $e){
+        return false;
+    }
+}
+
+function verificaCreditiBeneficiario($connection, $beneficiario, $crediti){
+    $statement = $connection->prepare('
+        SELECT IF((SELECT saldo_disponibile FROM utenti WHERE id = :beneficiario) >= :crediti, true, false) as "esito";
+    ');
+
+    $statement->bindParam(":beneficiario", $beneficiario);
+    $statement->bindParam(":crediti", $crediti);
+
+    try{
+        $statement->execute();
+
+        $result = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return $result;
+    }
+    catch(PDOException $e){
         throw $e;
     }
 }
