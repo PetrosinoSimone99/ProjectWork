@@ -10,13 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-// Normalizza il puntatore "ultimo messaggio letto": assente o non numerico => 0
-// (0 = "nessun messaggio letto finora": qualsiasi id > 0 è non letto).
-$ultimoMessaggioLetto = isset($_GET['ultimoMessaggioLetto'])
-    && ctype_digit((string) $_GET['ultimoMessaggioLetto'])
-    ? (int) $_GET['ultimoMessaggioLetto']
-    : 0;
-
 // Validazione a monte (fail fast): evita query inutili su input malformati.
 if (!isset($_GET['utente']) || !ctype_digit((string) $_GET['utente']) || (int) $_GET['utente'] <= 0) {
     http_response_code(400);
@@ -24,7 +17,6 @@ if (!isset($_GET['utente']) || !ctype_digit((string) $_GET['utente']) || (int) $
     exit;
 }
 $utente = (int) $_GET['utente'];
-
 $tokenManager = new TokenManager();
 $token = $tokenManager->getBearerToken();
 
@@ -39,9 +31,9 @@ if (!is_string($token) || !$tokenManager->validate($token)) {
 try {
     $connection = new DbConnector('localhost', 'root', '', 'barattolo');
 
-    // getUnreadMessagesCount ritorna sempre un array (anche vuoto): nessun
+    // ottieniConteggioMessaggiNonLetti ritorna sempre un array (anche vuoto): nessun
     // messaggio non letto è un caso normale, non un errore.
-    $conteggio = getUnreadMessagesCount($connection, $utente, $ultimoMessaggioLetto);
+    $conteggio = ottieniConteggioMessaggiNonLetti($connection, $utente);
     echo json_encode($conteggio);
 } catch (PDOException $e) {
     // Mai dettagli tecnici al client: solo lo status 500.
@@ -49,21 +41,15 @@ try {
     echo json_encode(['errore' => 'Impossibile calcolare il conteggio.']);
 }
 
-function getUnreadMessagesCount(DbConnector $connection, int $utente, int $ultimoMessaggioLetto): array
+function ottieniConteggioMessaggiNonLetti(DbConnector $connection, int $utente): array
 {
     $statement = $connection->prepare('
-        SELECT utenti.username, COUNT(mc.id) AS "conteggio"
-        FROM messaggi_chat AS mc
-        JOIN utenti ON mc.id_utente = utenti.id
-        WHERE mc.id > :ultimoMessaggioLetto
-          AND mc.id_utente != :utente
-          AND mc.id_chat IN (
-            SELECT pc.id_chat FROM partecipanti_chat AS pc WHERE pc.id_utente = :utente
-          )
-        GROUP BY mc.id_utente
+        SELECT msg.id_utente, COUNT(msg.id) as "conteggio"
+        FROM partecipanti_chat as pm JOIN messaggi_chat as msg ON pm.id_chat = msg.id_chat
+        WHERE pm.id_utente = :utente AND msg.id > pm.id_ultimo_messaggio_letto AND msg.id_utente != :utente
+        GROUP BY msg.id_utente
     ');
     $statement->bindValue(':utente', $utente, PDO::PARAM_INT);
-    $statement->bindValue(':ultimoMessaggioLetto', $ultimoMessaggioLetto, PDO::PARAM_INT);
     $statement->execute();
 
     return $statement->fetchAll(PDO::FETCH_ASSOC);
