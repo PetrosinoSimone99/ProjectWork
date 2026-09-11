@@ -34,25 +34,14 @@ Parametri richiesti:
 $_GET['chat'], id della chat -> da prendere all'endpoint cercaOCreaChat.php
 
 
-- ottieniUltimoMessaggioLetto.php
-Ottiene dal db l'ultimo messaggio letto dell'utente. Il risultato è un json con l'id del messaggio che servirà poi a ottieniConteggioMessaggiNonLetti.php
-
-Metodo: GET
-Authorization: Bearer Token
-
-Parametri richiesti:
-$_GET["utente"], id dell'utente
-
-
 - ottieniConteggioMessaggiNonLetti.php
-Questo serve per ottenere i messaggi non letti dall'utente partendo dall'ultimo messaggio letto. Quando trovato una risorsa, rimanda un json con username e il numero messaggi.
+Questo serve per ottenere i messaggi non letti dall'utente partendo dall'id dell'utente loggato. Quando trovato una risorsa, rimanda un json con id dell'altro partecipante nella chat e il numero messaggi.
 
 Metodo: GET
 Authorization: Bearer Token
 
 Parametri richiesti:
-$_GET["utente"], id dell'utente
-$_GET["ultimoMessaggioLetto"], id del messaggio ottenuto da ottieniUltimoMessaggioLetto.php
+$_GET["utente"], id dell'utente loggato
 
 
 - ottieniMessaggioPiuRecente.php
