@@ -6,6 +6,7 @@ require_once __DIR__ . '/../TokenManager.php';
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: authorization");
 
+$_GET["utente"] = 1;
 if($_SERVER["REQUEST_METHOD"] === "GET"){
     $haErrore = false;
     $tokenManager = new TokenManager();
@@ -20,7 +21,7 @@ if($_SERVER["REQUEST_METHOD"] === "GET"){
     if(!$haErrore){
         $connection = new DbConnector("localhost", "root", "root", "barattolo");
 
-        $conteggio = getUnreadMessagesCount($connection, $_GET["utente"], $_GET["ultimoMessaggioLetto"]);
+        $conteggio = ottieniConteggioMessaggiNonLetti($connection, $_GET["utente"]);
 
         if($conteggio){
             echo json_encode($conteggio);
@@ -30,16 +31,15 @@ if($_SERVER["REQUEST_METHOD"] === "GET"){
         }
     }
 }
-function getUnreadMessagesCount($connection, $utente, $ultimoMessaggioLetto){
+
+function ottieniConteggioMessaggiNonLetti($connection, $utente){
     $statement = $connection->prepare('
-        SELECT username,COUNT(mc.id) AS "conteggio"
-        FROM messaggi_chat AS mc JOIN utenti ON mc.id_utente = utenti.id
-        WHERE mc.id > :ultimoMessaggioLetto AND mc.id_utente != :utente AND mc.id_chat IN 
-        (SELECT DISTINCT pc.id_chat FROM partecipanti_chat as pc WHERE pc.id_utente = :utente)
-        GROUP BY id_utente
+        SELECT msg.id_utente, COUNT(msg.id) as "conteggio"
+        FROM partecipanti_chat as pm JOIN messaggi_chat as msg ON pm.id_chat = msg.id_chat
+        WHERE pm.id_utente = :utente AND msg.id > pm.id_ultimo_messaggio_letto AND msg.id_utente != :utente
+        GROUP BY msg.id_utente
     ');
     $statement->bindParam(":utente", $utente);
-    $statement->bindParam(":ultimoMessaggioLetto", $ultimoMessaggioLetto);
     $statement->execute();
 
     $result = $statement->fetchAll(PDO::FETCH_ASSOC);
