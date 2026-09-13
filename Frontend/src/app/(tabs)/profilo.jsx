@@ -1,0 +1,117 @@
+import { useState } from 'react';
+import { View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/auth/auth-context';
+import { tokenExpiresAt } from '@/auth/token-store';
+import { useAggiornamento } from '@/hooks/useAggiornamento';
+import { Screen } from '@/components/Screen';
+import { AppText } from '@/components/AppText';
+import { AppButton } from '@/components/AppButton';
+import { Card } from '@/components/Card';
+import { ThemeSelector } from '@/components/ThemeSelector';
+import { space, useTokens } from '@/theme/tokens';
+
+/** "2026-09-04 16:20:31" (secondi UNIX) -> "17:20". */
+function formatOrarioScadenza(expiresAt) {
+  return new Date(expiresAt * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export default function ProfiloScreen() {
+  const { utente, token, signOut, ricaricaSessione } = useAuth();
+  const t = useTokens();
+  const [signingOut, setSigningOut] = useState(false);
+
+  // Pull-to-refresh: rilegge la sessione salvata. La schermata non ha altri dati
+  // del server da ricaricare (il backend non espone ancora l'endpoint profilo),
+  // ma così la scadenza mostrata e i dati utente non restano vecchi.
+  const { refreshing, onRefresh } = useAggiornamento(ricaricaSessione);
+
+  if (!utente) {
+    return null;
+  }
+
+  // La sessione salvata può avere utente incompleto (storage vecchio o payload
+  // backend cambiato): nome/cognome mancanti non devono far crashare la schermata.
+  const initials =
+    `${utente.nome?.charAt(0) ?? ''}${utente.cognome?.charAt(0) ?? ''}`.toUpperCase() || '?';
+  const displayName =
+    [utente.nome, utente.cognome].filter(Boolean).join(' ') || utente.username || 'Utente';
+  const expiresAt = token ? tokenExpiresAt(token) : null;
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  return (
+    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+      <View style={{ alignItems: 'center', gap: space.md, paddingTop: space.md }}>
+        <View
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: 999,
+            backgroundColor: t.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <AppText variant="title" tone="onPrimary" style={{ fontSize: 30 }}>
+            {initials}
+          </AppText>
+        </View>
+        <View style={{ alignItems: 'center', gap: 2 }}>
+          <AppText variant="title" style={{ fontSize: 22 }}>
+            {displayName}
+          </AppText>
+          {utente.username ? (
+            <AppText variant="small" tone="secondary">
+              @{utente.username}
+            </AppText>
+          ) : null}
+        </View>
+      </View>
+
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Ionicons name="time-outline" size={18} color={t.textSecondary} />
+          <AppText variant="small" tone="secondary">
+            {expiresAt
+              ? `Sessione valida fino alle ${formatOrarioScadenza(expiresAt)}`
+              : 'Scadenza della sessione non disponibile.'}
+          </AppText>
+        </View>
+        <AppText variant="small" tone="secondary">
+          Il saldo crediti e il profilo completo saranno visibili quando il backend esporrà
+          l'endpoint dedicato.
+        </AppText>
+      </Card>
+
+      <Card>
+        <View style={{ gap: space.xs }}>
+          <AppText variant="heading">Aspetto</AppText>
+          <AppText variant="small" tone="secondary">
+            L'opzione Sistema segue il tema del dispositivo. La scelta resta salvata su questo
+            dispositivo.
+          </AppText>
+        </View>
+        <ThemeSelector />
+      </Card>
+
+      <AppButton
+        label="Esci"
+        variant="danger"
+        onPress={handleSignOut}
+        loading={signingOut}
+        icon="log-out-outline"
+      />
+    </Screen>
+  );
+}
