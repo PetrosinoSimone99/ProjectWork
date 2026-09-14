@@ -5,6 +5,7 @@ declare(strict_types=1);
 // I due file condivisi si trovano nella cartella API, cioe' un livello sopra.
 require_once __DIR__ . '/../DbConnector.php';
 require_once __DIR__ . '/../TokenManager.php';
+require_once __DIR__ . '/../cors.php';
 
 // Tutti gli endpoint di questa cartella restituiscono sempre JSON.
 header('Content-Type: application/json; charset=utf-8');
