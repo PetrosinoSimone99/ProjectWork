@@ -16,6 +16,13 @@ import {
 
 const ThemeContext = createContext(null);
 
+/**
+ * Valore da passare ad `Appearance.setColorScheme` per tornare al tema del
+ * dispositivo. Da RN 0.86 `null` non è più accettato: il parametro nativo su
+ * Android è non-nullable e `null` fa crashare il TurboModule.
+ */
+const SCHEMA_NATIVO_SISTEMA = 'unspecified';
+
 /** Il tema attivo è "chiaro" o "scuro"; la preferenza può essere anche "sistema". */
 function risolviSchema(preferenza, schemaDiSistema) {
   if (preferenza === PREFERENZA_TEMA.SISTEMA) {
@@ -61,14 +68,16 @@ export function ThemeProvider({ children }) {
   const schema = risolviSchema(preferenza, schemaDiSistema);
 
   // Su Android/iOS la preferenza deve valere anche per i componenti nativi
-  // (tastiera, modali, barra di stato): `null` rimette il tema di sistema.
-  // react-native-web non implementa `Appearance.setColorScheme`, ma sul web
-  // bastano i token gestiti da questo provider.
+  // (tastiera, modali, barra di stato): `'unspecified'` rimette il tema di
+  // sistema. react-native-web non implementa `Appearance.setColorScheme`, ma sul
+  // web bastano i token gestiti da questo provider.
   useEffect(() => {
     if (!ready || typeof Appearance.setColorScheme !== 'function') {
       return;
     }
-    Appearance.setColorScheme(preferenza === PREFERENZA_TEMA.SISTEMA ? null : schema);
+    Appearance.setColorScheme(
+      preferenza === PREFERENZA_TEMA.SISTEMA ? SCHEMA_NATIVO_SISTEMA : schema,
+    );
   }, [preferenza, ready, schema]);
 
   const setPreferenzaTema = useCallback((next) => {
