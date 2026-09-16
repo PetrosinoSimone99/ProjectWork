@@ -191,23 +191,44 @@ function DetailModal({ item, onClose, utente }) {
                 È il tuo annuncio.
               </AppText>
             ) : (
-              <AppButton
-                label={`Contatta ${item.nome}`}
-                icon="chatbubble-ellipses-outline"
-                onPress={() => {
-                  onClose();
-                  router.push({
-                    pathname: '/chat',
-                    params: {
-                      utenteId: String(item.utente_id),
-                      nome: item.nome,
-                      cognome: item.cognome,
-                      username: item.username,
-                      titolo: item.titolo,
-                    },
-                  });
-                }}
-              />
+              <View style={{ gap: space.sm }}>
+                <AppButton
+                  label={`Contatta ${item.nome}`}
+                  icon="chatbubble-ellipses-outline"
+                  onPress={() => {
+                    onClose();
+                    router.push({
+                      pathname: '/chat',
+                      params: {
+                        utenteId: String(item.utente_id),
+                        nome: item.nome,
+                        cognome: item.cognome,
+                        username: item.username,
+                        titolo: item.titolo,
+                      },
+                    });
+                  }}
+                />
+                {/* Il modulo della proposta vive in /nuovo-accordo: qui si passa
+                    solo l'id già noto dell'annuncio, perché il backend non espone
+                    un elenco di utenti da cui cercare una persona. */}
+                <AppButton
+                  label="Proponi accordo"
+                  variant="secondary"
+                  icon="swap-horizontal-outline"
+                  onPress={() => {
+                    onClose();
+                    router.push({
+                      pathname: '/nuovo-accordo',
+                      params: {
+                        id: String(item.utente_id),
+                        nome: [item.nome, item.cognome].filter(Boolean).join(' ') || item.username,
+                        username: item.username,
+                      },
+                    });
+                  }}
+                />
+              </View>
             )}
 
             <Pressable

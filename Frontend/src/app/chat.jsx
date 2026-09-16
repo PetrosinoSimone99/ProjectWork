@@ -92,8 +92,7 @@ export default function ChatScreen() {
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const targetUserId = Number(readParam(params.utenteId));
-  const targetName = readParam(params.nome);
+  const targetUserId = Number(readParam(params.utenteId));  const targetName = readParam(params.nome);
   const targetSurname = readParam(params.cognome);
   const targetUsername = readParam(params.username);
   const announcementTitle = readParam(params.titolo);
@@ -346,6 +345,41 @@ export default function ChatScreen() {
             </AppText>
           ) : null}
         </View>
+
+        {/* La proposta di accordo parte da qui, con l'id del destinatario che la
+            chat già conosce: il backend non offre un elenco di utenti. */}
+        {hasValidTarget ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Proponi un accordo con questa persona"
+            onPress={() =>
+              router.push({
+                pathname: '/nuovo-accordo',
+                params: {
+                  id: String(targetUserId),
+                  nome: displayName,
+                  username: targetUsername,
+                },
+              })
+            }
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.xs,
+              height: 36,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              borderColor: t.border,
+              paddingHorizontal: space.md,
+              backgroundColor: pressed ? t.border : 'transparent',
+            })}
+          >
+            <Ionicons name="swap-horizontal-outline" size={16} color={t.primary} />
+            <AppText variant="small" style={{ fontWeight: '600', color: t.primary }}>
+              Accordo
+            </AppText>
+          </Pressable>
+        ) : null}
       </View>
 
       {error ? <Banner kind="error" message={error} /> : null}
