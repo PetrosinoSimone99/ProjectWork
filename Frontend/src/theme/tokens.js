@@ -27,6 +27,7 @@ const light = {
   dangerText: '#8F2B24',
   successBg: '#E3EFE7',
   successText: '#1C5B41',
+  overlay: 'rgba(0, 0, 0, 0.45)',
 };
 
 const dark = {
@@ -47,6 +48,7 @@ const dark = {
   dangerText: '#F0A29C',
   successBg: '#20352A',
   successText: '#8CCBAA',
+  overlay: 'rgba(0, 0, 0, 0.45)',
 };
 
 export const radius = { card: 16, input: 12, pill: 999 };
