@@ -9,6 +9,10 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * - nessun utente  -> gruppo (auth) con login e registrazione
  * - utente attivo  -> gruppo (tabs) con le schermate principali
  *
+ * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, inviti) sono
+ * elencate a mano: senza la riga giusta non sono raggiungibili con una sessione
+ * attiva, pur esistendo il file.
+ *
  * Si aspetta anche la preferenza del tema salvata, così il primo render usa già
  * il tema scelto e non c'è un cambio di colore a schermata caricata.
  */
@@ -24,6 +28,9 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
       {utente ? <Stack.Screen name="chat" /> : null}
+      {utente ? <Stack.Screen name="accordo" /> : null}
+      {utente ? <Stack.Screen name="nuovo-accordo" /> : null}
+      {utente ? <Stack.Screen name="inviti" /> : null}
     </Stack>
   );
 }

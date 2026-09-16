@@ -40,18 +40,18 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="richieste"
         options={{
-          title: 'Richieste',
+          title: 'Pubblica',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="clipboard-outline" size={size} color={color} />
+            <Ionicons name="add-circle-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="inviti"
+        name="accordi"
         options={{
-          title: 'Inviti',
+          title: 'Accordi',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ticket-outline" size={size} color={color} />
+            <Ionicons name="swap-horizontal-outline" size={size} color={color} />
           ),
         }}
       />
