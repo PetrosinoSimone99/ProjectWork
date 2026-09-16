@@ -21,6 +21,27 @@ export function setSessionExpiredHandler(handler) {
 }
 
 /**
+ * Messaggio da mostrare all'utente quando la risposta non e' ok.
+ * Le API del progetto usano due chiavi per lo stesso ruolo: "errore" (ricerca,
+ * richieste, inviti) e "message" (Accordi1_a_1). Si accettano entrambe, cosi'
+ * un endpoint nuovo con la busta {success, message, data} non finisce con un
+ * generico "Errore imprevisto (403)" al posto del suo messaggio.
+ */
+function messaggioDiErrore(data, status) {
+  const fallback = `Errore imprevisto (${status}).`;
+  if (data === null || typeof data !== 'object') {
+    return fallback;
+  }
+  if (typeof data.errore === 'string' && data.errore) {
+    return data.errore;
+  }
+  if (typeof data.message === 'string' && data.message) {
+    return data.message;
+  }
+  return fallback;
+}
+
+/**
  * Chiamata fetch condivisa: aggiunge la base URL, invia/riceve JSON,
  * allega il token e converte le risposte di errore in ApiError.
  */
@@ -56,14 +77,7 @@ export async function apiFetch(path, options = {}) {
     if (response.status === 401 && token && onSessionExpired) {
       onSessionExpired();
     }
-    const backendMessage =
-      data !== null &&
-      typeof data === 'object' &&
-      'errore' in data &&
-      typeof data.errore === 'string'
-        ? data.errore
-        : `Errore imprevisto (${response.status}).`;
-    throw new ApiError(response.status, backendMessage);
+    throw new ApiError(response.status, messaggioDiErrore(data, response.status));
   }
 
   return data;
