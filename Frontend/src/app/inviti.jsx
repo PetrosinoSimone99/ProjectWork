@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { generaInvito, riscattaInvito } from '@/api/barattolo';
@@ -9,7 +11,7 @@ import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
-import { space, useTokens } from '@/theme/tokens';
+import { radius, space, useTokens } from '@/theme/tokens';
 
 const CODICE_PATTERN = /^[A-Z0-9]{8}$/;
 
@@ -28,6 +30,7 @@ function formatMese(mese) {
 
 export default function InvitiScreen() {
   const { token } = useAuth();
+  const router = useRouter();
   const t = useTokens();
 
   const [generating, setGenerating] = useState(false);
@@ -85,8 +88,29 @@ export default function InvitiScreen() {
 
   return (
     <Screen scroll withBottomInset={false}>
-      <View style={{ gap: space.xs }}>
+      {/* La schermata non è più una tab: il ritorno lo offre questa freccia
+          (come in chat), perché lo Stack non disegna nessuna intestazione. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Torna indietro"
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 40,
+            borderRadius: radius.pill,
+            backgroundColor: pressed ? t.border : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Ionicons name="arrow-back" size={22} color={t.text} />
+        </Pressable>
         <AppText variant="title">Inviti</AppText>
+      </View>
+
+      <View style={{ gap: space.xs }}>
         <AppText variant="small" tone="secondary">
           Invita un amico: quando riscatta il tuo codice, ricevi 10 crediti.
         </AppText>

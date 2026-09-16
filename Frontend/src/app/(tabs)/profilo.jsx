@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { tokenExpiresAt } from '@/auth/token-store';
 import { useAggiornamento } from '@/hooks/useAggiornamento';
@@ -21,6 +22,7 @@ function formatOrarioScadenza(expiresAt) {
 
 export default function ProfiloScreen() {
   const { utente, token, signOut, ricaricaSessione } = useAuth();
+  const router = useRouter();
   const t = useTokens();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -93,6 +95,27 @@ export default function ProfiloScreen() {
           l'endpoint dedicato.
         </AppText>
       </Card>
+
+      {/* Gli inviti non sono più una tab: si aprono da qui come rotta a sé. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Apri la schermata Inviti"
+        onPress={() => router.push('/inviti')}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <Ionicons name="ticket-outline" size={20} color={t.primary} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText variant="heading" style={{ fontSize: 16 }}>
+              Inviti
+            </AppText>
+            <AppText variant="small" tone="secondary">
+              Genera il tuo codice del mese o riscatta quello di un amico.
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
+        </Card>
+      </Pressable>
 
       <Card>
         <View style={{ gap: space.xs }}>
