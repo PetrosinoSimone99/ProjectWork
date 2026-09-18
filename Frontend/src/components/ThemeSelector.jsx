@@ -11,21 +11,34 @@ const OPZIONI = [
   { valore: PREFERENZA_TEMA.SCURO, etichetta: 'Scuro', icona: 'moon-outline' },
 ];
 
-/** Selettore del tema: sistema, chiaro, scuro. */
+/**
+ * Selettore del tema: sistema, chiaro, scuro — tre opzioni radio in un
+ * `radiogroup`.
+ *
+ * Lo stato viaggia su due canali con lo stesso valore — `accessibilityState={{ checked }}`
+ * **e** `aria-checked` — perché su web `react-native-web` ignora
+ * `accessibilityState` e legge solo gli attributi `aria-*`. È il pattern di
+ * `AppCheckbox` e `SelettoreModalita`.
+ */
 export function ThemeSelector() {
   const t = useTokens();
   const { preferenza, setPreferenzaTema } = useThemePreference();
 
   return (
-    <View style={{ flexDirection: 'row', gap: space.sm }}>
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel="Tema"
+      style={{ flexDirection: 'row', gap: space.sm }}
+    >
       {OPZIONI.map((opzione) => {
         const isSelected = preferenza === opzione.valore;
         return (
           <Pressable
             key={opzione.valore}
-            accessibilityRole="button"
+            accessibilityRole="radio"
             accessibilityLabel={`Tema ${opzione.etichetta}`}
-            accessibilityState={{ selected: isSelected }}
+            accessibilityState={{ checked: isSelected }}
+            aria-checked={isSelected}
             onPress={() => setPreferenzaTema(opzione.valore)}
             style={({ pressed }) => ({
               flex: 1,
