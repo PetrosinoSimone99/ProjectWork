@@ -21,6 +21,13 @@ export function ModalConferma({
   onConferma,
   onAnnulla,
   loading = false,
+  /**
+   * Il tono del pulsante di conferma. Il default resta `danger` perché la
+   * conferma nasce per le azioni che distruggono qualcosa (annulla, contesta,
+   * elimina); un'azione reversibile — come impegnare un buono su un servizio —
+   * passa `primary`, altrimenti il colore direbbe una cosa che non è.
+   */
+  varianteConferma = 'danger',
 }) {
   const t = useTokens();
 
@@ -59,7 +66,7 @@ export function ModalConferma({
             />
             <AppButton
               label={etichettaConferma}
-              variant="danger"
+              variant={varianteConferma}
               onPress={onConferma}
               loading={loading}
               style={{ flex: 1 }}

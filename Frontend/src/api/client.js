@@ -69,8 +69,8 @@ export async function apiFetch(path, options = {}) {
   // altrimenti la demo non è usabile). Così invece la schermata dice cosa manca.
   // TODO(demo): sparisce quando i finti coprono tutte le schermate (5–7). Il testo
   // resta volutamente corto: la spiegazione tecnica (i dati finti coprono
-  // registrazione, «Offro e cerco», home, Loop e Scambi) vive in questo commento,
-  // non a schermo.
+  // registrazione, «Offro e cerco», home, Loop, Scambi e i token) vive in questo
+  // commento, non a schermo.
   if (USA_DATI_FINTI) {
     throw new ApiError(501, 'Questa sezione è in arrivo.');
   }

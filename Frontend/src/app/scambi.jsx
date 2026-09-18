@@ -330,20 +330,33 @@ export default function ScambiScreen() {
 }
 
 /**
- * La riga della possibilità di chiedere un token: compare **solo** quando il
- * backend dichiara che sono la parte danneggiata. Nessun pulsante verso la
- * segnalazione (non esiste ancora): un rimando scritto, non una promessa.
+ * La riga del diritto al token: compare **solo** quando il backend dichiara che
+ * sono la parte danneggiata. È un pulsante che apre l'area dei buoni, non più una
+ * frase senza destinazione: la segnalazione alla staff (il gesto che può far
+ * assegnare il buono) arriverà con il piano 09 e sarà un'azione a parte.
  */
 function RigaToken() {
   const t = useTokens();
+  const router = useRouter();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Apri i tuoi token"
+      onPress={() => router.push('/token')}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: space.xs,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
       <Ionicons name="ticket-outline" size={15} color={t.accentText} style={{ marginTop: 1 }} />
       <AppText variant="small" style={{ color: t.accentText, flex: 1 }}>
-        Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: puoi chiedere un token
-        dalla segnalazione.
+        Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: la staff può
+        riconoscerti un token. Tocca qui per vedere i tuoi token.
       </AppText>
-    </View>
+      <Ionicons name="chevron-forward" size={15} color={t.accentText} style={{ marginTop: 1 }} />
+    </Pressable>
   );
 }
 

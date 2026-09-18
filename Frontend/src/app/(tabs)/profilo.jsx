@@ -83,10 +83,31 @@ export default function ProfiloScreen() {
           </AppText>
         </View>
         <AppText variant="small" tone="secondary">
-          Il profilo completo (la tua offerta, la tua ricerca e i tuoi token) sarà visibile
-          quando il backend esporrà l'endpoint dedicato.
+          Il profilo completo (la tua offerta e la tua ricerca) sarà visibile quando il backend
+          esporrà l'endpoint dedicato.
         </AppText>
       </Card>
+
+      {/* I buoni hanno una schermata a sé: il Profilo si limita ad aprirla. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Apri la schermata I miei token"
+        onPress={() => router.push('/token')}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <Ionicons name="pricetag-outline" size={20} color={t.primary} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText variant="heading" style={{ fontSize: 16 }}>
+              I miei token
+            </AppText>
+            <AppText variant="small" tone="secondary">
+              I buoni che la staff ti ha assegnato: usali su un servizio.
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
+        </Card>
+      </Pressable>
 
       {/* Gli inviti non sono più una tab: si aprono da qui come rotta a sé. */}
       <Pressable

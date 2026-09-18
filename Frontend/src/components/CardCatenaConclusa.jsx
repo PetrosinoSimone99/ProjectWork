@@ -1,5 +1,6 @@
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formattaData } from '@/accordi/stati';
@@ -17,15 +18,17 @@ import { space, useTokens } from '@/theme/tokens';
  * i partecipanti e — sulle saltate — **chi è uscito**, che è la riga da cui nasce
  * la richiesta di token.
  *
- * È **puro**: dati e categorie dall'esterno, sola lettura, nessuna azione. La
- * riga del token compare **solo** quando il backend dichiara che sono la parte
- * danneggiata (`puoiChiedereToken`): il frontend non lo deduce e non chiede
- * all'utente di dichiararlo. La richiesta vera si fa nella schermata della
- * segnalazione, che non esiste ancora: qui c'è il rimando scritto, **senza** un
- * pulsante che non porta da nessuna parte.
+ * È **puro** nel senso dei dati e delle categorie: arrivano dall'esterno, la card
+ * è di sola lettura e non decide esiti. La riga del token compare **solo** quando
+ * il backend dichiara che sono la parte danneggiata (`puoiChiedereToken`): il
+ * frontend non lo deduce e non chiede all'utente di dichiararlo. Quella riga
+ * **apre i buoni** (`/token`), che sono l'unica destinazione esistente: la
+ * richiesta vera si fa nella schermata della segnalazione, che non esiste ancora,
+ * e sarà un'azione a parte.
  */
 export function CardCatenaConclusa({ gruppo, utenteId }) {
   const t = useTokens();
+  const router = useRouter();
   const data = formattaData(gruppo.conclusoIl);
   const tono = tonoStatoGruppo(gruppo.stato);
   const colori =
@@ -76,13 +79,24 @@ export function CardCatenaConclusa({ gruppo, utenteId }) {
       ) : null}
 
       {gruppo.puoiChiedereToken ? (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Apri i tuoi token"
+          onPress={() => router.push('/token')}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: space.xs,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
           <Ionicons name="ticket-outline" size={15} color={t.accentText} style={{ marginTop: 1 }} />
           <AppText variant="small" style={{ color: t.accentText, flex: 1 }}>
-            Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: puoi chiedere un
-            token dalla segnalazione.
+            Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: la staff può
+            riconoscerti un token. Tocca qui per vedere i tuoi token.
           </AppText>
-        </View>
+          <Ionicons name="chevron-forward" size={15} color={t.accentText} style={{ marginTop: 1 }} />
+        </Pressable>
       ) : null}
     </Card>
   );

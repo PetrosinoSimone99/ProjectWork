@@ -14,6 +14,7 @@ import * as fintiCategorie from './finti/categorie';
 import * as fintiCoda from './finti/coda';
 import * as fintiMatch from './finti/match';
 import * as fintiServizi from './finti/servizi';
+import * as fintiToken from './finti/token';
 import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
 import {
   STATI_PUBBLICAZIONE,
@@ -22,6 +23,7 @@ import {
   aPayloadPubblicazione,
   filtriDaQuery,
 } from '@/servizi/offerta-ricerca';
+import { aPayloadImpegno } from '@/servizi/token';
 
 // La superficie pubblica di prima resta quella: le funzioni spostate in
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
@@ -640,7 +642,93 @@ export async function esciDallaCoda(token, utenteId) {
   await apiFetch('Match/coda.php', { method: 'POST', token, body: { azione: 'esci' } });
 }
 
-/** POST inviti.php azione "genera" — crea (o restituisce) il codice invito del mese. */export function generaInvito(token) {
+// ---------------------------------------------------------------------------
+// Token — i buoni (non il token di accesso)
+//
+// Endpoint proposto: `token.php`, per l'elenco dei **propri** buoni e per
+// l'unica azione dell'utente (`azione:'impegna'`). **Non esiste**: con i finti
+// spenti l'elenco risponde 404, ed è il motivo per cui ogni ramo porta il suo
+// `// TODO(backend)`.
+//
+// **Consumo e rilascio non hanno una funzione qui**: non sono azioni
+// dell'utente. Il sistema porta il buono a `SPENT` quando l'accordo è concluso e
+// lo riporta ad `AVAILABLE` se l'accordo salta; la schermata si limita a
+// **rileggere** e a mostrare lo stato che il backend manda. La sceneggiatura del
+// finto per quei due passaggi sta in `api/finti/token.js`.
+//
+// Nome da non confondere: `token` nei parametri è il **token di accesso**
+// (l'identità viaggia lì), il buono è `buono` nella forma normalizzata.
+// ---------------------------------------------------------------------------
+
+/**
+ * Un buono nella forma della UI. `stato` è in maiuscolo e uno stato **ignoto
+ * passa così com'è**: la schermata lo mostra grezzo (stessa vista neutra della
+ * coda), non lo traduce a caso. Le date restano le stringhe del backend:
+ * formattarle è compito di `servizi/token.js`.
+ */
+export function normalizzaToken(riga) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const id = numeroInteroONull(riga.id);
+  if (id === null) {
+    return null;
+  }
+  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
+  return {
+    id,
+    stato: stato || null,
+    origine: testoONull(riga.origine),
+    creatoIl: testoONull(riga.creato_il ?? riga.creatoIl),
+    scadenza: testoONull(riga.scadenza),
+    usatoIl: testoONull(riga.usato_il ?? riga.usatoIl),
+    idServizioUsato: numeroInteroONull(riga.id_servizio_usato ?? riga.idServizioUsato),
+    idAccordo: numeroInteroONull(riga.id_accordo ?? riga.idAccordo),
+  };
+}
+
+/** L'elenco dei buoni: `{data:{token:[…]}}` oppure l'array nudo. */
+export function normalizzaElencoToken(risposta) {
+  const elenco = risposta?.data?.token ?? risposta?.token ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map(normalizzaToken).filter(Boolean);
+}
+
+/**
+ * GET token.php — i **propri** buoni. `utenteId` serve solo al ramo finto: il
+ * finto non decodifica il token di accesso (su native `atob` non è garantito),
+ * come già fanno `ottieniAccordi` e `ottieniCoda`.
+ */
+export async function ottieniToken(token, utenteId) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): GET token.php → {success, message, data:{token:[…]}}.
+    return normalizzaElencoToken(await fintiToken.ottieniToken(utenteId));
+  }
+  return normalizzaElencoToken(await apiFetch('token.php', { token }));
+}
+
+/**
+ * POST token.php `{azione:'impegna', id_token, id_servizio}` — lega un buono
+ * disponibile a un servizio: da `AVAILABLE` a `RESERVED`. L'identità deve venire
+ * **dal token di accesso**, mai dal corpo. Un `409` (buono già impegnato, usato o
+ * scaduto) si mostra così com'è: la schermata lo lascia al `Banner`, senza
+ * interpretarlo.
+ */
+export async function impegnaToken(token, utenteId, idToken, idServizio) {
+  const corpo = aPayloadImpegno(idToken, idServizio);
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST token.php con l'identità dal token di accesso.
+    const risposta = await fintiToken.impegnaToken(utenteId, idToken, idServizio);
+    return normalizzaToken(risposta?.data?.token);
+  }
+  const risposta = await apiFetch('token.php', { method: 'POST', token, body: corpo });
+  return normalizzaToken(risposta?.data?.token ?? risposta?.token);
+}
+
+/** POST inviti.php azione "genera" — crea (o restituisce) il codice invito del mese. */
+export function generaInvito(token) {
   return apiFetch('inviti.php', {
     method: 'POST',
     body: { azione: 'genera' },
