@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { USA_DATI_FINTI } from '@/api/config';
+import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -149,10 +149,7 @@ export default function LoopScreen() {
 
   // Con il flag attivo, **una sola** condizione sullo stato dei dati finti.
   const bannerFinti = USA_DATI_FINTI ? (
-    <Banner
-      kind="info"
-      message="Stai vedendo dati finti: le persone e le scelte non passano dal backend."
-    />
+    <Banner kind="info" message={AVVISO_DEMO} />
   ) : null;
 
   // Primo caricamento: non c'è un contenuto precedente da conservare, quindi lo

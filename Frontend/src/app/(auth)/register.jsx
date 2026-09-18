@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
-import { USA_DATI_FINTI } from '@/api/config';
+import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { ottieniCategorie } from '@/api/barattolo';
 import {
   LIMITE_VOCI,
@@ -119,7 +119,7 @@ function messaggioCategorie(stato, dettaglio) {
     return 'Sto caricando le categorie: servono per dirti cosa offri e cosa cerchi.';
   }
   if (stato === 'vuoto') {
-    return 'Il backend non ha restituito nessuna categoria.';
+    return 'Non ci sono categorie disponibili.';
   }
   return `Non riesco a caricare le categorie: senza, non posso completare la registrazione.${
     dettaglio ? ` ${dettaglio}` : ''
@@ -250,10 +250,7 @@ export default function RegisterScreen() {
       </View>
 
       {USA_DATI_FINTI ? (
-        <Banner
-          kind="info"
-          message="Stai vedendo dati finti: le categorie non arrivano dal backend."
-        />
+        <Banner kind="info" message={AVVISO_DEMO} />
       ) : null}
 
       <Card>

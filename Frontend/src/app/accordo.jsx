@@ -127,12 +127,12 @@ export default function AccordoScreen() {
       setError(null);
       if (!idValido) {
         setLoading(false);
-        setError("Accordo non valido. Apri l'accordo dall'elenco degli accordi.");
+        setError("Apri l'accordo dall'elenco degli accordi.");
         return;
       }
       if (!token || !utente) {
         setLoading(false);
-        setError('Sessione non disponibile. Torna al login e riprova.');
+        setError('Torna al login e riprova.');
         return;
       }
       setLoading(true);

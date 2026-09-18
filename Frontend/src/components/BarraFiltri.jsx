@@ -168,7 +168,7 @@ function messaggioCategorie(stato, dettaglio) {
     return 'Sto caricando le categorie…';
   }
   if (stato === 'vuoto') {
-    return 'Il backend non ha restituito nessuna categoria: puoi filtrare per testo, località e modalità.';
+    return 'Non ci sono categorie: puoi filtrare per testo, località e modalità.';
   }
   return `Non riesco a caricare le categorie: puoi filtrare per testo, località e modalità.${
     dettaglio ? ` ${dettaglio}` : ''

@@ -184,7 +184,7 @@ export default function NuovoAccordoScreen() {
         <View style={{ gap: space.md }}>
           <Banner
             kind="error"
-            message="Destinatario non valido. Proponi l'accordo dal dettaglio di un annuncio o dalla chat."
+            message="Proponi l'accordo dal dettaglio di un annuncio o dalla chat."
           />
           <AppButton
             label="Torna agli accordi"

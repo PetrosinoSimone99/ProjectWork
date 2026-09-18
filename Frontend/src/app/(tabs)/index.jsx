@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
-import { USA_DATI_FINTI } from '@/api/config';
+import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -126,10 +126,7 @@ export default function HomeScreen() {
       </View>
 
       {USA_DATI_FINTI ? (
-        <Banner
-          kind="info"
-          message="Stai vedendo dati finti: i servizi non arrivano dal backend."
-        />
+        <Banner kind="info" message={AVVISO_DEMO} />
       ) : null}
 
       <BarraFiltri

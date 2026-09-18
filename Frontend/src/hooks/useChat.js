@@ -69,12 +69,12 @@ export function useChat({ token, utente, targetUserId, hasValidTarget }) {
 
       if (!hasValidTarget) {
         setLoading(false);
-        setError('Destinatario non valido. Riapri la chat dal dettaglio di un annuncio.');
+        setError('Riapri la chat dal dettaglio di un annuncio.');
         return;
       }
       if (!token || !utente) {
         setLoading(false);
-        setError('Sessione non disponibile. Torna al login e riprova.');
+        setError('Torna al login e riprova.');
         return;
       }
 
@@ -93,7 +93,7 @@ export function useChat({ token, utente, targetUserId, hasValidTarget }) {
           return;
         }
         if (!Array.isArray(history)) {
-          throw new ApiError(200, 'Storico chat non valido.');
+          throw new ApiError(200, 'Non riesco a caricare i messaggi. Riprova.');
         }
 
         setChatId(nextChatId);
@@ -123,7 +123,7 @@ export function useChat({ token, utente, targetUserId, hasValidTarget }) {
     try {
       const history = await ottieniStoricoChat(token, chatId);
       if (!Array.isArray(history)) {
-        throw new ApiError(200, 'Storico chat non valido.');
+        throw new ApiError(200, 'Non riesco a caricare i messaggi. Riprova.');
       }
       if (mountedRef.current) {
         setMessages(history);

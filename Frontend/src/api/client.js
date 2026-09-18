@@ -35,11 +35,11 @@ export function setSessionExpiredHandler(handler) {
  * Messaggio da mostrare all'utente quando la risposta non e' ok.
  * Le API del progetto usano due chiavi per lo stesso ruolo: "errore" (ricerca,
  * richieste, inviti) e "message" (Accordi1_a_1). Si accettano entrambe, cosi'
- * un endpoint nuovo con la busta {success, message, data} non finisce con un
- * generico "Errore imprevisto (403)" al posto del suo messaggio.
+ * l'endpoint con la busta {success, message, data} porta il suo messaggio invece
+ * di lasciare l'utente davanti a un testo tecnico.
  */
-function messaggioDiErrore(data, status) {
-  const fallback = `Errore imprevisto (${status}).`;
+function messaggioDiErrore(data) {
+  const fallback = 'Qualcosa non ha funzionato. Riprova.';
   if (data === null || typeof data !== 'object') {
     return fallback;
   }
@@ -67,12 +67,12 @@ export async function apiFetch(path, options = {}) {
   // `client.js` la tratterebbe come **sessione scaduta**, buttando fuori
   // l'utente subito dopo la registrazione (e anche il backend deve essere spento,
   // altrimenti la demo non è usabile). Così invece la schermata dice cosa manca.
-  // TODO(demo): sparisce quando i finti coprono tutte le schermate (5–7).
+  // TODO(demo): sparisce quando i finti coprono tutte le schermate (5–7). Il testo
+  // resta volutamente corto: la spiegazione tecnica (i dati finti coprono
+  // registrazione, «Offro e cerco», home, Loop e Scambi) vive in questo commento,
+  // non a schermo.
   if (USA_DATI_FINTI) {
-    throw new ApiError(
-      501,
-      'Questa parte non è ancora nella demo: i dati finti coprono registrazione, «Offro e cerco», home, Loop e Scambi.',
-    );
+    throw new ApiError(501, 'Questa sezione è in arrivo.');
   }
 
   // Il timer annulla la chiamata se nessuno risponde entro il limite: senza, una
@@ -99,8 +99,8 @@ export async function apiFetch(path, options = {}) {
     throw new ApiError(
       0,
       errore?.name === 'AbortError'
-        ? 'Il server non risponde. Controlla la connessione e riprova.'
-        : 'Server non raggiungibile. Controlla che il backend sia attivo.',
+        ? 'Il servizio sta impiegando troppo tempo. Riprova.'
+        : 'Qualcosa non ha funzionato. Riprova.',
     );
   } finally {
     // La risposta è arrivata (o l'errore è già in mano al chiamante): il timer non serve più.
@@ -120,7 +120,7 @@ export async function apiFetch(path, options = {}) {
     if (response.status === 401 && token && onSessionExpired) {
       onSessionExpired();
     }
-    throw new ApiError(response.status, messaggioDiErrore(data, response.status));
+    throw new ApiError(response.status, messaggioDiErrore(data));
   }
 
   return data;
