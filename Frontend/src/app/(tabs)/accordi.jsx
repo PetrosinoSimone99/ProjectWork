@@ -7,9 +7,7 @@ import { ApiError } from '@/api/client';
 import { ottieniAccordi } from '@/api/barattolo';
 import {
   accordoConcluso,
-  CREDITI_PER_ACCORDO,
   formattaDurata,
-  mostraCrediti,
   nomePartecipante,
   toccaAMe,
 } from '@/accordi/stati';
@@ -24,7 +22,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { space, useTokens } from '@/theme/tokens';
 
-/** Riga icona + testo usata per le durate e i crediti dentro la card. */
+/** Riga icona + testo usata per le durate dentro la card. */
 function RigaDato({ icona, testo }) {
   const t = useTokens();
   return (
@@ -77,14 +75,6 @@ function CardAccordo({ accordo, utenteId, onPress }) {
         </View>
 
         <RigaDato icona="time-outline" testo={`Durata: tu ${miaDurata} · ${nomeAltro} ${suaDurata}`} />
-        {mostraCrediti(accordo.stato) ? (
-          <Chip background={t.creditBg}>
-            <Ionicons name="wallet-outline" size={12} color={t.creditText} />
-            <AppText variant="caption" style={{ color: t.creditText }}>
-              {CREDITI_PER_ACCORDO} crediti a testa
-            </AppText>
-          </Chip>
-        ) : null}
       </Card>
     </Pressable>
   );
@@ -199,7 +189,7 @@ export default function AccordiScreen() {
           <EmptyState
             icon="swap-horizontal-outline"
             title="Non hai accordi"
-            description="Proponine uno dal dettaglio di un annuncio o dalla chat: qui poi segui l'intero ciclo, dall'accettazione ai crediti."
+            description="Proponine uno dal dettaglio di un annuncio o dalla chat: qui poi segui l'intero ciclo, dall'accettazione alla conclusione."
           />
         )
       ) : (

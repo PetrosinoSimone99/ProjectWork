@@ -7,7 +7,6 @@ import { ApiError } from '@/api/client';
 import { ottieniAccordo, AZIONI_ACCORDO_API } from '@/api/barattolo';
 import {
   azioniDisponibili,
-  CREDITI_PER_ACCORDO,
   formattaData,
   formattaDurata,
   nomePartecipante,
@@ -113,8 +112,7 @@ export default function AccordoScreen() {
   // conferma nel ModalConferma: annulla e contesta chiedono prima.
   const [azioneInCorso, setAzioneInCorso] = useState(null);
   const [conferma, setConferma] = useState(null);
-  // Esito dell'ultima azione: la busta del backend dice cosa è successo, e dopo
-  // il completamento i 10 crediti vanno detti esplicitamente.
+  // Esito dell'ultima azione: la busta del backend dice cosa è successo.
   const [esito, setEsito] = useState(null);
 
   // Guardia difensiva come in chat: un id non valido è un errore esplicito, non
@@ -186,9 +184,7 @@ export default function AccordoScreen() {
         const risultato = await AZIONI_ACCORDO_API[azione.id](token, idAccordo);
         setEsito({
           tipo: 'success',
-          messaggio: risultato.creditiAssegnati
-            ? `Accordo completato: ${CREDITI_PER_ACCORDO} crediti a testa.`
-            : risultato.messaggio || 'Operazione completata.',
+          messaggio: risultato.messaggio || 'Operazione completata.',
         });
       } catch (err) {
         setEsito({

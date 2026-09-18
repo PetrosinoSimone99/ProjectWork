@@ -22,7 +22,7 @@ export function Card({ style, ...props }) {
   );
 }
 
-/** Chip pill colorato per etichette (tipo risultato, tariffa crediti, ecc.). */
+/** Chip pill colorato per etichette (tipo risultato, stato, ecc.). */
 export function Chip({ background, color, children }) {
   return (
     <View

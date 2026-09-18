@@ -11,9 +11,6 @@
  * non c'è, le funzioni ripiegano sui `partecipanti` grezzi.
  */
 
-/** Crediti che il backend assegna a ogni partecipante al completamento. */
-export const CREDITI_PER_ACCORDO = 10;
-
 /** Etichette degli stati, in italiano come tutto il testo dell'app. */
 export const ETICHETTE_STATO = {
   PROPOSTO: 'Proposto',
@@ -69,7 +66,7 @@ export const AZIONI = {
     conferma: {
       titolo: "Contestare l'accordo?",
       messaggio:
-        "L'accordo passa in stato contestato e non assegna crediti. Potete chiarire la situazione nella chat con l'altro partecipante.",
+        "L'accordo passa in stato contestato: nessuno dei due ha completato la propria parte. Potete chiarire la situazione nella chat con l'altro partecipante.",
       etichettaConferma: 'Contesta',
     },
   },
@@ -125,8 +122,7 @@ export function azioniDisponibili(accordo, utenteId) {
 
 /**
  * Tono del chip di stato: `info` (in attesa, nessuna fretta), `service` (pronto
- * a partire), `credit` (in esecuzione, i crediti sono in gioco), `success`
- * (concluso bene), `danger` (contestato).
+ * a partire o in corso), `success` (concluso bene), `danger` (contestato).
  */
 export function tonoStato(stato) {
   switch (stato) {
@@ -136,7 +132,7 @@ export function tonoStato(stato) {
     case 'ACCETTATO':
       return 'service';
     case 'IN_ESECUZIONE':
-      return 'credit';
+      return 'service';
     case 'COMPLETATO':
       return 'success';
     case 'CONTESTATO':
@@ -164,15 +160,6 @@ export function toccaAMe(accordo, utenteId) {
   return false;
 }
 
-/** Vero quando lo stato prevede i crediti: si mostrano previsti o assegnati. */
-export function mostraCrediti(stato) {
-  return stato === 'IN_ESECUZIONE' || stato === 'COMPLETATO';
-}
-
-/**
- * Vero per gli stati che non si muovono più: servono a separare «in corso» da
- * «conclusi» nell'elenco, senza che la schermata conosca l'elenco degli stati.
- */
 export function accordoConcluso(stato) {
   return stato === 'COMPLETATO' || stato === 'ANNULLATO' || stato === 'CONTESTATO';
 }
@@ -267,13 +254,13 @@ export function spiegaSituazione(accordo, utenteId) {
       if (!io.completamento && altro.completamento) {
         return `${altroNome} ha completato la sua parte. Tocca a te.`;
       }
-      return `L'accordo è in esecuzione: quando completate entrambi, ${CREDITI_PER_ACCORDO} crediti andranno a ciascuno.`;
+      return "L'accordo è in esecuzione: quando avrete completato entrambi la vostra parte, l'accordo si chiude.";
     case 'COMPLETATO':
-      return `Accordo completato: ${CREDITI_PER_ACCORDO} crediti a testa assegnati dal backend.`;
+      return 'Accordo completato.';
     case 'ANNULLATO':
       return "L'accordo è stato annullato e non è più riprendibile.";
     case 'CONTESTATO':
-      return `Accordo contestato: i crediti non sono stati assegnati. Non ci sono azioni da fare qui: chiarite la situazione nella chat con ${altroNome}.`;
+      return `Accordo contestato: non ci sono azioni da fare qui, chiarite la situazione nella chat con ${altroNome}.`;
     default:
       return '';
   }

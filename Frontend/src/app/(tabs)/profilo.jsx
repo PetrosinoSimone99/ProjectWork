@@ -91,8 +91,8 @@ export default function ProfiloScreen() {
           </AppText>
         </View>
         <AppText variant="small" tone="secondary">
-          Il saldo crediti e il profilo completo saranno visibili quando il backend esporrà
-          l'endpoint dedicato.
+          Il profilo completo (la tua offerta, la tua ricerca e i tuoi token) sarà visibile
+          quando il backend esporrà l'endpoint dedicato.
         </AppText>
       </Card>
 

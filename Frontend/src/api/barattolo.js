@@ -727,10 +727,7 @@ const PERCORSI_AZIONE_ACCORDO = {
  * esito normalizzato per la schermata:
  * - `messaggio`: il testo del backend (che in questa cartella sta in `message`,
  *   non in `errore`), già pronto da mostrare;
- * - `stato`: lo stato raggiunto, quando il backend lo restituisce;
- * - `creditiAssegnati`: vero solo quando *adesso* sono stati dati i 10 crediti.
- *   `completa.php` è idempotente e risponde 200 con `false` se l'accordo era già
- *   completato: il messaggio dedicato va mostrato solo nel primo caso.
+ * - `stato`: lo stato raggiunto, quando il backend lo restituisce.
  */
 async function eseguiAzioneAccordo(token, azione, idAccordo) {
   const percorso = PERCORSI_AZIONE_ACCORDO[azione];
@@ -745,7 +742,6 @@ async function eseguiAzioneAccordo(token, azione, idAccordo) {
   return {
     messaggio: typeof data?.message === 'string' ? data.message : '',
     stato: data?.data?.stato ?? null,
-    creditiAssegnati: data?.data?.crediti_assegnati_ora === true,
   };
 }
 

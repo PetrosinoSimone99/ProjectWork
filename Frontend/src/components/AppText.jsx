@@ -18,7 +18,7 @@ export function AppText({ variant = 'body', tone = 'default', style, ...props })
     primary: t.primary,
     danger: t.danger,
     onPrimary: t.onPrimary,
-    credit: t.creditText,
+    token: t.tokenText,
   };
   return <Text style={[VARIANTS[variant], { color: colors[tone] }, style]} {...props} />;
 }

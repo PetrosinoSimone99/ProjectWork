@@ -170,7 +170,7 @@ export default function NuovoAccordoScreen() {
             />
             <AppText variant="small" tone="secondary">
               Le due durate fanno parte della proposta: ognuno mette il tempo che offre, e
-              l'accordo si chiude con 10 crediti a testa per entrambi.
+              l'accordo si chiude quando entrambi avrete segnato il completamento.
             </AppText>
             <AppButton
               label="Proponi accordo"

@@ -3,7 +3,7 @@ import { useThemeScheme } from './theme-context';
 /**
  * Design tokens di Baratto-lo.
  *
- * Palette "forest": verde bosco profondo (fiducia, comunità) + ambra per i crediti.
+ * Palette "forest": verde bosco profondo (fiducia, comunità) + ambra per i token.
  * Regola di forma unica in tutta l'app:
  * - card e pannelli -> raggio 16
  * - input           -> raggio 12
@@ -18,8 +18,8 @@ const light = {
   primary: '#1F6B4E',
   primaryPressed: '#17553D',
   onPrimary: '#F7FAF8',
-  creditBg: '#F6ECDA',
-  creditText: '#7E5414',
+  tokenBg: '#F6ECDA',
+  tokenText: '#7E5414',
   serviceBg: '#E3EFE7',
   serviceText: '#1C5B41',
   danger: '#B3372F',
@@ -39,8 +39,8 @@ const dark = {
   primary: '#4EA97F',
   primaryPressed: '#3E9169',
   onPrimary: '#0D1F15',
-  creditBg: '#37301B',
-  creditText: '#E3B366',
+  tokenBg: '#37301B',
+  tokenText: '#E3B366',
   serviceBg: '#20352A',
   serviceText: '#8CCBAA',
   danger: '#E0716A',

@@ -11,7 +11,7 @@ import { space, useTokens } from '@/theme/tokens';
  *
  * Non riusa `CardVoceServizio`, che è la card delle **proprie** voci (tipo, stato
  * e le tre azioni di gestione): un componente che fa due mestieri non ne fa bene
- * nessuno. Qui non ci sono tariffe in crediti (il modello non le ha più) e non
+ * nessuno. Qui non c'è nessun compenso (il modello non lo prevede) e non
  * c'è nessun caso «è il tuo annuncio», perché nel catalogo arrivano solo i
  * servizi degli altri.
  *

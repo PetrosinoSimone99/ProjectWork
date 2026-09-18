@@ -77,8 +77,8 @@ export function CardCatenaConclusa({ gruppo, utenteId }) {
 
       {gruppo.puoiChiedereToken ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
-          <Ionicons name="ticket-outline" size={15} color={t.creditText} style={{ marginTop: 1 }} />
-          <AppText variant="small" style={{ color: t.creditText, flex: 1 }}>
+          <Ionicons name="ticket-outline" size={15} color={t.tokenText} style={{ marginTop: 1 }} />
+          <AppText variant="small" style={{ color: t.tokenText, flex: 1 }}>
             Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: puoi chiedere un
             token dalla segnalazione.
           </AppText>

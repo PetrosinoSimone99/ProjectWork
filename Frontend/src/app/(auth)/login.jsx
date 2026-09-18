@@ -57,8 +57,8 @@ export default function LoginScreen() {
           tone="secondary"
           style={{ textAlign: 'center', maxWidth: 300 }}
         >
-          Scambia servizi con la tua comunità: offri ciò che sai fare, guadagni crediti,
-          ricevi aiuto.
+          Scambia servizi con la tua comunità: offri ciò che sai fare, trova chi cerca
+          quello che offri.
         </AppText>
       </View>
 

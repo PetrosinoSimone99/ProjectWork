@@ -112,7 +112,8 @@ export default function InvitiScreen() {
 
       <View style={{ gap: space.xs }}>
         <AppText variant="small" tone="secondary">
-          Invita un amico: quando riscatta il tuo codice, ricevi 10 crediti.
+          Invita una persona nuova: condividi il tuo codice e chi lo riscatta entra nella
+          comunità. La ricompensa per chi invita non è ancora decisa.
         </AppText>
       </View>
 
@@ -170,7 +171,7 @@ export default function InvitiScreen() {
       <View style={{ paddingHorizontal: space.xs }}>
         <AppText variant="small" tone="secondary" style={{ color: t.textSecondary }}>
           Regole: un solo codice al mese per invitante; ogni account può riscattare un solo
-          invito in tutto; i crediti vanno all'invitante al riscatto.
+          invito in tutto; la ricompensa per chi invita non è ancora decisa.
         </AppText>
       </View>
     </Screen>
