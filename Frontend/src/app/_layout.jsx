@@ -28,6 +28,7 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
       {utente ? <Stack.Screen name="chat" /> : null}
+      {utente ? <Stack.Screen name="scambi" /> : null}
       {utente ? <Stack.Screen name="accordo" /> : null}
       {utente ? <Stack.Screen name="nuovo-accordo" /> : null}
       {utente ? <Stack.Screen name="inviti" /> : null}
