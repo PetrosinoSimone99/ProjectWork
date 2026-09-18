@@ -41,6 +41,16 @@ import { space } from '@/theme/tokens';
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * Limiti anagrafici: **copia dichiarata** di `API/register.php` (`mb_strlen`). La fonte unica
+ * non esiste ancora: è la richiesta di `temp/gruppo-2-domande/22` (piano 12).
+ * TODO(backend): farli arrivare dal backend e restituire nei 400 il campo sbagliato.
+ */
+const LIMITE_NOME = 50; // API/register.php:66
+const LIMITE_COGNOME = 50; // API/register.php:67
+const LIMITE_USERNAME = 50; // API/register.php:68
+const LIMITE_EMAIL = 45; // API/register.php:69
+
 const FORM_VUOTO = {
   nome: '',
   cognome: '',
@@ -74,20 +84,38 @@ const SEZIONI = [
   },
 ];
 
+/** Caratteri come `mb_strlen`: code point, non unità UTF-16. */
+function contaCaratteri(testo) {
+  return [...testo].length;
+}
+
 /** Errori dei campi anagrafici: oggetto vuoto = form valido. */
 function validaAnagrafica(form) {
   const errori = {};
-  if (!form.nome.trim()) {
+  const nome = form.nome.trim();
+  const cognome = form.cognome.trim();
+  const username = form.username.trim();
+  const email = form.email.trim();
+
+  if (!nome) {
     errori.nome = 'Il nome è obbligatorio.';
+  } else if (contaCaratteri(nome) > LIMITE_NOME) {
+    errori.nome = `Il nome può avere al massimo ${LIMITE_NOME} caratteri.`;
   }
-  if (!form.cognome.trim()) {
+  if (!cognome) {
     errori.cognome = 'Il cognome è obbligatorio.';
+  } else if (contaCaratteri(cognome) > LIMITE_COGNOME) {
+    errori.cognome = `Il cognome può avere al massimo ${LIMITE_COGNOME} caratteri.`;
   }
-  if (!form.username.trim()) {
+  if (!username) {
     errori.username = "L'username è obbligatorio.";
+  } else if (contaCaratteri(username) > LIMITE_USERNAME) {
+    errori.username = `L'username può avere al massimo ${LIMITE_USERNAME} caratteri.`;
   }
-  if (!EMAIL_PATTERN.test(form.email.trim())) {
+  if (!EMAIL_PATTERN.test(email)) {
     errori.email = 'Email non valida.';
+  } else if (contaCaratteri(email) > LIMITE_EMAIL) {
+    errori.email = `L'email può avere al massimo ${LIMITE_EMAIL} caratteri.`;
   }
   if (form.password.length < MIN_PASSWORD_LENGTH) {
     errori.password = `Almeno ${MIN_PASSWORD_LENGTH} caratteri.`;
@@ -263,6 +291,7 @@ export default function RegisterScreen() {
               onChangeText={(valore) => cambiaCampo('nome', valore)}
               placeholder="Mario"
               autoCapitalize="words"
+              maxLength={LIMITE_NOME}
               error={fieldErrors.nome ?? null}
             />
           </View>
@@ -273,6 +302,7 @@ export default function RegisterScreen() {
               onChangeText={(valore) => cambiaCampo('cognome', valore)}
               placeholder="Rossi"
               autoCapitalize="words"
+              maxLength={LIMITE_COGNOME}
               error={fieldErrors.cognome ?? null}
             />
           </View>
@@ -283,6 +313,7 @@ export default function RegisterScreen() {
           onChangeText={(valore) => cambiaCampo('username', valore)}
           placeholder="mario.rossi"
           autoCapitalize="none"
+          maxLength={LIMITE_USERNAME}
           error={fieldErrors.username ?? null}
         />
         <AppInput
@@ -291,6 +322,7 @@ export default function RegisterScreen() {
           onChangeText={(valore) => cambiaCampo('email', valore)}
           placeholder="mario@esempio.it"
           keyboardType="email-address"
+          maxLength={LIMITE_EMAIL}
           error={fieldErrors.email ?? null}
         />
         <AppInput
