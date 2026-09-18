@@ -1,5 +1,16 @@
 import { API_BASE_URL, USA_DATI_FINTI } from './config';
 
+/**
+ * Limite di tempo di una singola chiamata, in millisecondi.
+ * A un server che non risponde la connessione resta appesa, quindi il `fetch` da
+ * solo non basta e serve questo limite. 10 s è più lungo di ogni chiamata reale del
+ * progetto (il polling della chat è ogni 4 s, i finti rispondono in 900 ms), quindi
+ * non interrompe niente di legittimo: se una chiamata viene tagliata qui è perché
+ * il server non risponde davvero. Se il backend nuovo sarà lento, si alza questo
+ * valore e basta.
+ */
+const TIMEOUT_RICHIESTA_MS = 10000;
+
 /** Errore delle API Baratto-lo: porta con sé lo status HTTP e il messaggio "errore" del backend. */
 export class ApiError extends Error {
   constructor(status, message) {
@@ -64,7 +75,13 @@ export async function apiFetch(path, options = {}) {
     );
   }
 
+  // Il timer annulla la chiamata se nessuno risponde entro il limite: senza, una
+  // connessione che resta appesa non produce né risposta né errore.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_RICHIESTA_MS);
+
   let response;
+  let text;
   try {
     response = await fetch(`${API_BASE_URL}/${path}`, {
       method,
@@ -73,14 +90,24 @@ export async function apiFetch(path, options = {}) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
     });
-  } catch {
-    // fetch rifiuta la connessione o la rete è assente.
-    throw new ApiError(0, 'Server non raggiungibile. Controlla che il backend sia attivo.');
+    text = await response.text();
+  } catch (errore) {
+    // Due casi distinti: la connessione viene rifiutata o la rete è assente
+    // (fetch rifiuta subito), oppure il server non risponde e ci pensa il timer.
+    throw new ApiError(
+      0,
+      errore?.name === 'AbortError'
+        ? 'Il server non risponde. Controlla la connessione e riprova.'
+        : 'Server non raggiungibile. Controlla che il backend sia attivo.',
+    );
+  } finally {
+    // La risposta è arrivata (o l'errore è già in mano al chiamante): il timer non serve più.
+    clearTimeout(timer);
   }
 
   // Le API rispondono sempre JSON, ma ci difendiamo da risposte non valide.
-  const text = await response.text();
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
