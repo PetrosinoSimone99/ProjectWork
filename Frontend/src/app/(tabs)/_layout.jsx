@@ -31,16 +31,25 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Cerca',
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search-outline" size={size} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="richieste"
+        name="loop"
         options={{
-          title: 'Pubblica',
+          title: 'Loop',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sync-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="offro-e-cerco"
+        options={{
+          title: 'Offro e cerco',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle-outline" size={size} color={color} />
           ),

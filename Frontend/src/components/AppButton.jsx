@@ -11,6 +11,7 @@ export function AppButton({
   loading = false,
   disabled = false,
   icon,
+  accessibilityLabel,
   style,
 }) {
   const t = useTokens();
@@ -27,7 +28,14 @@ export function AppButton({
   return (
     <Pressable
       accessibilityRole="button"
+      // `aria-disabled`/`aria-busy` viaggiano accanto ad `accessibilityState`
+      // perché su web `react-native-web` ignora `accessibilityState` e legge
+      // solo gli attributi `aria-*` (parte di P44). Su native `aria-*` ha la
+      // precedenza, quindi il valore annunciato è lo stesso ovunque.
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
+      aria-disabled={isDisabled}
+      aria-busy={loading}
       disabled={isDisabled}
       onPress={onPress}
       style={({ pressed }) => [
