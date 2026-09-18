@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { USA_DATI_FINTI } from '@/api/config';
+import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -138,10 +138,7 @@ export default function ScambiScreen() {
       </AppText>
 
       {USA_DATI_FINTI ? (
-        <Banner
-          kind="info"
-          message="Stai vedendo dati finti: il gruppo e il conto alla rovescia sono simulati, e il tempo scorre più in fretta del vero."
-        />
+        <Banner kind="info" message={AVVISO_DEMO} />
       ) : null}
 
       {errore ? (
@@ -341,8 +338,8 @@ function RigaToken() {
   const t = useTokens();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
-      <Ionicons name="ticket-outline" size={15} color={t.tokenText} style={{ marginTop: 1 }} />
-      <AppText variant="small" style={{ color: t.tokenText, flex: 1 }}>
+      <Ionicons name="ticket-outline" size={15} color={t.accentText} style={{ marginTop: 1 }} />
+      <AppText variant="small" style={{ color: t.accentText, flex: 1 }}>
         Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: puoi chiedere un token
         dalla segnalazione.
       </AppText>

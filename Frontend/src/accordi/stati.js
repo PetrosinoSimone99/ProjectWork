@@ -122,7 +122,8 @@ export function azioniDisponibili(accordo, utenteId) {
 
 /**
  * Tono del chip di stato: `info` (in attesa, nessuna fretta), `service` (pronto
- * a partire o in corso), `success` (concluso bene), `danger` (contestato).
+ * a partire), `accent` (in corso, qualcosa sta succedendo), `success` (concluso
+ * bene), `danger` (contestato).
  */
 export function tonoStato(stato) {
   switch (stato) {
@@ -132,7 +133,7 @@ export function tonoStato(stato) {
     case 'ACCETTATO':
       return 'service';
     case 'IN_ESECUZIONE':
-      return 'service';
+      return 'accent';
     case 'COMPLETATO':
       return 'success';
     case 'CONTESTATO':

@@ -13,6 +13,7 @@ export function ChipStatoAccordo({ stato }) {
   const palette = {
     info: { background: t.background, color: t.textSecondary },
     service: { background: t.serviceBg, color: t.serviceText },
+    accent: { background: t.accentBg, color: t.accentText },
     success: { background: t.successBg, color: t.successText },
     danger: { background: t.dangerBg, color: t.dangerText },
   }[tonoStato(stato)];
