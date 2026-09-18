@@ -1,9 +1,11 @@
 import { ApiError, apiFetch } from './client';
 import { USA_DATI_FINTI } from './config';
 import {
+  normalizzaNotifiche,
   normalizzaOfferente,
   normalizzaPubblicazione,
   normalizzaPubblicazioni,
+  normalizzaSegnalazione,
   normalizzaServizio,
   numeroInteroONull,
   testoONull,
@@ -13,9 +15,12 @@ import * as fintiCatalogo from './finti/catalogo';
 import * as fintiCategorie from './finti/categorie';
 import * as fintiCoda from './finti/coda';
 import * as fintiMatch from './finti/match';
+import * as fintiNotifiche from './finti/notifiche';
+import * as fintiSegnalazioni from './finti/segnalazioni';
 import * as fintiServizi from './finti/servizi';
 import * as fintiToken from './finti/token';
 import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
+import { aPayloadLetta } from '@/servizi/notifiche';
 import {
   STATI_PUBBLICAZIONE,
   TIPI_VOCE,
@@ -725,6 +730,81 @@ export async function impegnaToken(token, utenteId, idToken, idServizio) {
   }
   const risposta = await apiFetch('token.php', { method: 'POST', token, body: corpo });
   return normalizzaToken(risposta?.data?.token ?? risposta?.token);
+}
+
+// ---------------------------------------------------------------------------
+// Segnalazioni e notifiche in-app
+//
+// Endpoint proposto: `segnalazioni.php` (crea, elenco per la staff, chiusura) e
+// `notifiche.php` (le proprie). **Non esistono**: con i finti spenti la creazione
+// risponde 404, ed è il motivo per cui ogni ramo porta il suo `// TODO(backend)`.
+//
+// Due decisioni che vivono qui e in nessun altro punto:
+// - **l'autore non è nel corpo**: viaggia nel token di accesso, come per tutte le
+//   altre scritture (lezione di P03/P05, IDOR). `utenteId` serve solo al ramo
+//   finto, che non decodifica il token;
+// - **una notifica non è una lettura della segnalazione**: l'utente non vede lo
+//   stato della propria segnalazione (decisione del 18 settembre 2026). La
+//   notifica arriva quando la staff chiude con un provvedimento, e non arriva se
+//   non prende provvedimenti.
+// ---------------------------------------------------------------------------
+
+/**
+ * L'esito dell'invio nella forma della schermata: la segnalazione creata e il
+ * `message` del backend, già pronto per il `Banner`. Le due forme di riga
+ * (segnalazione e notifica) stanno in `normalizzazioni.js`: sono pure e il file
+ * degli endpoint è già oltre le 800 righe.
+ */
+function normalizzaEsitoInvio(risposta) {
+  const dati = risposta?.data ?? risposta;
+  return {
+    segnalazione: normalizzaSegnalazione(dati?.segnalazione ?? dati),
+    messaggio: typeof risposta?.message === 'string' ? risposta.message : '',
+  };
+}
+
+/**
+ * POST segnalazioni.php — invia una segnalazione alla staff. Il corpo arriva da
+ * `aPayloadSegnalazione` (motivo, descrizione, riferimento e persona segnalata);
+ * **chi segnala viene dal token**, mai dal corpo.
+ */
+export async function creaSegnalazione(token, utenteId, payload) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST segnalazioni.php `{utente_segnalato_id, motivo,
+    // descrizione?, id_gruppo?, id_accordo?}`; l'autore dal token, `403` se chi
+    // segnala non partecipa al fatto, `404` utente inesistente, `409` duplicato.
+    return normalizzaEsitoInvio(await fintiSegnalazioni.creaSegnalazione(utenteId, payload));
+  }
+  return normalizzaEsitoInvio(
+    await apiFetch('segnalazioni.php', { method: 'POST', token, body: payload }),
+  );
+}
+
+/**
+ * GET notifiche.php — le **proprie** notifiche. `utenteId` serve solo al ramo
+ * finto, che non decodifica il token di accesso (come `ottieniToken`).
+ */
+export async function ottieniNotifiche(token, utenteId) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): GET notifiche.php → {success, message, data:{notifiche:[…]}}.
+    return normalizzaNotifiche(await fintiNotifiche.ottieniNotifiche(utenteId));
+  }
+  return normalizzaNotifiche(await apiFetch('notifiche.php', { token }));
+}
+
+/**
+ * POST notifiche.php `{id}` — segna una notifica come letta. Il `403` (non è mia)
+ * e il `404` si mostrano così com'è; l'avviso si chiude comunque, perché è un
+ * avviso, non una pratica. `utenteId` serve al ramo finto, come sopra.
+ */
+export async function segnaNotificaLetta(token, utenteId, id) {
+  const corpo = aPayloadLetta(id);
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST notifiche.php con l'identità dal token di accesso.
+    await fintiNotifiche.segnaNotificaLetta(utenteId, id);
+    return;
+  }
+  await apiFetch('notifiche.php', { method: 'POST', token, body: corpo });
 }
 
 /** POST inviti.php azione "genera" — crea (o restituisce) il codice invito del mese. */

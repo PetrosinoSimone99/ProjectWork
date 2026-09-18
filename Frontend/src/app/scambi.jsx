@@ -26,6 +26,7 @@ import {
   testoScadenza,
   testoUscita,
 } from '@/servizi/coda';
+import { parametriSegnalazioneDaUscita } from '@/servizi/segnalazioni';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -98,6 +99,14 @@ export default function ScambiScreen() {
 
   const membri = gruppo ? membriInOrdine(gruppo.membri) : [];
   const uscitaDaGruppo = vista === VISTE.PRONTO;
+  // La segnalazione si apre **solo** dalla catena saltata e solo se il backend
+  // dichiara il diritto al token: il fatto e la persona da segnalare sono quelli
+  // dell'uscita, e senza una persona identificabile non c'è nessuno da segnalare
+  // (`parametriSegnalazioneDaUscita` restituisce `null` anche se sono uscito io).
+  const parametriSegnala =
+    gruppo !== null && gruppo.puoiChiedereToken
+      ? parametriSegnalazioneDaUscita(gruppo, utente?.id)
+      : null;
   const testoConferma = uscitaDaGruppo
     ? {
         titolo: 'Uscire dal gruppo?',
@@ -272,6 +281,16 @@ export default function ScambiScreen() {
               {gruppo.uscita.motivo}
             </AppText>
           ) : null}
+          {parametriSegnala ? (
+            <AppButton
+              label="Segnala alla staff"
+              variant="secondary"
+              icon="flag-outline"
+              onPress={() => router.push({ pathname: '/segnala', params: parametriSegnala })}
+              accessibilityLabel="Segnala alla staff il fatto di questa catena"
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
           {gruppo.puoiChiedereToken ? <RigaToken /> : null}
           <AppButton
             label="Torna al Loop"
@@ -331,9 +350,10 @@ export default function ScambiScreen() {
 
 /**
  * La riga del diritto al token: compare **solo** quando il backend dichiara che
- * sono la parte danneggiata. È un pulsante che apre l'area dei buoni, non più una
- * frase senza destinazione: la segnalazione alla staff (il gesto che può far
- * assegnare il buono) arriverà con il piano 09 e sarà un'azione a parte.
+ * sono la parte danneggiata. È un pulsante che apre l'area dei buoni, accanto a
+ * «Segnala alla staff» (il gesto che può far assegnare il buono): il buono lo
+ * assegna la staff, quindi vedere l'elenco e segnalare il fatto sono due azioni
+ * distinte.
  */
 function RigaToken() {
   const t = useTokens();

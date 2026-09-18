@@ -1,10 +1,12 @@
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formattaData } from '@/accordi/stati';
 import { nomePersona } from '@/servizi/offerta-ricerca';
+import { parametriSegnalazioneDaUscita } from '@/servizi/segnalazioni';
 import {
   etichettaStatoGruppo,
   membriInOrdine,
@@ -22,9 +24,10 @@ import { space, useTokens } from '@/theme/tokens';
  * è di sola lettura e non decide esiti. La riga del token compare **solo** quando
  * il backend dichiara che sono la parte danneggiata (`puoiChiedereToken`): il
  * frontend non lo deduce e non chiede all'utente di dichiararlo. Quella riga
- * **apre i buoni** (`/token`), che sono l'unica destinazione esistente: la
- * richiesta vera si fa nella schermata della segnalazione, che non esiste ancora,
- * e sarà un'azione a parte.
+ * **apre i buoni** (`/token`); la **segnalazione** alla staff è accanto, ed è la
+ * strada che può far assegnare il buono: si apre solo se so **chi** ha fatto
+ * saltare la catena (`parametriSegnalazioneDaUscita`), perché non si segnala una
+ * persona qualsiasi.
  */
 export function CardCatenaConclusa({ gruppo, utenteId }) {
   const t = useTokens();
@@ -41,6 +44,9 @@ export function CardCatenaConclusa({ gruppo, utenteId }) {
     .map((membro) => nomePersona(membro.persona));
   const uscita = testoUscita(gruppo.uscita, utenteId);
   const quandoUscita = formattaData(gruppo.uscita?.quando);
+  const parametriSegnala = gruppo.puoiChiedereToken
+    ? parametriSegnalazioneDaUscita(gruppo, utenteId)
+    : null;
 
   return (
     <Card style={{ gap: space.sm }}>
@@ -76,6 +82,17 @@ export function CardCatenaConclusa({ gruppo, utenteId }) {
         <AppText variant="small" tone="secondary">
           {gruppo.uscita.motivo}
         </AppText>
+      ) : null}
+
+      {parametriSegnala ? (
+        <AppButton
+          label="Segnala alla staff"
+          variant="secondary"
+          icon="flag-outline"
+          onPress={() => router.push({ pathname: '/segnala', params: parametriSegnala })}
+          accessibilityLabel="Segnala alla staff il fatto di questa catena"
+          style={{ alignSelf: 'flex-start' }}
+        />
       ) : null}
 
       {gruppo.puoiChiedereToken ? (

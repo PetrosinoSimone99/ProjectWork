@@ -1,4 +1,5 @@
 import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/servizi/offerta-ricerca';
+import { RIFERIMENTI, idRiferimento } from '@/servizi/segnalazioni';
 
 /**
  * Le normalizzazioni condivise: dalla forma di rete del backend alla forma che
@@ -113,4 +114,101 @@ export function normalizzaOfferente(riga) {
     cognome: testoONull(dentro.cognome ?? riga?.cognome),
     localita: testoONull(dentro.localita),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Segnalazioni e notifiche in-app
+//
+// Stanno qui per la stessa ragione delle altre: sono funzioni pure che
+// `barattolo.js` usa nel bivio dei finti e nel ramo vero, così la forma della
+// segnalazione e della notifica è decisa **una volta sola**. Il riferimento al
+// fatto (`id_gruppo` o `id_accordo`) usa `idRiferimento` di
+// `servizi/segnalazioni.js`: la stessa regola serve alla rotta e alla
+// validazione, e due copie divergerebbero.
+// ---------------------------------------------------------------------------
+
+/**
+ * Il riferimento al fatto: `{tipo, id}`, da `id_gruppo` o `id_accordo`. `null`
+ * quando il backend non ne manda nessuno — e in quel caso la riga non si inventa
+ * un contesto.
+ */
+function normalizzaRiferimentoSegnalazione(riga) {
+  const idGruppo = idRiferimento(riga?.id_gruppo ?? riga?.idGruppo);
+  if (idGruppo !== null) {
+    return { tipo: RIFERIMENTI.GRUPPO, id: idGruppo };
+  }
+  const idAccordo = idRiferimento(riga?.id_accordo ?? riga?.idAccordo);
+  if (idAccordo !== null) {
+    return { tipo: RIFERIMENTI.ACCORDO, id: idAccordo };
+  }
+  return null;
+}
+
+/**
+ * Una segnalazione nella forma della UI. `stato` è in maiuscolo e uno stato
+ * **ignoto passa così com'è**: la schermata lo mostra grezzo, non lo traduce a
+ * caso (stessa vista neutra della coda e dei buoni). L'autore non c'è: è chi
+ * chiede, e la UI non lo disegna.
+ */
+export function normalizzaSegnalazione(riga) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const id = numeroInteroONull(riga.id);
+  if (id === null) {
+    return null;
+  }
+  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
+  const motivo = typeof riga.motivo === 'string' ? riga.motivo.trim() : '';
+  return {
+    id,
+    stato: stato || null,
+    motivo: motivo || null,
+    descrizione: testoONull(riga.descrizione),
+    segnalato: numeroInteroONull(riga.segnalato_id ?? riga.segnalatoId ?? riga.utente_segnalato_id),
+    riferimento: normalizzaRiferimentoSegnalazione(riga),
+    creataIl: testoONull(riga.creato_il ?? riga.creataIl),
+  };
+}
+
+/** L'elenco delle segnalazioni: `{data:{segnalazioni:[…]}}` oppure l'array nudo. */
+export function normalizzaSegnalazioni(risposta) {
+  const elenco = risposta?.data?.segnalazioni ?? risposta?.segnalazioni ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map(normalizzaSegnalazione).filter(Boolean);
+}
+
+/**
+ * Una notifica nella forma della UI. `letta` è `true` **solo** quando il backend
+ * lo dice: una notifica senza il campo è da leggere. Il tipo ignoto resta com'è e
+ * il testo lo decide `servizi/notifiche.js`.
+ */
+export function normalizzaNotifica(riga) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const id = numeroInteroONull(riga.id);
+  if (id === null) {
+    return null;
+  }
+  const tipo = typeof riga.tipo === 'string' ? riga.tipo.trim() : '';
+  return {
+    id,
+    tipo: tipo || null,
+    messaggio: testoONull(riga.messaggio),
+    idToken: numeroInteroONull(riga.id_token ?? riga.idToken),
+    letta: riga.letta === true,
+    creataIl: testoONull(riga.creata_il ?? riga.creataIl),
+  };
+}
+
+/** L'elenco delle notifiche: `{data:{notifiche:[…]}}` oppure l'array nudo. */
+export function normalizzaNotifiche(risposta) {
+  const elenco = risposta?.data?.notifiche ?? risposta?.notifiche ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map(normalizzaNotifica).filter(Boolean);
 }

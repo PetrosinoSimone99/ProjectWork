@@ -241,6 +241,32 @@ export function impegnaToken(utenteId, idToken, idServizio) {
 }
 
 /**
+ * L'**assegnazione** da parte della staff: non è un'azione dell'utente e nessuna
+ * schermata la chiama. La usa il **piano 11** (la staff chiude una segnalazione
+ * con esito `TOKEN_ASSEGNATO`) tramite `finti/notifiche.js`, che scrive anche la
+ * notifica per l'utente. L'id continua da quello più alto già presente e il buono
+ * nasce `AVAILABLE`, con il mese di validità calcolato come gli altri.
+ */
+export function assegnaToken(utenteId, origine) {
+  const buoni = buoniDepositati(utenteId);
+  const id = buoni.reduce((massimo, buono) => Math.max(massimo, Number(buono.id) || 0), 0) + 1;
+  const emessoIl = Date.now();
+  const testo = typeof origine === 'string' ? origine.trim() : '';
+  const riga = {
+    id,
+    stato: 'AVAILABLE',
+    origine: testo || 'Assegnato dalla staff',
+    creato_il: formattaBackend(emessoIl),
+    scadenza: formattaBackend(aggiungiUnMese(emessoIl)),
+    usato_il: null,
+    id_servizio_usato: null,
+    id_accordo: null,
+  };
+  scriviBuoni(utenteId, [...buoni, riga]);
+  return riga;
+}
+
+/**
  * Il consumo è del **sistema**, alla conclusione dell'accordo: non è un'azione
  * dell'utente e la schermata non la chiama. Restituisce la forma di rete, come
  * se il backend l'avesse appena fatta.

@@ -3,8 +3,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
+import { AvvisoNotifica } from '@/components/AvvisoNotifica';
 import { AvvisoScadenza } from '@/components/AvvisoScadenza';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { useNotifiche } from '@/hooks/useNotifiche';
 import { useScadenzaSessione } from '@/hooks/useScadenzaSessione';
 import { space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
@@ -14,25 +16,29 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * - nessun utente  -> gruppo (auth) con login e registrazione
  * - utente attivo  -> gruppo (tabs) con le schermate principali
  *
- * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, inviti, token)
- * sono elencate a mano: senza la riga giusta non sono raggiungibili con una
- * sessione attiva, pur esistendo il file.
+ * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, inviti, token,
+ * segnalazione) sono elencate a mano: senza la riga giusta non sono raggiungibili
+ * con una sessione attiva, pur esistendo il file.
  *
  * Si aspetta anche la preferenza del tema salvata, così il primo render usa già
  * il tema scelto e non c'è un cambio di colore a schermata caricata.
  *
- * Qui sta anche l'**avviso di scadenza della sessione**: è l'unico punto in cui
- * una shell è visibile in tutte le schermate che hanno una sessione attiva. La
- * navigazione non cambia: senza avviso l'albero dei componenti è quello di
- * prima, con il solo contenitore che serve a metterlo sopra lo `Stack`.
+ * Qui stanno anche i **due avvisi in alto**: la scadenza della sessione
+ * (`AvvisoScadenza`) e l'esito di una segnalazione (`AvvisoNotifica`). È l'unico
+ * punto in cui una shell è visibile in tutte le schermate che hanno una sessione
+ * attiva. I due componenti sono distinti e **una sola** `View` li contiene: così
+ * condividono la safe area e l'allineamento, e la navigazione non cambia — senza
+ * avvisi l'albero dei componenti è quello di prima.
  */
 function RootNavigator() {
   const { utente, token, booting } = useAuth();
   const { ready } = useThemePreference();
   const { inScadenza, scadenzaMs } = useScadenzaSessione(token);
+  const { notifica, inChiusura, chiudi } = useNotifiche({ token, utenteId: utente?.id });
   const insets = useSafeAreaInsets();
-  // Solo con una sessione: nel ramo (auth) non c'è nessuna scadenza da dire.
-  const mostraAvviso = Boolean(utente) && inScadenza;
+  // Solo con una sessione: nel ramo (auth) non c'è nessuna scadenza da dire e
+  // nessuna notifica da leggere.
+  const mostraAvvisi = Boolean(utente) && (inScadenza || notifica !== null);
 
   if (booting || !ready) {
     return <LoadingScreen label="Preparazione di Baratto-lo…" />;
@@ -40,17 +46,27 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* La safe area la aggiunge l'avviso, non il contenitore: senza avviso lo
-          `Stack` resta a filo schermo e ogni schermata mette il suo margine. */}
-      {mostraAvviso ? (
+      {/* La safe area la aggiunge il contenitore degli avvisi, non lo `Stack`:
+          senza avvisi lo `Stack` resta a filo schermo e ogni schermata mette il
+          suo margine. */}
+      {mostraAvvisi ? (
         <View
           style={{
             paddingTop: insets.top,
             paddingHorizontal: space.lg,
             paddingBottom: space.sm,
+            gap: space.sm,
           }}
         >
-          <AvvisoScadenza scadenzaMs={scadenzaMs} />
+          {inScadenza ? <AvvisoScadenza scadenzaMs={scadenzaMs} /> : null}
+          {notifica !== null ? (
+            <AvvisoNotifica
+              notifica={notifica}
+              inChiusura={inChiusura}
+              onChiudi={chiudi}
+              onApriToken={() => void chiudi(notifica)}
+            />
+          ) : null}
         </View>
       ) : null}
       <Stack screenOptions={{ headerShown: false }}>
@@ -61,6 +77,7 @@ function RootNavigator() {
         {utente ? <Stack.Screen name="nuovo-accordo" /> : null}
         {utente ? <Stack.Screen name="inviti" /> : null}
         {utente ? <Stack.Screen name="token" /> : null}
+        {utente ? <Stack.Screen name="segnala" /> : null}
       </Stack>
     </View>
   );
