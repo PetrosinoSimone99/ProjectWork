@@ -17,6 +17,9 @@ export function AppInput({
   autoCapitalize = 'none',
   maxLength,
   optionalHint,
+  contatore,
+  returnKeyType,
+  onSubmitEditing,
 }) {
   const t = useTokens();
   const [focused, setFocused] = useState(false);
@@ -28,9 +31,9 @@ export function AppInput({
         <AppText variant="small" style={{ fontWeight: '600' }}>
           {label}
         </AppText>
-        {optionalHint ? (
+        {contatore || optionalHint ? (
           <AppText variant="small" tone="secondary">
-            {optionalHint}
+            {contatore ?? optionalHint}
           </AppText>
         ) : null}
       </View>
@@ -54,6 +57,8 @@ export function AppInput({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           maxLength={maxLength}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
