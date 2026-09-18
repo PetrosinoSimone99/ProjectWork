@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { tokenExpiresAt } from '@/auth/token-store';
+import { formatOrarioScadenza, tokenExpiresAt } from '@/auth/token-store';
 import { useAggiornamento } from '@/hooks/useAggiornamento';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -11,14 +11,6 @@ import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { space, useTokens } from '@/theme/tokens';
-
-/** "2026-09-04 16:20:31" (secondi UNIX) -> "17:20". */
-function formatOrarioScadenza(expiresAt) {
-  return new Date(expiresAt * 1000).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export default function ProfiloScreen() {
   const { utente, token, signOut, ricaricaSessione } = useAuth();
@@ -86,7 +78,7 @@ export default function ProfiloScreen() {
           <Ionicons name="time-outline" size={18} color={t.textSecondary} />
           <AppText variant="small" tone="secondary">
             {expiresAt
-              ? `Sessione valida fino alle ${formatOrarioScadenza(expiresAt)}`
+              ? `Sessione valida fino alle ${formatOrarioScadenza(expiresAt * 1000)}`
               : 'Scadenza della sessione non disponibile.'}
           </AppText>
         </View>

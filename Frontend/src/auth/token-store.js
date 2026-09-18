@@ -66,6 +66,18 @@ export function tokenExpiresAt(token) {
 }
 
 /**
+ * La scadenza come ora leggibile ("17:20"), da una scadenza in **millisecondi**
+ * (la stessa unita' di `scadenzaMs` nel layer API). Sta qui perche' e' l'unico
+ * posto in cui si legge `exp`: due copie della stessa formattazione divergono.
+ */
+export function formatOrarioScadenza(scadenzaMs) {
+  return new Date(scadenzaMs).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
  * True solo se il token non e' scaduto. Un payload assente o illeggibile conta
  * come invalido: meglio un logout pulito all'avvio che una sessione accettata
  * per errore e fatta cadere dalla prima chiamata autenticata (401).
