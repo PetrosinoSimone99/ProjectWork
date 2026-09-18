@@ -51,7 +51,12 @@ const dark = {
   overlay: 'rgba(0, 0, 0, 0.45)',
 };
 
-export const radius = { card: 16, input: 12, pill: 999 };
+/**
+ * Raggi, per ruolo: card e pannelli 16, campi 12, caselle di spunta 6 (un
+ * quadratino da ~22 px, che con il raggio dei campi diventerebbe un cerchio),
+ * bottoni e chip a pillola.
+ */
+export const radius = { card: 16, input: 12, checkbox: 6, pill: 999 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 

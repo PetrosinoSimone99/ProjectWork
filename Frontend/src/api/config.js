@@ -4,6 +4,19 @@ import Constants from 'expo-constants';
 /** Percorso degli endpoint sotto la radice del server PHP (`php -S -t <radice>`). */
 const API_PATH = '/API';
 
+/**
+ * Dati finti al posto del backend vero.
+ *
+ * Si accende con `EXPO_PUBLIC_DATI_FINTI=1` in `.env.local` e un riavvio senza
+ * cache (`npx expo start -c`): le variabili `EXPO_PUBLIC_*` finiscono dentro il
+ * bundle al momento della compilazione. Spento, i finti non esistono da nessuna
+ * parte (§4 di `AGENTS.md`, e le regole della demo frontend).
+ *
+ * Questo è l'**unico** interruttore: il bivio tra finto e vero sta sempre in
+ * `api/barattolo.js`, mai nei componenti.
+ */
+export const USA_DATI_FINTI = process.env.EXPO_PUBLIC_DATI_FINTI === '1';
+
 /** Radice di XAMPP/Laragon: vale solo quando non è configurato nulla. */
 const XAMPP_ORIGIN =
   Platform.OS === 'android' ? 'http://10.0.2.2' : 'http://localhost';
