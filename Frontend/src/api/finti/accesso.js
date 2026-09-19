@@ -25,6 +25,19 @@ const CHIAVE_PERSISTENZA = 'barattolo.finti.utenti';
 const DURATA_TOKEN_SECONDI = 3600;
 
 /**
+ * Il ruolo dell'utente della demo: **finto e dichiarato**.
+ *
+ * Il backend vero non manda `ruolo` (`login.php`/`register.php`, P24), quindi il
+ * frontend non può distinguere un utente da uno `STAFF`: senza questo valore
+ * l'area staff (piano 11) non sarebbe raggiungibile nella demo. La UI lo usa
+ * **solo per mostrare o nascondere** la voce «Area staff»; la protezione è del
+ * backend, e ogni azione della schermata gestisce comunque il `403`.
+ * TODO(backend): quando `login.php`/`register.php` manderanno il `ruolo` vero,
+ * questa costante sparisce e il campo arriva dalla risposta.
+ */
+export const RUOLO_FINTO = 'STAFF';
+
+/**
  * La firma non è verificata da nessuno: serve solo a dare al token la forma
  * giusta. **Non può contenere un punto**: `auth/token-store.js` legge il
  * payload con `token.split('.')[1]`, quindi il token deve avere esattamente due
@@ -120,7 +133,7 @@ export async function register(input) {
   return {
     messaggio: 'Registrazione completata.',
     token: creaTokenFinto(utente.id),
-    utente: { ...utente, ...ottieniVoci(utente.id) },
+    utente: { ...utente, ...ottieniVoci(utente.id), ruolo: RUOLO_FINTO },
   };
 }
 
@@ -141,6 +154,6 @@ export async function login(username) {
   return {
     messaggio: 'Login effettuato con successo.',
     token: creaTokenFinto(trovato.id),
-    utente: { ...trovato, ...ottieniVoci(trovato.id) },
+    utente: { ...trovato, ...ottieniVoci(trovato.id), ruolo: RUOLO_FINTO },
   };
 }

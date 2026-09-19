@@ -167,7 +167,10 @@ export function normalizzaSegnalazione(riga) {
     descrizione: testoONull(riga.descrizione),
     segnalato: numeroInteroONull(riga.segnalato_id ?? riga.segnalatoId ?? riga.utente_segnalato_id),
     riferimento: normalizzaRiferimentoSegnalazione(riga),
-    creataIl: testoONull(riga.creato_il ?? riga.creataIl),
+    // `creato_il` è la convenzione del progetto; `creata_il` è la forma usata nella
+    // proposta di `segnalazioni.php` (Parte 21): si accettano entrambe, così un
+    // nome diverso non fa sparire la data.
+    creataIl: testoONull(riga.creato_il ?? riga.creata_il ?? riga.creataIl),
   };
 }
 
@@ -178,6 +181,84 @@ export function normalizzaSegnalazioni(risposta) {
     return [];
   }
   return elenco.map(normalizzaSegnalazione).filter(Boolean);
+}
+
+/**
+ * Una persona **annidata** in una riga (`autore`, `segnalato`, `partecipanti`):
+ * `{id, username, nome, cognome}`. `normalizzaOfferente` non serve qui perché
+ * legge l'autore di un annuncio (annidato in `offerente` o piatto nella riga):
+ * questa legge l'oggetto che *è* la persona. Tutto ciò che manca resta `null`,
+ * senza inventare un nome.
+ */
+export function normalizzaPersona(valore) {
+  if (!valore || typeof valore !== 'object') {
+    return { id: null, username: null, nome: null, cognome: null };
+  }
+  return {
+    id: numeroInteroONull(valore.id ?? valore.utente_id),
+    username: testoONull(valore.username),
+    nome: testoONull(valore.nome),
+    cognome: testoONull(valore.cognome),
+  };
+}
+
+/**
+ * Gli esiti di una chiusura nella forma della UI: una lista di stringhe in
+ * maiuscolo. Il backend puo mandarne una sola (`esito`) o piu di una (`esiti`),
+ * e un valore ignoto **passa cosi com'è**: la schermata lo mostra grezzo invece
+ * di tradurlo a caso (stessa vista neutra di stati e buoni).
+ */
+export function normalizzaEsiti(valore) {
+  const elenco = Array.isArray(valore) ? valore : valore === null || valore === undefined ? [] : [valore];
+  return elenco
+    .map((esito) => (typeof esito === 'string' ? esito.trim().toUpperCase() : ''))
+    .filter((esito) => esito !== '');
+}
+
+/**
+ * Una segnalazione **vista dalla staff**: la forma della segnalazione piu chi l'ha
+ * scritta, chi e stato segnalato, i partecipanti al fatto (per la scelta del
+ * beneficiario del token) e l'esito della chiusura. L'autore qui c'e perche la
+ * staff deve sapere chi ha segnalato; nella riga dell'utente non c'era — era chi
+ * chiedeva, e la UI non lo disegnava.
+ */
+export function normalizzaSegnalazioneStaff(riga) {
+  const base = normalizzaSegnalazione(riga);
+  if (!base) {
+    return null;
+  }
+  const autore = normalizzaPersona(riga?.autore ?? riga?.segnalante);
+  const segnalato =
+    riga?.segnalato && typeof riga.segnalato === 'object'
+      ? normalizzaPersona(riga.segnalato)
+      : { id: base.segnalato, username: null, nome: null, cognome: null };
+  const dichiarati = Array.isArray(riga?.partecipanti)
+    ? riga.partecipanti.map(normalizzaPersona).filter((persona) => persona.id !== null)
+    : [];
+  return {
+    ...base,
+    autore,
+    segnalato,
+    // Senza l'elenco dei partecipanti si ripiega sui due che la riga conosce:
+    // la scelta del beneficiario resta possibile.
+    partecipanti:
+      dichiarati.length > 0
+        ? dichiarati
+        : [autore, segnalato].filter((persona) => persona.id !== null),
+    gestitaDa: numeroInteroONull(riga?.gestito_da ?? riga?.gestitaDa),
+    esiti: normalizzaEsiti(riga?.esiti ?? riga?.esito),
+    nota: testoONull(riga?.nota ?? riga?.nota_staff),
+    chiusaIl: testoONull(riga?.chiusa_il ?? riga?.chiuso_il ?? riga?.chiusaIl),
+  };
+}
+
+/** L'elenco per la staff: `{data:{segnalazioni:[…]}}` oppure l'array nudo. */
+export function normalizzaSegnalazioniStaff(risposta) {
+  const elenco = risposta?.data?.segnalazioni ?? risposta?.segnalazioni ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map(normalizzaSegnalazioneStaff).filter(Boolean);
 }
 
 /**

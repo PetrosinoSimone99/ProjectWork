@@ -17,8 +17,8 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * - utente attivo  -> gruppo (tabs) con le schermate principali
  *
  * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, inviti, token,
- * segnalazione) sono elencate a mano: senza la riga giusta non sono raggiungibili
- * con una sessione attiva, pur esistendo il file.
+ * segnalazione, area staff) sono elencate a mano: senza la riga giusta non sono
+ * raggiungibili con una sessione attiva, pur esistendo il file.
  *
  * Si aspetta anche la preferenza del tema salvata, così il primo render usa già
  * il tema scelto e non c'è un cambio di colore a schermata caricata.
@@ -78,6 +78,7 @@ function RootNavigator() {
         {utente ? <Stack.Screen name="inviti" /> : null}
         {utente ? <Stack.Screen name="token" /> : null}
         {utente ? <Stack.Screen name="segnala" /> : null}
+        {utente ? <Stack.Screen name="staff" /> : null}
       </Stack>
     </View>
   );

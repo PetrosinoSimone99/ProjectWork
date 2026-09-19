@@ -12,6 +12,29 @@ import { clearSession, isTokenValid, loadSession, saveSession } from './token-st
 
 const AuthContext = createContext(null);
 
+/**
+ * L'utente della sessione a partire dalla risposta di accesso.
+ *
+ * Il backend vero non manda ancora `ruolo` né `stato` (`login.php`/`register.php`,
+ * P24): qui si salvano **solo se ci sono**, senza inventarli. Quando arriveranno
+ * — in `utente` o accanto a `token` — finiranno nella sessione e la UI potrà
+ * decidere se mostrare l'area staff. Nessuna logica di permesso vive qui: questo
+ * codice si limita a portare il dato.
+ */
+function utenteDallaRisposta(risposta) {
+  const utente = risposta?.utente ?? null;
+  if (!utente) {
+    return null;
+  }
+  const ruolo = risposta?.ruolo ?? utente.ruolo;
+  const stato = risposta?.stato ?? utente.stato;
+  return {
+    ...utente,
+    ...(ruolo ? { ruolo } : {}),
+    ...(stato ? { stato } : {}),
+  };
+}
+
 export function AuthProvider({ children }) {
   const [booting, setBooting] = useState(true);
   const [session, setSession] = useState(null);
@@ -58,14 +81,14 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(async (username, password) => {
     const response = await api.login(username, password);
-    const nextSession = { token: response.token, utente: response.utente };
+    const nextSession = { token: response.token, utente: utenteDallaRisposta(response) };
     await saveSession(nextSession);
     setSession(nextSession);
   }, []);
 
   const signUp = useCallback(async (input) => {
     const response = await api.register(input);
-    const nextSession = { token: response.token, utente: response.utente };
+    const nextSession = { token: response.token, utente: utenteDallaRisposta(response) };
     await saveSession(nextSession);
     setSession(nextSession);
   }, []);
@@ -77,7 +100,8 @@ export function AuthProvider({ children }) {
 
   // Rilegge la sessione salvata (pull-to-refresh del Profilo): se nel frattempo
   // il token è scaduto si chiude la sessione, altrimenti la UI torna allineata
-  // ai dati salvati più di recente.
+  // ai dati salvati più di recente. `ruolo` e `stato`, se la risposta di accesso
+  // li portava, tornano con l'utente: `loadSession` restituisce l'oggetto intero.
   const ricaricaSessione = useCallback(async () => {
     const stored = await loadSession();
     if (!stored || !isTokenValid(stored.token)) {

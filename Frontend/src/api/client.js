@@ -70,7 +70,8 @@ export async function apiFetch(path, options = {}) {
   // TODO(demo): sparisce quando i finti coprono tutte le schermate (5–7). Il testo
   // resta volutamente corto: la spiegazione tecnica (i dati finti coprono
   // registrazione, «Offro e cerco», home, Loop, Scambi, i token, la segnalazione
-  // alla staff e le notifiche in-app) vive in questo commento, non a schermo.
+  // alla staff, l'area staff delle segnalazioni e le notifiche in-app) vive in
+  // questo commento, non a schermo.
   if (USA_DATI_FINTI) {
     throw new ApiError(501, 'Questa sezione è in arrivo.');
   }

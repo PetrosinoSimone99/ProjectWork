@@ -6,6 +6,8 @@ import {
   normalizzaPubblicazione,
   normalizzaPubblicazioni,
   normalizzaSegnalazione,
+  normalizzaSegnalazioneStaff,
+  normalizzaSegnalazioniStaff,
   normalizzaServizio,
   numeroInteroONull,
   testoONull,
@@ -18,6 +20,7 @@ import * as fintiMatch from './finti/match';
 import * as fintiNotifiche from './finti/notifiche';
 import * as fintiSegnalazioni from './finti/segnalazioni';
 import * as fintiServizi from './finti/servizi';
+import * as fintiStaff from './finti/staff';
 import * as fintiToken from './finti/token';
 import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
 import { aPayloadLetta } from '@/servizi/notifiche';
@@ -28,6 +31,7 @@ import {
   aPayloadPubblicazione,
   filtriDaQuery,
 } from '@/servizi/offerta-ricerca';
+import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadImpegno } from '@/servizi/token';
 
 // La superficie pubblica di prima resta quella: le funzioni spostate in
@@ -805,6 +809,67 @@ export async function segnaNotificaLetta(token, utenteId, id) {
     return;
   }
   await apiFetch('notifiche.php', { method: 'POST', token, body: corpo });
+}
+
+/**
+ * GET segnalazioni.php?stato=… — le segnalazioni viste dalla **staff**, con
+ * l'autore, il segnalato, il riferimento al fatto e lo stato. `stato` è
+ * facoltativo: senza, il backend decide (presumibilmente tutte). `utenteId` serve
+ * al ramo finto, che non decodifica il token di accesso.
+ */
+export async function ottieniSegnalazioniStaff(token, utenteId, stato) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): GET segnalazioni.php?stato=OPEN|IN_REVIEW|CLOSED con
+    // l'identità dal token di accesso e `403` se chi chiama non è staff.
+    return normalizzaSegnalazioniStaff(await fintiStaff.ottieniSegnalazioniStaff(utenteId, stato));
+  }
+  const query =
+    typeof stato === 'string' && stato.trim() !== ''
+      ? `?stato=${encodeURIComponent(stato.trim())}`
+      : '';
+  return normalizzaSegnalazioniStaff(await apiFetch(`segnalazioni.php${query}`, { token }));
+}
+
+/**
+ * POST segnalazioni.php `{azione:'prendi_in_carico', id}` — porta la pratica da
+ * `OPEN` a `IN_REVIEW`. Il `409` (già presa o chiusa) e il `403` (chi chiama non
+ * è staff) si mostrano così come sono: la schermata ricarica e lascia parlare il
+ * backend. L'identità viaggia **nel token**, mai nel corpo.
+ */
+export async function prendiInCaricoSegnalazione(token, utenteId, id) {
+  const corpo = aPayloadPresaInCarico(id);
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST segnalazioni.php {azione:'prendi_in_carico', id}.
+    const risposta = await fintiStaff.prendiInCarico(utenteId, id);
+    return normalizzaSegnalazioneStaff(risposta?.data?.segnalazione);
+  }
+  const risposta = await apiFetch('segnalazioni.php', { method: 'POST', token, body: corpo });
+  return normalizzaSegnalazioneStaff(risposta?.data?.segnalazione);
+}
+
+/**
+ * POST segnalazioni.php `{azione:'chiudi', id, esiti, id_beneficiario?, nota}` —
+ * chiude la pratica con uno o più esiti. `esiti` è una **lista** per permettere le
+ * combinazioni decise il 18 settembre 2026; `id_beneficiario` c'è solo con
+ * `TOKEN_ASSEGNATO`. La risposta porta la pratica chiusa e, quando il buono è
+ * stato creato, il suo `id_token` (per il `Banner` che rimanda a «I miei token»).
+ */
+export async function chiudiSegnalazione(token, utenteId, id, esiti, nota, idBeneficiario = null) {
+  const corpo = aPayloadChiusura(id, esiti, nota, idBeneficiario);
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST segnalazioni.php {azione:'chiudi', id, esiti,
+    // id_beneficiario?, nota} con l'identità dal token.
+    const risposta = await fintiStaff.chiudi(utenteId, id, esiti, nota, idBeneficiario);
+    return {
+      segnalazione: normalizzaSegnalazioneStaff(risposta?.data?.segnalazione),
+      idToken: numeroInteroONull(risposta?.data?.id_token),
+    };
+  }
+  const risposta = await apiFetch('segnalazioni.php', { method: 'POST', token, body: corpo });
+  return {
+    segnalazione: normalizzaSegnalazioneStaff(risposta?.data?.segnalazione),
+    idToken: numeroInteroONull(risposta?.data?.id_token ?? risposta?.id_token),
+  };
 }
 
 /** POST inviti.php azione "genera" — crea (o restituisce) il codice invito del mese. */

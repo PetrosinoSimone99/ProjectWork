@@ -34,6 +34,10 @@ export default function ProfiloScreen() {
   const displayName =
     [utente.nome, utente.cognome].filter(Boolean).join(' ') || utente.username || 'Utente';
   const expiresAt = token ? tokenExpiresAt(token) : null;
+  // Il ruolo non arriva ancora dal backend (P24): senza, la voce «Area staff» non
+  // compare. La UI nasconde, il backend protegge — e la schermata gestisce il 403.
+  const ruolo = typeof utente.ruolo === 'string' ? utente.ruolo.trim().toUpperCase() : null;
+  const isStaff = ruolo === 'STAFF' || ruolo === 'ADMIN';
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -129,6 +133,30 @@ export default function ProfiloScreen() {
           <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
         </Card>
       </Pressable>
+
+      {/* L'area staff non è una sesta tab: compare qui **solo** per chi ha il
+          ruolo (nella demo è finto e dichiarato, vedi `api/finti/accesso.js`). */}
+      {isStaff ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Apri la schermata Area staff"
+          onPress={() => router.push('/staff')}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
+          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={t.primary} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <AppText variant="heading" style={{ fontSize: 16 }}>
+                Area staff
+              </AppText>
+              <AppText variant="small" tone="secondary">
+                Esamina le segnalazioni e chiudile con un esito.
+              </AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
+          </Card>
+        </Pressable>
+      ) : null}
 
       <Card>
         <View style={{ gap: space.xs }}>
