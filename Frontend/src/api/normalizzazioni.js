@@ -8,9 +8,12 @@ import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/serviz
  *
  * Vivono qui e non in `api/barattolo.js` per una ragione misurata: il file degli
  * endpoint ha superato le 800 righe del progetto, e queste sono le funzioni pure
- * che si possono spostare **senza cambiare una riga di comportamento** (il
- * piano della coda prevedeva esattamente questo taglio). `barattolo.js` le
- * importa e continua a esporre quelle che erano pubbliche.
+ * che si possono spostare **senza cambiare una riga di comportamento**. Lo
+ * spostamento è stato fatto a più riprese e con l'ultimo, il 19 settembre 2026
+ * (categorie, filtri del catalogo, candidati, coda, buoni, esito dell'invio e
+ * accordo), **entrambi i file sono sotto il limite**: `barattolo.js` 782 righe,
+ * questo 731. `barattolo.js` le importa e continua a esporre quelle che erano
+ * pubbliche.
  *
  * La regola vale per tutte: **copia, trasforma, restituisci**. Niente chiamate
  * di rete, niente import da `barattolo.js` (niente cicli), e ogni funzione
