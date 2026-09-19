@@ -1,8 +1,10 @@
 import { ApiError, apiFetch } from './client';
 import { USA_DATI_FINTI } from './config';
 import {
+  normalizzaCandidati,
   normalizzaCoda,
   normalizzaElencoToken,
+  normalizzaEsitoScelta,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
   normalizzaOfferente,
@@ -28,11 +30,9 @@ import * as fintiServizi from './finti/servizi';
 import * as fintiStaff from './finti/staff';
 import * as fintiToken from './finti/token';
 import * as fintiUtenti from './finti/utenti';
-import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
 import { aPayloadLetta } from '@/servizi/notifiche';
 import {
   STATI_PUBBLICAZIONE,
-  TIPI_VOCE,
   aPayloadAggiornamento,
   aPayloadPubblicazione,
   filtriDaQuery,
@@ -44,6 +44,7 @@ import { aPayloadImpegno } from '@/servizi/token';
 // La superficie pubblica di prima resta quella: le funzioni spostate in
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
 export {
+  normalizzaCandidati,
   normalizzaCoda,
   normalizzaElencoToken,
   normalizzaGruppo,
@@ -344,78 +345,6 @@ export async function ottieniCatalogo(token, utenteId, filtri) {
 // `match: true`. Chi entra nella pila, in che ordine e se il like è ricambiato è
 // una decisione del backend.
 // ---------------------------------------------------------------------------
-
-/**
- * Un candidato nella forma della scheda. Costruito con **whitelist** esplicita:
- * il backend manda la riga intera, e un campo in più (email, telefono, date, id
- * interni) non deve arrivare a schermo nemmeno per sbaglio.
- *
- * Restituisce `null` per le righe che non si possono mostrare (nessuna persona,
- * nessuna offerta), e per la propria persona: la pila è di altri.
- */
-function normalizzaCandidato(riga, utenteId) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-
-  // `normalizzaOfferente` legge già l'autore annidato (`offerente`) **e** quello
-  // piatto (`utente_id`, `nome`, …): va chiamata sulla riga, non sull'oggetto
-  // interno, altrimenti non trova né l'uno né l'altro.
-  const persona = normalizzaOfferente(riga);
-  if (persona.id === null) {
-    return null;
-  }
-  if (utenteId !== null && utenteId !== undefined && Number(persona.id) === Number(utenteId)) {
-    return null;
-  }
-
-  const rigaOfferta = riga.offre ?? riga.offerta ?? null;
-  if (!rigaOfferta || typeof rigaOfferta !== 'object') {
-    return null;
-  }
-  const offerta = normalizzaPubblicazione({ ...rigaOfferta, tipo: TIPI_VOCE.OFFERTA });
-  if (!offerta) {
-    return null;
-  }
-
-  const rigaRicerca = riga.cerca ?? riga.ricerca ?? null;
-  const ricerca =
-    rigaRicerca && typeof rigaRicerca === 'object'
-      ? normalizzaPubblicazione({ ...rigaRicerca, tipo: TIPI_VOCE.RICERCA })
-      : null;
-
-  return {
-    chiave: chiaveCandidato({ persona }),
-    persona,
-    offerta,
-    ricerca,
-    // Un motivo sconosciuto o assente diventa `null`: la riga sparisce.
-    motivo: motivoCompatibilita(riga.motivo ?? riga.motivo_compatibilita),
-    tiHaScelto:
-      riga.ti_ha_scelto === true || riga.scelta_ricevuta === SCELTE_CANDIDATO.INTERESSE,
-  };
-}
-
-/**
- * L'esito di una scelta nella forma della UI: `match` è **solo** quello che la
- * risposta dice, e il messaggio del backend resta disponibile per il Banner.
- */
-function normalizzaEsitoScelta(risposta) {
-  const dati = risposta?.data ?? risposta;
-  return {
-    match: dati?.match === true,
-    messaggio: typeof risposta?.message === 'string' ? risposta.message : '',
-  };
-}
-
-/** L'elenco dei candidati: `{data:{candidati:[…]}}` oppure l'array nudo. */
-export function normalizzaCandidati(risposta, utenteId) {
-  const elenco = risposta?.data?.candidati ?? risposta?.candidati ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map((riga) => normalizzaCandidato(riga, utenteId)).filter(Boolean);
-}
 
 /**
  * GET Match/candidati.php — le persone da mostrare nella pila, **già senza le

@@ -1,5 +1,6 @@
 import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/servizi/offerta-ricerca';
 import { RIFERIMENTI, idRiferimento } from '@/servizi/segnalazioni';
+import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
 
 /**
  * Le normalizzazioni condivise: dalla forma di rete del backend alla forma che
@@ -574,4 +575,83 @@ export function normalizzaElencoToken(risposta) {
     return [];
   }
   return elenco.map(normalizzaToken).filter(Boolean);
+}
+// ---------------------------------------------------------------------------
+// Candidati di «Loop» — le schede dello swipe
+//
+// Spostate qui dal file degli endpoint come le altre: sono pure e non importano
+// da `barattolo.js`. La scheda si costruisce con **whitelist esplicita**, così
+// un campo in più del backend non arriva a schermo nemmeno per sbaglio.
+// ---------------------------------------------------------------------------
+
+/**
+ * Un candidato nella forma della scheda. Costruito con **whitelist** esplicita:
+ * il backend manda la riga intera, e un campo in più (email, telefono, date, id
+ * interni) non deve arrivare a schermo nemmeno per sbaglio.
+ *
+ * Restituisce `null` per le righe che non si possono mostrare (nessuna persona,
+ * nessuna offerta), e per la propria persona: la pila è di altri.
+ */
+function normalizzaCandidato(riga, utenteId) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+
+  // `normalizzaOfferente` legge già l'autore annidato (`offerente`) **e** quello
+  // piatto (`utente_id`, `nome`, …): va chiamata sulla riga, non sull'oggetto
+  // interno, altrimenti non trova né l'uno né l'altro.
+  const persona = normalizzaOfferente(riga);
+  if (persona.id === null) {
+    return null;
+  }
+  if (utenteId !== null && utenteId !== undefined && Number(persona.id) === Number(utenteId)) {
+    return null;
+  }
+
+  const rigaOfferta = riga.offre ?? riga.offerta ?? null;
+  if (!rigaOfferta || typeof rigaOfferta !== 'object') {
+    return null;
+  }
+  const offerta = normalizzaPubblicazione({ ...rigaOfferta, tipo: TIPI_VOCE.OFFERTA });
+  if (!offerta) {
+    return null;
+  }
+
+  const rigaRicerca = riga.cerca ?? riga.ricerca ?? null;
+  const ricerca =
+    rigaRicerca && typeof rigaRicerca === 'object'
+      ? normalizzaPubblicazione({ ...rigaRicerca, tipo: TIPI_VOCE.RICERCA })
+      : null;
+
+  return {
+    chiave: chiaveCandidato({ persona }),
+    persona,
+    offerta,
+    ricerca,
+    // Un motivo sconosciuto o assente diventa `null`: la riga sparisce.
+    motivo: motivoCompatibilita(riga.motivo ?? riga.motivo_compatibilita),
+    tiHaScelto:
+      riga.ti_ha_scelto === true || riga.scelta_ricevuta === SCELTE_CANDIDATO.INTERESSE,
+  };
+}
+
+/**
+ * L'esito di una scelta nella forma della UI: `match` è **solo** quello che la
+ * risposta dice, e il messaggio del backend resta disponibile per il Banner.
+ */
+export function normalizzaEsitoScelta(risposta) {
+  const dati = risposta?.data ?? risposta;
+  return {
+    match: dati?.match === true,
+    messaggio: typeof risposta?.message === 'string' ? risposta.message : '',
+  };
+}
+
+/** L'elenco dei candidati: `{data:{candidati:[…]}}` oppure l'array nudo. */
+export function normalizzaCandidati(risposta, utenteId) {
+  const elenco = risposta?.data?.candidati ?? risposta?.candidati ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map((riga) => normalizzaCandidato(riga, utenteId)).filter(Boolean);
 }
