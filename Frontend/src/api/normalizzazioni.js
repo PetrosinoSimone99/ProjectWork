@@ -531,3 +531,47 @@ export function normalizzaCoda(risposta, utenteId) {
     gruppiConclusi: normalizzaStoricoGruppi(dati.gruppi_conclusi, utenteId),
   };
 }
+// ---------------------------------------------------------------------------
+// Buoni («I miei token»)
+//
+// Spostate qui dal file degli endpoint come le altre: sono pure. `stato` resta
+// in maiuscolo e uno stato **ignoto passa così com'è**, perché è la schermata a
+// mostrarlo grezzo; le date restano le stringhe del backend e le formatta
+// `servizi/token.js`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Un buono nella forma della UI. `stato` è in maiuscolo e uno stato **ignoto
+ * passa così com'è**: la schermata lo mostra grezzo (stessa vista neutra della
+ * coda), non lo traduce a caso. Le date restano le stringhe del backend:
+ * formattarle è compito di `servizi/token.js`.
+ */
+export function normalizzaToken(riga) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const id = numeroInteroONull(riga.id);
+  if (id === null) {
+    return null;
+  }
+  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
+  return {
+    id,
+    stato: stato || null,
+    origine: testoONull(riga.origine),
+    creatoIl: testoONull(riga.creato_il ?? riga.creatoIl),
+    scadenza: testoONull(riga.scadenza),
+    usatoIl: testoONull(riga.usato_il ?? riga.usatoIl),
+    idServizioUsato: numeroInteroONull(riga.id_servizio_usato ?? riga.idServizioUsato),
+    idAccordo: numeroInteroONull(riga.id_accordo ?? riga.idAccordo),
+  };
+}
+
+/** L'elenco dei buoni: `{data:{token:[…]}}` oppure l'array nudo. */
+export function normalizzaElencoToken(risposta) {
+  const elenco = risposta?.data?.token ?? risposta?.token ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map(normalizzaToken).filter(Boolean);
+}

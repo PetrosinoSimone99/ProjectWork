@@ -2,6 +2,7 @@ import { ApiError, apiFetch } from './client';
 import { USA_DATI_FINTI } from './config';
 import {
   normalizzaCoda,
+  normalizzaElencoToken,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
   normalizzaOfferente,
@@ -11,9 +12,9 @@ import {
   normalizzaSegnalazioneStaff,
   normalizzaSegnalazioniStaff,
   normalizzaServizio,
+  normalizzaToken,
   normalizzaUtentiStaff,
   numeroInteroONull,
-  testoONull,
 } from './normalizzazioni';
 import * as fintiAccesso from './finti/accesso';
 import * as fintiCatalogo from './finti/catalogo';
@@ -44,12 +45,14 @@ import { aPayloadImpegno } from '@/servizi/token';
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
 export {
   normalizzaCoda,
+  normalizzaElencoToken,
   normalizzaGruppo,
   normalizzaPubblicazioni,
   normalizzaScadenza,
   normalizzaStatoGruppo,
   normalizzaStatoPubblicazione,
   normalizzaStoricoGruppi,
+  normalizzaToken,
 } from './normalizzazioni';
 
 /**
@@ -528,42 +531,6 @@ export async function esciDallaCoda(token, utenteId) {
 // Nome da non confondere: `token` nei parametri è il **token di accesso**
 // (l'identità viaggia lì), il buono è `buono` nella forma normalizzata.
 // ---------------------------------------------------------------------------
-
-/**
- * Un buono nella forma della UI. `stato` è in maiuscolo e uno stato **ignoto
- * passa così com'è**: la schermata lo mostra grezzo (stessa vista neutra della
- * coda), non lo traduce a caso. Le date restano le stringhe del backend:
- * formattarle è compito di `servizi/token.js`.
- */
-export function normalizzaToken(riga) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-  const id = numeroInteroONull(riga.id);
-  if (id === null) {
-    return null;
-  }
-  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
-  return {
-    id,
-    stato: stato || null,
-    origine: testoONull(riga.origine),
-    creatoIl: testoONull(riga.creato_il ?? riga.creatoIl),
-    scadenza: testoONull(riga.scadenza),
-    usatoIl: testoONull(riga.usato_il ?? riga.usatoIl),
-    idServizioUsato: numeroInteroONull(riga.id_servizio_usato ?? riga.idServizioUsato),
-    idAccordo: numeroInteroONull(riga.id_accordo ?? riga.idAccordo),
-  };
-}
-
-/** L'elenco dei buoni: `{data:{token:[…]}}` oppure l'array nudo. */
-export function normalizzaElencoToken(risposta) {
-  const elenco = risposta?.data?.token ?? risposta?.token ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map(normalizzaToken).filter(Boolean);
-}
 
 /**
  * GET token.php — i **propri** buoni. `utenteId` serve solo al ramo finto: il
