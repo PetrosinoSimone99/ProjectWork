@@ -17,6 +17,7 @@ import {
 import * as fintiAccesso from './finti/accesso';
 import * as fintiCatalogo from './finti/catalogo';
 import * as fintiCategorie from './finti/categorie';
+import * as fintiChat from './finti/chat';
 import * as fintiCoda from './finti/coda';
 import * as fintiMatch from './finti/match';
 import * as fintiNotifiche from './finti/notifiche';
@@ -115,6 +116,12 @@ export async function ottieniCategorie(token) {
 
 /** POST Chat/cercaOCreaChat.php — trova o crea una chat 1:1. */
 export async function cercaOCreaChat(token, utenteAttuale, membroChat) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST Chat/cercaOCreaChat.php; il finto copia la forma vera
+    // (solo `{id_chat}`, niente busta) e il seme dei due messaggi.
+    const dati = await fintiChat.cercaOCreaChat(utenteAttuale, membroChat);
+    return Number(dati.id_chat);
+  }
   const data = await apiFetch('Chat/cercaOCreaChat.php', {
     method: 'POST',
     body: { utenteAttuale, membroChat },
@@ -125,11 +132,21 @@ export async function cercaOCreaChat(token, utenteAttuale, membroChat) {
 
 /** GET Chat/ottieniStoricoChat.php?chat=... — restituisce lo storico della chat. */
 export function ottieniStoricoChat(token, chatId) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): GET Chat/ottieniStoricoChat.php?chat=…, che risponde con
+    // l'array nudo dei messaggi (nessuna busta).
+    return fintiChat.ottieniStoricoChat(chatId);
+  }
   return apiFetch(`Chat/ottieniStoricoChat.php?chat=${chatId}`, { token });
 }
 
 /** POST Chat/inviaMessaggio.php — invia un messaggio nella chat. */
 export function inviaMessaggio(token, chatId, utenteId, messaggio) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): POST Chat/inviaMessaggio.php con {chat, utente, messaggio};
+    // la risposta non contiene la riga creata, quindi la si rilegge dallo storico.
+    return fintiChat.inviaMessaggio(chatId, utenteId, messaggio);
+  }
   return apiFetch('Chat/inviaMessaggio.php', {
     method: 'POST',
     body: { chat: chatId, utente: utenteId, messaggio },
