@@ -352,3 +352,182 @@ export function normalizzaEsitoUtenteStaff(risposta) {
     messaggio: typeof risposta?.messaggio === 'string' ? risposta.messaggio : '',
   };
 }
+// ---------------------------------------------------------------------------
+// Coda e gruppi di match — la catena dello swipe
+//
+// Spostate qui dal file degli endpoint come le altre: sono pure, non chiamano la
+// rete e non importano da `barattolo.js`. Il frontend non calcola la catena e non
+// decide esiti: legge `in_coda`, lo stato del gruppo e i versi dichiarati
+// (`offre_a`). È anche il motivo per cui `hooks/useCoda.js` e `servizi/coda.js`
+// non fanno parsing di date né di stati.
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo stato del gruppo nella forma che la UI conosce: maiuscolo e senza spazi,
+ * con un valore **ignoto lasciato passare** (la vista neutra della schermata).
+ * `null` solo quando il backend non lo manda.
+ * TODO(backend): i valori veri dell'enum di `gruppi_match` non sono decisi.
+ */
+export function normalizzaStatoGruppo(stato) {
+  if (typeof stato !== 'string' || !stato.trim()) {
+    return null;
+  }
+  return stato.trim().toUpperCase();
+}
+
+/**
+ * La scadenza della ricerca in epoch (millisecondi), oppure `null` se assente o
+ * illeggibile. Si chiede l'**istante assoluto**, non la durata, perché il residuo
+ * deve sopravvivere alla chiusura dell'app: una durata ricevuta un'ora fa non
+ * dice più niente senza sapere quanto tempo è passato.
+ *
+ * Fallback dichiarato: se i colleghi mandano `secondi_residui` (un numero), lo si
+ * converte **una volta sola** in un istante assoluto al momento della ricezione.
+ * Da qui in poi la UI non maneggia mai una stringa di data.
+ */
+export function normalizzaScadenza(valore) {
+  if (typeof valore === 'string') {
+    const millisecondi = Date.parse(valore);
+    return Number.isFinite(millisecondi) ? millisecondi : null;
+  }
+  if (typeof valore === 'number' && Number.isFinite(valore)) {
+    return Date.now() + valore * 1000;
+  }
+  return null;
+}
+
+/**
+ * Il verso della catena: a chi offre un membro. `null` quando il backend non lo
+ * dichiara, e in quel caso la UI **non disegna frecce** e non deduce le chat.
+ */
+function normalizzaArco(valore) {
+  if (!valore || typeof valore !== 'object') {
+    return null;
+  }
+  const posizione = numeroInteroONull(valore.posizione);
+  const utenteId = numeroInteroONull(valore.utente_id ?? valore.id);
+  if (posizione === null && utenteId === null) {
+    return null;
+  }
+  return { posizione, utenteId };
+}
+
+/** Chi è uscito dal gruppo: la persona, quando e — se c'è — il motivo del backend. */
+function normalizzaUscita(riga) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const persona = normalizzaOfferente(riga);
+  return {
+    utenteId: persona.id,
+    persona,
+    quando: testoONull(riga.quando ?? riga.concluso_il),
+    // Il motivo è una stringa del backend: si mostra **così com'è**, e se manca
+    // non si scrive nessun motivo inventato.
+    motivo: testoONull(riga.motivo),
+  };
+}
+
+/**
+ * Un membro della catena nella forma della UI. La voce usa
+ * `normalizzaPubblicazione` (stessa forma delle schermate 1–2) e la persona usa
+ * `normalizzaOfferente` (che legge già la forma annidata e quella piatta).
+ * `sonoIo` si calcola **qui**, in un punto solo, come fa `normalizzaAccordo`.
+ */
+function normalizzaMembro(riga, utenteId) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const personaBase = normalizzaOfferente(riga);
+  if (personaBase.id === null) {
+    return null;
+  }
+  // La località della persona, nella riga del membro, è piatta (`localita`):
+  // `normalizzaOfferente` legge solo quella annidata (per non confondere la
+  // località dell'annuncio con quella della persona), quindi si completa qui.
+  const persona = { ...personaBase, localita: personaBase.localita ?? testoONull(riga.localita) };
+  const rigaOfferta = riga.offre ?? riga.offerta ?? null;
+  if (!rigaOfferta || typeof rigaOfferta !== 'object') {
+    return null;
+  }
+  const offerta = normalizzaPubblicazione({ ...rigaOfferta, tipo: TIPI_VOCE.OFFERTA });
+  if (!offerta) {
+    return null;
+  }
+  const rigaRicerca = riga.cerca ?? riga.ricerca ?? null;
+  const ricerca =
+    rigaRicerca && typeof rigaRicerca === 'object'
+      ? normalizzaPubblicazione({ ...rigaRicerca, tipo: TIPI_VOCE.RICERCA })
+      : null;
+
+  return {
+    chiave: String(persona.id),
+    posizione: numeroInteroONull(riga.posizione),
+    persona,
+    offerta,
+    ricerca,
+    offreA: normalizzaArco(riga.offre_a),
+    sonoIo:
+      utenteId !== null && utenteId !== undefined && Number(persona.id) === Number(utenteId),
+  };
+}
+
+/** Un gruppo nella forma della UI: membri, conteggio, uscita e diritto al token. */
+export function normalizzaGruppo(riga, utenteId) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const membri = Array.isArray(riga.membri)
+    ? riga.membri.map((membro) => normalizzaMembro(membro, utenteId)).filter(Boolean)
+    : [];
+  return {
+    chiave: riga.id === undefined || riga.id === null ? null : String(riga.id),
+    id: numeroInteroONull(riga.id),
+    stato: normalizzaStatoGruppo(riga.stato),
+    // Il totale previsto: la UI lo mostra come «2 di 4» **solo** se c'è, e non
+    // scrive mai «quattro» (il numero lo decide il backend).
+    numeroPartecipanti: numeroInteroONull(riga.numero_partecipanti),
+    membri,
+    uscita: normalizzaUscita(riga.uscita),
+    // TODO(backend): chi ha offerto e non ha ricevuto lo dichiara il backend.
+    // Il frontend non lo deduce e non lo chiede all'utente.
+    puoiChiedereToken:
+      riga.puoi_chiedere_token === true || riga.mia_parte_svolta === true,
+  };
+}
+
+/** Lo storico: i gruppi conclusi e quelli saltati, con la data in cui sono finiti. */
+export function normalizzaStoricoGruppi(elenco, utenteId) {
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco
+    .map((riga) => {
+      const gruppo = normalizzaGruppo(riga, utenteId);
+      if (!gruppo) {
+        return null;
+      }
+      return { ...gruppo, conclusoIl: testoONull(riga.concluso_il) };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * La lettura della coda nella forma della UI: `inCoda`, la scadenza già in epoch,
+ * il gruppo e lo storico. La scadenza si cerca in testa alla risposta e dentro il
+ * gruppo (entrambe le posizioni funzionano), più il fallback `secondi_residui`.
+ */
+export function normalizzaCoda(risposta, utenteId) {
+  const dati = risposta?.data ?? risposta;
+  if (!dati || typeof dati !== 'object') {
+    return { inCoda: false, scadenzaMs: null, gruppo: null, gruppiConclusi: [] };
+  }
+  return {
+    inCoda: dati.in_coda === true,
+    scadenzaMs: normalizzaScadenza(
+      dati.scadenza ?? dati.gruppo?.scadenza ?? dati.secondi_residui,
+    ),
+    gruppo: normalizzaGruppo(dati.gruppo, utenteId),
+    gruppiConclusi: normalizzaStoricoGruppi(dati.gruppi_conclusi, utenteId),
+  };
+}
