@@ -293,3 +293,62 @@ export function normalizzaNotifiche(risposta) {
   }
   return elenco.map(normalizzaNotifica).filter(Boolean);
 }
+
+// ---------------------------------------------------------------------------
+// Utenti dell'area staff
+//
+// Stanno qui per la stessa ragione delle altre: sono funzioni pure che
+// `barattolo.js` usa nel bivio dei finti e nel ramo vero, così la forma della
+// riga utente è decisa **una volta sola** e i due manager (che rispondono con la
+// busta piatta `{messaggio, utente}`) non dettano la forma alla schermata.
+// ---------------------------------------------------------------------------
+
+/**
+ * Un utente nella forma della UI: `{id, username, nome, cognome, ruolo, stato,
+ * creatoIl}`. Ruolo e stato sono in maiuscolo e un valore **ignoto passa così
+ * com'è**: la schermata lo mostra grezzo, non lo traduce a caso (stessa vista
+ * neutra di stati e buoni). Una riga senza id non si può mostrare né gestire,
+ * quindi si scarta.
+ */
+export function normalizzaUtenteStaff(riga) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const id = numeroInteroONull(riga.id ?? riga.utente_id);
+  if (id === null) {
+    return null;
+  }
+  const ruolo = typeof riga.ruolo === 'string' ? riga.ruolo.trim().toUpperCase() : '';
+  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
+  return {
+    id,
+    username: testoONull(riga.username),
+    nome: testoONull(riga.nome),
+    cognome: testoONull(riga.cognome),
+    ruolo: ruolo || null,
+    stato: stato || null,
+    creatoIl: testoONull(riga.creato_il ?? riga.creatoIl),
+  };
+}
+
+/** L'elenco degli utenti: `{data:{utenti:[…]}}`, `{utenti:[…]}` oppure l'array nudo. */
+export function normalizzaUtentiStaff(risposta) {
+  const elenco = risposta?.data?.utenti ?? risposta?.utenti ?? risposta;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco.map(normalizzaUtenteStaff).filter(Boolean);
+}
+
+/**
+ * L'esito dei due manager nella forma della schermata: l'utente aggiornato e il
+ * `messaggio` del backend, gi\u00e0 pronto per il `Banner`. La busta \u00e8 **piatta**
+ * (`{messaggio, utente}`, non `{success, message, data}`): \u00e8 la seconda busta del
+ * progetto e la legge `client.js`.
+ */
+export function normalizzaEsitoUtenteStaff(risposta) {
+  return {
+    utente: normalizzaUtenteStaff(risposta?.utente ?? risposta),
+    messaggio: typeof risposta?.messaggio === 'string' ? risposta.messaggio : '',
+  };
+}

@@ -1,7 +1,5 @@
-import { Pressable, View } from 'react-native';
-import { AppText } from './AppText';
+import { BarraPillole } from './BarraPillole';
 import { STATI_SEGNALAZIONE } from '@/servizi/segnalazioni';
-import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
  * Il filtro per stato dell'area staff: le tre scelte dello stato più «Tutte».
@@ -11,9 +9,8 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * esaminare. Le tre scelte vere sono gli stati della segnalazione, che restano in
  * `servizi/segnalazioni.js`: qui non si ridichiara nessun valore.
  *
- * È una riga di pillole e non una tendina perché le scelte sono poche e si
- * leggono tutte insieme; la pillola attiva è anche l'unico posto in cui il colore
- * primario dice qualcosa, e l'etichetta accessibile è la stessa parola scritta.
+ * Il disegno è quello comune di `BarraPillole`: la riga di pillole è la stessa
+ * forma dei filtri degli utenti (`staff-utenti.jsx`).
  */
 export const FILTRI_STAFF = [
   { valore: null, etichetta: 'Tutte' },
@@ -23,44 +20,14 @@ export const FILTRI_STAFF = [
 ];
 
 export function BarraStatoStaff({ filtro, onChange, disabled = false, style }) {
-  const t = useTokens();
-
   return (
-    <View
-      accessibilityRole="tablist"
+    <BarraPillole
       accessibilityLabel="Filtra le segnalazioni per stato"
-      style={[{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }, style]}
-    >
-      {FILTRI_STAFF.map((scelta) => {
-        const attivo = filtro === scelta.valore;
-        return (
-          <Pressable
-            key={scelta.etichetta}
-            accessibilityRole="tab"
-            accessibilityLabel={scelta.etichetta}
-            accessibilityState={{ selected: attivo, disabled }}
-            aria-selected={attivo}
-            disabled={disabled}
-            onPress={() => onChange(scelta.valore)}
-            style={({ pressed }) => ({
-              paddingVertical: space.sm,
-              paddingHorizontal: space.lg,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              borderColor: attivo ? t.primary : t.border,
-              backgroundColor: attivo ? t.primary : pressed ? t.border : 'transparent',
-              opacity: disabled ? 0.55 : 1,
-            })}
-          >
-            <AppText
-              variant="small"
-              style={{ color: attivo ? t.onPrimary : t.text, fontWeight: '600' }}
-            >
-              {scelta.etichetta}
-            </AppText>
-          </Pressable>
-        );
-      })}
-    </View>
+      scelte={FILTRI_STAFF}
+      valore={filtro}
+      onChange={onChange}
+      disabled={disabled}
+      style={style}
+    />
   );
 }

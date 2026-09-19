@@ -3,7 +3,8 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
-import { Card, Chip } from './Card';
+import { Card } from './Card';
+import { ChipTono } from './ChipTono';
 import { nomePersona } from '@/servizi/offerta-ricerca';
 import { etichettaMotivo, etichettaStatoSegnalazione, testoRiferimento, tonoStatoSegnalazione } from '@/servizi/segnalazioni';
 import { descriviEsitiChiusi, puoPrendereInCarico, puoiChiudere } from '@/servizi/staff';
@@ -38,12 +39,6 @@ export function CardSegnalazioneStaff({
   const t = useTokens();
   const [espansa, setEspansa] = useState(false);
 
-  const palette = {
-    info: { background: t.background, color: t.textSecondary },
-    accent: { background: t.accentBg, color: t.accentText },
-    service: { background: t.serviceBg, color: t.serviceText },
-  }[tonoStatoSegnalazione(segnalazione.stato)];
-
   const stato = etichettaStatoSegnalazione(segnalazione.stato) ?? 'Stato sconosciuto';
   const nomeSegnalato = nomePersona(segnalazione.segnalato);
   const riferimento = testoRiferimento(segnalazione.riferimento);
@@ -56,11 +51,7 @@ export function CardSegnalazioneStaff({
       <View
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }}
       >
-        <Chip background={palette.background}>
-          <AppText variant="caption" style={{ color: palette.color }}>
-            {stato}
-          </AppText>
-        </Chip>
+        <ChipTono tono={tonoStatoSegnalazione(segnalazione.stato)}>{stato}</ChipTono>
         <AppText variant="small" tone="secondary">
           {segnalazione.creataIl ?? 'Data non disponibile'}
         </AppText>

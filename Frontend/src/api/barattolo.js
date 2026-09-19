@@ -1,6 +1,7 @@
 import { ApiError, apiFetch } from './client';
 import { USA_DATI_FINTI } from './config';
 import {
+  normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
   normalizzaOfferente,
   normalizzaPubblicazione,
@@ -9,6 +10,7 @@ import {
   normalizzaSegnalazioneStaff,
   normalizzaSegnalazioniStaff,
   normalizzaServizio,
+  normalizzaUtentiStaff,
   numeroInteroONull,
   testoONull,
 } from './normalizzazioni';
@@ -22,6 +24,7 @@ import * as fintiSegnalazioni from './finti/segnalazioni';
 import * as fintiServizi from './finti/servizi';
 import * as fintiStaff from './finti/staff';
 import * as fintiToken from './finti/token';
+import * as fintiUtenti from './finti/utenti';
 import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
 import { aPayloadLetta } from '@/servizi/notifiche';
 import {
@@ -32,6 +35,7 @@ import {
   filtriDaQuery,
 } from '@/servizi/offerta-ricerca';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
+import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
 import { aPayloadImpegno } from '@/servizi/token';
 
 // La superficie pubblica di prima resta quella: le funzioni spostate in
@@ -870,6 +874,70 @@ export async function chiudiSegnalazione(token, utenteId, id, esiti, nota, idBen
     segnalazione: normalizzaSegnalazioneStaff(risposta?.data?.segnalazione),
     idToken: numeroInteroONull(risposta?.data?.id_token ?? risposta?.id_token),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Utenti dell'area staff — ruoli e stati
+//
+// Due dei tre endpoint **esistono già**: `userRoleManager.php` e
+// `userStatoManager.php` funzionano e rispondono con la busta **piatta**
+// `{messaggio, utente}` (la seconda busta del progetto, gestita da `client.js`).
+// L'unico pezzo che manca è l'elenco (`utenti.php`, proposto): senza, i due
+// manager non hanno interfaccia, ed è il motivo per cui `ottieniUtentiStaff` ha
+// il suo `// TODO(backend)`. La ricerca e i filtri della schermata sono
+// **locali** (lo dichiara la schermata): il contratto proposto li accetterebbe in
+// query string, ma la demo non li usa perché l'elenco è piccolo.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET utenti.php — l'elenco degli utenti con ruolo e stato, per l'area staff.
+ * Con i finti spenti risponde `404` (l'endpoint non esiste): la schermata lo
+ * mostra come errore di caricamento, con «Riprova». `utenteId` serve solo al
+ * ramo finto, che non decodifica il token di accesso.
+ */
+export async function ottieniUtentiStaff(token, utenteId) {
+  if (USA_DATI_FINTI) {
+    // TODO(backend): GET utenti.php?ruolo=&stato=&q= con l'identità dal token e
+    // `403` se chi chiama non è STAFF/ADMIN; la risposta è
+    // {success, message, data:{utenti:[{id, username, nome, cognome, ruolo, stato, creato_il}]}}.
+    return normalizzaUtentiStaff(await fintiUtenti.ottieniUtentiStaff(utenteId));
+  }
+  return normalizzaUtentiStaff(await apiFetch('utenti.php', { token }));
+}
+
+/**
+ * POST userRoleManager.php `{utente_id, ruolo}` — cambia il ruolo di un altro
+ * utente. L'endpoint **esiste**: i `403` delle regole (e il `404` sul bersaglio
+ * sparito) arrivano dal backend e si mostrano così come sono. L'identità
+ * dell'operatore viaggia **nel token**, mai nel corpo. `utenteId` serve al ramo
+ * finto.
+ */
+export async function cambiaRuoloUtente(token, utenteId, id, ruolo) {
+  const corpo = aPayloadRuolo(id, ruolo);
+  if (USA_DATI_FINTI) {
+    // TODO(backend): niente, l'endpoint c'è; resta da aggiornare il finto quando
+    // la busta vera cambierà.
+    return normalizzaEsitoUtenteStaff(await fintiUtenti.cambiaRuolo(utenteId, id, ruolo));
+  }
+  const risposta = await apiFetch('userRoleManager.php', { method: 'POST', token, body: corpo });
+  return normalizzaEsitoUtenteStaff(risposta);
+}
+
+/**
+ * POST userStatoManager.php `{utente_id, stato}` — cambia lo stato di un altro
+ * utente. Stessa forma della riga precedente; qui la regola in più è che il
+ * bersaglio `ADMIN` è vietato anche a un altro `ADMIN` (asimmetria dichiarata tra
+ * i due manager).
+ */
+export async function cambiaStatoUtente(token, utenteId, id, stato) {
+  const corpo = aPayloadStato(id, stato);
+  if (USA_DATI_FINTI) {
+    // TODO(backend): niente, l'endpoint c'è; resta da aggiornare il finto quando
+    // la busta vera cambierà.
+    return normalizzaEsitoUtenteStaff(await fintiUtenti.cambiaStato(utenteId, id, stato));
+  }
+  const risposta = await apiFetch('userStatoManager.php', { method: 'POST', token, body: corpo });
+  return normalizzaEsitoUtenteStaff(risposta);
 }
 
 /** POST inviti.php azione "genera" — crea (o restituisce) il codice invito del mese. */

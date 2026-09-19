@@ -265,6 +265,17 @@ export default function StaffScreen() {
         <AppText variant="title">Area staff</AppText>
       </View>
 
+      {/* L'altra sezione dell'area staff: sono due file e due rotte, non due
+          tab, e ognuno rimanda all'altro. */}
+      <AppButton
+        label="Utenti"
+        variant="ghost"
+        icon="people-outline"
+        accessibilityLabel="Apri gli utenti dell'area staff"
+        onPress={() => router.push('/staff-utenti')}
+        style={{ alignSelf: 'flex-start' }}
+      />
+
       <AppText variant="small" tone="secondary">
         Esamina le segnalazioni, prendile in carico e chiudile con un esito. L'esito cambia la vita
         di due persone: la nota dice su cosa si è basata la decisione, e chiudi solo dopo aver
