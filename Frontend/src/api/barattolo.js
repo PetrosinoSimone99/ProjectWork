@@ -1,22 +1,25 @@
 import { ApiError, apiFetch } from './client';
 import { USA_DATI_FINTI } from './config';
 import {
+  normalizzaAccordo,
   normalizzaCandidati,
+  normalizzaCategorie,
   normalizzaCoda,
   normalizzaElencoToken,
+  normalizzaEsitoInvio,
   normalizzaEsitoScelta,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
   normalizzaOfferente,
   normalizzaPubblicazione,
   normalizzaPubblicazioni,
-  normalizzaSegnalazione,
   normalizzaSegnalazioneStaff,
   normalizzaSegnalazioniStaff,
   normalizzaServizio,
   normalizzaToken,
   normalizzaUtentiStaff,
   numeroInteroONull,
+  queryDaFiltri,
 } from './normalizzazioni';
 import * as fintiAccesso from './finti/accesso';
 import * as fintiCatalogo from './finti/catalogo';
@@ -35,7 +38,6 @@ import {
   STATI_PUBBLICAZIONE,
   aPayloadAggiornamento,
   aPayloadPubblicazione,
-  filtriDaQuery,
 } from '@/servizi/offerta-ricerca';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
@@ -45,6 +47,7 @@ import { aPayloadImpegno } from '@/servizi/token';
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
 export {
   normalizzaCandidati,
+  normalizzaCategorie,
   normalizzaCoda,
   normalizzaElencoToken,
   normalizzaGruppo,
@@ -91,27 +94,6 @@ export function register(input) {
     return fintiAccesso.register(input);
   }
   return apiFetch('register.php', { method: 'POST', body: input });
-}
-
-/**
- * Le categorie nella forma che serve alla UI: `[{id, nome}]`.
- *
- * Stessa normalizzazione per il finto e per il backend vero, così la schermata
- * non vede mai due forme diverse: l'id diventa numero (il confronto con
- * `idCategoria` è numerico) e le voci senza id o senza nome vengono scartate
- * invece di disegnare una tendina con righe vuote.
- */
-export function normalizzaCategorie(risposta) {
-  const elenco = risposta?.data?.categorie ?? risposta?.categorie;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco
-    .map((categoria) => ({
-      id: Number(categoria?.id),
-      nome: typeof categoria?.nome === 'string' ? categoria.nome.trim() : '',
-    }))
-    .filter((categoria) => Number.isInteger(categoria.id) && categoria.nome !== '');
 }
 
 /**
@@ -305,14 +287,6 @@ export function normalizzaCatalogo(risposta, utenteId) {
       return { ...voce, offerente };
     })
     .filter(Boolean);
-}
-
-/** I filtri nella query string: le condizioni non attive si omettono. */
-function queryDaFiltri(filtri) {
-  const parametri = Object.entries(filtriDaQuery(filtri)).map(
-    ([chiave, valore]) => `${chiave}=${encodeURIComponent(valore)}`,
-  );
-  return parametri.length === 0 ? '' : `?${parametri.join('&')}`;
 }
 
 /**
@@ -510,20 +484,6 @@ export async function impegnaToken(token, utenteId, idToken, idServizio) {
 // ---------------------------------------------------------------------------
 
 /**
- * L'esito dell'invio nella forma della schermata: la segnalazione creata e il
- * `message` del backend, già pronto per il `Banner`. Le due forme di riga
- * (segnalazione e notifica) stanno in `normalizzazioni.js`: sono pure e il file
- * degli endpoint è già oltre le 800 righe.
- */
-function normalizzaEsitoInvio(risposta) {
-  const dati = risposta?.data ?? risposta;
-  return {
-    segnalazione: normalizzaSegnalazione(dati?.segnalazione ?? dati),
-    messaggio: typeof risposta?.message === 'string' ? risposta.message : '',
-  };
-}
-
-/**
  * POST segnalazioni.php — invia una segnalazione alla staff. Il corpo arriva da
  * `aPayloadSegnalazione` (motivo, descrizione, riferimento e persona segnalata);
  * **chi segnala viene dal token**, mai dal corpo.
@@ -717,21 +677,6 @@ export function riscattaInvito(token, codice) {
 // corpo per le azioni e nella query string per le letture. Le risposte vengono
 // adattate qui (§4 del piano): le schermate non leggono chiavi del backend.
 // ---------------------------------------------------------------------------
-
-/**
- * Aggiunge all'accordo ciò che il backend non manda: chi sono io, chi è l'altro.
- * Copia-trasforma-restituisce: l'accordo di risposta non viene mai mutato.
- */
-function normalizzaAccordo(accordo, utenteId) {
-  if (!accordo || !Array.isArray(accordo.partecipanti)) {
-    return accordo;
-  }
-  const io =
-    accordo.partecipanti.find((p) => Number(p.id_utente) === Number(utenteId)) ?? null;
-  const altro =
-    accordo.partecipanti.find((p) => Number(p.id_utente) !== Number(utenteId)) ?? null;
-  return { ...accordo, io, altro };
-}
 
 /** GET Accordi1_a_1/elenco.php — gli accordi dell'utente, normalizzati per la UI. */
 export async function ottieniAccordi(token, utenteId) {

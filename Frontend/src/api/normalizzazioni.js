@@ -1,4 +1,4 @@
-import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/servizi/offerta-ricerca';
+import { STATI_PUBBLICAZIONE, TIPI_VOCE, filtriDaQuery } from '@/servizi/offerta-ricerca';
 import { RIFERIMENTI, idRiferimento } from '@/servizi/segnalazioni';
 import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/servizi/candidati';
 
@@ -654,4 +654,78 @@ export function normalizzaCandidati(risposta, utenteId) {
     return [];
   }
   return elenco.map((riga) => normalizzaCandidato(riga, utenteId)).filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
+// Categorie e filtri del catalogo
+//
+// Spostate qui dal file degli endpoint: sono pure. La categoria diventa
+// `{id, nome}` con l'id numerico e le righe senza id o senza nome si scartano,
+// così la tendina non mostra righe vuote; `queryDaFiltri` costruisce la query
+// string del catalogo e omette le condizioni non attive.
+// ---------------------------------------------------------------------------
+
+/**
+ * Le categorie nella forma che serve alla UI: `[{id, nome}]`.
+ *
+ * Stessa normalizzazione per il finto e per il backend vero, così la schermata
+ * non vede mai due forme diverse: l'id diventa numero (il confronto con
+ * `idCategoria` è numerico) e le voci senza id o senza nome vengono scartate
+ * invece di disegnare una tendina con righe vuote.
+ */
+export function normalizzaCategorie(risposta) {
+  const elenco = risposta?.data?.categorie ?? risposta?.categorie;
+  if (!Array.isArray(elenco)) {
+    return [];
+  }
+  return elenco
+    .map((categoria) => ({
+      id: Number(categoria?.id),
+      nome: typeof categoria?.nome === 'string' ? categoria.nome.trim() : '',
+    }))
+    .filter((categoria) => Number.isInteger(categoria.id) && categoria.nome !== '');
+}
+
+/** I filtri nella query string: le condizioni non attive si omettono. */
+export function queryDaFiltri(filtri) {
+  const parametri = Object.entries(filtriDaQuery(filtri)).map(
+    ([chiave, valore]) => `${chiave}=${encodeURIComponent(valore)}`,
+  );
+  return parametri.length === 0 ? '' : `?${parametri.join('&')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Esito dell'invio di una segnalazione
+// ---------------------------------------------------------------------------
+
+/**
+ * L'esito dell'invio nella forma della schermata: la segnalazione creata e il
+ * `message` del backend, già pronto per il `Banner`. È pura e usa
+ * `normalizzaSegnalazione`, che sta in questo file.
+ */
+export function normalizzaEsitoInvio(risposta) {
+  const dati = risposta?.data ?? risposta;
+  return {
+    segnalazione: normalizzaSegnalazione(dati?.segnalazione ?? dati),
+    messaggio: typeof risposta?.message === 'string' ? risposta.message : '',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Accordi 1:1
+// ---------------------------------------------------------------------------
+
+/**
+ * Aggiunge all'accordo ciò che il backend non manda: chi sono io, chi è l'altro.
+ * Copia-trasforma-restituisce: l'accordo di risposta non viene mai mutato.
+ */
+export function normalizzaAccordo(accordo, utenteId) {
+  if (!accordo || !Array.isArray(accordo.partecipanti)) {
+    return accordo;
+  }
+  const io =
+    accordo.partecipanti.find((p) => Number(p.id_utente) === Number(utenteId)) ?? null;
+  const altro =
+    accordo.partecipanti.find((p) => Number(p.id_utente) !== Number(utenteId)) ?? null;
+  return { ...accordo, io, altro };
 }
