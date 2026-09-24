@@ -1,0 +1,54 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local IDE settings
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# Local environment values and secrets
+.env.local
+.env.local.php
+.env.*.local
+**/.env.local
+**/.env.local.php
+**/.env.*.local
+auth.json
+
+# Symfony and PHP generated files
+/Backend/vendor/
+/Backend/var/
+/Backend/public/bundles/
+/Backend/.phpunit.cache/
+/Backend/phpunit.xml
+/Backend/config/jwt/*.pem
+*.sqlite
+*.sqlite3
+*.db
+*.log
+*.pid
+
+# Node.js and Expo generated files
+/Frontend/node_modules/
+/Frontend/.expo/
+/Frontend/dist/
+/Frontend/web-build/
+/Frontend/.metro-health-check*
+/Frontend/expo-env.d.ts
+/Frontend/*.tsbuildinfo
+/Frontend/npm-debug.*
+/Frontend/yarn-debug.*
+/Frontend/yarn-error.*
+
+# Mobile signing files and generated native projects
+/Frontend/ios/
+/Frontend/android/
+/Frontend/*.jks
+/Frontend/*.p8
+/Frontend/*.p12
+/Frontend/*.key
+/Frontend/*.mobileprovision

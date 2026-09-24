@@ -1,0 +1,7 @@
+# Send every API route that is not a real file to Symfony's front controller.
+# This is needed when MAMP, XAMPP, or Laragon serves the public directory with Apache.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
