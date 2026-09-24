@@ -1,26 +1,32 @@
-# Baratto-lo — nuovo contesto del progetto dalle user stories v2
+# Baratto-lo — contesto del progetto e database v2
 
 ## Scopo e fonti
 
-Questo documento descrive la versione obiettivo di Baratto-lo sulla base di `new_user_stories_v2.md`, prendendo come riferimento organizzativo `baratto-lo-contesto-semplificato.md`.
+Questo documento descrive Baratto-lo alla luce delle user stories v2 e dello schema presente in `barattolo_v2.sql`.
 
-Sono considerate soltanto le parti non commentate delle nuove user stories. Il documento definisce il progetto da realizzare: non descrive funzionalità già implementate e non certifica la compatibilità con il database attuale. La sua creazione non comporta modifiche al codice, agli schemi o ai dati esistenti.
+Le fonti hanno ruoli distinti:
 
-Nel seguito:
+- `barattolo_v2.sql` è la fonte autorevole per tabelle, colonne, enum e relazioni attualmente progettati;
+- `database_doc_spiegazione.md` chiarisce i flussi previsti per swipe, scambio diretto e scambio a catena;
+- `new_user_stories_v2.md` definisce i requisiti funzionali, compresi quelli che il database non rappresenta ancora.
 
-- **Requisito** indica una funzionalità esplicitamente richiesta dalle nuove user stories o dalle relative note attive.
-- **Proposta progettuale** indica una possibile struttura per realizzarla, da validare prima dell'implementazione.
-- **Da definire** indica una regola che le fonti non specificano e che non viene quindi considerata già approvata.
+Il documento distingue quindi fra:
+
+- **Presente nello schema:** struttura definita nel file SQL;
+- **Comportamento previsto:** flusso descritto nelle fonti, ma non necessariamente garantito dal solo database;
+- **Da definire o implementare:** requisito incompleto, ambiguo o non ancora rappresentato nello schema.
+
+Non vengono descritte funzionalità come già implementate quando le fonti esprimono soltanto un obiettivo. Il presente documento non modifica il database, il codice o i dati esistenti.
 
 ## Obiettivo del progetto
 
 Baratto-lo è una piattaforma senza scopo di lucro per lo scambio di servizi tra utenti, con funzionalità a supporto dell'affidabilità delle interazioni.
 
-Le persone possono pubblicare ciò che offrono e indicare ciò che cercano, consultare i servizi, scoprire altri utenti tramite swipe, comunicare in chat e formalizzare un accordo. Lo scambio può coinvolgere due persone oppure una catena di tre o quattro persone quando manca un match diretto.
+Le persone possono registrarsi, pubblicare ciò che offrono e cercano, consultare i servizi, scoprire utenti compatibili tramite swipe, comunicare in chat e definire scambi. Lo scambio può essere diretto fra due persone oppure coinvolgere un gruppo fino a quattro persone quando non esiste un match diretto.
 
-I token costituiscono un meccanismo previsto per il caso di ritiro di un partecipante da uno scambio a tre o quattro persone. Possono essere utilizzati per ottenere un servizio offerto da un'altra persona e hanno scadenza mensile.
+I token sono previsti come compensazione nel caso in cui una persona si ritiri da uno scambio di tre o quattro partecipanti. Un token può essere usato per ottenere un servizio offerto da un altro utente e ha scadenza mensile. Lo schema v2 ne rappresenta soltanto il possesso e la scadenza.
 
-## Attori, accesso e profili
+## Attori e requisiti
 
 ### Utente
 
@@ -28,268 +34,239 @@ L'utente deve poter:
 
 - registrarsi ed effettuare il login;
 - creare e personalizzare il proprio profilo;
-- pubblicare servizi offerti, disponibili anche nella scoperta tramite swipe;
-- cercare un servizio applicando filtri;
-- vedere tramite swipe persone potenzialmente interessate al proprio servizio;
+- pubblicare uno o più servizi offerti e indicare i servizi richiesti;
+- consultare i servizi nella home e cercarli tramite filtri;
+- vedere tramite swipe le proposte ricevute e persone potenzialmente compatibili;
 - invitare un amico;
-- chattare con altri utenti e creare accordi nella chat;
-- partecipare a scambi diretti o a catene fino a quattro persone;
+- chattare con altri utenti;
+- concordare uno scambio diretto o partecipare a uno scambio di gruppo fino a quattro persone;
 - ricevere e utilizzare token nei casi previsti;
 - segnalare un altro utente.
 
 ### Staff
 
-Lo staff deve poter effettuare il login, attivare o disattivare utenti, cambiare i loro ruoli ed esaminare le segnalazioni ricevute.
+Lo staff deve poter effettuare il login, attivare o disattivare utenti, cambiarne i ruoli ed esaminare le segnalazioni.
 
-**Proposta progettuale:** distinguere almeno i ruoli `USER` e `STAFF` e gli stati account `ACTIVE` e `INACTIVE`. Le nuove user stories non richiedono un ruolo amministrativo separato. La gestione dei ruoli deve avere controlli espliciti sui permessi.
+Nel database v2 `users.roles` è un campo JSON e `users.account_status` usa l'enum `ACTIVE` o `INACTIVE`. Lo schema non definisce quali ruoli possano essere assegnati, i permessi associati, lo storico delle modifiche o le strutture necessarie per le segnalazioni.
 
-**Da definire:** ruoli effettivamente assegnabili dallo staff, limiti alle modifiche del proprio ruolo ed effetti della disattivazione su chat e accordi già aperti.
+## Profili, servizi e categorie
 
-### Dati del profilo
+### Utenti
 
-**Proposta progettuale:** mantenere identificativo, username, email, hash della password, nome visualizzato, presentazione personale, eventuale immagine e località. Le informazioni di autenticazione devono rimanere distinte dai dati pubblici del profilo.
+La tabella `users` contiene:
 
-I servizi offerti e quelli cercati devono essere conservati in tabelle dedicate: non basta una sola descrizione del servizio all'interno del profilo. Un nuovo utente parte con **zero token**.
+- identificativo auto-incrementale;
+- nome, cognome e località opzionale;
+- username ed email univoci;
+- hash della password;
+- ruoli in formato JSON;
+- stato dell'account, attivo per default;
+- data di creazione.
 
-## Servizi offerti e servizi cercati
+Lo schema non contiene un saldo nel profilo: un nuovo utente parte con zero token perché non possiede ancora righe nella tabella `tokens`.
 
-**Requisito:** il database deve contenere una tabella per ciò che gli utenti offrono e una tabella per ciò che cercano.
+### Servizi offerti e richiesti
 
-Questa separazione permette di rappresentare più offerte e più esigenze della stessa persona e di confrontarle per individuare possibili scambi.
+Il database usa una sola tabella `services` per entrambi i tipi di servizio. La colonna `type` distingue esattamente:
 
-**Proposta progettuale:** ciascuna offerta o ricerca contiene proprietario, titolo, descrizione, stato di pubblicazione e date di creazione e aggiornamento. Località, modalità di erogazione, disponibilità e durata indicativa possono essere aggiunte per supportare ricerca e accordi.
+- `RICHIESTA`: servizio cercato dall'utente;
+- `OFFERTA`: servizio offerto dall'utente.
 
-La pubblicazione di un'offerta la rende consultabile nella home e utilizzabile nelle schede di scoperta, se l'account e l'offerta sono attivi. Le ricerche esprimono i bisogni dell'utente e alimentano la valutazione della compatibilità.
+Ogni servizio può essere collegato al proprietario tramite `user_id` e contiene una descrizione e una data di creazione. Lo schema non definisce titolo, stato di pubblicazione, aggiornamento, disponibilità o modalità di erogazione.
 
-**Da definire:** campi obbligatori, filtri effettivi, eventuale classificazione dei servizi, modalità di inserimento delle esigenze e criteri di compatibilità. Le user stories attive non impongono una specifica tecnica di raccomandazione.
+La classificazione è gestita da `categories` e dalla tabella ponte `service_categories`. Un servizio può appartenere a più categorie; questa relazione molti-a-molti serve al backend per il calcolo delle compatibilità. Lo schema non specifica l'algoritmo, i pesi o la soglia con cui una compatibilità viene considerata valida.
 
 ## Home, ricerca e swipe
 
 ### Home dei servizi
 
-**Requisito:** la prima pagina è la home con tutti i servizi. Deve consentire di consultare le offerte e cercare servizi tramite filtri.
+La prima pagina prevista è la home con tutti i servizi offerti e i filtri di ricerca. Il database fornisce servizi, tipo, descrizione, proprietario e categorie, ma non contiene campi dedicati alla pubblicazione o alla visibilità.
 
-**Proposta progettuale:** mostrare le offerte pubblicate e attive, con collegamenti al dettaglio e al profilo dell'offerente. I filtri possono comprendere testo, località, disponibilità e modalità di erogazione, una volta definiti i dati da raccogliere.
+**Da definire:** filtri disponibili, ordinamento, consultazione senza autenticazione e criteri con cui escludere utenti o servizi non attivi.
 
-**Da definire:** possibilità di consultare la home senza autenticazione e azioni riservate agli utenti autenticati.
+### Ordine dello swipe feed
 
-### Pagina swipe
+Il feed swipe dell'utente autenticato è composto da due blocchi ordinati:
 
-**Requisito:** gli swipe devono essere disponibili in una pagina distinta dalla home, con un'interazione simile a Tinder. Devono permettere di vedere persone potenzialmente interessate al servizio dell'utente e rendere le offerte esplorabili tramite swipe.
+1. **Proposte da confermare.** Il backend legge `proposals` e `proposal_participants` per mostrare per prime le proposte in attesa che richiedono la decisione dell'utente.
+2. **Persone compatibili.** Il backend calcola la compatibilità tra servizi e categorie e mostra utenti potenzialmente interessati al servizio dell'utente autenticato.
 
-**Proposta progettuale:** una scheda mostra la persona, una sua offerta e gli elementi che rendono plausibile lo scambio. L'utente può esprimere interesse oppure passare alla scheda successiva; la scelta viene registrata rispetto all'offerta presentata.
+Quando l'utente conferma con uno swipe positivo una compatibilità del secondo blocco, viene creata una proposta. La controparte troverà poi quella proposta nel primo blocco del proprio feed. Il passaggio a una scheda successiva e l'eventuale rifiuto devono essere gestiti dall'applicazione; non esiste una tabella separata che conservi la cronologia di tutti gli swipe.
 
-Un possibile match diretto si verifica quando due utenti esprimono interesse reciproco e i rispettivi servizi soddisfano ciò che cercano. Questa è una proposta di definizione: il significato preciso del match va concordato.
+### Proposte
 
-Il match rappresenta un'opportunità di scambio. L'impegno viene formalizzato successivamente mediante un accordo nella chat.
+`proposals` registra identificativo, località, data di creazione e uno stato fra `IN_ATTESA`, `ACCETTATO` e `RIFIUTATO`.
 
-## Ricerca di scambi a tre o quattro persone
+`proposal_participants` associa alla proposta gli utenti e i rispettivi servizi, includendo l'eventuale data di conferma. La chiave primaria composta impedisce la duplicazione della stessa combinazione di proposta, utente e servizio, ma lo schema non impone il numero di partecipanti né stabilisce da solo quando lo stato complessivo debba cambiare.
 
-**Requisito:** quando manca un match diretto, il software cerca per **tre ore** una terza ed eventualmente una quarta persona per formare una catena di scambio. Il limite massimo è di **quattro partecipanti**.
+## Scambio diretto 1:1
 
-**Proposta progettuale:** rappresentare gli scambi come cicli nei quali ogni partecipante offre un servizio a qualcuno e riceve un servizio da qualcun altro:
+Lo scambio diretto è diviso in due fasi.
 
-- scambio diretto: A offre a B e B offre ad A;
-- catena a tre: A offre a B, B offre a C e C offre ad A;
-- catena a quattro: A offre a B, B offre a C, C offre a D e D offre ad A.
+### Fase 1 — proposta e conferma
 
-Per ciascun passaggio deve essere chiaro quale offerta soddisfa quale esigenza. I partecipanti devono essere persone distinte e le offerte coinvolte devono essere disponibili.
+Lo swipe feed permette di creare e confermare una proposta. `proposals` e `proposal_participants` conservano la proposta, i partecipanti, i servizi coinvolti e le date di conferma.
 
-### Ciclo della ricerca
+Il database non garantisce che una proposta 1:1 abbia esattamente due utenti distinti, che i servizi appartengano ai partecipanti o che vi sia una corrispondenza fra un'offerta e una richiesta. Questi controlli spettano al backend.
 
-**Proposta progettuale:**
+### Fase 2 — chat e accordo formale
 
-1. Il sistema rileva l'assenza di un match diretto secondo un criterio da definire.
-2. Registra una ricerca con orario di avvio e termine fissato tre ore dopo.
-3. Cerca combinazioni compatibili di tre o quattro partecipanti nella finestra prevista.
-4. Presenta la catena individuata come proposta da discutere e accettare.
-5. Se non trova una soluzione entro il termine, chiude la ricerca senza creare un accordo automaticamente.
+Quando entrambe le parti confermano la proposta, viene aperta una chat per concordare località, tempi e dettagli. Una volta definiti i termini, viene creato l'accordo in `exchange_1_on_1`, collegato alla proposta tramite `proposal_id`.
 
-**Da definire:** evento che avvia il conteggio, priorità fra catene di diversa dimensione, possibilità di più proposte contemporanee, gestione di un match diretto sopraggiunto e possibilità di ripetere la ricerca. Va inoltre deciso se la ricerca si interrompe alla prima proposta o continua fino all'accettazione o alla scadenza. Le tre ore riguardano la ricerca; non è indicato un termine per accettare o svolgere lo scambio.
+`exchange_1_on_1` contiene località, data di creazione e stato `IN_ATTESA`, `ACCETTATO` o `RIFIUTATO`. `exchange_participants` associa accordo, utente e servizio e registra data di inizio, data di completamento e il booleano `exchange_accepted`.
 
-## Chat e accordi
+Lo schema consente quindi di rappresentare l'accettazione e il completamento dei singoli partecipanti, ma non definisce chi possa dichiarare completato il servizio, come gestire un mancato adempimento o se una modifica ai dettagli richieda nuove conferme.
 
-### Conversazioni
+## Scambio a catena o di gruppo
 
-**Requisito:** un utente deve poter chattare con un altro utente e creare un accordo o contratto all'interno della chat.
+### Ricerca progressiva
 
-**Proposta progettuale:** supportare conversazioni a due e conversazioni di gruppo per le catene, così che tutti i partecipanti possano vedere e accettare le stesse condizioni. Le chat di gruppo sono una scelta di supporto agli scambi multipli, non una user story separata.
+Quando non è disponibile uno scambio diretto, il sistema cerca una catena compatibile di tre o quattro persone:
 
-Ogni messaggio registra conversazione, mittente, testo e data. L'eventuale ultimo messaggio letto va associato alla partecipazione dell'utente alla singola chat.
+1. l'utente A avvia la catena e la sua offerta viene usata per cercare B, che richiede quel servizio;
+2. il servizio offerto dal nuovo partecipante diventa il riferimento per trovare quello successivo;
+3. la ricerca prosegue fino al numero di partecipanti necessario;
+4. il servizio dell'ultimo partecipante deve soddisfare la richiesta iniziale di A e chiudere la catena;
+5. se non vengono trovate le persone necessarie, la proposta di gruppo viene annullata.
 
-### Contenuto dell'accordo
+La user story stabilisce una ricerca di tre ore e un massimo di quattro partecipanti. Queste regole non sono codificate in colonne o vincoli SQL e devono essere applicate dal backend.
 
-**Proposta progettuale:** usare un modello comune di accordo, collegato alla chat di origine, che descriva:
+### Struttura della proposta di gruppo
 
-- tipo: scambio diretto, catena oppure servizio ottenuto tramite token;
-- partecipanti coinvolti;
-- servizi e condizioni concordate;
-- chi eroga ogni servizio e chi lo riceve;
-- tempi o disponibilità concordati;
-- accettazione individuale delle condizioni;
-- avanzamento e conferme delle singole prestazioni;
-- eventuali ritiri e relative date;
-- stato complessivo e storico delle modifiche rilevanti.
+`exchange_group_proposal` rappresenta la costruzione della catena. Contiene:
 
-La parola “contratto” identifica qui l'accordo registrato nell'applicazione. Le user stories non specificano firme elettroniche o un particolare valore legale.
+- `current_offered_service`, cioè il servizio offerto da usare per proseguire la ricerca;
+- `last_requested_service`, cioè la richiesta da soddisfare per chiudere la catena;
+- data di creazione e località;
+- stato `IN_ATTESA`, `CONFERMATO` o `ANNULLATO`.
 
-### Stati e conferme
+`group_participants` collega ogni gruppo ai suoi utenti e al servizio ricevuto. Il modello permette di seguire il gruppo in formazione, ma non contiene posizione nella catena, data di ingresso, conferma individuale o un vincolo sul numero di persone.
 
-**Proposta progettuale:** adottare gli stati `PROPOSED`, `ACCEPTED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` e `DISPUTED`.
+### Chat e prestazioni concordate
 
-Tutti i partecipanti devono accettare la stessa versione delle condizioni prima dell'avvio. Una modifica sostanziale richiede nuove accettazioni. Per completare un accordo occorre verificare le prestazioni previste secondo una regola condivisa.
+Quando la proposta di gruppo viene confermata, viene aperta una chat di gruppo per stabilire i dettagli. Durante questa fase è possibile che non tutti i collegamenti ipotizzati diventino accordi effettivi: una parte del gruppo può quindi non arrivare alla creazione di una prestazione concordata.
 
-**Da definire:** chi conferma ciascuna prestazione, come trattare prestazioni parziali, disaccordi sul completamento e rifiuti. Va stabilito anche se il ritiro annulla l'intera catena, consente una sostituzione o permette di proseguire le prestazioni residue. Queste decisioni incidono direttamente sui token compensativi.
+Le prestazioni effettive sono rappresentate da `service_provision`, che collega una prestazione alla proposta di gruppo e registra servizio, località, data di inizio e data di fine. `service_participants` assegna a ciascun utente della prestazione il ruolo `EROGATORE` o `BENEFICIARIO`.
+
+Questa separazione consente di registrare soltanto gli accordi effettivamente raggiunti dopo la discussione di gruppo. Il backend deve verificare che erogatore, beneficiario, servizio e appartenenza al gruppo siano coerenti.
+
+## Chat
+
+La tabella `chat` identifica una conversazione e ne registra la data di creazione. `chat_participants` associa gli utenti alla conversazione e può indicare l'ultimo messaggio letto. `chat_messages` conserva mittente, testo, chat e data del messaggio.
+
+Il comportamento previsto comprende chat fra due utenti e chat di gruppo. Solo i partecipanti autorizzati devono poter leggere o inviare messaggi; questo vincolo non è imposto dal database.
+
+La colonna `chat.proposal_id` presenta un'ambiguità strutturale: il file SQL aggiunge sulla stessa colonna una foreign key verso `proposals.id` e un'altra verso `exchange_group_proposal.id`. Poiché gli stessi valori dovrebbero esistere in entrambe le tabelle, la colonna non distingue in modo affidabile il tipo di proposta. Il problema deve essere risolto prima di usare lo schema in produzione, ma non viene corretto in questo documento.
 
 ## Token
 
-### Regole esplicite
+`tokens` contiene soltanto identificativo, `user_id` ed `expiration_date`. Il possesso di righe non scadute può rappresentare i token disponibili dell'utente.
 
-- Ogni nuovo utente parte con **0 token**.
-- È previsto il guadagno di **un token** quando una persona si ritira da uno scambio di **tre o quattro persone**.
-- Un token può essere speso per un servizio offerto da un'altra persona.
-- Tutti i token hanno **scadenza mensile**.
+I requisiti prevedono che:
 
-Le nuove user stories non prevedono token come premio per registrazione, inviti o normale completamento di uno scambio diretto. Non è previsto un sistema generale di crediti da guadagnare e spendere.
+- un nuovo utente parta con zero token;
+- un token possa essere assegnato quando una persona si ritira da uno scambio di tre o quattro partecipanti;
+- il token possa essere speso per un servizio offerto da un altro utente;
+- tutti i token abbiano scadenza mensile.
 
-### Assegnazione in caso di ritiro
+Lo schema non registra l'accordo o il ritiro che ha generato il token, lo stato del token, la prenotazione, il consumo, il servizio ottenuto o il beneficiario della prestazione. Non stabilisce inoltre chi riceva il token in caso di ritiro né se “scadenza mensile” significhi fine del mese solare o un mese dall'emissione.
 
-**Da definire:** la fonte non precisa quale partecipante abbia diritto al token, né se ne abbiano diritto tutti i partecipanti rimasti o soltanto quelli danneggiati o che abbiano già svolto una prestazione. Non specifica inoltre in quale fase il ritiro generi il diritto, chi lo accerti e come trattare più ritiri nella stessa catena.
+Queste regole devono essere definite prima di implementare assegnazione e utilizzo, evitando doppie emissioni o il riutilizzo dello stesso token.
 
-Non si deve quindi interpretare il requisito come assegnazione automatica di un token a ogni membro della catena. Prima dell'implementazione occorre concordare destinatari, condizioni e limite di assegnazione.
+## Mappa del database v2
 
-**Proposta progettuale:** registrare il ritiro e collegare ogni token emesso all'accordo, all'evento che lo ha generato e al beneficiario. L'assegnazione deve essere tracciabile e non ripetibile per lo stesso diritto alla compensazione.
+| Tabella | Responsabilità e relazioni attuali |
+| --- | --- |
+| `users` | Credenziali, profilo essenziale, ruoli JSON e stato dell'account |
+| `services` | Servizi `RICHIESTA` e `OFFERTA`, associati al proprietario |
+| `categories` | Catalogo delle categorie dei servizi |
+| `service_categories` | Relazione molti-a-molti fra servizi e categorie |
+| `proposals` | Proposte nate dal flusso swipe e relativo stato |
+| `proposal_participants` | Utenti, servizi e conferme associati a una proposta |
+| `chat` | Conversazione collegata tramite `proposal_id`, con collegamento attualmente ambiguo |
+| `chat_participants` | Membri della chat e ultimo messaggio letto |
+| `chat_messages` | Messaggi inviati nella chat |
+| `exchange_1_on_1` | Accordo formale diretto collegato a una proposta |
+| `exchange_participants` | Utenti e servizi dello scambio diretto, date e accettazione |
+| `exchange_group_proposal` | Catena in costruzione, estremi della ricerca e stato |
+| `group_participants` | Utenti del gruppo e servizi ricevuti |
+| `service_provision` | Prestazioni effettivamente concordate nel gruppo |
+| `service_participants` | Erogatori e beneficiari delle singole prestazioni |
+| `tokens` | Token posseduti dagli utenti e relativa scadenza |
 
-### Utilizzo e scadenza
+Le chiavi esterne collegano le entità principali, ma non sostituiscono i controlli applicativi necessari per validare ownership dei servizi, compatibilità, numero e unicità dei partecipanti, chiusura della catena, autorizzazioni e transizioni di stato.
 
-**Proposta progettuale:** registrare i token singolarmente, con proprietario, origine, data di emissione, data di scadenza, stato ed eventuale accordo di utilizzo. Gli stati possono essere `AVAILABLE`, `RESERVED`, `SPENT` ed `EXPIRED`.
+## Regole applicative necessarie
 
-Il numero di token disponibili deriva da quelli appartenenti all'utente, non scaduti e non già impegnati o spesi. La validità deve essere verificata al momento dell'utilizzo, anche se un processo periodico non ha ancora aggiornato lo stato.
+- Memorizzare le password esclusivamente come hash e mantenere univoci username ed email.
+- Applicare nel backend permessi basati sui ruoli contenuti in `users.roles`.
+- Escludere dagli elenchi e dal matching gli account non utilizzabili secondo le regole che verranno definite.
+- Verificare che ogni servizio usato in una proposta appartenga all'utente indicato e abbia il tipo corretto nel passaggio considerato.
+- Impedire scambi con se stessi e partecipanti duplicati nella stessa proposta.
+- Mostrare nel feed prima le proposte da confermare e poi le nuove compatibilità.
+- Aggiornare gli stati delle proposte soltanto dopo le conferme richieste.
+- Creare la chat e l'accordo formale 1:1 soltanto al termine della fase di proposta.
+- Limitare la ricerca della catena a tre ore e a un massimo di quattro persone.
+- Verificare che l'ultimo servizio della catena soddisfi la richiesta iniziale.
+- Creare prestazioni di gruppo solo per gli accordi effettivamente raggiunti in chat.
+- Consentire accesso a chat e messaggi soltanto ai partecipanti.
+- Non considerare spendibile un token scaduto o già utilizzato, quando il ciclo di utilizzo sarà modellato.
 
-**Da definire prima dello sviluppo:**
+Le operazioni che coinvolgono conferme, creazione degli accordi e token devono essere atomiche per evitare stati parziali o duplicazioni.
 
-- se “scadenza mensile” significhi fine del mese solare o un mese dalla data di emissione, con relativo fuso orario;
-- se un token dia diritto a qualunque servizio e quali limiti abbia la prestazione ottenibile;
-- come l'offerente accetti una richiesta tramite token;
-- quando riservare e quando consumare definitivamente il token;
-- se il token venga consumato dal sistema oppure trasferito all'erogatore;
-- cosa accada in caso di annullamento, mancata prestazione o scadenza mentre il token è riservato.
+## Lacune e punti da chiarire
 
-Non va introdotta una tariffa oraria o una conversione da crediti a token senza un requisito aggiuntivo.
+### Requisiti non rappresentati nello schema
 
-## Inviti
+- **Inviti:** non esiste una tabella per link, codici, invitante o utente registrato tramite invito.
+- **Segnalazioni:** non esistono tabelle per autore, utente segnalato, motivazione, stato o valutazione dello staff.
+- **Azioni dello staff:** ruoli e stato account sono presenti, ma mancano permessi formalizzati e storico delle modifiche.
+- **Utilizzo dei token:** mancano origine, stato, prenotazione, consumo e collegamento al servizio ottenuto.
+- **Cronologia swipe:** non è memorizzato il passaggio o rifiuto di una compatibilità prima della creazione di una proposta.
 
-**Requisito:** l'utente deve poter invitare un amico.
+### Regole funzionali da definire
 
-**Proposta progettuale:** generare un link o un codice condivisibile e registrare l'eventuale registrazione dell'amico tramite quell'invito.
+- Filtri della home, ordinamento e visibilità dei servizi.
+- Algoritmo di compatibilità, pesi delle categorie e soglia minima.
+- Condizioni esatte per accettare o rifiutare una proposta e gestione delle proposte concorrenti.
+- Evento che avvia le tre ore, comportamento alla scadenza e priorità fra gruppi di tre o quattro persone.
+- Conferma, modifica, completamento, ritiro e contestazione degli accordi.
+- Destinatari del token dopo un ritiro, condizioni di emissione e significato della scadenza mensile.
+- Permessi dello staff, ruoli assegnabili ed effetti della disattivazione su proposte, chat e scambi in corso.
 
-Le nuove user stories non specificano premi, numero massimo di inviti, formato del codice o durata di validità. I limiti mensili e il premio in crediti presenti nel contesto precedente non diventano requisiti della nuova versione.
+### Ambiguità e limiti tecnici dello schema attuale
 
-## Segnalazioni e affidabilità
+- `chat.proposal_id` ha due foreign key verso tabelle differenti e non include un discriminatore del tipo di proposta.
+- Diverse colonne importanti non sono `NOT NULL` e molti stati e timestamp non hanno un valore di default.
+- `services.id` non è dichiarato `AUTO_INCREMENT`.
+- Il database non impone il numero di partecipanti negli scambi né la validità o l'ordine della catena.
+- Le foreign key non garantiscono che i servizi siano posseduti dai partecipanti o che i ruoli di erogatore e beneficiario siano coerenti.
+- `tokens` non consente di ricostruire origine e utilizzo del token.
+- Non sono presenti strutture per inviti, segnalazioni e audit delle operazioni dello staff.
 
-**Requisito:** gli utenti possono segnalare altri utenti; lo staff può esaminare le segnalazioni e attivare o disattivare account.
+Questi punti documentano lo stato del progetto e non costituiscono modifiche automatiche al file SQL.
 
-**Proposta progettuale:** una segnalazione registra autore, utente segnalato, motivazione, descrizione, data ed eventuale riferimento a una chat o a un accordo. Lo staff può registrare presa in carico ed esito, con stati come `OPEN`, `IN_REVIEW` e `CLOSED`.
+## Organizzazione funzionale dell'applicazione
 
-Le azioni dello staff su account e ruoli devono essere tracciabili. Accordi, conferme e ritiri offrono lo storico necessario per ricostruire le interazioni contestate.
-
-**Da definire:** motivazioni disponibili, informazioni consultabili dallo staff, gestione delle segnalazioni duplicate e possibili esiti. Non sono richiesti punteggi reputazionali o recensioni numeriche.
-
-## Organizzazione dell'applicazione
-
-**Proposta progettuale:** organizzare l'interfaccia nelle seguenti aree, coerenti con le funzionalità richieste.
-
-| Area | Contenuto |
+| Area | Contenuto previsto |
 | --- | --- |
 | Registrazione e login | Creazione dell'account e autenticazione di utenti e staff |
 | Home | Catalogo dei servizi e filtri di ricerca |
-| Swipe | Schede di persone e offerte, interesse e possibili match |
-| Profilo | Personalizzazione e consultazione delle informazioni pubbliche |
-| Offro e cerco | Gestione delle proprie offerte ed esigenze |
-| Scambi | Ricerche di catene, proposte e accordi attivi o conclusi |
-| Chat | Messaggi e creazione o consultazione degli accordi |
-| Token | Token disponibili, impegnati, utilizzati e scaduti |
-| Inviti | Creazione e condivisione dell'invito |
-| Staff | Gestione utenti, ruoli e segnalazioni |
+| Swipe | Proposte da confermare e nuove persone compatibili |
+| Profilo | Informazioni personali, offerte e richieste dell'utente |
+| Scambi diretti | Proposte, chat e accordi 1:1 |
+| Scambi di gruppo | Ricerca della catena, chat di gruppo e prestazioni concordate |
+| Chat | Conversazioni, messaggi e stato di lettura |
+| Token | Token posseduti e scadenze; utilizzo ancora da modellare |
+| Inviti | Requisito presente, struttura dati ancora assente |
+| Staff | Gestione utenti, ruoli e segnalazioni; copertura dati ancora parziale |
 
-## Modello dati concettuale proposto
-
-La tabella seguente sostituisce, a livello di progettazione, il vecchio schema centrato su crediti e accordi separati. Non è una migrazione SQL, non riproduce il database attuale e non modifica alcun file DBML. I nomi proposti sono in inglese, coerentemente con le scelte delle nuove user stories.
-
-| Entità proposta | Responsabilità e relazioni principali |
-| --- | --- |
-| `users` | Credenziali, profilo, ruolo e stato dell'account; nessun saldo di crediti |
-| `service_offers` | Più servizi offerti per utente, con dati e stato di pubblicazione |
-| `service_requests` | Più servizi cercati per utente, separati dalle offerte |
-| `swipes` | Scelte di interesse o passaggio, con autore e offerta mostrata |
-| `matches` | Compatibilità dirette individuate e riferimenti alle offerte e alle esigenze coinvolte |
-| `chain_searches` | Ricerca di una catena, contesto iniziale, avvio, termine delle tre ore e stato |
-| `chain_candidates` | Soluzioni candidate collegate alla ricerca, prima della creazione di un accordo |
-| `chain_candidate_steps` | Passaggi delle catene candidate, con erogatore, beneficiario, offerta ed esigenza soddisfatta |
-| `chats` | Conversazioni dirette o di gruppo |
-| `chat_participants` | Associazione fra chat e utenti; eventuale ultimo messaggio letto nella chat |
-| `chat_messages` | Messaggi, mittente, chat e data di invio |
-| `agreements` | Accordo collegato alla chat, tipo, versione delle condizioni, stato e date |
-| `agreement_participants` | Partecipanti distinti e accettazione individuale della versione proposta |
-| `agreement_services` | Singole prestazioni concordate, erogatore, beneficiario e conferme di esecuzione |
-| `agreement_withdrawals` | Ritiri registrati, partecipante, accordo, momento e motivazione |
-| `tokens` | Token individuali, titolare, ritiro di origine, emissione, scadenza e stato |
-| `token_usages` | Prenotazione e utilizzo del token in un accordo per ottenere un servizio |
-| `invitations` | Invitante, codice o link, eventuale invitato e date |
-| `user_reports` | Segnalante, segnalato, motivo, riferimenti contestuali e stato di esame |
-| `staff_actions` | Storico delle operazioni dello staff su account, ruoli e segnalazioni |
-
-Offerte e ricerche hanno una relazione molti-a-uno con il rispettivo proprietario. Utenti e chat, così come utenti e accordi, sono collegati tramite tabelle di partecipazione. Le singole prestazioni dell'accordo esplicitano la direzione di ciascuno scambio.
-
-Un accordo diretto coinvolge due persone; una catena tre o quattro; un servizio ottenuto tramite token coinvolge richiedente ed erogatore. Le condizioni di una prestazione vanno conservate nell'accordo, così che successive modifiche all'offerta non alterino lo storico concordato.
-
-I vincoli di unicità per assegnazione e utilizzo dei token dipenderanno dalle regole ancora da decidere. Le chiavi esterne da sole non assicurano una catena valida, il numero corretto di partecipanti o il rispetto delle tre ore: servono anche controlli applicativi.
-
-## Regole applicative proposte
-
-- Credenziali univoche e password memorizzate soltanto sotto forma di hash.
-- Autorizzazioni verificate nel backend per profili, pubblicazioni, chat, accordi e operazioni dello staff.
-- Nessuno scambio con se stessi e nessun partecipante duplicato nella stessa catena.
-- Messaggi inviabili e consultabili soltanto dai partecipanti autorizzati alla conversazione.
-- Accettazioni e conferme attribuite soltanto all'utente interessato e alla corretta versione dell'accordo.
-- Coerenza fra servizi, proprietari, erogatori e beneficiari dei singoli passaggi.
-- Ricerca delle catene limitata alla finestra di tre ore, secondo l'evento di avvio da concordare.
-- Nessun utilizzo di token scaduti o già consumati e nessuna doppia assegnazione della stessa compensazione.
-- Assegnazione, prenotazione e consumo dei token gestiti con operazioni atomiche e controlli sulla concorrenza.
-- Conservazione dello storico necessario a ricostruire accordi, ritiri, token e interventi dello staff.
-
-Queste regole completano tecnicamente il contesto proposto; non sostituiscono le decisioni funzionali ancora aperte.
-
-## Scelte tecniche richieste
+## Scelte tecniche confermate
 
 - Codice in lingua inglese.
 - Backend PHP organizzato a classi.
 - Commenti utili, scritti il più possibile in inglese.
-- Tabelle separate per servizi offerti e servizi cercati.
+- Distinzione fra servizi offerti e richiesti tramite `services.type`.
+- Categorizzazione molti-a-molti dei servizi per supportare il calcolo delle compatibilità.
 
-**Proposta progettuale:** separare nel backend autenticazione, profili, servizi, matching, ricerca delle catene, chat, accordi, token, inviti e moderazione. La ricerca temporizzata e la gestione delle scadenze richiedono un meccanismo di esecuzione lato server; la tecnologia specifica resta da scegliere.
-
-Le nuove user stories non impongono un cambio del framework frontend o del motore database. Eventuali adattamenti dello stack esistente appartengono alla successiva fase di implementazione.
-
-## Differenze rispetto al contesto precedente
-
-| Contesto precedente | Nuova versione obiettivo |
-| --- | --- |
-| Una descrizione del servizio nel profilo | Offerte e ricerche in tabelle dedicate |
-| Scoperta basata su richieste e contatto | Home dei servizi, filtri e pagina swipe distinta |
-| Scambio diretto 1:1 | Scambio diretto e catene di tre o quattro persone |
-| Nessuna ricerca temporizzata di catene | Ricerca della terza e quarta persona per tre ore quando manca il match diretto |
-| Dieci crediti a testa al completamento dello scambio | Nessun premio ordinario previsto; token per il caso di ritiro dalle catene |
-| Prestazioni con pagamento in crediti | Possibilità di ottenere un servizio utilizzando un token |
-| Saldo disponibile e saldo bloccato in crediti | Token con origine, utilizzo e scadenza mensile tracciabili |
-| Inviti mensili con premio in crediti | Invito a un amico, senza premi o limiti specificati nelle nuove user stories |
-| Accordi separati per scambio e prestazione | Modello comune proposto per accordi diretti, catene e servizi tramite token |
-| Funzioni staff non sviluppate nel contesto funzionale | Accesso staff, attivazione e disattivazione utenti, cambio ruoli ed esame segnalazioni |
-
-Queste differenze descrivono la destinazione del progetto, non autorizzano cancellazioni o conversioni dei dati attuali. L'eventuale trattamento dei crediti e degli accordi preesistenti richiede un piano di migrazione successivo.
-
-## Decisioni necessarie prima dell'implementazione
-
-Le principali regole ancora da concordare sono: definizione del match e dei filtri; avvio e gestione della ricerca di tre ore; accettazione e completamento delle catene; effetti del ritiro; destinatari e condizioni di emissione del token; interpretazione della scadenza mensile; ciclo di utilizzo del token; permessi dello staff e conseguenze della disattivazione degli account.
-
-La definizione di questi aspetti permetterà di trasformare il presente contesto in schema dati, API e interfacce coerenti senza introdurre requisiti non approvati.
+La scelta di una singola tabella `services` con un discriminatore sostituisce, nello schema v2 corrente, l'indicazione iniziale di usare due tabelle fisicamente separate. Eventuali evoluzioni dello schema devono essere pianificate separatamente e non sono implicate da questo documento.
