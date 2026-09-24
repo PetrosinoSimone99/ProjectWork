@@ -11,8 +11,8 @@ import { SCELTE_CANDIDATO, chiaveCandidato, motivoCompatibilita } from '@/serviz
  * che si possono spostare **senza cambiare una riga di comportamento**. Lo
  * spostamento è stato fatto a più riprese e con l'ultimo, il 19 settembre 2026
  * (categorie, filtri del catalogo, candidati, coda, buoni, esito dell'invio e
- * accordo), **entrambi i file sono sotto il limite**: `barattolo.js` 782 righe,
- * questo 731. `barattolo.js` le importa e continua a esporre quelle che erano
+ * accordo), **entrambi i file sono sotto il limite** (conteggi aggiornati il 24
+ * settembre 2026: `barattolo.js` 799 righe, questo 796). `barattolo.js` le importa e continua a esporre quelle che erano
  * pubbliche.
  *
  * La regola vale per tutte: **copia, trasforma, restituisci**. Niente chiamate
@@ -32,6 +32,68 @@ export function numeroInteroONull(valore) {
 /** Nome addomesticato: stringa non vuota dopo `trim`, altrimenti `null`. */
 export function testoONull(valore) {
   return typeof valore === 'string' && valore.trim() !== '' ? valore.trim() : null;
+}
+
+/**
+ * I ruoli del backend (`User::ROLE_*`) nel ruolo interno della UI (`UTENTE | STAFF`
+ * di `servizi/staff-utenti.js`), **in ordine di privilegio**: con più ruoli noti
+ * vince il primo. Un ruolo sconosciuto non si traduce (resta solo in `ruoli`) e,
+ * se nessun ruolo noto c'è, `ruolo` è `null`: la UI nasconde l'area staff (fail
+ * closed). `User.php` ne definisce solo due: niente voci "per sicurezza".
+ */
+const RUOLI_INTERNI = [
+  { role: 'ROLE_STAFF', ruolo: 'STAFF' },
+  { role: 'ROLE_USER', ruolo: 'UTENTE' },
+];
+
+/** Il ruolo interno più privilegiato fra quelli noti in `ruoli`, oppure `null`. */
+function ruoloDaRoles(ruoli) {
+  for (const voce of RUOLI_INTERNI) {
+    if (ruoli.includes(voce.role)) {
+      return voce.ruolo;
+    }
+  }
+  return null;
+}
+
+/**
+ * L'utente della risposta di accesso nella forma interna di `api/finti/accesso.js`
+ * e dei consumatori (`profilo.jsx`, `staff-utenti.jsx`, `servizi/staff-utenti.js`).
+ *
+ * Contratto (`AuthController.php`, `User::toApiArray()`): `{id, name, surname,
+ * location, username, email, roles, accountStatus}`. `stato` resta **grezzo**
+ * (`'ACTIVE'`/`'INACTIVE'`, `User::STATUS_*`): tradurlo in `ATTIVO`/`SOSPESO`/
+ * `BLOCCATO` sarebbe un'equivalenza inventata. `roles` si copia così com'è.
+ * Restituisce `null` se `user` non è un oggetto.
+ */
+function normalizzaUtenteAccesso(user) {
+  if (user === null || typeof user !== 'object') {
+    return null;
+  }
+  const ruoli = Array.isArray(user.roles) ? [...user.roles] : [];
+  return {
+    id: numeroInteroONull(user.id),
+    nome: typeof user.name === 'string' ? user.name : '',
+    cognome: typeof user.surname === 'string' ? user.surname : '',
+    username: typeof user.username === 'string' ? user.username : '',
+    email: typeof user.email === 'string' ? user.email : '',
+    localita: testoONull(user.location),
+    ruoli,
+    ruolo: ruoloDaRoles(ruoli),
+    stato: typeof user.accountStatus === 'string' ? user.accountStatus : null,
+  };
+}
+
+/**
+ * La risposta di accesso del backend Symfony nella forma interna:
+ * `{token, user}` (login e registrazione, `AuthController.php`) → `{token, utente}`.
+ * Copia, trasforma, restituisce: la risposta ricevuta non si tocca.
+ */
+export function normalizzaRispostaAccesso(risposta) {
+  return {
+    token: typeof risposta?.token === 'string' ? risposta.token : null,
+    utente: normalizzaUtenteAccesso(risposta?.user),
+  };
 }
 
 /**
