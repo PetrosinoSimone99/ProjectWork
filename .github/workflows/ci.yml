@@ -8,17 +8,33 @@ on:
     branches: [main]
 
 jobs:
-  # --- Backend PHP: controlla la sintassi di ogni file .php prima del merge ---
-  php-lint:
-    name: PHP syntax check
+  backend:
+    name: Backend tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verifica sintassi PHP
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, pdo_sqlite, openssl
+      - name: Install backend dependencies
+        working-directory: Backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Generate test JWT keys
+        working-directory: Backend
         run: |
-          for f in $(find API -name "*.php"); do
+          mkdir -p config/jwt
+          openssl genpkey -algorithm RSA -out config/jwt/private.pem -pkeyopt rsa_keygen_bits:2048
+          openssl pkey -in config/jwt/private.pem -pubout -out config/jwt/public.pem
+      - name: Verify PHP syntax
+        run: |
+          for f in $(find Backend/src Backend/tests Backend/migrations -name "*.php"); do
             php -l "$f" || exit 1
           done
+      - name: Run backend tests
+        working-directory: Backend
+        run: php bin/phpunit
 
   # --- Frontend Expo (React/JS): lint + build di controllo ---
   # Gira solo quando Frontend/ è presente su main (cioè dopo il merge del frontend).
