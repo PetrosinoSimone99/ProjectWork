@@ -1,0 +1,183 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Functional;
+
+use App\Entity\Category;
+use App\Entity\Service;
+use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\SchemaTool;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
+class MarketplaceControllerTest extends WebTestCase
+{
+    private EntityManagerInterface $entityManager;
+    private KernelBrowser $client;
+
+    protected function setUp(): void
+    {
+        self::ensureKernelShutdown();
+        $this->client = static::createClient();
+        $this->entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $tool = new SchemaTool($this->entityManager);
+        $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
+        $tool->dropSchema($metadata);
+        $tool->createSchema($metadata);
+    }
+
+    public function testCategoriesAndServicePublishingRequireValidAuthenticatedInput(): void
+    {
+        $alice = $this->createUser('alice');
+        $cooking = $this->createCategory('Cooking');
+        $this->authenticate($alice);
+
+        $this->client->request('GET', '/api/categories');
+        self::assertResponseIsSuccessful();
+        self::assertSame('Cooking', $this->data()['categories'][0]['description']);
+
+        $this->client->jsonRequest('POST', '/api/services', ['type' => 'OFFER', 'description' => 'I can cook pasta.', 'categoryIds' => [$cooking->getId()]]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('OFFER', $this->data()['service']['type']);
+        self::assertSame('Cooking', $this->data()['service']['categories'][0]['description']);
+
+        $this->client->jsonRequest('POST', '/api/services', ['type' => 'OFFER', 'description' => 'x', 'categoryIds' => [999]]);
+        self::assertResponseStatusCodeSame(404);
+        self::assertArrayHasKey('error', $this->data());
+    }
+
+    public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void
+    {
+        [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        $this->authenticate($alice);
+
+        $this->client->request('GET', '/api/swipes');
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $this->data()['pendingProposals']);
+        self::assertCount(1, $this->data()['candidates']);
+
+        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
+        self::assertResponseStatusCodeSame(201);
+        $proposalId = $this->data()['proposalId'];
+        self::assertIsInt($proposalId);
+
+        // Retrying the same client request is safe and returns the original proposal.
+        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($proposalId, $this->data()['proposalId']);
+
+        $this->authenticate($bob);
+        $this->client->request('GET', '/api/swipes');
+        self::assertCount(1, $this->data()['pendingProposals']);
+        self::assertSame($proposalId, $this->data()['pendingProposals'][0]['id']);
+
+        $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'ACCEPT']);
+        self::assertResponseIsSuccessful();
+        self::assertTrue($this->data()['matched']);
+        self::assertSame('ACCEPTED', $this->data()['proposal']['status']);
+    }
+
+    public function testLeftSwipeHidesExactCombinationAndInvalidOwnershipIsRejected(): void
+    {
+        [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        $this->authenticate($alice);
+
+        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'LEFT']);
+        self::assertResponseStatusCodeSame(201);
+        self::assertNull($this->data()['proposalId']);
+
+        $this->client->request('GET', '/api/swipes');
+        self::assertCount(0, $this->data()['candidates']);
+
+        $ids['actorOfferServiceId'] = $ids['candidateOfferServiceId'];
+        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testInactiveUsersCannotPublishAndRecipientCanRejectOnce(): void
+    {
+        $inactive = $this->createUser('inactive');
+        $inactive->setAccountStatus(User::STATUS_INACTIVE);
+        $category = $this->createCategory('Repairs');
+        $this->entityManager->flush();
+        $this->authenticate($inactive);
+        $this->client->jsonRequest('POST', '/api/services', ['type' => 'OFFER', 'description' => 'I repair bikes.', 'categoryIds' => [$category->getId()]]);
+        self::assertResponseStatusCodeSame(403);
+
+        [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        $this->authenticate($alice);
+        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
+        $proposalId = $this->data()['proposalId'];
+        $this->authenticate($bob);
+        $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'REJECT']);
+        self::assertResponseIsSuccessful();
+        self::assertFalse($this->data()['matched']);
+        self::assertSame('REJECTED', $this->data()['proposal']['status']);
+
+        $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'ACCEPT']);
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    /** @return array{User, User, array{actorOfferServiceId: int, actorRequestServiceId: int, candidateOfferServiceId: int, candidateRequestServiceId: int}} */
+    private function createReciprocalCombination(): array
+    {
+        $alice = $this->createUser('alice');
+        $bob = $this->createUser('bob');
+        $cooking = $this->createCategory('Cooking');
+        $gardening = $this->createCategory('Gardening');
+        $aliceOffer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $cooking);
+        $aliceRequest = $this->createService($alice, Service::TYPE_REQUEST, 'I need garden help.', $gardening);
+        $bobOffer = $this->createService($bob, Service::TYPE_OFFER, 'I garden.', $gardening);
+        $bobRequest = $this->createService($bob, Service::TYPE_REQUEST, 'I need food.', $cooking);
+
+        return [$alice, $bob, [
+            'actorOfferServiceId' => $aliceOffer->getId(),
+            'actorRequestServiceId' => $aliceRequest->getId(),
+            'candidateOfferServiceId' => $bobOffer->getId(),
+            'candidateRequestServiceId' => $bobRequest->getId(),
+        ]];
+    }
+
+    private function createUser(string $username): User
+    {
+        $user = new User('Test', 'User', $username, $username.'@example.test');
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        $user->setPassword($hasher->hashPassword($user, 'correct-password'));
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+        return $user;
+    }
+
+    private function createCategory(string $description): Category
+    {
+        $category = new Category($description);
+        $this->entityManager->persist($category);
+        $this->entityManager->flush();
+        return $category;
+    }
+
+    private function createService(User $user, string $type, string $description, Category $category): Service
+    {
+        $service = new Service($user, $type, $description);
+        $service->addCategory($category);
+        $this->entityManager->persist($service);
+        $this->entityManager->flush();
+        return $service;
+    }
+
+    private function authenticate(User $user): void
+    {
+        $jwt = static::getContainer()->get(JWTTokenManagerInterface::class);
+        $this->client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$jwt->create($user));
+    }
+
+    /** @return array<string, mixed> */
+    private function data(): array
+    {
+        return json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+    }
+}
