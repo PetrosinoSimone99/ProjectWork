@@ -11,7 +11,7 @@ import { API_BASE_URL, USA_DATI_FINTI } from './config';
  */
 const TIMEOUT_RICHIESTA_MS = 10000;
 
-/** Errore delle API Baratto-lo: porta con sé lo status HTTP e il messaggio "errore" del backend. */
+/** Errore delle API Baratto-lo: porta con sé lo status HTTP e il messaggio di errore del backend. */
 export class ApiError extends Error {
   constructor(status, message) {
     super(message);
@@ -33,15 +33,20 @@ export function setSessionExpiredHandler(handler) {
 
 /**
  * Messaggio da mostrare all'utente quando la risposta non e' ok.
- * Le API del progetto usano due chiavi per lo stesso ruolo: "errore" (ricerca,
- * richieste, inviti) e "message" (Accordi1_a_1). Si accettano entrambe, cosi'
- * l'endpoint con la busta {success, message, data} porta il suo messaggio invece
- * di lasciare l'utente davanti a un testo tecnico.
+ * Il backend Symfony manda la busta {"error": "<testo inglese>"}: si legge per
+ * prima. Le chiavi vecchie restano per le chiamate non ancora portate al
+ * backend nuovo ("errore" di ricerca/richieste/inviti, "message" di
+ * Accordi1_a_1) e per i dati finti, non perche' il backend vero le mandi.
+ * Cosi' ogni endpoint porta il suo messaggio invece di lasciare l'utente
+ * davanti a un testo tecnico.
  */
 function messaggioDiErrore(data) {
   const fallback = 'Qualcosa non ha funzionato. Riprova.';
   if (data === null || typeof data !== 'object') {
     return fallback;
+  }
+  if (typeof data.error === 'string' && data.error) {
+    return data.error;
   }
   if (typeof data.errore === 'string' && data.errore) {
     return data.errore;
