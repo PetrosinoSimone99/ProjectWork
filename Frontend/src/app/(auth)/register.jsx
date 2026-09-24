@@ -42,14 +42,15 @@ const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
- * Limiti anagrafici: **copia dichiarata** di `API/register.php` (`mb_strlen`). La fonte unica
- * non esiste ancora: è la richiesta di `temp/gruppo-2-domande/22` (piano 12).
+ * Limiti anagrafici: **copia dichiarata** del backend Symfony, `AuthController::validateRegistration()`
+ * (`mb_strlen` sul valore trimmato), verificati il 26 settembre 2026. La fonte unica non esiste
+ * ancora: è la richiesta di `temp/gruppo-2-domande/22-regole-condivise-e-errori-per-campo.md` (piano 12).
  * TODO(backend): farli arrivare dal backend e restituire nei 400 il campo sbagliato.
  */
-const LIMITE_NOME = 50; // API/register.php:66
-const LIMITE_COGNOME = 50; // API/register.php:67
-const LIMITE_USERNAME = 50; // API/register.php:68
-const LIMITE_EMAIL = 45; // API/register.php:69
+const LIMITE_NOME = 50; // AuthController.php, validateRegistration()
+const LIMITE_COGNOME = 50;
+const LIMITE_USERNAME = 30;
+const LIMITE_EMAIL = 180;
 
 const FORM_VUOTO = {
   nome: '',
