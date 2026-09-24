@@ -85,3 +85,91 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | `401` | Invalid username or password. |
 | `403` | The account is inactive. |
 | `409` | Username or email already exists. |
+
+## 6. Service publishing and direct swipe matching
+
+Run the latest migration before using these endpoints:
+
+```bash
+php bin/console doctrine:migrations:migrate
+```
+
+All endpoints in this section require an active account and this header:
+
+```text
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### List the category catalog
+
+Categories must already exist in the database. Their IDs are used when publishing services.
+
+```bash
+curl http://localhost:8000/api/categories \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Example response:
+
+```json
+{
+  "categories": [
+    { "id": 1, "description": "Cooking" },
+    { "id": 2, "description": "Gardening" }
+  ]
+}
+```
+
+### Publish an offered or requested service
+
+Use `OFFER` for a service the user can provide and `REQUEST` for a service the user needs. At least one existing category ID is required.
+
+```bash
+curl -X POST http://localhost:8000/api/services \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"OFFER","description":"I can cook Italian meals.","categoryIds":[1]}'
+```
+
+The endpoint returns `201 Created` with the new service. Publish both an offer and a request before expecting reciprocal swipe candidates.
+
+### Read the swipe feed
+
+```bash
+curl "http://localhost:8000/api/swipes?limit=20" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+The response places incoming `pendingProposals` before `candidates`. Each candidate contains four services: the current user's offer and request, plus the candidate's offer and request. Both offer/request directions must share a category.
+
+### Swipe left or right
+
+Copy the four service IDs from a candidate card. The server verifies the relationship again, so IDs cannot be used to create an unrelated proposal.
+
+```bash
+curl -X POST http://localhost:8000/api/swipes \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actorOfferServiceId": 10,
+    "actorRequestServiceId": 11,
+    "candidateOfferServiceId": 20,
+    "candidateRequestServiceId": 21,
+    "direction": "RIGHT"
+  }'
+```
+
+Use `LEFT` to dismiss that exact four-service combination. A `RIGHT` swipe creates a `PENDING` proposal and returns its `proposalId`. Retrying the same direction is safe and returns the existing result. A contradictory decision, or an existing proposal for the same offered-service pair, returns `409 Conflict`.
+
+### Accept or reject an incoming proposal
+
+Only the participant who has not yet confirmed may decide.
+
+```bash
+curl -X POST http://localhost:8000/api/proposals/42/decision \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"ACCEPT"}'
+```
+
+`ACCEPT` changes the proposal to `ACCEPTED` and returns `"matched": true`. `REJECT` changes it to `REJECTED` and returns `"matched": false`. Only direct two-user proposals are covered by these endpoints; chat, formal exchanges, and group chains are separate future features.
