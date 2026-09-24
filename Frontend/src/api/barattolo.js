@@ -13,6 +13,7 @@ import {
   normalizzaOfferente,
   normalizzaPubblicazione,
   normalizzaPubblicazioni,
+  normalizzaRispostaAccesso,
   normalizzaSegnalazioneStaff,
   normalizzaSegnalazioniStaff,
   normalizzaServizio,
@@ -68,32 +69,48 @@ export {
  * `// TODO(backend)` con l'endpoint che si aspetta.
  */
 
-/** POST login.php — restituisce il token Bearer da riusare nelle chiamate autenticate. */
-export function login(username, password) {
+/**
+ * POST /api/auth/login — restituisce il token Bearer per le chiamate autenticate.
+ * `{token, user}` (`AuthController.php`) diventa `{token, utente}` con
+ * `normalizzaRispostaAccesso`.
+ */
+export async function login(username, password) {
   if (USA_DATI_FINTI) {
-    // TODO(backend): login.php vero; il token finto serve solo alla demo.
+    // TODO(backend): il token finto serve solo alla demo.
     return fintiAccesso.login(username, password);
   }
-  return apiFetch('login.php', {
-    method: 'POST',
-    body: { username, password },
-  });
+  return normalizzaRispostaAccesso(
+    await apiFetch('auth/login', {
+      method: 'POST',
+      body: { username, password },
+    }),
+  );
 }
 
 /**
- * POST register.php — crea l'utente e lo autentica subito.
+ * POST /api/auth/register — crea l'utente e lo autentica subito.
  *
- * Il corpo nuovo (`localita`, `offerte` e `ricerche` al plurale) non esiste
- * ancora nel contratto: con i finti spenti questa chiamata risponde 400 finché i
- * colleghi non aggiornano l'endpoint e non rendono facoltativo
- * `descrizione_servizio` — vedi `temp/gruppo-3-mancanti/19`.
+ * Il form produce `{nome, cognome, username, email, password, localita, offerte,
+ * ricerche}` ma il contratto accetta solo `{name, surname, username, email,
+ * password}`: il corpo si costruisce qui, non si manda `input` così com'è.
+ * TODO(backend): `location`, `offerte` e `ricerche` non sono nel contratto e restano fuori dal corpo (segnalazione 19).
  */
-export function register(input) {
+export async function register(input) {
   if (USA_DATI_FINTI) {
-    // TODO(backend): register.php con localita, offerte e ricerche.
+    // TODO(backend): register vero con localita, offerte e ricerche.
     return fintiAccesso.register(input);
   }
-  return apiFetch('register.php', { method: 'POST', body: input });
+  const { nome, cognome, username, email, password } = input ?? {};
+  return normalizzaRispostaAccesso(
+    await apiFetch('auth/register', {
+      method: 'POST',
+      body: {
+        name: (nome ?? '').trim(),
+        surname: (cognome ?? '').trim(),
+        username, email, password,
+      },
+    }),
+  );
 }
 
 /**

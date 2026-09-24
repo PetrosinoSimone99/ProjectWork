@@ -255,8 +255,9 @@ export default function RegisterScreen() {
         username: form.username.trim(),
         email: form.email.trim(),
         password: form.password,
-        // TODO(backend): register.php non conosce ancora localita, offerte e
-        // ricerche; con i finti spenti risponde 400 (Parte 19 delle segnalazioni).
+        // `localita`, `offerte` e `ricerche` restano nel payload: il corpo verso
+        // il backend lo costruisce `api/barattolo.js`, che oggi li esclude perché
+        // il contratto non li accetta (Parte 19 delle segnalazioni).
         localita: form.localita.trim(),
         offerte: aPayloadApi(offerte),
         ricerche: aPayloadApi(ricerche),

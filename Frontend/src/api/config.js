@@ -1,8 +1,14 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-/** Percorso degli endpoint sotto la radice del server PHP (`php -S -t <radice>`). */
-const API_PATH = '/API';
+/**
+ * Percorso delle rotte API del backend Symfony.
+ * Le rotte stanno alla radice del server perché i colleghi servono
+ * `Backend/public` come document root (`php -S localhost:8000 -t public`, vedi
+ * `Backend/DATABASE_AND_API_GUIDE.md` §2): il backend Symfony non ha
+ * estensioni `.php` sulle rotte.
+ */
+const API_PATH = '/api';
 
 /**
  * Dati finti al posto del backend vero.
@@ -26,7 +32,7 @@ export const USA_DATI_FINTI = process.env.EXPO_PUBLIC_DATI_FINTI === '1';
  */
 export const AVVISO_DEMO = 'Versione demo: i contenuti sono di esempio.';
 
-/** Radice di XAMPP/Laragon: vale solo quando non è configurato nulla. */
+/** Radice del server locale (XAMPP/Laragon o `php -S`): vale solo quando non è configurato nulla. */
 const XAMPP_ORIGIN =
   Platform.OS === 'android' ? 'http://10.0.2.2' : 'http://localhost';
 
@@ -86,8 +92,9 @@ function hostApiLocale() {
  *    sta sulla stessa macchina delle API.
  * 2. `EXPO_PUBLIC_API_PORT` (`.env.local`) — host ricavato dal dev server e
  *    porta fissa: è la configurazione per lo sviluppo locale.
- * 3. nessuna variabile — il percorso di XAMPP (`ProgettoITS_Web/API`), la
- *    strada dei colleghi, che non richiede `.env.local`.
+ * 3. nessuna variabile — la radice del server locale (`/api`), la strada dei
+ *    colleghi con `php -S` che serve `Backend/public`, che non richiede
+ *    `.env.local`.
  */
 function baseUrlApi() {
   const urlEsplicita = process.env.EXPO_PUBLIC_API_URL;
@@ -117,7 +124,7 @@ function baseUrlApi() {
     );
   }
 
-  return `${XAMPP_ORIGIN}/ProgettoITS_Web${API_PATH}`;
+  return `${XAMPP_ORIGIN}${API_PATH}`;
 }
 
 export const API_BASE_URL = baseUrlApi();
