@@ -122,6 +122,112 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
+    public function testHomepageCatalogShowsOnlyOtherActiveOffersWithSafeOwnerData(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $romeOwner = $this->createUser('rome-owner', 'Rome');
+        $inactiveOwner = $this->createUser('inactive-owner', 'Milan');
+        $inactiveOwner->setAccountStatus(User::STATUS_INACTIVE);
+        $cooking = $this->createCategory('Cooking');
+        $repairs = $this->createCategory('Repairs');
+
+        $this->createService($viewer, Service::TYPE_OFFER, 'My private offer.', $cooking);
+        $this->createService($romeOwner, Service::TYPE_REQUEST, 'I need a meal.', $cooking);
+        $pasta = $this->createService($romeOwner, Service::TYPE_OFFER, 'I can cook pasta.', $cooking);
+        $inactiveOffer = $this->createService($inactiveOwner, Service::TYPE_OFFER, 'I repair clocks.', $repairs);
+        $this->entityManager->flush();
+
+        $this->authenticate($viewer);
+        $this->client->request('GET', '/api/services');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $this->data()['pagination']['totalItems']);
+        self::assertSame($pasta->getId(), $this->data()['offers'][0]['id']);
+        self::assertSame('Rome', $this->data()['offers'][0]['owner']['location']);
+        self::assertArrayNotHasKey('email', $this->data()['offers'][0]['owner']);
+        self::assertArrayNotHasKey('roles', $this->data()['offers'][0]['owner']);
+        self::assertNotSame($inactiveOffer->getId(), $this->data()['offers'][0]['id']);
+    }
+
+    public function testHomepageCatalogSupportsTextLocationCategorySortingAndPaginationFilters(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $romeOwner = $this->createUser('rome-owner', 'Rome');
+        $milanOwner = $this->createUser('milan-owner', 'Milan');
+        $cooking = $this->createCategory('Cooking');
+        $gardening = $this->createCategory('Gardening');
+        $repairs = $this->createCategory('Repairs');
+
+        $first = $this->createService($romeOwner, Service::TYPE_OFFER, 'I can cook pasta.', $cooking);
+        $first->addCategory($gardening);
+        $this->entityManager->flush();
+        $second = $this->createService($milanOwner, Service::TYPE_OFFER, 'I repair bicycles.', $repairs);
+        $third = $this->createService($romeOwner, Service::TYPE_OFFER, 'I maintain gardens.', $gardening);
+
+        $this->authenticate($viewer);
+        $this->client->request('GET', '/api/services?q=PASTA&location=rOmE');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$first->getId()], array_column($this->data()['offers'], 'id'));
+
+        // One offer belonging to two requested categories appears only once.
+        $this->client->request('GET', '/api/services?categoryIds='.$cooking->getId().','.$gardening->getId());
+        self::assertResponseIsSuccessful();
+        self::assertSame(2, $this->data()['pagination']['totalItems']);
+        self::assertCount(1, array_keys(array_filter(
+            $this->data()['offers'],
+            static fn (array $offer): bool => $offer['id'] === $first->getId(),
+        )));
+
+        $this->client->request('GET', '/api/services?sort=oldest&limit=1&page=1');
+        self::assertResponseIsSuccessful();
+        self::assertSame($first->getId(), $this->data()['offers'][0]['id']);
+        self::assertSame(3, $this->data()['pagination']['totalItems']);
+        self::assertSame(3, $this->data()['pagination']['totalPages']);
+
+        $this->client->request('GET', '/api/services?sort=newest&limit=1&page=1');
+        self::assertResponseIsSuccessful();
+        self::assertSame($third->getId(), $this->data()['offers'][0]['id']);
+
+        $this->client->request('GET', '/api/services?limit=1&page=9');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->data()['offers']);
+        self::assertSame(3, $this->data()['pagination']['totalItems']);
+        self::assertSame(3, $this->data()['pagination']['totalPages']);
+
+        self::assertNotSame($second->getId(), $third->getId());
+    }
+
+    public function testHomepageCatalogRejectsInvalidFilters(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $this->authenticate($viewer);
+
+        foreach (['?page=0', '?limit=51', '?sort=popular', '?categoryIds=1,nope', '?categoryIds='] as $query) {
+            $this->client->request('GET', '/api/services'.$query);
+            self::assertResponseStatusCodeSame(400);
+            self::assertArrayHasKey('error', $this->data());
+        }
+
+    }
+
+    public function testHomepageCatalogRequiresAuthentication(): void
+    {
+        $this->client->request('GET', '/api/services');
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testInactiveAccountCannotReadHomepageCatalog(): void
+    {
+        $inactiveUser = $this->createUser('inactive-viewer');
+        $inactiveUser->setAccountStatus(User::STATUS_INACTIVE);
+        $this->entityManager->flush();
+
+        $this->authenticate($inactiveUser);
+        $this->client->request('GET', '/api/services');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     /** @return array{User, User, array{actorOfferServiceId: int, actorRequestServiceId: int, candidateOfferServiceId: int, candidateRequestServiceId: int}} */
     private function createReciprocalCombination(): array
     {
@@ -142,9 +248,10 @@ class MarketplaceControllerTest extends WebTestCase
         ]];
     }
 
-    private function createUser(string $username): User
+    private function createUser(string $username, ?string $location = null): User
     {
         $user = new User('Test', 'User', $username, $username.'@example.test');
+        $user->setLocation($location);
         $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
         $user->setPassword($hasher->hashPassword($user, 'correct-password'));
         $this->entityManager->persist($user);

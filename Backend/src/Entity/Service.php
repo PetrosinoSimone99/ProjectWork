@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Repository\ServiceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 /** A service a user can offer to others or request from them. */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ServiceRepository::class)]
 #[ORM\Table(name: 'services')]
 #[ORM\Index(name: 'services_user_type_index', columns: ['user_id', 'type'])]
 class Service
@@ -55,6 +56,7 @@ class Service
     public function getUser(): User { return $this->user; }
     public function getType(): string { return $this->type; }
     public function getDescription(): string { return $this->description; }
+    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     /** @return Collection<int, Category> */
     public function getCategories(): Collection { return $this->categories; }
     public function addCategory(Category $category): void
@@ -72,6 +74,27 @@ class Service
             'type' => $this->type,
             'description' => $this->description,
             'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
+        ];
+    }
+
+    /**
+     * Builds the safe, complete representation used by the homepage catalog.
+     *
+     * The owner is deliberately represented with public profile data only. This
+     * keeps private account fields, such as the email address and roles, out of
+     * a response that is shared with other authenticated users.
+     *
+     * @return array{id: int|null, type: string, description: string, createdAt: string, categories: list<array{id: int|null, description: string}>, owner: array{id: int|null, name: string, surname: string, username: string, location: string|null}}
+     */
+    public function toHomepageOfferApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'type' => $this->type,
+            'description' => $this->description,
+            'createdAt' => $this->createdAt->format(DATE_ATOM),
+            'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
+            'owner' => $this->user->toPublicApiArray(),
         ];
     }
 }

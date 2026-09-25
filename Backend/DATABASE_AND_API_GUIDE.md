@@ -133,6 +133,57 @@ curl -X POST http://localhost:8000/api/services \
 
 The endpoint returns `201 Created` with the new service. Publish both an offer and a request before expecting reciprocal swipe candidates.
 
+### Browse homepage offers
+
+The homepage catalog is available to authenticated active users. It returns only `OFFER` services published by other active users, so a user never sees their own offers or inactive accounts in this list.
+
+```bash
+curl "http://localhost:8000/api/services?q=bicycle&categoryIds=1,3&location=Rome&sort=newest&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+All query parameters are optional:
+
+| Parameter | Meaning | Allowed values / default |
+| --- | --- | --- |
+| `q` | Case-insensitive partial search in the service description | Text up to 255 characters |
+| `categoryIds` | Comma-separated category IDs | Positive integers; matching any selected category |
+| `location` | Case-insensitive partial search in the owner's location | Text up to 255 characters |
+| `sort` | Creation-date ordering | `newest` (default) or `oldest` |
+| `page` | Page to return | Positive integer, default `1` |
+| `limit` | Offers per page | Integer from `1` to `50`, default `20` |
+
+Example response:
+
+```json
+{
+  "offers": [
+    {
+      "id": 12,
+      "type": "OFFER",
+      "description": "I can repair bicycles.",
+      "createdAt": "2026-09-25T10:00:00+00:00",
+      "categories": [{ "id": 3, "description": "Repairs" }],
+      "owner": {
+        "id": 4,
+        "name": "Mario",
+        "surname": "Rossi",
+        "username": "mario.rossi",
+        "location": "Rome"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+
+The owner object intentionally contains public profile data only. Email addresses, roles, passwords, and account status are never returned by this endpoint. Invalid query parameters return `400 Bad Request`; a page beyond the final page returns an empty `offers` array with correct pagination metadata.
+
 ### Read the swipe feed
 
 ```bash
@@ -173,3 +224,60 @@ curl -X POST http://localhost:8000/api/proposals/42/decision \
 ```
 
 `ACCEPT` changes the proposal to `ACCEPTED` and returns `"matched": true`. `REJECT` changes it to `REJECTED` and returns `"matched": false`. Only direct two-user proposals are covered by these endpoints; chat, formal exchanges, and group chains are separate future features.
+
+## Quick guide: use the homepage offers API
+
+This short walkthrough shows the usual steps for loading offers in a homepage. Replace `http://localhost:8000` with the base URL used by your frontend. Every marketplace request requires a JWT from an active account.
+
+### 1. Get an access token
+
+Register a new account, or log in with an existing one. Save the `token` value from the JSON response.
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"mario.rossi","password":"my-safe-password"}'
+```
+
+The response includes `token` and `user`. Send the token in the `Authorization` header on the following requests:
+
+```text
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### 2. Load the available categories
+
+Use the category IDs as filter values when searching. Categories are read-only through this API and must already exist in the database.
+
+```bash
+curl http://localhost:8000/api/categories \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### 3. Load homepage offers
+
+Request the first page of offers without filters:
+
+```bash
+curl "http://localhost:8000/api/services?page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Search for bicycle services in Rome in either category `2` or category `5`:
+
+```bash
+curl "http://localhost:8000/api/services?q=bicycle&categoryIds=2,5&location=Rome&sort=newest&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+The `offers` array contains the service description, its categories, creation time, and the owner's public profile. The `pagination` object reports the requested page, page size, total number of matching offers, and total page count. An empty `offers` array means that no offers matched the filters or that the requested page is past the last page.
+
+### Common errors
+
+| Status | Meaning | What to check |
+| --- | --- | --- |
+| `400` | A query parameter is invalid | Use positive integer page/category IDs, a limit from 1 to 50, and `newest` or `oldest` for sorting |
+| `401` | The token is missing or invalid | Log in again and send `Authorization: Bearer <token>` |
+| `403` | The account is inactive | An active account is required to use marketplace endpoints |
+
+The homepage API shows offers from other active users only. It never returns the signed-in user's own offers or private owner fields such as email and roles.

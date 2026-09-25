@@ -10,7 +10,9 @@ use App\Entity\ProposalParticipant;
 use App\Entity\Service;
 use App\Entity\SwipeDecision;
 use App\Entity\User;
+use App\Repository\ServiceRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,6 +29,32 @@ class MarketplaceController extends AbstractController
             static fn (Category $category) => $category->toApiArray(),
             $entityManager->getRepository(Category::class)->findBy([], ['description' => 'ASC']),
         )]);
+    }
+
+    #[Route('/services', name: 'api_services_list', methods: ['GET'])]
+    public function listServices(Request $request, ServiceRepository $serviceRepository): JsonResponse
+    {
+        $viewer = $this->activeUser();
+        if ($viewer instanceof JsonResponse) {
+            return $viewer;
+        }
+
+        $filters = $this->readHomepageFilters($request);
+        if ($filters instanceof JsonResponse) {
+            return $filters;
+        }
+
+        $offers = $serviceRepository->paginateHomepageOffers(
+            $viewer,
+            $filters['searchText'],
+            $filters['categoryIds'],
+            $filters['location'],
+            $filters['sort'],
+            $filters['page'],
+            $filters['limit'],
+        );
+
+        return $this->homepageResponse($offers, $filters['page'], $filters['limit']);
     }
 
     #[Route('/services', name: 'api_services_create', methods: ['POST'])]
@@ -241,6 +269,123 @@ class MarketplaceController extends AbstractController
     private function readJsonBody(Request $request): ?array
     {
         try { return $request->toArray(); } catch (\JsonException) { return null; }
+    }
+
+    /**
+     * Reads and validates the query string before it reaches the repository.
+     *
+     * Query parameters arrive as strings, so validating them here prevents an
+     * invalid value from silently changing the meaning of a catalog request.
+     *
+     * @return array{searchText: string|null, categoryIds: list<int>, location: string|null, sort: 'newest'|'oldest', page: int, limit: int}|JsonResponse
+     */
+    private function readHomepageFilters(Request $request): array|JsonResponse
+    {
+        $parameters = $request->query->all();
+        $searchText = $this->readOptionalTextFilter($parameters, 'q');
+        if ($searchText instanceof JsonResponse) {
+            return $searchText;
+        }
+        $location = $this->readOptionalTextFilter($parameters, 'location');
+        if ($location instanceof JsonResponse) {
+            return $location;
+        }
+
+        $sort = $parameters['sort'] ?? 'newest';
+        if (!is_string($sort) || !in_array($sort, ['newest', 'oldest'], true)) {
+            return $this->error('Sort must be either newest or oldest.', 400);
+        }
+
+        $page = $this->readPositiveInteger($parameters, 'page', 1, PHP_INT_MAX);
+        if ($page instanceof JsonResponse) {
+            return $page;
+        }
+        $limit = $this->readPositiveInteger($parameters, 'limit', 20, 50);
+        if ($limit instanceof JsonResponse) {
+            return $limit;
+        }
+        $categoryIds = $this->readCategoryIds($parameters);
+        if ($categoryIds instanceof JsonResponse) {
+            return $categoryIds;
+        }
+
+        return [
+            'searchText' => $searchText,
+            'categoryIds' => $categoryIds,
+            'location' => $location,
+            'sort' => $sort,
+            'page' => $page,
+            'limit' => $limit,
+        ];
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function readOptionalTextFilter(array $parameters, string $name): string|JsonResponse|null
+    {
+        if (!array_key_exists($name, $parameters)) {
+            return null;
+        }
+        if (!is_string($parameters[$name])) {
+            return $this->error(ucfirst($name).' must be a text value.', 400);
+        }
+        $value = trim($parameters[$name]);
+        if (mb_strlen($value) > 255) {
+            return $this->error(ucfirst($name).' must not be longer than 255 characters.', 400);
+        }
+        return $value === '' ? null : $value;
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function readPositiveInteger(array $parameters, string $name, int $default, int $maximum): int|JsonResponse
+    {
+        if (!array_key_exists($name, $parameters)) {
+            return $default;
+        }
+        $value = $parameters[$name];
+        if (!is_string($value) || !ctype_digit($value) || (int) $value < 1 || (int) $value > $maximum) {
+            return $this->error(ucfirst($name).' must be an integer between 1 and '.$maximum.'.', 400);
+        }
+        return (int) $value;
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function readCategoryIds(array $parameters): array|JsonResponse
+    {
+        if (!array_key_exists('categoryIds', $parameters)) {
+            return [];
+        }
+        $value = $parameters['categoryIds'];
+        if (!is_string($value) || $value === '') {
+            return $this->error('Category IDs must be a comma-separated list of positive integers.', 400);
+        }
+
+        $ids = [];
+        foreach (explode(',', $value) as $id) {
+            if (!ctype_digit($id) || (int) $id < 1) {
+                return $this->error('Category IDs must be a comma-separated list of positive integers.', 400);
+            }
+            $ids[] = (int) $id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /** @param Paginator<Service> $offers */
+    private function homepageResponse(Paginator $offers, int $page, int $limit): JsonResponse
+    {
+        $totalItems = count($offers);
+        return $this->json([
+            'offers' => array_map(
+                static fn (Service $service) => $service->toHomepageOfferApiArray(),
+                iterator_to_array($offers),
+            ),
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'totalItems' => $totalItems,
+                'totalPages' => $totalItems === 0 ? 0 : (int) ceil($totalItems / $limit),
+            ],
+        ]);
     }
 
     private function sharesCategory(Service $first, Service $second): bool

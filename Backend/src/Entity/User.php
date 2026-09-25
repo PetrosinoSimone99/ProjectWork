@@ -99,4 +99,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'accountStatus' => $this->accountStatus,
         ];
     }
+
+    /**
+     * Returns the profile fields that another marketplace user may see.
+     *
+     * Authentication responses use toApiArray(), while catalog entries must
+     * never expose contact details, roles, or account administration data.
+     *
+     * @return array{id: int|null, name: string, surname: string, username: string, location: string|null}
+     */
+    public function toPublicApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'surname' => $this->surname,
+            'username' => $this->username,
+            'location' => $this->location,
+        ];
+    }
 }
