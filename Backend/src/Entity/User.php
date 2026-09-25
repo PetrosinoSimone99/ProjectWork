@@ -35,6 +35,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $location = null;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $bio = null;
+
+    #[ORM\Column(name: 'profile_image_url', length: 2048, nullable: true)]
+    private ?string $profileImageUrl = null;
+
     #[ORM\Column(length: 30, unique: true)]
     private string $username;
 
@@ -67,6 +73,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getName(): string { return $this->name; }
     public function getSurname(): string { return $this->surname; }
     public function getLocation(): ?string { return $this->location; }
+    public function getBio(): ?string { return $this->bio; }
+    public function getProfileImageUrl(): ?string { return $this->profileImageUrl; }
     public function getEmail(): string { return $this->email; }
     public function getUserIdentifier(): string { return $this->username; }
     public function getUsername(): string { return $this->username; }
@@ -80,6 +88,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setRoles(array $roles): void { $this->roles = $roles; }
     public function setLocation(?string $location): void { $this->location = $location; }
+    public function setName(string $name): void { $this->name = $name; }
+    public function setSurname(string $surname): void { $this->surname = $surname; }
+    public function setBio(?string $bio): void { $this->bio = $bio; }
+    public function setProfileImageUrl(?string $profileImageUrl): void { $this->profileImageUrl = $profileImageUrl; }
     public function setPassword(string $hashedPassword): void { $this->password = $hashedPassword; }
     public function getAccountStatus(): string { return $this->accountStatus; }
     public function setAccountStatus(string $accountStatus): void { $this->accountStatus = $accountStatus; }
@@ -93,6 +105,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'name' => $this->name,
             'surname' => $this->surname,
             'location' => $this->location,
+            'bio' => $this->bio,
+            'profileImageUrl' => $this->profileImageUrl,
             'username' => $this->username,
             'email' => $this->email,
             'roles' => $this->getRoles(),
@@ -100,13 +114,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         ];
     }
 
+    /** Returns the signed-in user's editable profile and account contact details. */
+    public function toProfileApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'surname' => $this->surname,
+            'location' => $this->location,
+            'username' => $this->username,
+            'email' => $this->email,
+            'bio' => $this->bio,
+            'profileImageUrl' => $this->profileImageUrl,
+        ];
+    }
+
     /**
      * Returns the profile fields that another marketplace user may see.
      *
-     * Authentication responses use toApiArray(), while catalog entries must
-     * never expose contact details, roles, or account administration data.
+     * Marketplace responses use this safe shape so other users never receive
+     * contact details, roles, or account administration data.
      *
-     * @return array{id: int|null, name: string, surname: string, username: string, location: string|null}
+     * @return array{id: int|null, name: string, surname: string, username: string, location: string|null, bio: string|null, profileImageUrl: string|null}
      */
     public function toPublicApiArray(): array
     {
@@ -116,6 +145,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'surname' => $this->surname,
             'username' => $this->username,
             'location' => $this->location,
+            'bio' => $this->bio,
+            'profileImageUrl' => $this->profileImageUrl,
         ];
     }
 }

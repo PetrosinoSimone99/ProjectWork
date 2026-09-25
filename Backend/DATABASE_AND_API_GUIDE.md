@@ -94,6 +94,26 @@ Run the latest migration before using these endpoints:
 php bin/console doctrine:migrations:migrate
 ```
 
+## 7. Read and update your profile
+
+The profile endpoints require a JWT from an active account. `GET /api/profile` returns the signed-in user's profile, including account contact details. `PATCH /api/profile` changes only fields included in its JSON body.
+
+```bash
+curl http://localhost:8000/api/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```bash
+curl -X PATCH http://localhost:8000/api/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Mario","location":"Milan","bio":"I enjoy exchanging practical skills.","profileImageUrl":"https://example.com/profiles/mario.jpg"}'
+```
+
+Both endpoints return a `profile` object with `id`, `name`, `surname`, `location`, `username`, `email`, `bio`, and `profileImageUrl`. Send `null` for `location`, `bio`, or `profileImageUrl` to clear an existing value. The profile image is stored as an HTTPS URL; the server does not upload or host image files.
+
+The PATCH endpoint accepts `name` and `surname` up to 50 characters, `location` up to 255 characters, `bio` up to 1,000 characters, and `profileImageUrl` up to 2,048 characters. Names and locations must not be blank. Unknown fields and account fields such as username, email, password, roles, or account status are rejected with `400 Bad Request`. Public catalog and swipe responses include bio and profile image URL, but never email, roles, password data, or account status.
+
 All endpoints in this section require an active account and this header:
 
 ```text
