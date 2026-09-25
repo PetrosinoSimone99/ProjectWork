@@ -3,6 +3,8 @@ CREATE TABLE `users` (
   `name` varchar(50) NOT NULL,
   `surname` varchar(50) NOT NULL,
   `location` varchar(255),
+  `bio` text,
+  `profile_image_url` varchar(2048),
   `username` varchar(30) NOT NULL UNIQUE,
   `email` varchar(180) NOT NULL UNIQUE,
   `password_hash` varchar(255) NOT NULL,
