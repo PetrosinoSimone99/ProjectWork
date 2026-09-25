@@ -53,12 +53,19 @@ class MarketplaceControllerTest extends WebTestCase
     public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void
     {
         [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        $bob->setBio('I enjoy gardening.');
+        $bob->setProfileImageUrl('https://example.test/bob.jpg');
+        $this->entityManager->flush();
         $this->authenticate($alice);
 
         $this->client->request('GET', '/api/swipes');
         self::assertResponseIsSuccessful();
         self::assertCount(0, $this->data()['pendingProposals']);
         self::assertCount(1, $this->data()['candidates']);
+        self::assertSame('I enjoy gardening.', $this->data()['candidates'][0]['candidate']['bio']);
+        self::assertSame('https://example.test/bob.jpg', $this->data()['candidates'][0]['candidate']['profileImageUrl']);
+        self::assertArrayNotHasKey('email', $this->data()['candidates'][0]['candidate']);
+        self::assertArrayNotHasKey('roles', $this->data()['candidates'][0]['candidate']);
 
         $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
         self::assertResponseStatusCodeSame(201);
@@ -74,6 +81,8 @@ class MarketplaceControllerTest extends WebTestCase
         $this->client->request('GET', '/api/swipes');
         self::assertCount(1, $this->data()['pendingProposals']);
         self::assertSame($proposalId, $this->data()['pendingProposals'][0]['id']);
+        self::assertSame('I enjoy gardening.', $this->data()['pendingProposals'][0]['participants'][1]['user']['bio']);
+        self::assertArrayNotHasKey('email', $this->data()['pendingProposals'][0]['participants'][1]['user']);
 
         $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'ACCEPT']);
         self::assertResponseIsSuccessful();

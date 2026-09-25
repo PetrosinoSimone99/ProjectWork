@@ -422,7 +422,7 @@ class MarketplaceController extends AbstractController
     /** @return array<string, mixed> */
     private function candidateToApiArray(User $candidate, Service $actorOffer, Service $actorRequest, Service $candidateOffer, Service $candidateRequest): array
     {
-        return ['candidate' => $candidate->toApiArray(), 'actorOfferService' => $actorOffer->toApiArray(), 'actorRequestService' => $actorRequest->toApiArray(), 'candidateOfferService' => $candidateOffer->toApiArray(), 'candidateRequestService' => $candidateRequest->toApiArray()];
+        return ['candidate' => $candidate->toPublicApiArray(), 'actorOfferService' => $actorOffer->toApiArray(), 'actorRequestService' => $actorRequest->toApiArray(), 'candidateOfferService' => $candidateOffer->toApiArray(), 'candidateRequestService' => $candidateRequest->toApiArray()];
     }
 
     /** @return array<string, mixed> */
@@ -430,7 +430,7 @@ class MarketplaceController extends AbstractController
     {
         $participants = [];
         foreach ($proposal->getParticipants() as $participant) {
-            $participants[] = ['user' => $participant->getUser()->toApiArray(), 'service' => $participant->getService()->toApiArray(), 'confirmed' => $participant->isConfirmed()];
+            $participants[] = ['user' => $participant->getUser()->toPublicApiArray(), 'service' => $participant->getService()->toApiArray(), 'confirmed' => $participant->isConfirmed()];
         }
         return ['id' => $proposal->getId(), 'status' => $proposal->getStatus(), 'createdAt' => $proposal->getCreatedAt()->format(DATE_ATOM), 'participants' => $participants];
     }
