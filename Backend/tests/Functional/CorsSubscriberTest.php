@@ -26,7 +26,7 @@ class CorsSubscriberTest extends WebTestCase
     public function testApiErrorResponseAlsoContainsCorsHeaders(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/api/categories', server: ['HTTP_ORIGIN' => 'http://localhost:3000']);
+        $client->request('GET', '/api/services', server: ['HTTP_ORIGIN' => 'http://localhost:3000']);
 
         self::assertResponseStatusCodeSame(401);
         self::assertSame('*', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
