@@ -43,7 +43,7 @@ const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Limiti anagrafici: **copia dichiarata** del backend Symfony, `AuthController::validateRegistration()`
- * (`mb_strlen` sul valore trimmato), verificati il 26 settembre 2026. La fonte unica non esiste
+ * (`mb_strlen` sul valore trimmato), verificati il 24 settembre 2026. La fonte unica non esiste
  * ancora: è la richiesta di `temp/gruppo-2-domande/22-regole-condivise-e-errori-per-campo.md` (piano 12).
  * TODO(backend): farli arrivare dal backend e restituire nei 400 il campo sbagliato.
  */
