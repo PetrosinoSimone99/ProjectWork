@@ -49,15 +49,53 @@ The API URL will be `http://localhost:8000`.
 
 ## 3. Register a user
 
-Send a `POST` request to `/api/auth/register`:
+Registration creates the account, location, offers, requests, and any new categories in one call. Send a `POST` request to `/api/auth/register` with at least one offer and one request. Use category names to create or reuse categories:
 
 ```bash
 curl -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"Mario","surname":"Rossi","username":"mario.rossi","email":"mario@example.com","password":"my-safe-password"}'
+  -d '{"name":"Mario","surname":"Rossi","username":"mario.rossi","email":"mario@example.com","password":"my-safe-password","location":"Milan","offers":[{"description":"I can cook Italian meals.","categories":["Cooking"]}],"requests":[{"description":"I need help with gardening.","categories":["Gardening"]}]}'
 ```
 
-The response has status `201` and contains a JWT token plus safe user data. Passwords and password hashes are never returned.
+`location` must be non-empty and no longer than 255 characters. `offers` and `requests` must each be non-empty lists. Every service description must be non-empty and no longer than 255 characters. Each service must include at least one category using `categories`, `categoryIds`, or both. Category names are trimmed, must be non-empty and no longer than 255 characters, and match existing categories without case sensitivity. A new category is added to the shared catalog; a matching category is reused. Existing `categoryIds` remain supported and must refer to existing categories. Do not repeat the same category in one service.
+
+To combine category names and existing IDs in one service, include both fields:
+
+```json
+{
+  "description": "I can repair bicycles.",
+  "categories": ["Repairs"],
+  "categoryIds": [2]
+}
+```
+
+The response has status `201` and contains a JWT token, safe user data, and the saved services:
+
+```json
+{
+  "token": "YOUR_JWT_TOKEN",
+  "user": {
+    "id": 1,
+    "name": "Mario",
+    "surname": "Rossi",
+    "location": "Milan",
+    "bio": null,
+    "profileImageUrl": null,
+    "username": "mario.rossi",
+    "email": "mario@example.com",
+    "roles": ["ROLE_USER"],
+    "accountStatus": "ACTIVE"
+  },
+  "offers": [
+    { "id": 1, "type": "OFFER", "description": "I can cook Italian meals.", "categories": [{ "id": 1, "description": "Cooking" }] }
+  ],
+  "requests": [
+    { "id": 2, "type": "REQUEST", "description": "I need help with gardening.", "categories": [{ "id": 2, "description": "Gardening" }] }
+  ]
+}
+```
+
+The account, services, new categories, and category links are saved together. If the request is invalid or an ID refers to a category that does not exist, no account, service, or category is created. Passwords and password hashes are never returned.
 
 ## 4. Login
 
@@ -82,6 +120,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | `201` | Registration completed. |
 | `200` | Login completed. |
 | `400` | Invalid JSON or missing data. |
+| `404` | One or more category IDs do not exist. |
 | `401` | Invalid username or password. |
 | `403` | The account is inactive. |
 | `409` | Username or email already exists. |
