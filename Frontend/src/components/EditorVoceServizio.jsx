@@ -1,6 +1,10 @@
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppCheckbox } from './AppCheckbox';
+// IMPORT SOSPESO: la casella «da remoto» è tolta dalla UI (decisione del titolare,
+// 27 settembre 2026) finché il backend non modella il campo. Quando arriva
+// (`isRemote` in `services` + contratto, vedi `temp/gruppo-2-domande/23`), si
+// decommentano l'import qui sotto e il blocco `AppCheckbox` più avanti.
+// import { AppCheckbox } from './AppCheckbox';
 import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { SelettoreCategoria } from './SelettoreCategoria';
@@ -8,7 +12,13 @@ import { LIMITE_MANSIONE, TIPI_VOCE } from '@/servizi/offerta-ricerca';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * Una voce di «cosa offro» o «cosa cerco»: categoria + mansione + «da remoto».
+ * Una voce di «cosa offro» o «cosa cerco»: categoria + mansione. La casella
+ * «da remoto» è **sospesa** (commentata qui sotto): il contratto non modella
+ * il campo e il titolare ha deciso di toglierla dalla UI finché il backend non
+ * lo aggiunge (decisione 27 settembre 2026, vedi `temp/gruppo-2-domande/23`).
+ * Il dato resta nel modello (`voce.daRemoto`, sempre `false` finché non c'è
+ * l'input): quando il campo arriva si decommenta il blocco `AppCheckbox` qui
+ * sotto e si riallinea la traduzione in `api/barattolo.js` (`aCorpoVoci`).
  *
  * È un blocco ripetibile: la schermata ne disegna da 1 a `LIMITE_VOCI` per tipo e
  * si occupa di aggiungere, togliere e validare. Qui c'è solo il disegno di una
@@ -122,11 +132,15 @@ export function EditorVoceServizio({
         error={errori.mansione ?? null}
       />
 
+      {/* CASSETTA «DA REMOTO» SOSPESA — si riattiva quando il backend aggiunge
+          il campo (`isRemote` su `services`, vedi `temp/gruppo-2-domande/23`):
+          decommentare anche l'import di `AppCheckbox` in cima al file.
       <AppCheckbox
         label="Il servizio si può svolgere da remoto"
         value={voce.daRemoto}
         onChange={(daRemoto) => onCambia('daRemoto', daRemoto)}
       />
+      */}
 
       {!rimuovibile && motivoNonRimuovibile ? (
         <AppText variant="small" tone="secondary">
