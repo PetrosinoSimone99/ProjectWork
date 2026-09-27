@@ -7,9 +7,10 @@ namespace App\Entity;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use App\Repository\ProposalRepository;
 
 /** A pending direct exchange that becomes a match when its recipient accepts. */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ProposalRepository::class)]
 #[ORM\Table(name: 'proposals')]
 #[ORM\UniqueConstraint(name: 'proposal_offer_pair_unique', columns: ['offer_pair_key'])]
 #[ORM\Index(name: 'proposals_status_created_index', columns: ['status', 'creation_date'])]

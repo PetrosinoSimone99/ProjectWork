@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Entity\Category;
+use App\Entity\Proposal;
+use App\Entity\ProposalParticipant;
 use App\Entity\Service;
 use App\Entity\User;
+use App\Repository\ProposalRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -235,6 +238,32 @@ class MarketplaceControllerTest extends WebTestCase
         $this->client->request('GET', '/api/services');
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testProposalRepositoryReturnsUniqueMembersInStableOrder(): void
+    {
+        $alice = $this->createUser('alice');
+        $bob = $this->createUser('bob');
+        $aliceOffer = $this->createService($alice, Service::TYPE_OFFER, 'First offer.', $this->createCategory('First'));
+        $aliceSecondOffer = $this->createService($alice, Service::TYPE_OFFER, 'Second offer.', $this->createCategory('Second'));
+        $bobOffer = $this->createService($bob, Service::TYPE_OFFER, 'Bob offer.', $this->createCategory('Third'));
+        $proposal = new Proposal('1:2');
+        $proposal->addParticipant(new ProposalParticipant($proposal, $alice, $aliceOffer));
+        $proposal->addParticipant(new ProposalParticipant($proposal, $alice, $aliceSecondOffer));
+        $proposal->addParticipant(new ProposalParticipant($proposal, $bob, $bobOffer));
+        $this->entityManager->persist($proposal);
+        $this->entityManager->flush();
+
+        $members = static::getContainer()->get(ProposalRepository::class)->findMembersByProposalId($proposal->getId());
+
+        self::assertSame([$alice->getId(), $bob->getId()], array_map(static fn (User $user): int => $user->getId(), $members));
+    }
+
+    public function testProposalRepositoryReturnsEmptyListForUnknownProposal(): void
+    {
+        $members = static::getContainer()->get(ProposalRepository::class)->findMembersByProposalId(999999);
+
+        self::assertSame([], $members);
     }
 
     /** @return array{User, User, array{actorOfferServiceId: int, actorRequestServiceId: int, candidateOfferServiceId: int, candidateRequestServiceId: int}} */

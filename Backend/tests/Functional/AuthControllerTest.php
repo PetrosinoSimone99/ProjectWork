@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Entity\Category;
+use App\Entity\Service;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -15,6 +17,8 @@ class AuthControllerTest extends WebTestCase
 {
     private EntityManagerInterface $entityManager;
     private KernelBrowser $client;
+    private int $cookingCategoryId;
+    private int $gardeningCategoryId;
 
     protected function setUp(): void
     {
@@ -27,6 +31,14 @@ class AuthControllerTest extends WebTestCase
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         $schemaTool->dropSchema($metadata);
         $schemaTool->createSchema($metadata);
+
+        $cooking = new Category('Cooking');
+        $gardening = new Category('Gardening');
+        $this->entityManager->persist($cooking);
+        $this->entityManager->persist($gardening);
+        $this->entityManager->flush();
+        $this->cookingCategoryId = $cooking->getId();
+        $this->gardeningCategoryId = $gardening->getId();
     }
 
     public function testRegistrationCreatesAnActiveUserWithAHiddenPasswordHash(): void
@@ -37,15 +49,105 @@ class AuthControllerTest extends WebTestCase
         $response = $this->responseData();
         self::assertArrayHasKey('token', $response);
         self::assertSame('mario.rossi', $response['user']['username']);
+        self::assertSame('Milan', $response['user']['location']);
         self::assertSame(['ROLE_USER'], $response['user']['roles']);
         self::assertSame('ACTIVE', $response['user']['accountStatus']);
         self::assertArrayNotHasKey('password', $response['user']);
         self::assertArrayNotHasKey('password_hash', $response['user']);
+        self::assertSame('OFFER', $response['offers'][0]['type']);
+        self::assertSame('I can cook Italian meals.', $response['offers'][0]['description']);
+        self::assertSame($this->cookingCategoryId, $response['offers'][0]['categories'][0]['id']);
+        self::assertSame('REQUEST', $response['requests'][0]['type']);
+        self::assertSame('I need help with gardening.', $response['requests'][0]['description']);
+        self::assertSame($this->gardeningCategoryId, $response['requests'][0]['categories'][0]['id']);
 
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['username' => 'mario.rossi']);
         self::assertInstanceOf(User::class, $user);
+        self::assertSame('Milan', $user->getLocation());
+        self::assertCount(2, $this->entityManager->getRepository(Service::class)->findBy(['user' => $user]));
         self::assertNotSame('correct-password', $user->getPassword());
         self::assertTrue(password_verify('correct-password', $user->getPassword()));
+    }
+
+    public function testRegistrationRejectsInvalidLocationAndServiceDataWithoutSavingAnything(): void
+    {
+        $invalidData = [
+            ['location' => ''],
+            ['location' => str_repeat('a', 256)],
+            ['offers' => []],
+            ['requests' => []],
+            ['offers' => 'not a list'],
+            ['offers' => [['description' => '', 'categoryIds' => [$this->cookingCategoryId]]]],
+            ['offers' => [['description' => 'A valid offer.', 'categoryIds' => []]]],
+            ['offers' => [['description' => 'A valid offer.', 'categoryIds' => [$this->cookingCategoryId, $this->cookingCategoryId]]]],
+            ['requests' => [['description' => 'A valid request.', 'categoryIds' => ['not-a-number']]]],
+            ['offers' => [['description' => 'A valid offer.', 'categories' => ['']]]],
+            ['offers' => [['description' => 'A valid offer.', 'categories' => [str_repeat('a', 256)]]]],
+            ['offers' => [['description' => 'A valid offer.', 'categories' => ['Cooking', ' cooking ']]]],
+            ['offers' => [['description' => 'A valid offer.', 'categories' => ['Cooking'], 'categoryIds' => [$this->cookingCategoryId]]]],
+        ];
+
+        foreach ($invalidData as $replace) {
+            $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData($replace));
+
+            self::assertResponseStatusCodeSame(400);
+            self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+            self::assertSame(0, $this->entityManager->getRepository(Service::class)->count([]));
+        }
+    }
+
+    public function testRegistrationRejectsMissingCategoryWithoutSavingUserOrServices(): void
+    {
+        $data = $this->registrationData([
+            'offers' => [['description' => 'I can cook.', 'categories' => ['Fresh category']]],
+            'requests' => [['description' => 'I need help.', 'categoryIds' => [999999]]],
+        ]);
+        $this->client->jsonRequest('POST', '/api/auth/register', $data);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+        self::assertSame(0, $this->entityManager->getRepository(Service::class)->count([]));
+        self::assertSame(2, $this->entityManager->getRepository(Category::class)->count([]));
+    }
+
+    public function testRegistrationCreatesAndReusesCategoriesByName(): void
+    {
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData([
+            'offers' => [
+                ['description' => 'I can make bowls.', 'categories' => ['  Pottery  ']],
+                ['description' => 'I can make plates.', 'categories' => ['pottery']],
+            ],
+            'requests' => [
+                ['description' => 'I need pottery tools.', 'categories' => ['POTTERY']],
+            ],
+        ]));
+
+        self::assertResponseStatusCodeSame(201);
+        $response = $this->responseData();
+        $offerCategoryId = $response['offers'][0]['categories'][0]['id'];
+        self::assertSame('Pottery', $response['offers'][0]['categories'][0]['description']);
+        self::assertSame($offerCategoryId, $response['offers'][1]['categories'][0]['id']);
+        self::assertSame($offerCategoryId, $response['requests'][0]['categories'][0]['id']);
+        self::assertSame(3, $this->entityManager->getRepository(Category::class)->count([]));
+    }
+
+    public function testRegistrationReusesExistingCategoriesAndCombinesNamesWithIds(): void
+    {
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData([
+            'offers' => [[
+                'description' => 'I can cook.',
+                'categories' => ['cOoKiNg'],
+                'categoryIds' => [$this->gardeningCategoryId],
+            ]],
+        ]));
+
+        self::assertResponseStatusCodeSame(201);
+        $response = $this->responseData();
+        self::assertSame([
+            ['id' => $this->gardeningCategoryId, 'description' => 'Gardening'],
+            ['id' => $this->cookingCategoryId, 'description' => 'Cooking'],
+        ], $response['offers'][0]['categories']);
+        self::assertSame(2, $this->entityManager->getRepository(Category::class)->count([]));
     }
 
     public function testRegistrationRejectsDuplicateUsernameOrEmail(): void
@@ -103,7 +205,7 @@ class AuthControllerTest extends WebTestCase
         self::assertLessThanOrEqual(time() + 3610, $payload['exp']);
     }
 
-    /** @return array{name: string, surname: string, username: string, email: string, password: string} */
+    /** @return array<string, mixed> */
     private function registrationData(array $replace = []): array
     {
         return [...[
@@ -112,6 +214,15 @@ class AuthControllerTest extends WebTestCase
             'username' => 'mario.rossi',
             'email' => 'mario@example.test',
             'password' => 'correct-password',
+            'location' => 'Milan',
+            'offers' => [[
+                'description' => 'I can cook Italian meals.',
+                'categoryIds' => [$this->cookingCategoryId],
+            ]],
+            'requests' => [[
+                'description' => 'I need help with gardening.',
+                'categoryIds' => [$this->gardeningCategoryId],
+            ]],
         ], ...$replace];
     }
 
