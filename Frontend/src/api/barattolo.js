@@ -69,21 +69,78 @@ export {
  * `// TODO(backend)` con l'endpoint che si aspetta.
  */
 
+// ---------------------------------------------------------------------------
+// Accesso — login e registrazione
+//
+// Regola del titolare (27 settembre 2026): l'app **non dice mai** all'utente
+// quale dato è «sbagliato» (username sbagliato? password sbagliata? già in
+// uso?). I messaggi del backend, che sono espliciti e in inglese, si riassumono
+// in testi generici prima di arrivare alla UI: il dettaglio resta nel log del
+// server, non a schermo. I controlli di **forma** della schermata (campo vuoto,
+// email malformata, categoria non scelta) restano espliciti: riguardano quello
+// che l'utente sta scrivendo, non rivelano niente sugli altri utenti.
+// ---------------------------------------------------------------------------
+
+/** Messaggio generico per gli errori dell'accesso senza una mappatura precisa. */
+const FALLBACK_ACCESSO = 'Qualcosa non ha funzionato. Riprova.';
+
+/**
+ * I messaggi generici dell'accesso, per endpoint e status. Qualunque testo
+ * mandi il backend, la UI vede solo questi: niente «username o email già in
+ * uso», niente «account inattivo» — decisione del titolare, vedi sopra.
+ */
+const MESSAGGI_ACCESSO_GENERICI = {
+  login: {
+    400: 'Credenziali non valide.',
+    401: 'Credenziali non valide.',
+    403: 'Credenziali non valide.',
+  },
+  register: {
+    400: 'Controlla i dati inseriti: manca qualcosa o non è valido.',
+    404: 'Controlla i dati inseriti: manca qualcosa o non è valido.',
+    409: "Non è possibile creare l'account con questi dati.",
+  },
+};
+
+/**
+ * Rilancia l'errore dell'accesso con il messaggio generico della tabella.
+ * Gli status non mappati (rete assente, timeout, 5xx) passano immutati: già
+ * generici perché `client.js` li costruisce da sé.
+ */
+async function conMessaggioGenerico(chiamata, endpoint) {
+  try {
+    return await chiamata;
+  } catch (err) {
+    if (err instanceof ApiError) {
+      throw new ApiError(
+        err.status,
+        MESSAGGI_ACCESSO_GENERICI[endpoint]?.[err.status] ?? FALLBACK_ACCESSO,
+      );
+    }
+    throw err;
+  }
+}
+
 /**
  * POST /api/auth/login — restituisce il token Bearer per le chiamate autenticate.
  * `{token, user}` (`AuthController.php`) diventa `{token, utente}` con
- * `normalizzaRispostaAccesso`.
+ * `normalizzaRispostaAccesso`. Gli errori escono **solo generici** (vedi la
+ * sezione sopra): il backend distingue 400/401/403, la UI dice «Credenziali
+ * non valide.» per tutti.
  */
 export async function login(username, password) {
   if (USA_DATI_FINTI) {
     // TODO(backend): il token finto serve solo alla demo.
-    return fintiAccesso.login(username, password);
+    return conMessaggioGenerico(fintiAccesso.login(username, password), 'login');
   }
   return normalizzaRispostaAccesso(
-    await apiFetch('auth/login', {
-      method: 'POST',
-      body: { username, password },
-    }),
+    await conMessaggioGenerico(
+      apiFetch('auth/login', {
+        method: 'POST',
+        body: { username, password },
+      }),
+      'login',
+    ),
   );
 }
 
@@ -113,23 +170,26 @@ export async function register(input) {
     // I finti restano sulla forma interna (`offerte`/`ricerche` con
     // `id_categoria`/`mansione`/`da_remoto`): la traduzione verso il contratto
     // vero sta solo qui, mai nei componenti.
-    return fintiAccesso.register(input);
+    return conMessaggioGenerico(fintiAccesso.register(input), 'register');
   }
   const { nome, cognome, username, email, password, localita, offerte, ricerche } = input ?? {};
   return normalizzaRispostaAccesso(
-    await apiFetch('auth/register', {
-      method: 'POST',
-      body: {
-        name: (nome ?? '').trim(),
-        surname: (cognome ?? '').trim(),
-        username,
-        email,
-        password,
-        location: (localita ?? '').trim(),
-        offers: aCorpoVoci(offerte),
-        requests: aCorpoVoci(ricerche),
-      },
-    }),
+    await conMessaggioGenerico(
+      apiFetch('auth/register', {
+        method: 'POST',
+        body: {
+          name: (nome ?? '').trim(),
+          surname: (cognome ?? '').trim(),
+          username,
+          email,
+          password,
+          location: (localita ?? '').trim(),
+          offers: aCorpoVoci(offerte),
+          requests: aCorpoVoci(ricerche),
+        },
+      }),
+      'register',
+    ),
   );
 }
 
