@@ -169,9 +169,9 @@ export default function RegisterScreen() {
 
   const caricaCategorie = useCallback(async () => {
     try {
-      // In registrazione non c'è ancora una sessione: il token è null e
-      // l'endpoint dovrà essere pubblico.
-      // TODO(backend): confermare che categorie.php non richiede autenticazione.
+      // In registrazione non c'è ancora una sessione: il token è null, ma
+      // `GET /api/categories` è pubblico per le GET (`security.yaml`), quindi
+      // la tendina si popola anche prima del login.
       const elenco = await ottieniCategorie(token);
       setCategorie(elenco);
       setStatoCategorie(elenco.length > 0 ? 'pronto' : 'vuoto');
@@ -255,9 +255,9 @@ export default function RegisterScreen() {
         username: form.username.trim(),
         email: form.email.trim(),
         password: form.password,
-        // `localita`, `offerte` e `ricerche` restano nel payload: il corpo verso
-        // il backend lo costruisce `api/barattolo.js`, che oggi li esclude perché
-        // il contratto non li accetta (Parte 19 delle segnalazioni).
+        // `localita`, `offerte` e `ricerche` partono nel payload: la forma inglese
+        // del contratto ({description, categoryIds}, {location} ecc.) la costruisce
+        // `api/barattolo.js`, che è l'unico posto che conosce il backend.
         localita: form.localita.trim(),
         offerte: aPayloadApi(offerte),
         ricerche: aPayloadApi(ricerche),

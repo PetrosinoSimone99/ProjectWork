@@ -734,19 +734,20 @@ export function normalizzaCandidati(risposta, utenteId) {
  * Le categorie nella forma che serve alla UI: `[{id, nome}]`.
  *
  * Stessa normalizzazione per il finto e per il backend vero, così la schermata
- * non vede mai due forme diverse: l'id diventa numero (il confronto con
- * `idCategoria` è numerico) e le voci senza id o senza nome vengono scartate
- * invece di disegnare una tendina con righe vuote.
+ * non vede mai due forme diverse: il backend manda `{categories:[{id,
+ * description}]}` e qui `description` diventa `nome`. L'id diventa numero (il
+ * confronto con `idCategoria` è numerico) e le voci senza id o senza nome
+ * vengono scartate invece di disegnare una tendina con righe vuote.
  */
 export function normalizzaCategorie(risposta) {
-  const elenco = risposta?.data?.categorie ?? risposta?.categorie;
+  const elenco = risposta?.categories;
   if (!Array.isArray(elenco)) {
     return [];
   }
   return elenco
     .map((categoria) => ({
       id: Number(categoria?.id),
-      nome: typeof categoria?.nome === 'string' ? categoria.nome.trim() : '',
+      nome: typeof categoria?.description === 'string' ? categoria.description.trim() : '',
     }))
     .filter((categoria) => Number.isInteger(categoria.id) && categoria.nome !== '');
 }

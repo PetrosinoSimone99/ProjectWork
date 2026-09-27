@@ -88,42 +88,85 @@ export async function login(username, password) {
 }
 
 /**
- * POST /api/auth/register — crea l'utente e lo autentica subito.
+ * POST /api/auth/register — crea l'utente (con località, offerte e ricerche) e lo
+ * autentica subito.
  *
  * Il form produce `{nome, cognome, username, email, password, localita, offerte,
- * ricerche}` ma il contratto accetta solo `{name, surname, username, email,
- * password}`: il corpo si costruisce qui, non si manda `input` così com'è.
- * TODO(backend): `location`, `offerte` e `ricerche` non sono nel contratto e restano fuori dal corpo (segnalazione 19).
+ * ricerche}` ma il contratto vuole chiavi inglesi e un'altra forma per le voci:
+ * il corpo si costruisce qui, non si manda `input` così com'è.
+ *
+ * Contratto (`AuthController::validateRegistration` + guida colleghi §3):
+ * `location` non vuota, fino a 255 caratteri; `offers` e `requests` ognuna con
+ * **almeno una voce**, descrizione 1–255 caratteri e **almeno una categoria** per
+ * voce; la stessa categoria non può ripetersi nella stessa sezione (altrimenti
+ * 400 — la validazione della schermata lo previene: vedi `register.jsx`).
+ *
+ * La casella «da remoto» della voce non ha un campo nel contratto (lo schema v2
+ * non ha una colonna per lei, vedi la segnalazione ai colleghi) e si traduce in
+ * testo nel `description`: «mansione (da remoto)» quando è spuntata.
  */
 export async function register(input) {
   if (USA_DATI_FINTI) {
-    // TODO(backend): register vero con localita, offerte e ricerche.
+    // I finti restano sulla forma interna (`offerte`/`ricerche` con
+    // `id_categoria`/`mansione`/`da_remoto`): la traduzione verso il contratto
+    // vero sta solo qui, mai nei componenti.
     return fintiAccesso.register(input);
   }
-  const { nome, cognome, username, email, password } = input ?? {};
+  const { nome, cognome, username, email, password, localita, offerte, ricerche } = input ?? {};
   return normalizzaRispostaAccesso(
     await apiFetch('auth/register', {
       method: 'POST',
       body: {
         name: (nome ?? '').trim(),
         surname: (cognome ?? '').trim(),
-        username, email, password,
+        username,
+        email,
+        password,
+        location: (localita ?? '').trim(),
+        offers: aCorpoVoci(offerte),
+        requests: aCorpoVoci(ricerche),
       },
     }),
   );
 }
 
 /**
- * GET categorie.php — le categorie della lista fissa, per le tendine.
- * In registrazione non c'è ancora una sessione, quindi `token` può essere null:
- * l'endpoint dovrà essere pubblico (domanda aperta per i colleghi).
+ * Le voci arrivano nella forma interna del modulo
+ * (`aPayloadApi`: `{id_categoria, mansione, da_remoto}`) e diventano il corpo del
+ * contratto: `{description, categoryIds}`. La «da remoto» non ha un campo dedicato nel
+ * backend e resta nel testo della descrizione (vedi il commento di `register`).
+ *
+ * `id_categoria` qui è **sempre** un id scelto dalla tendina (la validazione
+ * della schermata rifiuta l'invio senza categoria), quindi non serve un ramo
+ * `categories` per nome: gli id sono il contratto con il backend.
+ */
+function aCorpoVoci(voci) {
+  return (voci ?? []).map((voce) => ({
+    description: [
+      String(voce.mansione ?? '').trim(),
+      voce.da_remoto === true ? '(da remoto)' : null,
+    ]
+      .filter(Boolean)
+      .join(' '),
+    categoryIds: voce.id_categoria === null || voce.id_categoria === undefined ? [] : [voce.id_categoria],
+  }));
+}
+
+/**
+ * GET /api/categories — le categorie, per le tendine di registrazione e di
+ * pubblicazione.
+ *
+ * Contratto: `{categories: [{id, description}]}`
+ * (`Backend/src/Controller/MarketplaceController.php`). La rotta è **pubblica
+ * per le GET** (`Backend/config/packages/security.yaml`), quindi funziona anche
+ * in registrazione, quando `token` è ancora null: le altre schermate passano il
+ * token che hanno già e il backend lo ignora.
  */
 export async function ottieniCategorie(token) {
   if (USA_DATI_FINTI) {
-    // TODO(backend): GET categorie.php, e la lista vera delle categorie.
     return normalizzaCategorie(await fintiCategorie.ottieniCategorie());
   }
-  return normalizzaCategorie(await apiFetch('categorie.php', { token }));
+  return normalizzaCategorie(await apiFetch('categories', { token }));
 }
 
 /** POST Chat/cercaOCreaChat.php — trova o crea una chat 1:1. */
