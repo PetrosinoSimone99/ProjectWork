@@ -21,29 +21,17 @@ class ChatController extends AbstractController
     }
 
     #[Route('/chats/{proposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
-    public function getChatByProposalId(int $proposalId): JsonResponse
+    public function getChatAndHistoryByProposalId(int $proposalId): JsonResponse
     {
         try{
-            $chatId = $this->chatManager->getChatByProposalId($proposalId);
+            $chatMessages = $this->chatManager->getChatAndHistoryByProposalId($proposalId);
 
-            return $this->json(["chatId" => $chatId]);
+            return $this->json(["chatMessages" => $chatMessages]);
 
         }catch(\Exception $e){
             return $this->json(["error" => (string)$e], 400);
         }
         
-    }
-
-    #[Route('/chats/{chatId}/history', name: 'get_chat_history', methods: ['GET'])]
-    public function getChatHistory(int $chatId): JsonResponse
-    {
-        try{
-            $chatHistory = $this->chatManager->getChatHistory($chatId);
-            return $this->json($chatHistory);
-
-        }catch(\Exception $e){
-            return $this->json(["error" => (string)$e], 400);
-        }
     }
 
     #[Route('/chats/{chatId}/send', name: 'send_message', methods: ['POST'])]
