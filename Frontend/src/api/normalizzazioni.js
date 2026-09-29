@@ -164,21 +164,24 @@ export function normalizzaPubblicazioni(risposta) {
 }
 
 /**
- * L'autore di una riga di catalogo, tollerando la forma annidata (`offerente`)
- * e quella piatta (`utente_id`, `nome`, …): quale delle due sceglieranno i
- * colleghi è indifferente, le legge questa normalizzazione.
+ * L'autore di una riga, tollerando la forma annidata (`offerente` del modello
+ * vecchio, `owner` del backend Symfony) e quella piatta (`utente_id`, `nome`,
+ * …): quale delle due sceglierà il backend è indifferente, le legge questa
+ * normalizzazione. Anche i nomi dei campi arrivano in due lingue (`nome`/`name`)
+ * e si leggono qui una volta sola, mai nei componenti.
  *
  * La località della **persona** (dal profilo) è cosa diversa dalla località
- * dell'annuncio: si legge solo dentro `offerente`, e se manca non si mostra.
+ * dell'annuncio: si legge solo dentro l'oggetto autore, e se manca non si mostra.
  */
 export function normalizzaOfferente(riga) {
-  const dentro = riga?.offerente && typeof riga.offerente === 'object' ? riga.offerente : {};
+  const sorgente = riga?.offerente ?? riga?.owner;
+  const dentro = sorgente && typeof sorgente === 'object' ? sorgente : {};
   return {
     id: numeroInteroONull(dentro.id ?? dentro.utente_id ?? riga?.utente_id),
     username: testoONull(dentro.username ?? riga?.username),
-    nome: testoONull(dentro.nome ?? riga?.nome),
-    cognome: testoONull(dentro.cognome ?? riga?.cognome),
-    localita: testoONull(dentro.localita),
+    nome: testoONull(dentro.nome ?? dentro.name ?? riga?.nome),
+    cognome: testoONull(dentro.cognome ?? dentro.surname ?? riga?.cognome),
+    localita: testoONull(dentro.localita ?? dentro.location),
   };
 }
 
@@ -722,6 +725,93 @@ export function normalizzaCandidati(risposta, utenteId) {
 }
 
 // ---------------------------------------------------------------------------
+// Il catalogo della home (`GET /api/services` del backend Symfony)
+//
+// Il contratto (`MarketplaceController::listServices` +
+// `Service::toHomepageOfferApiArray`) manda `{offers: [...], pagination: {page,
+// limit, totalItems, totalPages}}`; ogni offerta ha `description`, `categories:
+// [{id, description}]`, `createdAt` (ISO 8601) e `owner: {id, name, surname,
+// username, location, …}`.
+//
+// La riga normalizzata resta in italiano di dominio come il resto del repo:
+// `{chiave, id, descrizione, categorie, offerente, pubblicatoIl}`. Non porta
+// `tipo` né `stato`: per contratto il catalogo è **solo** offerte attive di
+// utenti attivi, e la query del backend lo garantisce già.
+// ---------------------------------------------------------------------------
+
+/**
+ * La paginazione nella forma della UI: `{pagina, limite, elementiTotali,
+ * pagineTotali}`. I valori che non sono interi diventano `null`: chi legge
+ * decide se mostrare «Carica altri», senza inventare numeri.
+ */
+export function normalizzaPaginazione(paginazione) {
+  return {
+    pagina: numeroInteroONull(paginazione?.page),
+    limite: numeroInteroONull(paginazione?.limit),
+    elementiTotali: numeroInteroONull(paginazione?.totalItems),
+    pagineTotali: numeroInteroONull(paginazione?.totalPages),
+  };
+}
+
+/**
+ * Una riga di `offers` nella forma della riga di catalogo. `indice` serve solo
+ * a dare una chiave stabile alla riga senza id.
+ *
+ * Le righe **senza descrizione si scartano** (per contratto non esistono) e le
+ * categorie si normalizzano con `normalizzaCategorie`: le righe di `offers`
+ * portano lo stesso formato della tendina (`[{id, description}]`), quindi la
+ * mappatura `{id, nome}` è una sola.
+ */
+export function normalizzaOffertaCatalogo(riga, indice = 0) {
+  if (!riga || typeof riga !== 'object') {
+    return null;
+  }
+  const descrizione = testoONull(riga.description);
+  if (descrizione === null) {
+    return null;
+  }
+  const id = numeroInteroONull(riga.id);
+  return {
+    chiave: id === null ? `offerta-riga-${indice}` : `offerta-${id}`,
+    id,
+    descrizione,
+    categorie: normalizzaCategorie(riga),
+    offerente: normalizzaOfferente(riga),
+    // `createdAt` è ISO 8601 (DATE_ATOM): qui non si parsano date, il formato
+    // si decide alla card.
+    pubblicatoIl: testoONull(riga.createdAt),
+  };
+}
+
+/**
+ * Il catalogo della home: `{elenco, paginazione}`.
+ *
+ * Due decisioni vivono qui e in nessun altro punto:
+ * - **le righe proprie non entrano nel catalogo** (in home si vedono solo gli
+ *   altri): la query del backend esclude già il viewer, ma il frontend non si
+ *   fida della query per una decisione che è sua;
+ * - le righe senza descrizione si scartano invece di disegnare dati vuoti.
+ */
+export function normalizzaCatalogo(risposta, utenteId) {
+  const elenco = Array.isArray(risposta?.offers) ? risposta.offers : [];
+  return {
+    elenco: elenco
+      .map((riga, indice) => {
+        const voce = normalizzaOffertaCatalogo(riga, indice);
+        if (!voce) {
+          return null;
+        }
+        if (voce.offerente.id !== null && Number(voce.offerente.id) === Number(utenteId)) {
+          return null;
+        }
+        return voce;
+      })
+      .filter(Boolean),
+    paginazione: normalizzaPaginazione(risposta?.pagination),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Categorie e filtri del catalogo
 //
 // Spostate qui dal file degli endpoint: sono pure. La categoria diventa
@@ -752,12 +842,22 @@ export function normalizzaCategorie(risposta) {
     .filter((categoria) => Number.isInteger(categoria.id) && categoria.nome !== '');
 }
 
-/** I filtri nella query string: le condizioni non attive si omettono. */
-export function queryDaFiltri(filtri) {
-  const parametri = Object.entries(filtriDaQuery(filtri)).map(
+/**
+ * La query string di `GET /api/services`: i filtri attivi più la paginazione.
+ * Le condizioni non attive si omettono (da `filtriDaQuery`), mentre `page` e
+ * `limit` viaggiano sempre: sono numeri, non condizioni. `limit` è `null` quando
+ * il chiamante vuole il default del backend.
+ */
+export function queryDaFiltri(filtri, pagina = 1, limite = null) {
+  const parametri = {
+    ...filtriDaQuery(filtri),
+    page: pagina,
+    ...(Number.isInteger(limite) ? { limit: limite } : {}),
+  };
+  const voci = Object.entries(parametri).map(
     ([chiave, valore]) => `${chiave}=${encodeURIComponent(valore)}`,
   );
-  return parametri.length === 0 ? '' : `?${parametri.join('&')}`;
+  return `?${voci.join('&')}`;
 }
 
 // ---------------------------------------------------------------------------

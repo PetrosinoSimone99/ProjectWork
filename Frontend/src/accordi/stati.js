@@ -227,6 +227,24 @@ export function formattaData(valore) {
 }
 
 /**
+ * Data ISO 8601 del backend Symfony ("2026-09-28T10:15:00+00:00") -> "28 set 2026".
+ * È il formato di `createdAt` (`Service::toHomepageOfferApiArray`, DATE_ATOM) e
+ * la usano la card del catalogo e il suo dettaglio per «Pubblicato il …». Il
+ * locale è esplicito (`it-IT`) così la stringa è la stessa su web, Android e
+ * iOS; una data non valida restituisce `null` e la riga non la mostra.
+ */
+export function formattaDataIso(valore) {
+  if (typeof valore !== 'string' || valore.trim() === '') {
+    return null;
+  }
+  const data = new Date(valore);
+  if (Number.isNaN(data.getTime())) {
+    return null;
+  }
+  return data.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/**
  * Una frase che spiega lo stato corrente e cosa manca: è il testo più utile
  * della schermata di dettaglio, perché dice all'utente cosa sta aspettando.
  * Restituisce una stringa vuota quando non c'è nulla da spiegare.

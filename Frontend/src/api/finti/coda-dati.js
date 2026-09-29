@@ -6,14 +6,15 @@
  * si costruiscono i dati finti, là si decide *quando* cambiarli. Nessuna
  * persistenza e nessun timer vivono in questo file.
  *
- * Il finto **non inventa un mondo nuovo**: i membri sono le persone del catalogo
- * (id 101–112), lette in sola lettura, e le mie voci arrivano da `servizi.js`.
+ * Il finto **non inventa un mondo nuovo**: i membri sono le persone dei servizi
+ * segnaposto (id 101–112, `catalogo-dati.js`), lette in sola lettura, e le mie
+ * voci arrivano da `servizi.js`.
  * Ma soprattutto **compone un cerchio che rispetta la regola**: l'offerta di
  * ognuno soddisfa la ricerca del successivo. Non prende le prime tre persone del
  * catalogo: le sceglie in modo che la catena che si vede a schermo abbia senso.
  */
 
-import { elencoServiziFinti } from './catalogo';
+import { elencoServiziFinti } from './catalogo-dati';
 import { ottieniVoci } from './servizi';
 
 /**

@@ -125,9 +125,8 @@ function aggiungiUnMese(ms) {
 
 /**
  * TODO(backend): il seme è la sceneggiatura della demo, non dati reali. Un buono
- * per ognuno dei quattro stati, con i servizi presi dal catalogo finto (l'id 3 e
- * l'id 7 esistono in `finti/catalogo.js`), così la schermata mostra tutte le
- * sezioni appena si apre.
+ * per ognuno dei quattro stati, con i servizi già presenti nel catalogo finto
+ * (l'id 3 e l'id 7), così la schermata mostra tutte le sezioni appena si apre.
  */
 function seme(utenteId) {
   if (SEME_VUOTO) {

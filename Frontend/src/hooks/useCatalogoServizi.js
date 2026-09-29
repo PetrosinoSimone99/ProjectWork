@@ -6,67 +6,96 @@ import { contaFiltri, nuoviFiltri } from '@/servizi/offerta-ricerca';
 import { useAggiornamento } from '@/hooks/useAggiornamento';
 
 /**
- * Lo stato del catalogo della home: filtri, richieste, guardia sulle risposte
- * fuori ordine, ricarica al focus della tab e pull-to-refresh. È l'unico posto
- * in cui la schermata parla col layer API.
+ * Lo stato del catalogo della home: filtri, richieste, paginazione («Carica
+ * altri»), guardia sulle risposte fuori ordine, ricarica al focus della tab e
+ * pull-to-refresh. È l'unico posto in cui la schermata parla col layer API.
  *
  * Estratto da `(tabs)/index.jsx` (era dentro `SearchScreen`) per due motivi: il
- * file superava la soglia di righe indicata dalle regole del progetto, e la
+ * file superava la soglia di righe indicate dalle regole del progetto, e la
  * guardia sulla sequenza è la parte più delicata da rompere senza accorgersene —
  * isolata in un hook, chi disegna la lista non può disattivarla per distrazione.
  *
- * Quattro cose che sembrano dettagli e non lo sono:
+ * Cinque cose che sembrano dettagli e non lo sono:
  *
  * 1. **Le risposte fuori ordine non sovrascrivono quelle più recenti**
  *    (`requestSeqRef`): una risposta si applica solo se nessuna richiesta più
- *    recente è già partita.
+ *    recente è già partita. La regola vale **anche per «Carica altri»**: una
+ *    risposta appendente arrivata dopo un cambio filtro viene scartata, non si
+ *    incolla alla lista nuova.
  * 2. **La ricarica al focus non cancella risultati filtrati**: si ricarica solo
  *    quando **nessun filtro è applicato**. La condizione si legge dal ref dei
  *    filtri *applicati* — non dalla bozza — così cambiare i filtri non riavvia
  *    l'effetto e non nasce un doppio fetch.
  * 3. **`filtriApplicati` si aggiorna solo quando una risposta viene applicata**,
  *    non quando una richiesta parte: descrive quello che c'è a schermo.
- * 4. **«Riprova» ripete la richiesta fallita** (`ultimaRichiestaRef`), non i
- *    filtri in bozza: chi ha sbagliato a filtrare azzera, chi ha avuto un errore
- *    riprova.
+ * 4. **«Riprova» ripete la richiesta fallita così com'era** (`ultimaRichiestaRef`):
+ *    filtri **e** pagina. Chi ha sbagliato a filtrare azzera, chi ha avuto un
+ *    errore riprova — e il «Riprova» di «Carica altri» ripete proprio la pagina
+ *    che non è arrivata.
+ * 5. **«Carica altri» appende in copia** (`[...correnti, ...elenco]`): l'array a
+ *    schermo non si muta mai, e ogni richiesta porta con sé la propria pagina.
  */
 export function useCatalogoServizi({ token, utenteId }) {
   const [servizi, setServizi] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState(null);
+  const [paginazione, setPaginazione] = useState(null);
+  const [caricamentoAltri, setCaricamentoAltri] = useState(false);
+  const [erroreAltri, setErroreAltri] = useState(null);
   const [filtri, setFiltri] = useState(nuoviFiltri);
   const [filtriApplicati, setFiltriApplicati] = useState(nuoviFiltri);
 
-  // Incrementato a ogni nuova richiesta (filtro, azzeramento, ricarica della home):
-  // una risposta che arriva quando è già partita una richiesta più recente viene
-  // ignorata, così una richiesta lenta non può sovrascrivere quella dopo.
+  // Incrementato a ogni nuova richiesta (filtro, azzeramento, «Carica altri»,
+  // ricarica della home): una risposta che arriva quando è già partita una
+  // richiesta più recente viene ignorata, così una richiesta lenta non può
+  // sovrascrivere quella dopo.
   const requestSeqRef = useRef(0);
 
   // I filtri che hanno prodotto quello che è a schermo. Letto dentro gli effetti
   // senza innescarne i re-run (da qui il ref e non lo stato).
   const filtriApplicatiRef = useRef(nuoviFiltri());
 
-  // I filtri dell'ultima richiesta partita, anche se è fallita: è quello che
-  // «Riprova» ripete.
-  const ultimaRichiestaRef = useRef(nuoviFiltri());
+  // La paginazione di quello che è a schermo: «Carica altri» chiede la pagina
+  // dopo leggendola da qui, per lo stesso motivo di `filtriApplicatiRef`.
+  const paginazioneRef = useRef(null);
+
+  // La richiesta dell'ultima volta partita, anche se è fallita: è quello che
+  // «Riprova» ripete (filtri, pagina e se era un «Carica altri»).
+  const ultimaRichiestaRef = useRef({ filtri: nuoviFiltri(), pagina: 1, inCoda: false });
 
   const esegui = useCallback(
-    async (filtriRichiesti) => {
+    async (filtriRichiesti, pagina = 1, inCoda = false) => {
       if (!token) {
         return;
       }
       const seq = ++requestSeqRef.current;
-      ultimaRichiestaRef.current = filtriRichiesti;
-      setCaricamento(true);
-      setErrore(null);
+      ultimaRichiestaRef.current = { filtri: filtriRichiesti, pagina, inCoda };
+      if (inCoda) {
+        setCaricamentoAltri(true);
+        setErroreAltri(null);
+      } else {
+        setCaricamento(true);
+        // Un filtro nuovo rende vecchio anche l'eventuale errore di «Carica altri».
+        setErrore(null);
+        setErroreAltri(null);
+      }
       try {
-        const elenco = await ottieniCatalogo(token, utenteId, filtriRichiesti);
+        const { elenco, paginazione: nuovaPaginazione } = await ottieniCatalogo(
+          token,
+          utenteId,
+          filtriRichiesti,
+          pagina,
+        );
         if (seq !== requestSeqRef.current) {
           return; // richiesta superata: la risposta è stale, non aggiornare la UI.
         }
-        setServizi(elenco);
-        setFiltriApplicati(filtriRichiesti);
-        filtriApplicatiRef.current = filtriRichiesti;
+        setServizi((correnti) => (inCoda ? [...(correnti ?? []), ...elenco] : elenco));
+        setPaginazione(nuovaPaginazione);
+        paginazioneRef.current = nuovaPaginazione;
+        if (!inCoda) {
+          setFiltriApplicati(filtriRichiesti);
+          filtriApplicatiRef.current = filtriRichiesti;
+        }
       } catch (err) {
         if (seq !== requestSeqRef.current) {
           return;
@@ -74,10 +103,16 @@ export function useCatalogoServizi({ token, utenteId }) {
         // Il contenuto precedente resta a schermo (l'attesa e l'errore lo dicono
         // il pulsante «Filtra» e il Banner): una schermata che sparisce per un
         // ricarico fallito è peggio di un dato vecchio e un avviso.
-        setErrore(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+        const messaggio = err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.';
+        if (inCoda) {
+          setErroreAltri(messaggio);
+        } else {
+          setErrore(messaggio);
+        }
       } finally {
         if (seq === requestSeqRef.current) {
           setCaricamento(false);
+          setCaricamentoAltri(false);
         }
       }
     },
@@ -106,7 +141,7 @@ export function useCatalogoServizi({ token, utenteId }) {
     setFiltri((correnti) => ({ ...correnti, [campo]: valore }));
   }, []);
 
-  /** Categoria e modalità: la scelta è discreta e non ha costo, quindi chiede subito. */
+  /** Categoria: la scelta è discreta e non ha costo, quindi chiede subito. */
   const cambiaScelta = useCallback(
     (campo, valore) => {
       const prossimi = { ...filtri, [campo]: valore };
@@ -116,7 +151,7 @@ export function useCatalogoServizi({ token, utenteId }) {
     [esegui, filtri],
   );
 
-  /** Invio o pulsante «Filtra»: richiede con i filtri correnti. */
+  /** Invio o pulsante «Filtra»: richiede con i filtri correnti, tornando a pagina 1. */
   const applicaFiltri = useCallback(() => {
     void esegui(filtri);
   }, [esegui, filtri]);
@@ -128,19 +163,34 @@ export function useCatalogoServizi({ token, utenteId }) {
     void esegui(prossimi);
   }, [esegui, filtri]);
 
-  /** «Azzera filtri»: svuota tutto e richiede il catalogo intero. */
+  /** «Azzera filtri»: svuota tutto e richiede il catalogo intero, da pagina 1. */
   const azzeraFiltri = useCallback(() => {
     const vuoti = nuoviFiltri();
     setFiltri(vuoti);
     void esegui(vuoti);
   }, [esegui]);
 
-  /** «Riprova»: ripete la richiesta fallita, con i filtri che l'avevano prodotta. */
+  /** «Riprova»: ripete la richiesta fallita, con filtri e pagina che l'avevano prodotta. */
   const riprova = useCallback(() => {
-    void esegui(ultimaRichiestaRef.current);
+    const ultima = ultimaRichiestaRef.current;
+    void esegui(ultima.filtri, ultima.pagina, ultima.inCoda);
+  }, [esegui]);
+
+  /** «Carica altri»: la pagina dopo, in coda a quello che c'è già. */
+  const caricaAltri = useCallback(() => {
+    const ultima = paginazioneRef.current;
+    if (ultima === null || ultima.pagina === null || ultima.pagineTotali === null) {
+      return;
+    }
+    if (ultima.pagina >= ultima.pagineTotali) {
+      return; // non ci sono altre pagine: il pulsante non dovrebbe nemmeno esserci.
+    }
+    void esegui(filtriApplicatiRef.current, ultima.pagina + 1, true);
   }, [esegui]);
 
   // Pull-to-refresh: ripete quello che c'è a schermo, senza scartare il contesto.
+  // Ricarica la pagina 1: le pagine incollate con «Carica altri» tornano
+  // premendo di nuovo il pulsante.
   const aggiorna = useCallback(() => esegui(filtriApplicatiRef.current), [esegui]);
   const { refreshing, onRefresh } = useAggiornamento(aggiorna);
 
@@ -148,6 +198,9 @@ export function useCatalogoServizi({ token, utenteId }) {
     servizi,
     caricamento,
     errore,
+    paginazione,
+    caricamentoAltri,
+    erroreAltri,
     filtri,
     filtriApplicati,
     cambiaTesto,
@@ -156,6 +209,7 @@ export function useCatalogoServizi({ token, utenteId }) {
     azzeraTesto,
     azzeraFiltri,
     riprova,
+    caricaAltri,
     refreshing,
     onRefresh,
   };

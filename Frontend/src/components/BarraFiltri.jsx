@@ -5,21 +5,21 @@ import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { SelettoreCategoria } from './SelettoreCategoria';
-import { SelettoreModalita } from './SelettoreModalita';
 import { contaFiltri } from '@/servizi/offerta-ricerca';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * La barra dei filtri della home: testo, categoria, località e modalità a tre
- * scelte. Nessuno stato proprio: i filtri e le callback arrivano dall'hook
- * (`useCatalogoServizi`), così quello che c'è nella barra è anche quello che
- * produce la lista — una sola verità.
+ * La barra dei filtri della home: testo, categoria e località. Nessuno stato
+ * proprio: i filtri e le callback arrivano dall'hook (`useCatalogoServizi`),
+ * così quello che c'è nella barra è anche quello che produce la lista — una sola
+ * verità. Il filtro **modalità non c'è più**: il backend Symfony non ha un campo
+ * «da remoto» e una scelta senza supporto si toglie, non si finta.
  *
  * Quando ogni controllo fa partire la richiesta:
  * - **testo e località** con Invio o con il pulsante «Filtra»: non si fa una
  *   richiesta per tasto premuto, altrimenti ogni lettera produrrebbe una
  *   richiesta e una raffica di risposte da scartare;
- * - **categoria e modalità** al tocco: sono scelte discrete e non hanno costo.
+ * - **categoria** al tocco: è una scelta discreta e non ha costo.
  *
  * Il pulsante di azzeramento compare **solo** quando qualcosa è attivo, e non
  * sparisce mai quando serve. La X nel campo di testo azzera **solo** il testo e
@@ -111,13 +111,8 @@ export function BarraFiltri({
         onSubmitEditing={onApplica}
       />
 
-      <SelettoreModalita
-        value={filtri.modalita}
-        onChange={(modalita) => onCambiaScelta('modalita', modalita)}
-      />
-
       {/* Il catalogo **non** dipende dalle categorie: se non arrivano, il
-          selettore è spento e lo dice, ma testo, località e modalità funzionano
+          selettore è spento e lo dice, ma testo e località funzionano
           lo stesso. È la differenza rispetto alla registrazione, dove senza
           categorie non si salva niente. */}
       {categoriePronte ? null : (
@@ -168,9 +163,9 @@ function messaggioCategorie(stato, dettaglio) {
     return 'Sto caricando le categorie…';
   }
   if (stato === 'vuoto') {
-    return 'Non ci sono categorie: puoi filtrare per testo, località e modalità.';
+    return 'Non ci sono categorie: puoi filtrare per testo e località.';
   }
-  return `Non riesco a caricare le categorie: puoi filtrare per testo, località e modalità.${
+  return `Non riesco a caricare le categorie: puoi filtrare per testo e località.${
     dettaglio ? ` ${dettaglio}` : ''
   }`;
 }

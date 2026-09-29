@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
-import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -17,7 +16,8 @@ import { space, useTokens } from '@/theme/tokens';
 
 /**
  * Home dei servizi: il catalogo delle offerte pubblicate e attive **degli
- * altri**, con i filtri in cima (testo, categoria, località, modalità).
+ * altri** (`GET /api/services`), con i filtri in cima (testo, categoria,
+ * località) e «Carica altri» in fondo alla lista.
  *
  * Tutta la logica di rete e dei filtri sta in `useCatalogoServizi`; qui restano
  * il disegno, gli stati e il dettaglio. Le voci proprie non entrano nel catalogo
@@ -25,7 +25,12 @@ import { space, useTokens } from '@/theme/tokens';
  *
  * Gli stati sono espliciti e distinti: caricamento, errore con «Riprova», vuoto
  * **senza** filtri («Nessun servizio attivo») e vuoto **con** filtri («Nessun
- * risultato per questi filtri»), che sono due messaggi diversi.
+ * risultato per questi filtri»), che sono due messaggi diversi, più il
+ * caricamento e l'errore riprovabile di «Carica altri».
+ *
+ * Qui non c'è il banner dei dati finti: la home parla **solo** col backend vero
+ * (decisione del titolare, 30 settembre 2026) e con `EXPO_PUBLIC_DATI_FINTI=1`
+ * mostra il suo stato di errore, non un catalogo inventato.
  */
 export default function HomeScreen() {
   const { token, utente } = useAuth();
@@ -43,6 +48,9 @@ export default function HomeScreen() {
     servizi,
     caricamento,
     errore,
+    paginazione,
+    caricamentoAltri,
+    erroreAltri,
     filtri,
     filtriApplicati,
     cambiaTesto,
@@ -51,6 +59,7 @@ export default function HomeScreen() {
     azzeraTesto,
     azzeraFiltri,
     riprova,
+    caricaAltri,
     refreshing,
     onRefresh,
   } = useCatalogoServizi({ token, utenteId: utente?.id });
@@ -58,6 +67,14 @@ export default function HomeScreen() {
   const numeroFiltri = contaFiltri(filtriApplicati);
   const haFiltri = numeroFiltri > 0;
   const soloTesto = numeroFiltri === 1 && filtriApplicati.testo.trim() !== '';
+
+  // «Carica altri» compare solo quando il backend dice che un'altra pagina c'è:
+  // con 0 o 1 pagina il pulsante non esiste, e non si inventano numeri.
+  const ciSonoAltri =
+    paginazione !== null &&
+    paginazione.pagina !== null &&
+    paginazione.pagineTotali !== null &&
+    paginazione.pagina < paginazione.pagineTotali;
 
   // Gli stati del catalogo, in ordine di precedenza. Lo spinner a schermo pieno
   // compare **solo** quando non c'è ancora nulla: i ricarichi e i cambi di filtro
@@ -100,34 +117,40 @@ export default function HomeScreen() {
       />
     );
   } else if (servizi !== null && servizi.length > 0) {
+    // Una sola sezione e una sola lista: le pagine di «Carica altri» si
+    // aggiungono allo stesso elenco, e il pulsante sta sotto la sezione.
     contenuto = (
-      <SezioneServizi
-        titolo="Servizi"
-        voci={servizi}
-        categorie={categorie}
-        onSelect={setDettaglio}
-      />
+      <>
+        <SezioneServizi titolo="Servizi" voci={servizi} onSelect={setDettaglio} />
+        {ciSonoAltri ? (
+          <View style={{ alignItems: 'center', gap: space.sm }}>
+            {erroreAltri ? <Banner kind="error" message={erroreAltri} /> : null}
+            <AppButton
+              label={
+                caricamentoAltri ? 'Carico altri…' : erroreAltri ? 'Riprova' : 'Carica altri'
+              }
+              variant="secondary"
+              icon={erroreAltri && !caricamentoAltri ? 'refresh-outline' : undefined}
+              disabled={caricamentoAltri || caricamento}
+              onPress={erroreAltri ? riprova : caricaAltri}
+              style={{ alignSelf: 'center' }}
+            />
+          </View>
+        ) : null}
+      </>
     );
   }
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
-      <ModalDettaglioServizio
-        servizio={dettaglio}
-        categorie={categorie}
-        onChiudi={() => setDettaglio(null)}
-      />
+      <ModalDettaglioServizio servizio={dettaglio} onChiudi={() => setDettaglio(null)} />
 
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Servizi</AppText>
         <AppText variant="small" tone="secondary">
-          I servizi pubblicati dagli altri: filtra per testo, categoria, località e modalità.
+          I servizi pubblicati dagli altri: filtra per testo, categoria e località.
         </AppText>
       </View>
-
-      {USA_DATI_FINTI ? (
-        <Banner kind="info" message={AVVISO_DEMO} />
-      ) : null}
 
       <BarraFiltri
         filtri={filtri}

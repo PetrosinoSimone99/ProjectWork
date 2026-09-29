@@ -67,18 +67,20 @@ export async function apiFetch(path, options = {}) {
   // Con i dati finti attivi la demo **non deve raggiungere il backend vero**: le
   // schermate già portate al modello nuovo non passano di qui (il bivio è in
   // `barattolo.js`, che risponde con `finti/*`), quindi una chiamata che arriva
-  // fin qui è una schermata non ancora coperta — oggi **l'area accordi 1:1**
+  // fin qui è una schermata senza finto — oggi **l'area accordi 1:1**
   // (`accordo.jsx`, `accordi.jsx`, `nuovo-accordo.jsx`), ferma per decisione del
-  // titolare. Senza questa guardia quella chiamata partirebbe con il token finto,
+  // titolare, e **la home**, che dal 30 settembre 2026 parla solo col backend
+  // vero perché il suo finto è stato cancellato (decisione del titolare).
+  // Senza questa guardia quella chiamata partirebbe con il token finto,
   // il backend vero risponderebbe 401 e `client.js` la tratterebbe come **sessione
   // scaduta**, buttando fuori l'utente subito dopo la registrazione (e anche il
   // backend deve essere spento, altrimenti la demo non è usabile). Così invece la
   // schermata dice cosa manca.
   // TODO(demo): sparisce quando i finti coprono anche gli accordi. Il testo resta
   // volutamente corto: la spiegazione tecnica (i dati finti coprono registrazione,
-  // «Offro e cerco», home, Loop, Scambi, la chat, i token, la segnalazione alla
-  // staff, l'area staff delle segnalazioni e le notifiche in-app) vive in questo
-  // commento, non a schermo.
+  // «Offro e cerco», Loop, Scambi, la chat, i token, la segnalazione alla
+  // staff, l'area staff delle segnalazioni e le notifiche in-app — **non** la
+  // home, che richiede il backend acceso) vive in questo commento, non a schermo.
   if (USA_DATI_FINTI) {
     throw new ApiError(501, 'Questa sezione è in arrivo.');
   }

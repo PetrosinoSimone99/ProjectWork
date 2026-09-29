@@ -13,11 +13,12 @@ import { space } from '@/theme/tokens';
  * la barra delle scelte sotto, quindi non ha un elenco da disegnare. Se un
  * giorno servisse un elenco di servizi altrove, questo è il componente giusto.
  *
- * La chiave è `servizio.chiave` (`${tipo}-${id}`, costruita in `barattolo.js`):
- * non più l'indice della lista, che due annunci omonimi avrebbero confuso
- * (lezione di P37).
+ * La chiave è `servizio.chiave` (`offerta-<id>`, costruita da
+ * `normalizzaOffertaCatalogo`): non più l'indice della lista, che due annunci
+ * omonimi avrebbero confuso (lezione di P37). Le categorie non arrivano come
+ * prop: ogni riga porta le sue (`servizio.categorie`, già normalizzate).
  */
-export function SezioneServizi({ titolo, voci, categorie, onSelect, style }) {
+export function SezioneServizi({ titolo, voci, onSelect, style }) {
   if (voci.length === 0) {
     return null;
   }
@@ -30,7 +31,6 @@ export function SezioneServizi({ titolo, voci, categorie, onSelect, style }) {
         <CardServizioCatalogo
           key={servizio.chiave}
           servizio={servizio}
-          categorie={categorie}
           onPress={() => onSelect(servizio)}
         />
       ))}

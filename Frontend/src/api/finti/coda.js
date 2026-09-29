@@ -3,8 +3,8 @@
  *
  * Perché un file nuovo e non un allargamento di quelli che ci sono: `match.js` è
  * «i candidati e le scelte dello swipe», `servizi.js` è «il deposito delle
- * proprie voci», `catalogo.js` è «i servizi di tutti»; la coda e i gruppi sono
- * una **quarta** cosa. Questo file tiene il **deposito** e la **sceneggiatura**
+ * proprie voci», `catalogo-dati.js` è «i servizi segnaposto»; la coda e i gruppi
+ * sono una **quarta** cosa. Questo file tiene il **deposito** e la **sceneggiatura**
  * della demo; quali membri esistono e come si compone il cerchio sta in
  * `coda-dati.js` (un'altra cosa: i dati, non il tempo che passa).
  *

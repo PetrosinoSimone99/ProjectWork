@@ -4,13 +4,19 @@ import { useRouter } from 'expo-router';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
-import { etichettaModalita, nomeCategoria, nomePersona } from '@/servizi/offerta-ricerca';
+import { formattaDataIso } from '@/accordi/stati';
+import { nomePersona } from '@/servizi/offerta-ricerca';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * Dettaglio di un servizio del catalogo: mansione per esteso, categoria,
- * modalità, località dell'annuncio e autore con username, più le due azioni
- * possibili — contattare l'autore o proporgli un accordo.
+ * Dettaglio di un servizio del catalogo: descrizione per esteso, categorie,
+ * località della persona che lo offre, data di pubblicazione e autore con
+ * username, più le due azioni possibili — contattare l'autore o proporgli un
+ * accordo.
+ *
+ * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
+ * come nella card, la località è della **persona** e la modalità («da remoto» /
+ * «in presenza») non esiste più, quindi non c'è nessun chip che la descriva.
  *
  * Non esiste il ramo «è il tuo annuncio»: nel catalogo arrivano solo i servizi
  * degli altri (le proprie voci non entrano, per decisione del titolare), quindi
@@ -20,13 +26,14 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * noto della persona, perché il backend non espone un elenco di utenti da cui
  * cercarla. Il modale è estratto da `(tabs)/index.jsx` (era `DetailModal`).
  */
-export function ModalDettaglioServizio({ servizio, categorie = [], onChiudi }) {
+export function ModalDettaglioServizio({ servizio, onChiudi }) {
   const router = useRouter();
   const t = useTokens();
   const offerente = servizio?.offerente ?? {};
   const nome = nomePersona(offerente);
-  const categoria = nomeCategoria(categorie, servizio?.idCategoria) ?? 'Categoria non disponibile';
-  const mansione = servizio?.mansione?.trim() || 'Mansione non indicata';
+  const categorie = servizio?.categorie?.length ? servizio.categorie : null;
+  const descrizione = servizio?.descrizione ?? '';
+  const pubblicatoIl = formattaDataIso(servizio?.pubblicatoIl);
   // Senza un id valido non si può contattare né proporre: i due pulsanti restano
   // disabilitati invece di mandare un `utenteId` inesistente.
   const azioniPossibili = Number.isInteger(offerente.id);
@@ -54,24 +61,24 @@ export function ModalDettaglioServizio({ servizio, categorie = [], onChiudi }) {
             <View
               style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', alignItems: 'center' }}
             >
-              <Chip background={t.serviceBg}>
-                <AppText variant="caption" style={{ color: t.serviceText }}>
-                  {categoria}
-                </AppText>
-              </Chip>
-              <Chip background={t.background}>
-                <Ionicons
-                  name={servizio.daRemoto ? 'globe-outline' : 'storefront-outline'}
-                  size={12}
-                  color={t.textSecondary}
-                />
-                <AppText variant="caption" style={{ color: t.textSecondary }}>
-                  {etichettaModalita(servizio.daRemoto)}
-                </AppText>
-              </Chip>
+              {categorie ? (
+                categorie.map((categoria) => (
+                  <Chip key={categoria.id} background={t.serviceBg}>
+                    <AppText variant="caption" style={{ color: t.serviceText }}>
+                      {categoria.nome}
+                    </AppText>
+                  </Chip>
+                ))
+              ) : (
+                <Chip background={t.serviceBg}>
+                  <AppText variant="caption" style={{ color: t.serviceText }}>
+                    Categoria non disponibile
+                  </AppText>
+                </Chip>
+              )}
             </View>
 
-            <AppText variant="heading">{mansione}</AppText>
+            <AppText variant="heading">{descrizione}</AppText>
 
             <View style={{ gap: space.xs }}>
               <AppText variant="small" tone="secondary">
@@ -86,20 +93,21 @@ export function ModalDettaglioServizio({ servizio, categorie = [], onChiudi }) {
                   </AppText>
                 ) : null}
               </View>
-              {/* Località dell'annuncio e località della persona: la prima è dove
-                  si svolge il servizio, la seconda dove sta chi lo offre. Si
-                  mostrano solo se ci sono. */}
-              {servizio.localita ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Ionicons name="location-outline" size={16} color={t.textSecondary} />
-                  <AppText tone="secondary">{servizio.localita}</AppText>
-                </View>
-              ) : null}
+              {/* La località è della persona (dal profilo) ed è facoltativa: se
+                  manca, la riga non compare. */}
               {offerente.localita ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Ionicons name="home-outline" size={16} color={t.textSecondary} />
+                  <Ionicons name="location-outline" size={16} color={t.textSecondary} />
                   <AppText variant="small" tone="secondary">
                     {nome} si trova a {offerente.localita}
+                  </AppText>
+                </View>
+              ) : null}
+              {pubblicatoIl ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
+                  <AppText variant="small" tone="secondary">
+                    Pubblicato il {pubblicatoIl}
                   </AppText>
                 </View>
               ) : null}
@@ -119,7 +127,7 @@ export function ModalDettaglioServizio({ servizio, categorie = [], onChiudi }) {
                       nome: offerente.nome ?? '',
                       cognome: offerente.cognome ?? '',
                       username: offerente.username ?? '',
-                      titolo: mansione,
+                      titolo: descrizione,
                     },
                   });
                 }}

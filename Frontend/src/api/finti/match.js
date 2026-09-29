@@ -2,14 +2,13 @@
  * Finti: i candidati di «Loop» (lo swipe), i like ricevuti e la memoria delle
  * scelte.
  *
- * Perché un file nuovo e non un allargamento di quelli che ci sono: `catalogo.js`
- * è «i servizi di tutti» (la home), `servizi.js` è «il deposito delle proprie
- * voci», e questo è una terza cosa — **la compatibilità fra i due, i like
- * ricevuti e le scelte fatte**. Lo stesso ragionamento con cui il catalogo è
- * nato separato dal deposito.
+ * Perché un file nuovo e non un allargamento di quelli che ci sono:
+ * `catalogo-dati.js` è «i servizi segnaposto del mondo finto», `servizi.js` è
+ * «il deposito delle proprie voci», e questo è una terza cosa — **la
+ * compatibilità fra i due, i like ricevuti e le scelte fatte**.
  *
  * Il finto **non inventa un mondo nuovo**: riusa i 12 servizi segnaposto di
- * `catalogo.js` (stesse persone, stesse categorie, stesse mansioni) come `offre`,
+ * `catalogo-dati.js` (stesse persone, stesse categorie, stesse mansioni) come `offre`,
  * così la persona che si vede in Home è la stessa che si vede qui. Non tocca
  * `servizi.js` né `accesso.js`: li legge soltanto.
  *
@@ -26,7 +25,7 @@
  * l'illusione di un contratto che non esiste.
  */
 
-import { elencoServiziFinti } from './catalogo';
+import { elencoServiziFinti } from './catalogo-dati';
 import { ottieniVoci } from './servizi';
 
 const CHIAVE_PERSISTENZA = 'barattolo.finti.scelte';

@@ -238,7 +238,11 @@ export function senzaPrefisso(oggetto, prefisso) {
 // della voce, per lo stesso motivo: la useranno la home e lo swipe, e la regola
 // non deve vivere dentro una schermata. La **semantica del confronto** (maiuscole,
 // accenti, quali campi guarda il testo) non sta qui: è una decisione del backend
-// e vive nel finto con il suo `// TODO(backend)`.
+// (`ServiceRepository::paginateHomepageOffers` fa le LIKE su `description` e
+// sulla località della persona).
+//
+// Il filtro **modalità non c'è più**: il backend Symfony non ha un campo
+// «da remoto» e una scelta senza supporto si toglie, non si finta.
 // ---------------------------------------------------------------------------
 
 /**
@@ -258,7 +262,7 @@ export const SCELTE_MODALITA = [
  * Ogni chiamata restituisce un oggetto nuovo (nessuna condivisione mutabile).
  */
 export function nuoviFiltri() {
-  return { testo: '', idCategoria: null, localita: '', modalita: null };
+  return { testo: '', idCategoria: null, localita: '' };
 }
 
 /** Quante condizioni sono attive: per il testo «n filtri attivi» e per «Azzera filtri». */
@@ -273,27 +277,23 @@ export function contaFiltri(filtri) {
   if (typeof filtri.localita === 'string' && filtri.localita.trim() !== '') {
     quanti += 1;
   }
-  if (filtri.modalita !== null && filtri.modalita !== undefined) {
-    quanti += 1;
-  }
   return quanti;
 }
 
 /**
- * La forma di rete dei filtri: le condizioni vuote si **omettono**, non si
- * spediscono come stringa vuota. `modalita` viaggia come `'remoto' | 'presenza'`
- * e «tutti» si omette: nessun `0` da interpretare come "assente".
+ * La forma di rete dei filtri per `GET /api/services`: le condizioni vuote si
+ * **omettono**, non si spediscono come stringa vuota. I nomi dei parametri sono
+ * quelli del contratto (`q`, `categoryIds`, `location`): la categoria è una sola
+ * e viaggia come lista da un elemento, perché il contratto è una lista separata
+ * da virgole.
  */
 export function filtriDaQuery(filtri) {
   const testo = typeof filtri.testo === 'string' ? filtri.testo.trim() : '';
   const localita = typeof filtri.localita === 'string' ? filtri.localita.trim() : '';
-  const modalita =
-    filtri.modalita === true ? 'remoto' : filtri.modalita === false ? 'presenza' : null;
   return {
     ...(testo ? { q: testo } : {}),
-    ...(Number.isInteger(filtri.idCategoria) ? { id_categoria: filtri.idCategoria } : {}),
-    ...(localita ? { localita } : {}),
-    ...(modalita ? { modalita } : {}),
+    ...(Number.isInteger(filtri.idCategoria) ? { categoryIds: filtri.idCategoria } : {}),
+    ...(localita ? { location: localita } : {}),
   };
 }
 
@@ -311,9 +311,6 @@ export function descriviFiltri(filtri, categorie = []) {
   const localita = typeof filtri.localita === 'string' ? filtri.localita.trim() : '';
   if (localita) {
     parti.push(`località ${localita}`);
-  }
-  if (filtri.modalita !== null && filtri.modalita !== undefined) {
-    parti.push(etichettaModalita(filtri.modalita));
   }
   return parti.join(', ');
 }

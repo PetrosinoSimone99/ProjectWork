@@ -3,6 +3,7 @@ import { USA_DATI_FINTI } from './config';
 import {
   normalizzaAccordo,
   normalizzaCandidati,
+  normalizzaCatalogo,
   normalizzaCategorie,
   normalizzaCoda,
   normalizzaElencoToken,
@@ -10,8 +11,6 @@ import {
   normalizzaEsitoScelta,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
-  normalizzaOfferente,
-  normalizzaPubblicazione,
   normalizzaPubblicazioni,
   normalizzaRispostaAccesso,
   normalizzaSegnalazioneStaff,
@@ -23,7 +22,6 @@ import {
   queryDaFiltri,
 } from './normalizzazioni';
 import * as fintiAccesso from './finti/accesso';
-import * as fintiCatalogo from './finti/catalogo';
 import * as fintiCategorie from './finti/categorie';
 import * as fintiChat from './finti/chat';
 import * as fintiCoda from './finti/coda';
@@ -36,7 +34,6 @@ import * as fintiToken from './finti/token';
 import * as fintiUtenti from './finti/utenti';
 import { aPayloadLetta } from '@/servizi/notifiche';
 import {
-  STATI_PUBBLICAZIONE,
   aPayloadAggiornamento,
   aPayloadPubblicazione,
 } from '@/servizi/offerta-ricerca';
@@ -48,6 +45,7 @@ import { aPayloadImpegno } from '@/servizi/token';
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
 export {
   normalizzaCandidati,
+  normalizzaCatalogo,
   normalizzaCategorie,
   normalizzaCoda,
   normalizzaElencoToken,
@@ -376,64 +374,30 @@ export async function eliminaPubblicazione(token, utenteId, id, tipo) {
 // ---------------------------------------------------------------------------
 // Home — il catalogo dei servizi
 //
-// Endpoint proposto: `GET catalogo.php` — i servizi pubblicati e attivi **di
-// tutti** (le proprie voci non entrano), con i filtri in query. **Non esiste
-// ancora**: con i finti spenti la home mostra l'errore del backend (404) e lo
-// dichiara, senza inventare campi per far finta che funzioni.
+// Endpoint: `GET /api/services` (rotta `api_services_list` di
+// `MarketplaceController`): le offerte **attive degli altri** — il backend
+// filtra già per tipo, stato account ed esclusione del viewer — con i filtri in
+// query (`q`, `categoryIds`, `location`) e la paginazione nella risposta. Il
+// parametro `sort` non si manda: il default del backend (`newest`) è quello che
+// serve alla home. La normalizzazione della riga vive in `normalizzazioni.js`.
 //
-// La home ha smesso di consumare `ricerca.php` e `ricercaHomepage.php`: il
-// catalogo ha bisogno del `tipo`, dell'`id` e dell'`offerente`, che quegli
-// endpoint non hanno, e il backend verrà rifatto comunque.
+// La home **non conosce i dati finti**: il catalogo parla solo col backend vero
+// (decisione del titolare, 30 settembre 2026). Con `EXPO_PUBLIC_DATI_FINTI=1`
+// la chiamata finisce nella guardia di `client.js` e la home mostra il suo
+// stato di errore, non un catalogo inventato.
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
+/** Righe per pagina del catalogo: il default del backend, dichiarato anche qui. */
+const LIMITE_PAGINA_CATALOGO = 20;
 
 /**
- * Il catalogo nella forma della riga della home: la voce di
- * `normalizzaPubblicazione` (che già scarta i tipi ignoti e le voci eliminate)
- * più `offerente`, meno le righe proprie e quelle non pubblicate.
- *
- * Due decisioni vivono qui e in nessun altro punto:
- * - **le proprie voci non entrano nel catalogo** (in home si vedono solo gli
- *   altri): non è una precauzione in più, è l'unico posto in cui quella scelta
- *   sta, e il frontend non si fida della query dei colleghi per una decisione
- *   che è sua;
- * - **il catalogo è dei servizi attivi**: una riga `SOSPESA` non si mostra, anche
- *   se la query dei colleghi dovesse restituirla. È difensiva, non sostitutiva.
+ * GET /api/services — il catalogo della home, una pagina per volta.
+ * `utenteId` serve a scartare le righe proprie, come fa `ottieniAccordi`.
+ * Restituisce `{elenco, paginazione}`: chi chiama decide se può caricare altri.
  */
-export function normalizzaCatalogo(risposta, utenteId) {
-  const elenco = risposta?.data?.servizi ?? risposta?.servizi ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco
-    .map((riga, indice) => {
-      const voce = normalizzaPubblicazione(riga, indice);
-      if (!voce || voce.stato !== STATI_PUBBLICAZIONE.PUBBLICATA) {
-        return null;
-      }
-      const offerente = normalizzaOfferente(riga);
-      if (offerente.id !== null && Number(offerente.id) === Number(utenteId)) {
-        return null;
-      }
-      return { ...voce, offerente };
-    })
-    .filter(Boolean);
-}
-
-/**
- * GET catalogo.php — i servizi pubblicati e attivi di tutti, filtrati.
- * `utenteId` serve al ramo finto (che non decodifica il token) e a scartare le
- * righe proprie, come fa `ottieniAccordi`.
- */
-export async function ottieniCatalogo(token, utenteId, filtri) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET catalogo.php con q, id_categoria, localita, modalita.
-    // Il finto ha un'attesa dichiarata, quindi si aspetta come il ramo vero.
-    return normalizzaCatalogo(await fintiCatalogo.ottieniCatalogo(utenteId, filtri), utenteId);
-  }
+export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
   return normalizzaCatalogo(
-    await apiFetch(`catalogo.php${queryDaFiltri(filtri)}`, { token }),
+    await apiFetch(`services${queryDaFiltri(filtri, pagina, LIMITE_PAGINA_CATALOGO)}`, { token }),
     utenteId,
   );
 }
