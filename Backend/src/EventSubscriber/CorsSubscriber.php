@@ -20,7 +20,7 @@ final class CorsSubscriber implements EventSubscriberInterface
 {
     private const API_PATH_PREFIX = '/api';
     private const ALLOWED_ORIGIN = '*';
-    private const ALLOWED_METHODS = 'GET, POST, OPTIONS';
+    private const ALLOWED_METHODS = 'GET, POST, PATCH, OPTIONS';
     private const ALLOWED_HEADERS = 'Authorization, Content-Type, Accept';
 
     public static function getSubscribedEvents(): array
