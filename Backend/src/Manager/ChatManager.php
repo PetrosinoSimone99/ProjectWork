@@ -33,22 +33,12 @@ class ChatManager
         $this->validator = $validator;
     }
 
-    public function getChatByProposalId(int $proposalId): ?int
+    public function getChatAndHistoryByProposalId(int $proposalId): ?array
     {
-        $chat = $this->chatRepository->getChatByProposalId($proposalId);
-        
-        if($chat == null){
-            $chat = $this->createChatMutual($proposalId);
-            $proposalParticipants = $this->proposalRepository->findMembersByProposalId($proposalId);
-            $this->insertChatMembers($chat, $proposalParticipants);
-        }
-
-        return $chat->getId();
+        $chat = $this->getOrCreateChat($proposalId);
+        return $this->getChatHistory($chat->getId());
     }
-    public function getChatHistory(int $chatId): array
-    {
-        return $this->chatMessageRepository->getChatHistory($chatId);
-    }
+    
     public function sendMessage(int $chatId,  User $user, string $message): void
     {
         $chat = $this->chatRepository->getChatById($chatId);
@@ -69,6 +59,24 @@ class ChatManager
     }
 
     //Internal Only
+    private function getOrCreateChat(int $proposalId): Chat
+    {
+        $chat = $this->chatRepository->getChatByProposalId($proposalId);
+        
+        if($chat == null){
+            $chat = $this->createChatMutual($proposalId);
+            $proposalParticipants = $this->proposalRepository->findMembersByProposalId($proposalId);
+            $this->insertChatMembers($chat, $proposalParticipants);
+        }
+
+        return $chat;
+    }
+
+    private function getChatHistory(int $chatId): array
+    {
+        return $this->chatMessageRepository->getChatHistory($chatId);
+    }
+
     private function createChatMutual(int $proposalId): Chat
     {
         $chat = new Chat();
@@ -97,9 +105,9 @@ class ChatManager
             }
 
             $this->entityManager->persist($chatParticipant);
-            $this->entityManager->flush();
-
         }
+        
+        $this->entityManager->flush();
     }
 
 }
