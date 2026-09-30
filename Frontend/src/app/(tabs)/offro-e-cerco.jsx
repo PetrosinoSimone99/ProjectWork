@@ -32,17 +32,59 @@ import { SezionePubblicazioni, SEZIONI_PUBBLICAZIONI } from '@/components/Sezion
 import { space, useTokens } from '@/theme/tokens';
 
 /**
- * Offro e cerco: pubblica e gestisci le proprie offerte e ricerche.
+ * Offro e cerco: pubblica le proprie offerte e ricerche.
  *
  * Le voci hanno la **stessa forma della registrazione** (categoria + mansione +
  * «da remoto»), più la località dell'annuncio; la forma del dato e le sue regole
  * vivono in `src/servizi/offerta-ricerca.js` e non si ridichiarano qui. Il form
  * di pubblicazione è uno solo (`FormVoceServizio`) e serve creazione e modifica.
  *
- * L'elenco non ha una copia locale come verità: dopo ogni scrittura riuscita si
- * richiama `carica()`, così «ho pubblicato e non lo vedo» non esiste per
- * costruzione. I Banner di esito sono l'unica scrittura ottimistica.
+ * Il **backend offre solo la creazione** (`POST /api/services`): di elenco
+ * proprio, modifica, stato ed eliminazione non ha ancora nulla. Quindi:
+ *
+ * - con i finti spenti (il caso nuovo) la creazione è reale e l'elenco resta
+ *   **vuoto con l'avviso**: niente letture di `servizi.php` (sarebbe un 404
+ *   inventato, non uno stato vuoto) e nessuna azione su una voce esistente,
+ *   perché non c'è una voce da toccare. Al salvataggio si mostra la conferma
+ *   con l'avviso che l'elenco non c'è ancora — mai una lista locale inventata;
+ * - con i finti accesi il comportamento demo della demo resta quello di prima:
+ *   elenco, modifica, stato ed eliminazione passano dal deposito finto.
+ *
+ * Con i finti accesi l'elenco non ha una copia locale come verità: dopo ogni
+ * scrittura riuscita si richiama `carica()`, così «ho pubblicato e non lo vedo»
+ * non esiste per costruzione.
  */
+
+/**
+ * Conferma della creazione reale: il successo è pieno per la parte che il
+ * backend sa fare oggi, e dice subito perché sopra la lista non apparirà nulla
+ * (decisione del piano del passo 2, vincolo 1).
+ */
+const ESITO_VOCE_CREATA =
+  "La voce è stata creata. L'elenco delle tue voci non è ancora disponibile: arriverà quando il backend lo permetterà.";
+
+/**
+ * Lo stato vuoto delle sezioni con i finti spenti: non è «nessun risultato», è
+ * una cosa che manca sopra (l'endpoint dell'elenco). L'icona resta quella della
+ * sezione: ciò che manca sono i contenuti, non la sezione.
+ */
+function vuotoSenzaElenco(sezione) {
+  return {
+    icona: sezione.vuoto.icona,
+    titolo: "L'elenco delle tue voci non è ancora disponibile",
+    descrizione:
+      "Pubblica da qui: la voce finisce nel catalogo degli altri. L'elenco delle voci che hai creato arriverà quando il backend lo permetterà.",
+  };
+}
+
+/**
+ * La spiegazione sotto il titolo: con i finti spenti «correggi» e «decidi
+ * quando non sono più visibili» sarebbero azioni che non esistono (il backend
+ * non ha né elenco né modifica), quindi il testo dice solo cosa si può fare.
+ */
+const INTRODUZIONE = USA_DATI_FINTI
+  ? 'Le tue offerte e le tue ricerche: qui le pubblichi, le correggi e decidi quando non sono più visibili.'
+  : 'Le tue offerte e le tue ricerche: pubblicale da qui, finiscono nel catalogo degli altri.';
 
 /** Il testo del Banner di esito, con la parola giusta per il tipo di voce. */
 function testoEsito(azione, tipo) {
@@ -93,8 +135,11 @@ export default function OffroECercoScreen() {
   const { token, utente } = useAuth();
   const t = useTokens();
 
-  const [pubblicazioni, setPubblicazioni] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Con i finti spenti non c'è una richiesta di elenco da fare: si parte con
+  // l'elenco vuoto e senza caricamento, non con lo spinner a schermo pieno —
+  // anche lo spinner mentirebbe, dato che la richiesta non parte.
+  const [pubblicazioni, setPubblicazioni] = useState(USA_DATI_FINTI ? null : []);
+  const [loading, setLoading] = useState(USA_DATI_FINTI);
   const [erroreElenco, setErroreElenco] = useState(null);
 
   const [categorie, setCategorie] = useState([]);
@@ -111,7 +156,11 @@ export default function OffroECercoScreen() {
   const [esito, setEsito] = useState(null);
 
   const carica = useCallback(async () => {
-    if (!token || !utente) {
+    // Con i finti spenti la lettura **non parte**: l'endpoint dell'elenco delle
+    // proprie voci non esiste e un 404 non sarebbe un errore, è una cosa che
+    // manca sopra. L'elenco resta quello iniziale ([] con l'avviso) e le
+    // altre azioni su una voce esistente restano irraggiungibili.
+    if (!USA_DATI_FINTI || !token || !utente) {
       return;
     }
     setLoading(true);
@@ -214,16 +263,30 @@ export default function OffroECercoScreen() {
     setErroreForm(null);
     setSalvataggio(true);
     const inModifica = Number.isInteger(form.voce.id);
+    // Il tipo lo si cattura prima dell'attesa: il form sparisce al successo e
+    // il testo dell'esito va costruito con il valore che c'era al submit.
+    const tipo = form.tipo;
     try {
       if (inModifica) {
         await aggiornaPubblicazione(token, utente.id, form.voce);
       } else {
         await creaPubblicazione(token, utente.id, form.voce);
       }
-      setEsito(testoEsito(inModifica ? 'aggiornata' : 'creata', form.tipo));
+      // Con i finti spenti non si arriva a `aggiornaPubblicazione` (modificare
+      // vuol dire una voce già in elenco, che non esiste senza elenco): la
+      // conferma è quella reale, con l'avviso sull'elenco mancante.
+      setEsito(
+        inModifica || USA_DATI_FINTI
+          ? testoEsito(inModifica ? 'aggiornata' : 'creata', tipo)
+          : ESITO_VOCE_CREATA,
+      );
       setForm(null);
       setFieldErrors({});
-      await carica();
+      // La rilettura dell'elenco ha senso solo con i finti accesi: senza
+      // endpoint, rileggere verrebbe da una fonte che non c'è.
+      if (USA_DATI_FINTI || inModifica) {
+        await carica();
+      }
     } catch (err) {
       // Il form non si svuota: i dati digitati restano.
       setErroreForm(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
@@ -293,10 +356,7 @@ export default function OffroECercoScreen() {
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Offro e cerco</AppText>
-        <AppText variant="small" tone="secondary">
-          Le tue offerte e le tue ricerche: qui le pubblichi, le correggi e decidi quando non sono
-          più visibili.
-        </AppText>
+        <AppText variant="small" tone="secondary">{INTRODUZIONE}</AppText>
       </View>
 
       {USA_DATI_FINTI ? (
@@ -332,6 +392,7 @@ export default function OffroECercoScreen() {
         <SezionePubblicazioni
           key={sezione.chiave}
           sezione={sezione}
+          vuoto={!USA_DATI_FINTI ? vuotoSenzaElenco(sezione) : undefined}
           voci={sezione.tipo === TIPI_VOCE.OFFERTA ? offerte : ricerche}
           categorie={categorie}
           statoCategorie={statoCategorie}

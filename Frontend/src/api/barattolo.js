@@ -33,10 +33,7 @@ import * as fintiStaff from './finti/staff';
 import * as fintiToken from './finti/token';
 import * as fintiUtenti from './finti/utenti';
 import { aPayloadLetta } from '@/servizi/notifiche';
-import {
-  aPayloadAggiornamento,
-  aPayloadPubblicazione,
-} from '@/servizi/offerta-ricerca';
+import { aPayloadAggiornamento } from '@/servizi/offerta-ricerca';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
 import { aPayloadImpegno } from '@/servizi/token';
@@ -63,6 +60,7 @@ export {
 // resta un punto unico (§3 di `AGENTS.md`). Il prossimo smistamento lascerà
 // qui una riga in meno e una export in più, non il contrario.
 export { ottieniProfilo, aggiornaProfilo } from './aree/profilo';
+export { creaPubblicazione } from './aree/servizi';
 
 /**
  * Dati finti o backend vero.
@@ -288,20 +286,21 @@ export function inviaMessaggio(token, chatId, utenteId, messaggio) {
 // ---------------------------------------------------------------------------
 // Offro e cerco — le proprie offerte e ricerche
 //
-// Endpoint proposto: `servizi.php` (elenco, creazione, modifica, stato,
-// eliminazione). **Non esiste ancora**: con i finti spenti queste chiamate
-// rispondono 404/405, ed è il motivo per cui ogni ramo porta il suo
-// `// TODO(backend)`. La forma di rete è piatta e ha il campo `tipo` su ogni
-// riga; la normalizzazione qui sotto tollera le voci salvate prima che
-// `localita` e `stato` esistessero (il deposito finto della registrazione).
-// ---------------------------------------------------------------------------
-
+// Il backend nuovo offre **solo la creazione** (`POST /api/services`, rotta di
+// `MarketplaceController`): quella funzione vive in `aree/servizi.js` e qui
+// sopra la si re-espone (P53). Il resto — elenco, modifica, stato,
+// eliminazione — non ha endpoint: restano le funzioni fintate qui sotto,
+// **inutilizzate** finché i colleghi non aggiungono il loro `servizi.php` (la
+// schermata con i finti spenti non mostra l'elenco e non le può chiamare).
 // ---------------------------------------------------------------------------
 
 /**
  * GET servizi.php — le proprie offerte e ricerche, **sospese comprese**.
  * `utenteId` serve solo al ramo finto: il finto non decodifica il token
  * (su native `atob` non è garantito), come già fa `ottieniAccordi`.
+ * TODO(backend): l'elenco delle proprie voci è la stessa cosa che manca a
+ * modifica, stato ed eliminazione sotto: finché non c'è, con i finti spenti la
+ * schermata non mostra l'elenco e nessuna di queste funzioni viene chiamata.
  */
 export async function ottieniPubblicazioni(token, utenteId) {
   if (USA_DATI_FINTI) {
@@ -309,21 +308,6 @@ export async function ottieniPubblicazioni(token, utenteId) {
     return normalizzaPubblicazioni(fintiServizi.ottieniServizi(utenteId));
   }
   return normalizzaPubblicazioni(await apiFetch('servizi.php', { token }));
-}
-
-/**
- * POST servizi.php — pubblica una nuova voce.
- * La risposta deve contenere la riga creata con il suo `id` (lezione di P37).
- */
-export async function creaPubblicazione(token, utenteId, voce) {
-  const corpo = aPayloadPubblicazione(voce);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php con la riga creata e il suo id nella risposta.
-    return normalizzaServizio(fintiServizi.creaServizio(utenteId, corpo));
-  }
-  return normalizzaServizio(
-    await apiFetch('servizi.php', { method: 'POST', token, body: corpo }),
-  );
 }
 
 /** POST servizi.php azione "aggiorna" — modifica categoria, mansione, remoto, località. */
