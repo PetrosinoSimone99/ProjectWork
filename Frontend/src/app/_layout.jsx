@@ -78,6 +78,7 @@ function RootNavigator() {
         {utente ? <Stack.Screen name="nuovo-accordo" /> : null}
         {utente ? <Stack.Screen name="inviti" /> : null}
         {utente ? <Stack.Screen name="token" /> : null}
+        {utente ? <Stack.Screen name="modifica-profilo" /> : null}
         {utente ? <Stack.Screen name="segnala" /> : null}
         {utente ? <Stack.Screen name="staff" /> : null}
         {utente ? <Stack.Screen name="staff-utenti" /> : null}

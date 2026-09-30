@@ -16,6 +16,7 @@ export function AppInput({
   keyboardType = 'default',
   autoCapitalize = 'none',
   maxLength,
+  editable,
   optionalHint,
   contatore,
   returnKeyType,
@@ -57,6 +58,7 @@ export function AppInput({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           maxLength={maxLength}
+          editable={editable}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
           onFocus={() => setFocused(true)}

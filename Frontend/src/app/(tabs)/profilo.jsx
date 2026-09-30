@@ -28,7 +28,8 @@ import { space, useTokens } from '@/theme/tokens';
  *
  * L'immagine del profilo **non si mostra**, nemmeno se `profileImageUrl` è
  * valorizzato (decisione del piano: richiederebbe un lavoro a parte sul
- * rendering). `PATCH /api/profile` è fuori perimetro: nessuna UI di modifica.
+ * rendering). La modifica di località e bio (`PATCH /api/profile`) vive nella
+ * rotta a sé `modifica-profilo.jsx`, che questa schermata si limita ad aprire.
  *
  * Gli stati sono tutti espliciti (§7 di `AGENTS.md`):
  * - **primo caricamento**: `LoadingScreen`;
@@ -83,7 +84,7 @@ export default function ProfiloScreen() {
   }, [token]);
 
   // Si rilegge quando la schermata torna in primo piano: località o bio
-  // (un domani, con la modifica profilo) non devono restare vecchi.
+  // (modificate nella rotta `modifica-profilo`) non devono restare vecchie.
   useFocusEffect(
     useCallback(() => {
       void caricaProfilo();
@@ -202,6 +203,28 @@ export default function ProfiloScreen() {
           />
         </View>
       </Card>
+
+      {/* La modifica ha una schermata a sé: la card si limita ad aprirla,
+          così come fanno le card «I miei token» e «Inviti». */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Apri la schermata Modifica profilo"
+        onPress={() => router.push('/modifica-profilo')}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <Ionicons name="pencil-outline" size={20} color={t.primary} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText variant="heading" style={{ fontSize: 16 }}>
+              Modifica profilo
+            </AppText>
+            <AppText variant="small" tone="secondary">
+              Cambia la località o la bio che gli altri vedranno su di te.
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
+        </Card>
+      </Pressable>
 
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>

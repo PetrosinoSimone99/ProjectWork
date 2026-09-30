@@ -1,7 +1,8 @@
-import { apiFetch } from '../client';
+import { ApiError, apiFetch } from '../client';
 
 /**
- * Area profilo: funzioni e normalizzazioni di `GET /api/profile`.
+ * Area profilo: funzioni e normalizzazioni di `GET /api/profile` e
+ * `PATCH /api/profile`.
  *
  * Nasce come primo file di `aree/` (decisione del piano del profilo, P53): le
  * funzioni nuove **non** ingrossano `barattolo.js` o `normalizzazioni.js`, si
@@ -49,4 +50,34 @@ export function normalizzaProfilo(risposta) {
  */
 export async function ottieniProfilo(token) {
   return normalizzaProfilo(await apiFetch('profile', { token }));
+}
+
+/**
+ * PATCH /api/profile — salva le modifiche a località e bio.
+ *
+ * `modifiche` porta **solo le chiavi effettivamente cambiate** dalla
+ * schermata (`{ localita?, bio? }`, con stringhe già trimmate): il corpo si
+ * costruisce qui, così ciò che non si tocca non viaggia in rete e il `400
+ * «At least one profile field…»` non ha modo di arrivare (decisione del piano).
+ * Una stringa vuota significa «svuota il campo»: il backend accetta `null` per
+ * `location` e `bio` e il valore svuotato si manda come `null`, non come `""`.
+ *
+ * La guardia a mano vuota è difensiva: la schermata disabilita «Salva» quando
+ * non è cambiato nulla, quindi nessun flusso reale arriva qui senza modifiche.
+ * La risposta ha la stessa busta della GET e si normalizza allo stesso modo.
+ */
+export async function aggiornaProfilo(token, modifiche) {
+  const corpo = {};
+  if (modifiche && 'localita' in modifiche) {
+    corpo.location = testoValorizzato(modifiche.localita);
+  }
+  if (modifiche && 'bio' in modifiche) {
+    corpo.bio = testoValorizzato(modifiche.bio);
+  }
+  if (Object.keys(corpo).length === 0) {
+    throw new ApiError(400, 'Nessuna modifica da salvare.');
+  }
+  return normalizzaProfilo(
+    await apiFetch('profile', { token, method: 'PATCH', body: corpo }),
+  );
 }
