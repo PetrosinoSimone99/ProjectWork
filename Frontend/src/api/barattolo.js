@@ -58,6 +58,12 @@ export {
   normalizzaToken,
 } from './normalizzazioni';
 
+// Le funzioni nuove non ingrossano questo file (P53): si smistano per area in
+// `aree/` e da qui si re-espongono solo i nomi, così per le schermate il layer
+// resta un punto unico (§3 di `AGENTS.md`). Il prossimo smistamento lascerà
+// qui una riga in meno e una export in più, non il contrario.
+export { ottieniProfilo } from './aree/profilo';
+
 /**
  * Dati finti o backend vero.
  *
