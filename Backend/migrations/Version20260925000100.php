@@ -17,7 +17,13 @@ final class Version20260925000100 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE users ADD bio LONGTEXT DEFAULT NULL, ADD profile_image_url VARCHAR(2048) DEFAULT NULL');
+        $columns = $this->connection->createSchemaManager()->listTableColumns('users');
+        if (!isset($columns['bio'])) {
+            $this->addSql('ALTER TABLE users ADD bio LONGTEXT DEFAULT NULL');
+        }
+        if (!isset($columns['profile_image_url'])) {
+            $this->addSql('ALTER TABLE users ADD profile_image_url VARCHAR(2048) DEFAULT NULL');
+        }
     }
 
     public function down(Schema $schema): void

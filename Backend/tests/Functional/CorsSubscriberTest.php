@@ -19,7 +19,7 @@ class CorsSubscriberTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(204);
         self::assertSame('*', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
-        self::assertSame('GET, POST, OPTIONS', $client->getResponse()->headers->get('Access-Control-Allow-Methods'));
+        self::assertSame('GET, POST, PATCH, OPTIONS', $client->getResponse()->headers->get('Access-Control-Allow-Methods'));
         self::assertSame('Authorization, Content-Type, Accept', $client->getResponse()->headers->get('Access-Control-Allow-Headers'));
     }
 
