@@ -129,16 +129,22 @@ export function CardCandidato({ candidato, categorie = [] }) {
                 </AppText>
               </View>
             ) : null}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons
-                name={offerta.daRemoto ? 'globe-outline' : 'storefront-outline'}
-                size={14}
-                color={t.textSecondary}
-              />
-              <AppText variant="small" tone="secondary">
-                {etichettaModalita(offerta.daRemoto)}
-              </AppText>
-            </View>
+            {/* La modalità dell'annuncio si mostra solo quando la si conosce:
+                con il contratto reale dei servizi non arriva, e non si dice
+                «in presenza» un dato che non esiste (vincolo 4 del piano di
+                Loop). La località dell'**annuncio** sopra vale lo stesso. */}
+            {typeof offerta.daRemoto === 'boolean' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Ionicons
+                  name={offerta.daRemoto ? 'globe-outline' : 'storefront-outline'}
+                  size={14}
+                  color={t.textSecondary}
+                />
+                <AppText variant="small" tone="secondary">
+                  {etichettaModalita(offerta.daRemoto)}
+                </AppText>
+              </View>
+            ) : null}
           </View>
         </View>
 

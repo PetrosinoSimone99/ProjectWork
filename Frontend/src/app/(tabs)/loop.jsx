@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -13,6 +12,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { SchedaTrascinabile } from '@/components/SchedaTrascinabile';
 import { Screen } from '@/components/Screen';
+import { SezioneProposte } from '@/components/SezioneProposte';
 import { useCandidati } from '@/hooks/useCandidati';
 import { useCategorie } from '@/hooks/useCategorie';
 import { useCoda } from '@/hooks/useCoda';
@@ -21,27 +21,31 @@ import {
   SCELTE_CANDIDATO,
   azioniScheda,
   descriviCandidato,
+  messaggioEsito,
 } from '@/servizi/candidati';
 import { VISTE } from '@/servizi/coda';
 import { nomePersona } from '@/servizi/offerta-ricerca';
 import { space } from '@/theme/tokens';
 
 /**
- * «Loop»: le persone con cui si può scambiare, **una scheda per volta**.
+ * «Loop»: le persone con cui si può scambiare, **una scheda per volta**, e le
+ * proposte in attesa della mia decisione.
  *
- * Una scheda è una persona con **una** sua offerta e il motivo per cui è lì
- * (cerca quello che offro, offre quello che cerco, o entrambe le cose); se mi ha
- * già messo like la scheda lo dice e i due pulsanti diventano «Accetta» e
- * «Rifiuta». La scelta riguarda la persona **e la sua offerta**.
+ * Una scheda è una persona con **una** sua offerta e il motivo per cui è lì: il
+ * feed del backend manda solo compatibilità **reciproche** (cerca quello che
+ * offri e offre quello che cerchi). La scelta riguarda la persona **e la sua
+ * offerta**.
  *
  * Si dichiara interesse in due modi, entrambi fino in fondo: i **pulsanti**
  * (tastiera e lettore di schermo) e il **gesto** di trascinamento (comodità in
  * più, funziona anche con il mouse sul web). Nessuno dei due è un ripiego
  * dell'altro: la schermata è usabile per intero senza gesti.
  *
- * Chi decide se è un match è il **backend**: qui si mostra «Interesse
- * registrato.» e si passa oltre; solo se la risposta dice `match: true` compare
- * «È un match!» con «Apri la chat».
+ * Il flusso del match è quello vero del backend: uno swipe «Interesse» crea una
+ * **proposta in attesa** («Interesse registrato.», nessun match ancora) che chi
+ * la riceve trova nella sezione qui sopra e decide. Solo la risposta che dice
+ * `matched: true` fa comparire «È un match!» con «Apri la chat»: qui non si
+ * deduce mai niente, e il match non si mostra prima del «Sì» dell'altro.
  *
  * A pila finita **non si ricarica da soli**: lo stato resta a schermo finché non
  * si preme «Ricarica», così si sa sempre perché non c'è più nessuno.
@@ -59,16 +63,20 @@ export default function LoopScreen() {
     pilaVuota,
     pilaFinita,
     primoCaricamento,
+    proposte,
     errore,
     esito,
     sceltaInCorso,
+    decisioneInCorso,
     ripristino,
     scegli,
+    accetta,
+    rifiuta,
     riprova,
     ricarica,
     refreshing,
     onRefresh,
-  } = useCandidati({ token, utenteId: utente?.id });
+  } = useCandidati({ token });
 
   // La catena che le scelte stanno costruendo: la card qui sopra è l'unico modo
   // in cui la ricerca diventa visibile **mentre si scorre**, senza interrompere
@@ -124,16 +132,18 @@ export default function LoopScreen() {
     }
   }, [numeroScheda, ripristino]);
 
-  /** Gli stessi parametri che passa il dettaglio di un annuncio: la chat li usa per il titolo. */
-  function apriChat(persona, mansione) {
+  /**
+   * «Apri la chat» sul match. I parametri sono il **contratto col passo 4**
+   * (`temp/piani/04-chat.md`): `proposalId`, `nome`, `username` — non cambiarli
+   * senza cambiare anche la chat.
+   */
+  function apriChat(persona, propostaId) {
     router.push({
       pathname: '/chat',
       params: {
-        utenteId: String(persona.id),
+        proposalId: String(propostaId),
         nome: persona.nome ?? '',
-        cognome: persona.cognome ?? '',
         username: persona.username ?? '',
-        titolo: mansione ?? '',
       },
     });
   }
@@ -147,11 +157,6 @@ export default function LoopScreen() {
     </View>
   );
 
-  // Con il flag attivo, **una sola** condizione sullo stato dei dati finti.
-  const bannerFinti = USA_DATI_FINTI ? (
-    <Banner kind="info" message={AVVISO_DEMO} />
-  ) : null;
-
   // Primo caricamento: non c'è un contenuto precedente da conservare, quindi lo
   // spinner a schermo pieno è onesto. I ricarichi successivi no (vedi sotto).
   if (primoCaricamento && !errore) {
@@ -162,7 +167,6 @@ export default function LoopScreen() {
     return (
       <Screen scroll withBottomInset={false}>
         {intestazione}
-        {bannerFinti}
         <Banner kind="error" message={errore} />
         <AppButton
           label="Riprova"
@@ -176,32 +180,26 @@ export default function LoopScreen() {
   }
 
   const azioni = azioniScheda(candidato?.tiHaScelto);
-  const idOffertaValido = Number.isInteger(candidato?.offerta?.id);
+  // Un'azione per volta: durante una scelta o una decisione la scheda resta
+  // ferma (anche il gesto) e i comandi dicono quale è in volo.
+  const occupato = sceltaInCorso !== null || decisioneInCorso !== null;
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
       {intestazione}
-      {bannerFinti}
 
-      {/* L'esito della scelta: `Banner` è già una regione viva, quindi
-          «Interesse registrato.» e «È un match!» vengono annunciati da soli. */}
-      {esito ? (
+      {/* L'esito di una scelta o di una decisione: `Banner` è già una regione
+          viva, quindi «Interesse registrato.» e «È un match!» vengono annunciati
+          da soli. Il testo viene da `messaggioEsito`, che per gli esiti che non
+          si capiscono non produce frasi inventate. */}
+      {esito && messaggioEsito(esito) ? (
         <View style={{ gap: space.sm }}>
-          <Banner
-            kind="success"
-            message={
-              esito.match
-                ? 'È un match!'
-                : esito.scelta === SCELTE_CANDIDATO.INTERESSE
-                  ? 'Interesse registrato.'
-                  : 'Passata.'
-            }
-          />
-          {esito.match ? (
+          <Banner kind="success" message={messaggioEsito(esito)} />
+          {esito.match && esito.propostaId !== null ? (
             <AppButton
               label="Apri la chat"
               icon="chatbubble-ellipses-outline"
-              onPress={() => apriChat(esito.persona, esito.mansione)}
+              onPress={() => apriChat(esito.persona, esito.propostaId)}
               accessibilityLabel={`Apri la chat con ${nomePersona(esito.persona)}`}
               style={{ alignSelf: 'flex-start' }}
             />
@@ -223,6 +221,16 @@ export default function LoopScreen() {
         </>
       ) : null}
 
+      {/* Le proposte in attesa della mia decisione: «Accetta»/«Rifiuta» e il
+          match solo dal `matched` del backend (vedi `SezioneProposte`). */}
+      <SezioneProposte
+        proposte={proposte}
+        categorie={categorie}
+        decisioneInCorso={decisioneInCorso}
+        accetta={accetta}
+        rifiuta={rifiuta}
+      />
+
       {vistaCoda !== VISTE.NESSUNO && coda?.gruppo ? (
         <CardGruppo
           compatta
@@ -240,7 +248,7 @@ export default function LoopScreen() {
           <EmptyState
             icon="people-outline"
             title="Non ci sono altre persone in questo momento"
-            description="Nessuno ha ancora messo like a una tua offerta e nessuno cerca quello che offri (o offre quello che cerchi). Per entrare nel match ti serve almeno un'offerta e una ricerca pubblicate."
+            description="Nessuno cerca quello che offri (o offre quello che cerchi) in questo momento. Per entrare nel feed ti serve almeno un'offerta e una ricerca pubblicate."
           />
           <View style={stileAzioniRiga}>
             <AppButton label="Ricarica" icon="refresh-outline" onPress={() => void ricarica()} />
@@ -262,7 +270,7 @@ export default function LoopScreen() {
           <EmptyState
             icon="checkmark-done-outline"
             title="Hai visto tutte le persone di questo giro"
-            description="Se qualcuno ti mette like, lo troverai qui: basta ricaricare."
+            description="Le persone compatibili nuove compaiono qui: basta ricaricare."
           />
           <View style={stileAzioniRiga}>
             <AppButton label="Ricarica" icon="refresh-outline" onPress={() => void ricarica()} />
@@ -296,7 +304,7 @@ export default function LoopScreen() {
             <SchedaTrascinabile
               key={candidato.chiave}
               ripristino={ripristino}
-              disabled={sceltaInCorso !== null || !idOffertaValido}
+              disabled={occupato}
               parolaInteressa={azioni.positiva}
               parolaPassa={azioni.negativa}
               onInteressa={interessa}
@@ -313,12 +321,7 @@ export default function LoopScreen() {
             totale={totale}
             descrizione={descriviCandidato(candidato, categorie)}
             inCorso={sceltaInCorso}
-            disabilitato={!idOffertaValido}
-            motivoDisabilitato={
-              idOffertaValido
-                ? null
-                : "Questa scheda non ha un riferimento all'offerta: non posso registrare la scelta."
-            }
+            disabilitato={occupato}
             onInteressa={interessa}
             onPassa={passa}
           />

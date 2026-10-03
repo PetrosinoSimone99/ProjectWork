@@ -2,13 +2,11 @@ import { ApiError, apiFetch } from './client';
 import { USA_DATI_FINTI } from './config';
 import {
   normalizzaAccordo,
-  normalizzaCandidati,
   normalizzaCatalogo,
   normalizzaCategorie,
   normalizzaCoda,
   normalizzaElencoToken,
   normalizzaEsitoInvio,
-  normalizzaEsitoScelta,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
   normalizzaPubblicazioni,
@@ -25,7 +23,6 @@ import * as fintiAccesso from './finti/accesso';
 import * as fintiCategorie from './finti/categorie';
 import * as fintiChat from './finti/chat';
 import * as fintiCoda from './finti/coda';
-import * as fintiMatch from './finti/match';
 import * as fintiNotifiche from './finti/notifiche';
 import * as fintiSegnalazioni from './finti/segnalazioni';
 import * as fintiServizi from './finti/servizi';
@@ -41,7 +38,6 @@ import { aPayloadImpegno } from '@/servizi/token';
 // La superficie pubblica di prima resta quella: le funzioni spostate in
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
 export {
-  normalizzaCandidati,
   normalizzaCatalogo,
   normalizzaCategorie,
   normalizzaCoda,
@@ -61,6 +57,7 @@ export {
 // qui una riga in meno e una export in più, non il contrario.
 export { ottieniProfilo, aggiornaProfilo } from './aree/profilo';
 export { creaPubblicazione } from './aree/servizi';
+export { ottieniFeedSwipes, registraScelta, decidiProposta } from './aree/loop';
 
 /**
  * Dati finti o backend vero.
@@ -393,70 +390,15 @@ export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
 }
 
 // ---------------------------------------------------------------------------
-// Loop — i candidati dello swipe
+// Loop — feed, scelte e proposte vivono in `aree/loop.js` (re-espote sopra con
+// le altre funzioni di area, P53).
 //
-// Endpoint proposto: `Match/candidati.php`, per la **lettura** e per la
-// **scrittura della scelta**. Non esiste: la Parte 20 delle segnalazioni prevede
-// solo la lettura, e nemmeno quella è stata discussa. Con i finti spenti queste
-// chiamate rispondono 404, ed è il motivo per cui ogni ramo porta il suo
-// `// TODO(backend)`.
-//
-// Il frontend **non decide un match**: lo mostra solo se la risposta dice
-// `match: true`. Chi entra nella pila, in che ordine e se il like è ricambiato è
-// una decisione del backend.
+// I finti dello swipe e dei candidati sono **stati rimossi** con il passaggio al
+// contratto reale (`GET|POST /api/swipes` + `POST /api/proposals/{id}/decision`):
+// il match non si deduce più dal «like ricambiato» finto, nasce solo dal
+// `matched` della decisione. Con i dati finti attivi «Loop» dice che la sezione
+// non è disponibile (guardia di `client.js`) invece di mostrare schede false.
 // ---------------------------------------------------------------------------
-
-/**
- * GET Match/candidati.php — le persone da mostrare nella pila, **già senza le
- * scelte fatte** (il filtro è del backend: il frontend non manda una lista di
- * esclusi). `utenteId` serve al ramo finto, che non decodifica il token.
- */
-export async function ottieniCandidati(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET Match/candidati.php → {success, message, data:{candidati:[…]}}.
-    return normalizzaCandidati(await fintiMatch.ottieniCandidati(utenteId), utenteId);
-  }
-  return normalizzaCandidati(await apiFetch('Match/candidati.php', { token }), utenteId);
-}
-
-/**
- * POST Match/candidati.php — registra «mi interessa» o «passa» su una scheda.
- *
- * La scelta riguarda **la persona e l'offerta mostrata** (`utente_id` +
- * `id_offerta`): senza i due riferimenti non c'è niente da registrare, quindi si
- * rifiuta qui invece di mandare `undefined` (lezione di P37). È una rete di
- * sicurezza: la UI disabilita già gesto e pulsanti.
- */
-export async function registraSceltaCandidato(token, utenteId, utenteCandidato, idOfferta, scelta) {
-  const candidatoValido = numeroInteroONull(utenteCandidato);
-  const offertaValida = numeroInteroONull(idOfferta);
-  if (candidatoValido === null || offertaValida === null) {
-    throw new ApiError(
-      400,
-      'Questa scheda non ha un riferimento valido: la scelta non è registrabile.',
-    );
-  }
-
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST Match/candidati.php {azione:'scelta', utente_id, id_offerta, scelta}
-    // con `data.match` calcolato dal backend.
-    return normalizzaEsitoScelta(
-      await fintiMatch.registraScelta(utenteId, candidatoValido, offertaValida, scelta),
-    );
-  }
-  return normalizzaEsitoScelta(
-    await apiFetch('Match/candidati.php', {
-      method: 'POST',
-      token,
-      body: {
-        azione: 'scelta',
-        utente_id: candidatoValido,
-        id_offerta: offertaValida,
-        scelta,
-      },
-    }),
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Coda e gruppi di match — la catena dello swipe

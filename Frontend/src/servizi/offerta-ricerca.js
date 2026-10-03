@@ -179,7 +179,9 @@ export function tonoStatoPubblicazione(stato) {
 
 /**
  * «da remoto» oppure «in presenza»: la casella non spuntata non deve restare
- * ambigua, quindi la modalità si scrive sempre.
+ * ambigua, quindi la modalità si scrive quando il valore è noto. Chi non la
+ * conosce (i candidati di «Loop», dove il contratto non la modella) non chiama
+ * questa funzione e non mostra la riga.
  */
 export function etichettaModalita(daRemoto) {
   return daRemoto === true ? 'da remoto' : 'in presenza';

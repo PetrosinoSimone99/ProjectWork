@@ -20,6 +20,13 @@ import { etichettaModalita, nomeCategoria, nomePersona } from './offerta-ricerca
 export const SCELTE_CANDIDATO = { INTERESSE: 'INTERESSE', PASSA: 'PASSA' };
 
 /**
+ * Le due decisioni su una proposta in attesa. I valori sono quelli che il
+ * contratto si aspetta (`POST /api/proposals/{id}/decision`): la conversione
+ * delle **direzioni** dello swipe sta invece nel layer (`api/aree/loop.js`).
+ */
+export const DECISIONI_PROPOSTA = { ACCETTA: 'ACCEPT', RIFIUTA: 'REJECT' };
+
+/**
  * I tre motivi per cui un candidato entra nella pila.
  * TODO(backend): i **valori** sono una proposta — il backend li calcolerà per
  * conto suo (categoria mia contro categoria sua) e li chiamerà come vuole;
@@ -38,16 +45,6 @@ export const ETICHETTE_MOTIVO = {
   [MOTIVI_COMPATIBILITA.OFFRE_QUELLO_CHE_CERCO]: 'Offre quello che cerchi',
   [MOTIVI_COMPATIBILITA.ENTRAMBI]: 'Cerca quello che offri e offre quello che cerchi',
 };
-
-/**
- * Il motivo nella forma che la UI conosce. Un valore **sconosciuto o assente**
- * diventa `null`: la riga sparisce e non si traduce con una frase generica — un
- * motivo che non capiamo non è un motivo.
- */
-export function motivoCompatibilita(valore) {
-  const chiave = typeof valore === 'string' ? valore.trim().toUpperCase() : '';
-  return Object.prototype.hasOwnProperty.call(ETICHETTE_MOTIVO, chiave) ? chiave : null;
-}
 
 /** L'etichetta del motivo, oppure `null` quando non c'è o non lo conosciamo. */
 export function etichettaMotivo(motivo) {
@@ -70,12 +67,30 @@ export function azioniScheda(tiHaScelto) {
 }
 
 /**
- * La chiave di una scheda: **la persona** (una persona = una sua offerta = una
- * scheda, decisione del titolare del 17 settembre 2026). L'id dell'offerta
- * viaggia comunque con la scelta, perché è quello che il backend registra.
+ * Il messaggio dell'esito di una scelta o di una decisione: il testo del
+ * `Banner` di «Loop», scritto una volta sola qui.
+ *
+ * Il match viene prima di tutto: quando c'è è l'unica cosa che conta da dire.
+ * Le altre frasi derivano dalla scelta fatta; un esito che non si capisce non
+ * produce testo (`null`), e la schermata non mostra il banner invece di
+ * inventare una frase.
  */
-export function chiaveCandidato(candidato) {
-  return String(candidato?.persona?.id ?? '');
+export function messaggioEsito(esito) {
+  if (esito?.match === true) {
+    return 'È un match!';
+  }
+  switch (esito?.scelta) {
+    case SCELTE_CANDIDATO.INTERESSE:
+      return 'Interesse registrato.';
+    case SCELTE_CANDIDATO.PASSA:
+      return 'Passata.';
+    case DECISIONI_PROPOSTA.ACCETTA:
+      return 'Proposta accettata.';
+    case DECISIONI_PROPOSTA.RIFIUTA:
+      return 'Proposta rifiutata.';
+    default:
+      return null;
+  }
 }
 
 /**
@@ -95,7 +110,14 @@ export function descriviCandidato(candidato, categorie = []) {
   const categoria = nomeCategoria(categorie, offerta.idCategoria) ?? 'categoria non disponibile';
   const mansione = offerta.mansione?.trim() || 'mansione non indicata';
   testa.push(`offre ${categoria}: ${mansione}`);
-  testa.push(etichettaModalita(offerta.daRemoto));
+  // La modalità (da remoto / in presenza) si dice solo quando la si conosce: il
+  // contratto dei servizi del feed non la modella e non si dichiara «in
+  // presenza» un dato che non esiste (vincolo 4 del piano di Loop).
+  const modalita =
+    typeof offerta.daRemoto === 'boolean' ? etichettaModalita(offerta.daRemoto) : null;
+  if (modalita) {
+    testa.push(modalita);
+  }
   if (offerta.localita) {
     testa.push(`a ${offerta.localita}`);
   }
@@ -109,6 +131,25 @@ export function descriviCandidato(candidato, categorie = []) {
     frasi.push('Ti ha messo like');
   }
   return `${frasi.join('. ')}.`;
+}
+
+/**
+ * La riga che descrive una **proposta in attesa**: come `descriviCandidato`, è
+ * l'etichetta accessibile del gruppo e dice una sola frase — persona, offerta
+ * che porta e cosa aspetta da me (la decisione).
+ */
+export function descriviProposta(proposta, categorie = []) {
+  if (!proposta) {
+    return '';
+  }
+  const persona = proposta.persona ?? {};
+  const servizio = proposta.servizio ?? {};
+  const nome = nomePersona(persona);
+  const testa = [persona.username ? `${nome}, @${persona.username}` : nome];
+  const categoria = nomeCategoria(categorie, servizio.idCategoria) ?? 'categoria non disponibile';
+  const mansione = servizio.mansione?.trim() || 'mansione non indicata';
+  testa.push(`offre ${categoria}: ${mansione}`);
+  return `${testa.join(', ')}. Ti propone uno scambio e aspetta la tua decisione.`;
 }
 
 /**
