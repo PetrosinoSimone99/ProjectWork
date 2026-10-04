@@ -37,7 +37,7 @@ import {
   normalizzaRuolo,
   normalizzaStatoUtente,
 } from '@/servizi/staff-utenti';
-import { adessoBackend } from './coda-dati';
+import { adessoBackend } from './tempo';
 
 const CHIAVE_PERSISTENZA = 'barattolo.finti.utenti-staff';
 

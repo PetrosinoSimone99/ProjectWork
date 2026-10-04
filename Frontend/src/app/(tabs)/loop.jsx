@@ -7,7 +7,6 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { BarraScelte } from '@/components/BarraScelte';
 import { CardCandidato } from '@/components/CardCandidato';
-import { CardGruppo } from '@/components/CardGruppo';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { SchedaTrascinabile } from '@/components/SchedaTrascinabile';
@@ -15,15 +14,12 @@ import { Screen } from '@/components/Screen';
 import { SezioneProposte } from '@/components/SezioneProposte';
 import { useCandidati } from '@/hooks/useCandidati';
 import { useCategorie } from '@/hooks/useCategorie';
-import { useCoda } from '@/hooks/useCoda';
-import { useTempoResiduo } from '@/hooks/useTempoResiduo';
 import {
   SCELTE_CANDIDATO,
   azioniScheda,
   descriviCandidato,
   messaggioEsito,
 } from '@/servizi/candidati';
-import { VISTE } from '@/servizi/coda';
 import { nomePersona } from '@/servizi/offerta-ricerca';
 import { space } from '@/theme/tokens';
 
@@ -76,24 +72,12 @@ export default function LoopScreen() {
     ricarica,
     refreshing,
     onRefresh,
-  } = useCandidati({ token });
+  } = useCandidati({ token, utenteId: utente?.id });
 
-  // La catena che le scelte stanno costruendo: la card qui sopra è l'unico modo
-  // in cui la ricerca diventa visibile **mentre si scorre**, senza interrompere
-  // lo swipe. Il dettaglio è a un tocco (`/scambi`).
-  const { dati: coda, vista: vistaCoda, chiediAggiornamento } = useCoda({
-    token,
-    utenteId: utente?.id,
-  });
-  const tempoCoda = useTempoResiduo(coda?.scadenzaMs);
-
-  // Il tempo scaduto sulla card chiede lo stato vero una volta sola: la vista
-  // non cambia da sola, la dichiara il backend alla prossima lettura.
-  useEffect(() => {
-    if (vistaCoda === VISTE.IN_RICERCA && tempoCoda.scaduto) {
-      chiediAggiornamento();
-    }
-  }, [vistaCoda, tempoCoda.scaduto, chiediAggiornamento]);
+  // Le catene non nascono più dalle scelte del Loop: la ricerca di una catena
+  // si avvia **esplicitamente** da «Scambi» con una coppia dei propri servizi
+  // (`POST /api/chains`). Qui il feed alimenta solo il registro delle mie voci
+  // (i due servizi attori di ogni riga) e la schermata resta swipe e proposte.
 
   // Le due azioni con un'identità **stabile**. Non è un vezzo da `useMemo`: il
   // `PanResponder` di `SchedaTrascinabile` si ricrea quando cambiano le callback,
@@ -230,18 +214,6 @@ export default function LoopScreen() {
         accetta={accetta}
         rifiuta={rifiuta}
       />
-
-      {vistaCoda !== VISTE.NESSUNO && coda?.gruppo ? (
-        <CardGruppo
-          compatta
-          gruppo={coda.gruppo}
-          vista={vistaCoda}
-          scadenzaMs={coda.scadenzaMs}
-          tempo={tempoCoda}
-          categorie={categorie}
-          onApri={() => router.push('/scambi')}
-        />
-      ) : null}
 
       {pilaVuota ? (
         <>

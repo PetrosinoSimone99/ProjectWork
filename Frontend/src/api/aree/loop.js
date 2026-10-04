@@ -6,6 +6,7 @@ import {
 } from '../normalizzazioni';
 import { DECISIONI_PROPOSTA, MOTIVI_COMPATIBILITA, SCELTE_CANDIDATO } from '@/servizi/candidati';
 import { TIPI_VOCE } from '@/servizi/offerta-ricerca';
+import { registraVociDaRigaFeed } from './catene';
 
 /**
  * Area «Loop»: il feed dello swipe (`GET /api/swipes`), la scelta su una scheda
@@ -205,11 +206,21 @@ function normalizzaCandidato(riga) {
  * L'elenco dei candidati del feed: `{"candidates": [...]}`. Una risposta senza
  * elenco (o con righe inutilizzabili) diventa lista vuota: la schermata mostra
  * il suo stato vuoto, non righe inventate.
+ *
+ * Ogni riga dichiara anche i **due servizi miei** (`actorOfferService` e
+ * `actorRequestService`, con i loro id): sono una sorgente reale del registro
+ * delle mie voci (vincolo 14 del piano 05-catene), alimentato qui «best
+ * effort» — solo righe con id leggibili, mai inventate.
  */
-export function normalizzaCandidati(risposta) {
+export function normalizzaCandidati(risposta, utenteId) {
   const elenco = risposta?.candidates;
   if (!Array.isArray(elenco)) {
     return [];
+  }
+  if (utenteId !== null && utenteId !== undefined) {
+    for (const riga of elenco) {
+      registraVociDaRigaFeed(utenteId, riga);
+    }
   }
   return elenco.map(normalizzaCandidato).filter(Boolean);
 }
@@ -287,12 +298,14 @@ export function normalizzaEsitoDecisione(risposta, id) {
  * del backend: il frontend non manda una lista di esclusi).
  *
  * `limite` è il `limit` del contratto (1..50, default 20): fuori range il
- * parametro non si manda e vale il default del backend.
+ * parametro non si manda e vale il default del backend. `utenteId` serve solo
+ * ad alimentare il registro delle mie voci dalle righe del feed: senza, il
+ * registro non si tocca (e la scelta non cambia).
  */
-export async function ottieniFeedSwipes(token, limite = LIMITE_DEFAULT) {
+export async function ottieniFeedSwipes(token, limite = LIMITE_DEFAULT, utenteId = null) {
   const risposta = await apiFetch(`swipes${queryLimite(limite)}`, { token });
   return {
-    candidati: normalizzaCandidati(risposta),
+    candidati: normalizzaCandidati(risposta, utenteId),
     proposte: normalizzaProposteInAttesa(risposta),
   };
 }

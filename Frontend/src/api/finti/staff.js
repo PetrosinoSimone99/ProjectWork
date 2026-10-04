@@ -31,7 +31,7 @@
 
 import { ApiError } from '../client';
 import { ESITI_CHIUSURA } from '@/servizi/staff';
-import { adessoBackend } from './coda-dati';
+import { adessoBackend } from './tempo';
 import { notificaEsito } from './notifiche';
 
 const CHIAVE_PERSISTENZA = 'barattolo.finti.segnalazioni-staff';

@@ -80,9 +80,10 @@ export async function apiFetch(path, options = {}) {
   // schermata dice cosa manca.
   // TODO(demo): sparisce quando i finti coprono anche gli accordi. Il testo resta
   // volutamente corto: la spiegazione tecnica (i dati finti coprono registrazione,
-  // «Offro e cerco», Scambi, la chat, i token, la segnalazione alla
+  // «Offro e cerco», la chat, i token, la segnalazione alla
   // staff, l'area staff delle segnalazioni e le notifiche in-app — **non** la
-  // home e «Loop», che richiedono il backend acceso) vive in questo commento, non a schermo.
+  // home, «Loop» né «Scambi», che dal 3 e 6 ottobre 2026 richiedono il backend
+  // acceso) vive in questo commento, non a schermo.
   if (USA_DATI_FINTI) {
     throw new ApiError(501, 'Questa sezione è in arrivo.');
   }

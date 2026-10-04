@@ -6,7 +6,7 @@
  * quella data la home parla solo col backend vero (`GET /api/services`) e il suo
  * finto endpoint è stato cancellato (decisione del titolare). Restano questi
  * dati perché **non servono più alla home**: sono il seme condiviso del Loop
- * (`finti/match.js`) e della coda (`finti/coda-dati.js`), che con i finti devono
+ * (`finti/match.js`), che con i finti deve
  * raccontare lo stesso mondo — la persona vista in «Loop» è una di queste.
  *
  * La forma delle righe resta quella piatta di `servizi.php` (`id`, `tipo`,
@@ -224,8 +224,8 @@ function copiaServizio(servizio) {
 
 /**
  * Copie dei 12 servizi segnaposto, per chi ha bisogno delle **stesse persone**
- * senza inventare un altro mondo: oggi lo swipe (`finti/match.js`) e la coda
- * (`finti/coda-dati.js`). Restituisce copie, quindi chi le usa non può
+ * senza inventare un altro mondo: oggi lo swipe (`finti/match.js`).
+ * Restituisce copie, quindi chi le usa non può
  * modificare questo modulo.
  */
 export function elencoServiziFinti() {

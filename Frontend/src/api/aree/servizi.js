@@ -3,6 +3,7 @@ import { USA_DATI_FINTI } from '../config';
 import { normalizzaServizio } from '../normalizzazioni';
 import * as fintiServizi from '../finti/servizi';
 import { aPayloadPubblicazione, TIPI_VOCE } from '@/servizi/offerta-ricerca';
+import { aggiungiMiaVoce } from '@/servizi/mie-voci';
 
 /**
  * Area «Offro e cerco»: la **creazione** di una voce via `POST /api/services`
@@ -127,9 +128,20 @@ export async function creaPubblicazione(token, utenteId, voce) {
     // messaggio generico già pronto per la UI.
     throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
   }
-  return normalizzaServizioCreato(
+  const voceCreata = normalizzaServizioCreato(
     await conMessaggioGenerico(
       apiFetch('services', { method: 'POST', token, body: corpo }),
     ),
   );
+  // La risposta porta la voce **con il suo id** (`service` del contratto): è
+  // una sorgente reale del registro delle mie voci (vincolo 14 del piano
+  // 05-catene). Con i finti attivi non si alimenta: niente id veri.
+  if (voceCreata?.id !== null && voceCreata?.id !== undefined) {
+    aggiungiMiaVoce(utenteId, {
+      id: voceCreata.id,
+      description: voceCreata.descrizione,
+      categories: voceCreata.categorie.map((categoria) => ({ id: categoria.id })),
+    }, voceCreata.tipo ?? voce?.tipo);
+  }
+  return voceCreata;
 }

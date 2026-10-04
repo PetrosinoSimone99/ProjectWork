@@ -24,7 +24,7 @@
  * (`finti/notifiche.js`). Non è chiamata da nessuna schermata di oggi.
  */
 
-import { adessoBackend } from './coda-dati';
+import { adessoBackend } from './tempo';
 
 const CHIAVE_PERSISTENZA = 'barattolo.finti.segnalazioni';
 

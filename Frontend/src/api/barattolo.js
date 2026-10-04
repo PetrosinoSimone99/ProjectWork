@@ -4,7 +4,6 @@ import {
   normalizzaAccordo,
   normalizzaCatalogo,
   normalizzaCategorie,
-  normalizzaCoda,
   normalizzaElencoToken,
   normalizzaEsitoInvio,
   normalizzaEsitoUtenteStaff,
@@ -22,7 +21,6 @@ import {
 import * as fintiAccesso from './finti/accesso';
 import * as fintiCategorie from './finti/categorie';
 import * as fintiChat from './finti/chat';
-import * as fintiCoda from './finti/coda';
 import * as fintiNotifiche from './finti/notifiche';
 import * as fintiSegnalazioni from './finti/segnalazioni';
 import * as fintiServizi from './finti/servizi';
@@ -34,20 +32,18 @@ import { aPayloadAggiornamento } from '@/servizi/offerta-ricerca';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
 import { aPayloadImpegno } from '@/servizi/token';
+import { registraMieVoci } from '@/servizi/mie-voci';
 
 // La superficie pubblica di prima resta quella: le funzioni spostate in
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
+// Le normalizzazioni della coda sono **uscite** con la coda: le catene parlano
+// col contratto reale e i loro normalizzatori vivono in `aree/catene.js`.
 export {
   normalizzaCatalogo,
   normalizzaCategorie,
-  normalizzaCoda,
   normalizzaElencoToken,
-  normalizzaGruppo,
   normalizzaPubblicazioni,
-  normalizzaScadenza,
-  normalizzaStatoGruppo,
   normalizzaStatoPubblicazione,
-  normalizzaStoricoGruppi,
   normalizzaToken,
 } from './normalizzazioni';
 
@@ -58,6 +54,17 @@ export {
 export { ottieniProfilo, aggiornaProfilo } from './aree/profilo';
 export { creaPubblicazione } from './aree/servizi';
 export { ottieniFeedSwipes, registraScelta, decidiProposta } from './aree/loop';
+export {
+  annullaCatena,
+  avviaRicercaCatena,
+  confermaRicezione,
+  decidiCatena,
+  decidiCondizioni,
+  ottieniBuoniCompensazione,
+  ottieniCatena,
+  ottieniCatene,
+  proponiCondizioni,
+} from './aree/catene';
 
 /**
  * Dati finti o backend vero.
@@ -172,24 +179,28 @@ export async function register(input) {
     return conMessaggioGenerico(fintiAccesso.register(input), 'register');
   }
   const { nome, cognome, username, email, password, localita, offerte, ricerche } = input ?? {};
-  return normalizzaRispostaAccesso(
-    await conMessaggioGenerico(
-      apiFetch('auth/register', {
-        method: 'POST',
-        body: {
-          name: (nome ?? '').trim(),
-          surname: (cognome ?? '').trim(),
-          username,
-          email,
-          password,
-          location: (localita ?? '').trim(),
-          offers: aCorpoVoci(offerte),
-          requests: aCorpoVoci(ricerche),
-        },
-      }),
-      'register',
-    ),
+  const risposta = await conMessaggioGenerico(
+    apiFetch('auth/register', {
+      method: 'POST',
+      body: {
+        name: (nome ?? '').trim(),
+        surname: (cognome ?? '').trim(),
+        username,
+        email,
+        password,
+        location: (localita ?? '').trim(),
+        offers: aCorpoVoci(offerte),
+        requests: aCorpoVoci(ricerche),
+      },
+    }),
+    'register',
   );
+  // La risposta porta le voci **con i loro id** (`offers`/`requests` di
+  // `AuthController`): è la prima sorgente reale del registro delle mie voci,
+  // che «Scambi» usa per la coppia di `POST /api/chains` (vincolo 14 del piano
+  // 05-catene). Con i finti attivi non si alimenta: niente id veri.
+  registraMieVoci(risposta?.user?.id, risposta);
+  return normalizzaRispostaAccesso(risposta);
 }
 
 /**
@@ -401,51 +412,6 @@ export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Coda e gruppi di match — la catena dello swipe
-//
-// Endpoint proposto: `Match/coda.php`, per la lettura dello stato e per l'unica
-// azione dell'utente (`azione:'esci'`). **Non esiste**: la coda e i gruppi sono
-// una proposta nella Parte 20 delle segnalazioni e il database non ha le tabelle.
-// Con i finti spenti queste chiamate rispondono 404, ed è il motivo per cui ogni
-// ramo porta il suo `// TODO(backend)`.
-//
-// Il frontend **non calcola la catena** e non decide esiti: legge `in_coda`, lo
-// stato del gruppo e i versi dichiarati (`offre_a`). Le normalizzazioni (stati,
-// scadenze, membri) stanno in `normalizzazioni.js`: è anche il motivo per cui
-// `useCoda` e `servizi/coda.js` non fanno parsing di date né di stati.
-// ---------------------------------------------------------------------------
-
-/**
- * GET Match/coda.php — lo stato della catena di chi chiede. `utenteId` serve al
- * ramo finto (che non decodifica il token) e a riconoscere i miei membri.
- */
-export async function ottieniCoda(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET Match/coda.php → {success, message, data:{in_coda,
-    // scadenza, gruppo, gruppi_conclusi}}; il finto ha un'attesa dichiarata.
-    return normalizzaCoda(await fintiCoda.ottieniCoda(utenteId), utenteId);
-  }
-  return normalizzaCoda(await apiFetch('Match/coda.php', { token }), utenteId);
-}
-
-/**
- * POST Match/coda.php `{azione:'esci'}` — l'**unica** azione dell'utente su questa
- * schermata. L'identità deve venire **dal token**, mai dal corpo; il `409` (uscire
- * da una ricerca già finita) si mostra così com'è, senza interpretarlo.
- *
- * Non esiste una `entraInCoda`: la ricerca nasce dalle scelte del Loop, non da un
- * pulsante (decisione del titolare del 17 settembre 2026).
- */
-export async function esciDallaCoda(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST Match/coda.php {azione:'esci'}.
-    await fintiCoda.esciDallaCoda(utenteId);
-    return;
-  }
-  await apiFetch('Match/coda.php', { method: 'POST', token, body: { azione: 'esci' } });
-}
-
-// ---------------------------------------------------------------------------
 // Token — i buoni (non il token di accesso)
 //
 // Endpoint proposto: `token.php`, per l'elenco dei **propri** buoni e per
@@ -466,7 +432,7 @@ export async function esciDallaCoda(token, utenteId) {
 /**
  * GET token.php — i **propri** buoni. `utenteId` serve solo al ramo finto: il
  * finto non decodifica il token di accesso (su native `atob` non è garantito),
- * come già fanno `ottieniAccordi` e `ottieniCoda`.
+ * come già fanno `ottieniAccordi` e le funzioni delle aree.
  */
 export async function ottieniToken(token, utenteId) {
   if (USA_DATI_FINTI) {

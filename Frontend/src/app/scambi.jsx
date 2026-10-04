@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,121 +8,129 @@ import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Card, Chip } from '@/components/Card';
+import { CardCatena } from '@/components/CardCatena';
 import { CardCatenaConclusa } from '@/components/CardCatenaConclusa';
-import { CardGruppo } from '@/components/CardGruppo';
-import { ElencoMembri } from '@/components/ElencoMembri';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { ModalConferma } from '@/components/ModalConferma';
 import { Screen } from '@/components/Screen';
-import { SezioneChatCatena } from '@/components/SezioneChatCatena';
-import { useCategorie } from '@/hooks/useCategorie';
-import { useCoda } from '@/hooks/useCoda';
-import { useTempoResiduo } from '@/hooks/useTempoResiduo';
-import {
-  VISTE,
-  etichettaStatoGruppo,
-  membriInOrdine,
-  testoScadenza,
-  testoUscita,
-} from '@/servizi/coda';
-import { parametriSegnalazioneDaUscita } from '@/servizi/segnalazioni';
+import { SezioneCondizioni } from '@/components/SezioneCondizioni';
+import { useCatene } from '@/hooks/useCatene';
+import { ottieniMieVoci } from '@/servizi/mie-voci';
+import { VISTE, formattaDataOra, separaPerStato } from '@/servizi/catene';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * «Scambi»: la catena che lo swipe sta costruendo.
+ * «Scambi»: le catene, collegate al contratto reale (`POST|GET /api/chains`,
+ * `GET /api/tokens`).
  *
- * Il frontend **non calcola la catena e non decide esiti**: mostra lo stato che
- * il backend gli manda (`in_coda` e `gruppo.stato`) tramite `useCoda`, e dove il
- * contratto non esiste ancora rispondono i finti, con il loro `// TODO(backend)`
- * in `api/finti/coda.js`.
+ * La struttura «titolo → stato → azioni → storico» sopravvive; quello che
+ * cambia è il mondo: la ricerca **non nasce più dalle scelte del Loop**, si
+ * avvia **esplicitamente** con una coppia dei propri servizi; le catene sono
+ * una **lista di card** (servizi diversi = catene diverse), ognuna con le sue
+ * azioni; la chat di catena **esce** da questa schermata (il contratto non crea
+ * chat: «The implementation never creates a chat or calls the chat manager»).
  *
- * L'unica azione dell'utente è l'**uscita**, con conferma; la ricerca **non
- * riparte da qui** (nasce dalle scelte del Loop). Il tempo che scade non produce
- * un esito: fa **una** richiesta di rilettura. Le due conversazioni della catena
- * sono 1:1 e si aprono nella chat che esiste già: **nessuna chat di gruppo**.
+ * I buoni di compensazione (`GET /api/tokens`) sono una sezione **in sola
+ * lettura** e indipendente: non sono i buoni assegnati dalla staff di `/token`,
+ * e il testo li tiene separati.
+ *
+ * Il frontend non calcola la catena e non decide esiti: stati, scadenze e
+ * motivi arrivano dal backend (una scadenza a zero fa una rilettura, mai un
+ * esito scritto qui).
  */
 export default function ScambiScreen() {
   const { token, utente } = useAuth();
-  const router = useRouter();
-  const t = useTokens();
-  const { categorie } = useCategorie(token);
   const {
-    dati,
-    vista,
+    catene,
+    buoni,
     errore,
+    erroreBuoni,
     azioneInCorso,
+    matchDiretto,
     primoCaricamento,
     ricarica,
-    esci,
+    ricaricaBuoni,
+    avviaRicerca,
+    decidi,
+    proponiCondizioni,
+    decidiCondizioni,
+    confermaRicezione,
+    annulla,
     chiediAggiornamento,
     refreshing,
     onRefresh,
-  } = useCoda({ token, utenteId: utente?.id });
-  const [conferma, setConferma] = useState(false);
+  } = useCatene({ token, utenteId: utente?.id });
 
-  const gruppo = dati?.gruppo ?? null;
-  const tempo = useTempoResiduo(dati?.scadenzaMs);
-
-  // Il tempo è arrivato a zero: si **chiede** lo stato vero, una volta sola.
-  useEffect(() => {
-    if (vista === VISTE.IN_RICERCA && tempo.scaduto) {
-      chiediAggiornamento();
-    }
-  }, [vista, tempo.scaduto, chiediAggiornamento]);
-
-  /** Gli stessi parametri che usa il dettaglio di un annuncio per aprire la chat. */
-  function apriChat(controparte) {
-    const persona = controparte.persona;
-    router.push({
-      pathname: '/chat',
-      params: {
-        utenteId: String(persona.id),
-        nome: persona.nome ?? '',
-        cognome: persona.cognome ?? '',
-        username: persona.username ?? '',
-        titolo: controparte.offerta?.mansione ?? '',
-      },
-    });
-  }
-
-  async function confermaUscita() {
-    const riuscita = await esci();
-    if (riuscita) {
-      setConferma(false);
-    }
-  }
+  const { attive, storico } = useMemo(() => separaPerStato(catene), [catene]);
+  // Il registro si legge a ogni render: è una cache locale (localStorage/memoria),
+  // cheap, e così una voce appena pubblicata compare senza remount.
+  const mieVoci = ottieniMieVoci(utente?.id);
 
   if (primoCaricamento) {
-    return <LoadingScreen label="Guardo la tua catena…" />;
+    return <LoadingScreen label="Guardo le tue catene…" />;
   }
-
-  const membri = gruppo ? membriInOrdine(gruppo.membri) : [];
-  const uscitaDaGruppo = vista === VISTE.PRONTO;
-  // La segnalazione si apre **solo** dalla catena saltata e solo se il backend
-  // dichiara il diritto al token: il fatto e la persona da segnalare sono quelli
-  // dell'uscita, e senza una persona identificabile non c'è nessuno da segnalare
-  // (`parametriSegnalazioneDaUscita` restituisce `null` anche se sono uscito io).
-  const parametriSegnala =
-    gruppo !== null && gruppo.puoiChiedereToken
-      ? parametriSegnalazioneDaUscita(gruppo, utente?.id)
-      : null;
-  const testoConferma = uscitaDaGruppo
-    ? {
-        titolo: 'Uscire dal gruppo?',
-        messaggio:
-          'Il gruppo salta per tutti: gli altri partecipanti se ne accorgeranno e lo scambio non parte.',
-        etichetta: 'Esci dal gruppo',
-      }
-    : {
-        titolo: 'Uscire dalla ricerca?',
-        messaggio:
-          'La ricerca della catena si interrompe: le tue scelte nel Loop non verranno più usate per comporre il gruppo.',
-        etichetta: 'Esci dalla ricerca',
-      };
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+      <Intestazione />
+
+      {USA_DATI_FINTI ? <Banner kind="info" message={AVVISO_DEMO} /> : null}
+
+      {errore ? (
+        <View style={{ gap: space.sm }}>
+          <Banner kind="error" message={errore} />
+          <AppButton
+            label="Riprova"
+            variant="secondary"
+            icon="refresh-outline"
+            onPress={() => void ricarica()}
+            style={{ alignSelf: 'flex-start' }}
+          />
+        </View>
+      ) : null}
+
+      {matchDiretto && !errore ? (
+        <Banner kind="info" message="C'è un match diretto per questa coppia: apri il Loop per decidere sulla proposta." />
+      ) : null}
+
+      <SezioneAvvio
+        mieVoci={mieVoci}
+        avvioInCorso={azioneInCorso?.tipo === 'avviaRicerca'}
+        onAvvia={(coppia) => void avviaRicerca(coppia)}
+      />
+
+      <SezioneCatene
+        attive={attive}
+        azioneInCorso={azioneInCorso}
+        onDecidi={(id, decisione) => void decidi(id, decisione)}
+        onAnnulla={(id, motivo) => void annulla(id, motivo)}
+        onProponi={(idCatena, payload) => void proponiCondizioni(idCatena, payload)}
+        onDecidiCondizioni={(idCatena, idCondizioni, decisione) =>
+          void decidiCondizioni(idCatena, idCondizioni, decisione)
+        }
+        onConfermaRicezione={(idCatena, idPrestazione) =>
+          void confermaRicezione(idCatena, idPrestazione)
+        }
+        onTempoScaduto={chiediAggiornamento}
+      />
+
+      <SezioneBuoni
+        buoni={buoni}
+        errore={erroreBuoni}
+        onRiprova={() => void ricaricaBuoni()}
+      />
+
+      <SezioneStorico storico={storico} />
+    </Screen>
+  );
+}
+
+/** Il titolo con il pulsante indietro, come le altre schermate di dettaglio. */
+function Intestazione() {
+  const t = useTokens();
+  const router = useRouter();
+  return (
+    <View style={{ gap: space.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <Pressable
           accessibilityRole="button"
@@ -143,13 +151,207 @@ export default function ScambiScreen() {
         <AppText variant="title">Scambi</AppText>
       </View>
       <AppText variant="small" tone="secondary">
-        La catena che stiamo componendo con le tue scelte: qui vedi chi c'è e con chi parlare.
+        Le catene di scambio: avvii una ricerca con i tuoi servizi e il sistema cerca un giro che
+        soddisfa tutti.
       </AppText>
+    </View>
+  );
+}
 
-      {USA_DATI_FINTI ? (
-        <Banner kind="info" message={AVVISO_DEMO} />
-      ) : null}
+/** Un'opzione del form di avvio: la voce da scegliere, come pillola premibile. */
+function VoceScelta({ voce, selezionata, onScegli }) {
+  const t = useTokens();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: selezionata }}
+      accessibilityLabel={`${voce.descrizione || 'Voce senza descrizione'}${selezionata ? ', selezionata' : ''}`}
+      onPress={() => onScegli(voce.id)}
+      style={({ pressed }) => ({
+        opacity: pressed ? 0.7 : 1,
+        borderColor: selezionata ? t.primary : t.border,
+        borderWidth: 1,
+        borderRadius: radius.pill,
+        paddingHorizontal: space.md,
+        paddingVertical: space.xs,
+        backgroundColor: selezionata ? t.serviceBg : 'transparent',
+      })}
+    >
+      <AppText variant="small" numberOfLines={1} style={{ maxWidth: 240 }}>
+        {voce.descrizione.trim() !== '' ? voce.descrizione : 'Voce senza descrizione'}
+      </AppText>
+    </Pressable>
+  );
+}
 
+/**
+ * «Avvia una ricerca»: la coppia (`offeredServiceId`, `requestedServiceId`) si
+ * sceglie dal **registro locale** delle mie voci (vincolo 14 del piano). Se il
+ * registro è vuoto la sezione è **disabilitata con stato esplicito**: si dice
+ * dove trovare le voci, senza nessun form finto.
+ */
+function SezioneAvvio({ mieVoci, avvioInCorso, onAvvia }) {
+  const router = useRouter();
+  const [idOfferta, setIdOfferta] = useState(null);
+  const [idRicerca, setIdRicerca] = useState(null);
+  const coppiaPronta = idOfferta !== null && idRicerca !== null;
+
+  return (
+    <Card>
+      <View style={{ gap: space.md }}>
+        <AppText variant="heading">Avvia una ricerca</AppText>
+        <AppText variant="small" tone="secondary">
+          Il sistema cerca un giro di persone in cui ognuno riceve il servizio che cerca e offre il
+          proprio: scegli quale tuo servizio metti in gioco e quale cerchi.
+        </AppText>
+
+        {mieVoci.offerte.length === 0 && mieVoci.ricerche.length === 0 ? (
+          <>
+            <EmptyState
+              icon="cube-outline"
+              title="Non hai voci da mettere in gioco"
+              description="Per avviare una ricerca ti serve almeno un'offerta e una ricerca pubblicate: le crei da «Offro e cerco»."
+            />
+            <AppButton
+              label="Vai a Offro e cerco"
+              variant="secondary"
+              icon="add-circle-outline"
+              onPress={() => router.push('/offro-e-cerco')}
+              style={{ alignSelf: 'flex-start' }}
+            />
+          </>
+        ) : (
+          <>
+            <View style={{ gap: space.xs }}>
+              <AppText variant="small" style={{ fontWeight: '600' }}>
+                Offro
+              </AppText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
+                {mieVoci.offerte.map((voce) => (
+                  <VoceScelta
+                    key={voce.id}
+                    voce={voce}
+                    selezionata={idOfferta === voce.id}
+                    onScegli={setIdOfferta}
+                  />
+                ))}
+              </View>
+            </View>
+            <View style={{ gap: space.xs }}>
+              <AppText variant="small" style={{ fontWeight: '600' }}>
+                Cerco
+              </AppText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
+                {mieVoci.ricerche.map((voce) => (
+                  <VoceScelta
+                    key={voce.id}
+                    voce={voce}
+                    selezionata={idRicerca === voce.id}
+                    onScegli={setIdRicerca}
+                  />
+                ))}
+              </View>
+            </View>
+            <AppButton
+              label="Avvia ricerca"
+              icon="git-network-outline"
+              disabled={!coppiaPronta}
+              loading={avvioInCorso}
+              onPress={() => onAvvia({ offeredServiceId: idOfferta, requestedServiceId: idRicerca })}
+              accessibilityLabel="Avvia la ricerca di una catena con la coppia scelta"
+              style={{ alignSelf: 'flex-start' }}
+            />
+          </>
+        )}
+      </View>
+    </Card>
+  );
+}
+
+/**
+ * «Le tue catene»: una card per ogni catena attiva, con le azioni della fase.
+ * Le condizioni si mostrano solo sulle catene confermate (`SezioneCondizioni`
+ * fa già la guardia, qui si evita di montarla del tutto).
+ */
+function SezioneCatene({
+  attive,
+  azioneInCorso,
+  onDecidi,
+  onAnnulla,
+  onProponi,
+  onDecidiCondizioni,
+  onConfermaRicezione,
+  onTempoScaduto,
+}) {
+  return (
+    <View style={{ gap: space.md }}>
+      <AppText variant="heading">Le tue catene</AppText>
+      {attive.length === 0 ? (
+        <EmptyState
+          icon="people-circle-outline"
+          title="Nessuna catena in corso"
+          description="Avvia una ricerca con i tuoi servizi: qui compaiono la ricerca, le conferme e lo scambio fino alla fine."
+        />
+      ) : (
+        attive.map((catena) => (
+          <View key={catena.chiave} style={{ gap: space.md }}>
+            <CardCatena
+              catena={catena}
+              azioneInCorso={azioneInCorso}
+              onDecidi={onDecidi}
+              onAnnulla={onAnnulla}
+              onTempoScaduto={onTempoScaduto}
+            />
+            {catena.vista === VISTE.CATENA.CONFERMATA ? (
+              <SezioneCondizioni
+                catena={catena}
+                azioneInCorso={azioneInCorso}
+                onProponi={(payload) => onProponi(catena.id, payload)}
+                onDecidiCondizioni={(idCondizioni, decisione) =>
+                  onDecidiCondizioni(catena.id, idCondizioni, decisione)
+                }
+                onConfermaRicezione={(idPrestazione) =>
+                  onConfermaRicezione(catena.id, idPrestazione)
+                }
+              />
+            ) : null}
+          </View>
+        ))
+      )}
+    </View>
+  );
+}
+
+/**
+ * «Buoni di compensazione» (vincolo 9 del piano): **sola lettura**, rami di
+ * loading/errore/vuoto indipendenti dal resto della schermata. Non sono i buoni
+ * assegnati dalla staff: quelli stanno a `/token`, e il testo resta separato.
+ */
+function SezioneBuoni({ buoni, errore, onRiprova }) {
+  const t = useTokens();
+  if (buoni === null) {
+    return (
+      <Card>
+        <View style={{ gap: space.sm }}>
+          <AppText variant="small" tone="secondary">
+            {errore ?? 'Carico i buoni di compensazione…'}
+          </AppText>
+          {errore ? (
+            <AppButton
+              label="Riprova"
+              variant="secondary"
+              icon="refresh-outline"
+              onPress={onRiprova}
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
+        </View>
+      </Card>
+    );
+  }
+  return (
+    <View style={{ gap: space.md }}>
+      <AppText variant="heading">Buoni di compensazione delle catene</AppText>
       {errore ? (
         <View style={{ gap: space.sm }}>
           <Banner kind="error" message={errore} />
@@ -157,250 +359,61 @@ export default function ScambiScreen() {
             label="Riprova"
             variant="secondary"
             icon="refresh-outline"
-            onPress={() => void ricarica()}
+            onPress={onRiprova}
             style={{ alignSelf: 'flex-start' }}
           />
         </View>
-      ) : null}
-
-      {vista === VISTE.NESSUNO ? (
-        <Card>
-          <AppText variant="heading">Nessuna ricerca in corso</AppText>
-          <AppText variant="small" tone="secondary">
-            La ricerca della catena parte dalle tue scelte nel Loop: qui vedi chi c'è e con chi
-            parlare. Nessun match diretto diventa una catena di tre o quattro persone.
-          </AppText>
-          <AppButton
-            label="Vai al Loop"
-            icon="sync-outline"
-            onPress={() => router.push('/loop')}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </Card>
-      ) : null}
-
-      {vista === VISTE.IN_RICERCA ? (
-        <>
-          {gruppo ? (
-            <CardGruppo
-              gruppo={gruppo}
-              vista={vista}
-              scadenzaMs={dati?.scadenzaMs}
-              tempo={tempo}
-              categorie={categorie}
-            >
-              <AppButton
-                label="Esci dalla ricerca"
-                variant="secondary"
-                icon="exit-outline"
-                onPress={() => setConferma(true)}
-                loading={azioneInCorso}
-                accessibilityLabel="Esci dalla ricerca: interrompe la ricerca della catena per te"
-                style={{ alignSelf: 'flex-start' }}
-              />
-            </CardGruppo>
-          ) : (
-            <Card>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                <Chip background={t.background}>
-                  <AppText variant="caption" style={{ color: t.textSecondary }}>
-                    In ricerca
+      ) : buoni.length === 0 ? (
+        <EmptyState
+          icon="ticket-outline"
+          title="Nessun buono di compensazione"
+          description="I buoni arrivano quando una catena confermata salta e tu non hai ricevuto il servizio atteso."
+        />
+      ) : (
+        <View style={{ gap: space.sm }}>
+          {buoni.map((buono) => (
+            <Card key={buono.chiave} style={{ gap: space.xs }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
+                <Chip background={buono.scaduto ? t.dangerBg : t.serviceBg}>
+                  <AppText
+                    variant="caption"
+                    style={{ color: buono.scaduto ? t.dangerText : t.serviceText }}
+                  >
+                    {buono.scaduto ? 'Scaduto' : 'Valido'}
                   </AppText>
                 </Chip>
                 <AppText variant="small" tone="secondary">
-                  Sto cercando le persone
+                  {`Buono n. ${buono.id}${buono.idCatena !== null ? ` · catena n. ${buono.idCatena}` : ''}`}
                 </AppText>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <Ionicons name="time-outline" size={15} color={t.textSecondary} />
-                <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-                  {testoScadenza(tempo, dati?.scadenzaMs)}
+              {buono.scadeIl ? (
+                <AppText variant="small" tone="secondary">
+                  {`Scade il ${formattaDataOra(buono.scadeIl) ?? buono.scadeIl}`}
                 </AppText>
-              </View>
-              <AppButton
-                label="Esci dalla ricerca"
-                variant="secondary"
-                icon="exit-outline"
-                onPress={() => setConferma(true)}
-                loading={azioneInCorso}
-                accessibilityLabel="Esci dalla ricerca: interrompe la ricerca della catena per te"
-                style={{ alignSelf: 'flex-start' }}
-              />
+              ) : null}
             </Card>
-          )}
-
-          {membri.length === 0 ? (
-            <AppText variant="small" tone="secondary">
-              Sto cercando le persone: qui compaiono man mano, con i nomi. Serve solo aspettare.
-            </AppText>
-          ) : (
-            <ElencoMembri membri={membri} categorie={categorie} />
-          )}
-        </>
-      ) : null}
-
-      {vista === VISTE.PRONTO ? (
-        <>
-          <CardGruppo
-            gruppo={gruppo}
-            vista={vista}
-            scadenzaMs={dati?.scadenzaMs}
-            tempo={tempo}
-            categorie={categorie}
-          >
-            <AppButton
-              label="Esci dal gruppo"
-              variant="danger"
-              icon="exit-outline"
-              onPress={() => setConferma(true)}
-              loading={azioneInCorso}
-              accessibilityLabel="Esci dal gruppo: la ricerca si interrompe per tutti"
-              style={{ alignSelf: 'flex-start' }}
-            />
-          </CardGruppo>
-          <ElencoMembri membri={membri} categorie={categorie} />
-          <SezioneChatCatena membri={membri} onApriChat={apriChat} />
-        </>
-      ) : null}
-
-      {vista === VISTE.ANNULATO ? (
-        <Card>
-          <AppText variant="heading">La catena è saltata</AppText>
-          {testoUscita(gruppo.uscita, utente?.id) ? (
-            <AppText variant="small" tone="secondary">
-              {testoUscita(gruppo.uscita, utente?.id)}
-              {gruppo.uscita?.quando ? ` · ${gruppo.uscita.quando}` : ''}
-            </AppText>
-          ) : (
-            <AppText variant="small" tone="secondary">
-              La ricerca è stata annullata.
-            </AppText>
-          )}
-          {gruppo.uscita?.motivo ? (
-            <AppText variant="small" tone="secondary">
-              {gruppo.uscita.motivo}
-            </AppText>
-          ) : null}
-          {parametriSegnala ? (
-            <AppButton
-              label="Segnala alla staff"
-              variant="secondary"
-              icon="flag-outline"
-              onPress={() => router.push({ pathname: '/segnala', params: parametriSegnala })}
-              accessibilityLabel="Segnala alla staff il fatto di questa catena"
-              style={{ alignSelf: 'flex-start' }}
-            />
-          ) : null}
-          {gruppo.puoiChiedereToken ? <RigaToken /> : null}
-          <AppButton
-            label="Torna al Loop"
-            variant="secondary"
-            icon="sync-outline"
-            onPress={() => router.push('/loop')}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </Card>
-      ) : null}
-
-      {vista === VISTE.ANNULATO && membri.length > 0 ? (
-        <ElencoMembri membri={membri} categorie={categorie} />
-      ) : null}
-
-      {vista === VISTE.NEUTRA ? (
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
-            <Chip background={t.background}>
-              <AppText variant="caption" style={{ color: t.textSecondary }}>
-                {etichettaStatoGruppo(gruppo.stato) ?? 'Stato sconosciuto'}
-              </AppText>
-            </Chip>
-          </View>
-          <AppText variant="small" tone="secondary">
-            Il sistema ha comunicato uno stato che questa versione dell'app non conosce: qui c'è
-            quello che sappiamo, senza tirare a indovinare un esito.
-          </AppText>
-          <AppButton
-            label="Torna al Loop"
-            variant="secondary"
-            icon="sync-outline"
-            onPress={() => router.push('/loop')}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </Card>
-      ) : null}
-
-      {vista === VISTE.NEUTRA && membri.length > 0 ? (
-        <ElencoMembri membri={membri} categorie={categorie} />
-      ) : null}
-
-      <StoricoCatene gruppiConclusi={dati?.gruppiConclusi ?? []} utenteId={utente?.id} />
-
-      <ModalConferma
-        visible={conferma}
-        titolo={testoConferma.titolo}
-        messaggio={testoConferma.messaggio}
-        etichettaConferma={testoConferma.etichetta}
-        loading={azioneInCorso}
-        onConferma={() => void confermaUscita()}
-        onAnnulla={() => setConferma(false)}
-      />
-    </Screen>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
-/**
- * La riga del diritto al token: compare **solo** quando il backend dichiara che
- * sono la parte danneggiata. È un pulsante che apre l'area dei buoni, accanto a
- * «Segnala alla staff» (il gesto che può far assegnare il buono): il buono lo
- * assegna la staff, quindi vedere l'elenco e segnalare il fatto sono due azioni
- * distinte.
- */
-function RigaToken() {
-  const t = useTokens();
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Apri i tuoi token"
-      onPress={() => router.push('/token')}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: space.xs,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Ionicons name="ticket-outline" size={15} color={t.accentText} style={{ marginTop: 1 }} />
-      <AppText variant="small" style={{ color: t.accentText, flex: 1 }}>
-        Hai offerto il tuo servizio ma non hai ricevuto quello che chiedevi: la staff può
-        riconoscerti un token. Tocca qui per vedere i tuoi token.
-      </AppText>
-      <Ionicons name="chevron-forward" size={15} color={t.accentText} style={{ marginTop: 1 }} />
-    </Pressable>
-  );
-}
-
-/**
- * Lo storico: concluse e saltate insieme. È di sola lettura.
- */
-function StoricoCatene({ gruppiConclusi, utenteId }) {
+/** Lo storico: concluse e saltate insieme, in sola lettura, con vuoto dedicato. */
+function SezioneStorico({ storico }) {
   return (
     <View style={{ gap: space.md }}>
       <AppText variant="heading">Le tue catene passate</AppText>
-      {gruppiConclusi.length === 0 ? (
+      {storico.length === 0 ? (
         <EmptyState
-          icon="people-circle-outline"
+          icon="albums-outline"
           title="Nessuna catena per ora"
           description="Qui finiscono le catene concluse e quelle saltate: le troverai quando ne avrai fatta una."
         />
       ) : (
         <View style={{ gap: space.sm }}>
-          {gruppiConclusi.map((gruppo, indice) => (
-            <CardCatenaConclusa
-              key={gruppo.chiave ?? `storia-${indice}`}
-              gruppo={gruppo}
-              utenteId={utenteId}
-            />
+          {storico.map((catena) => (
+            <CardCatenaConclusa key={catena.chiave} catena={catena} />
           ))}
         </View>
       )}

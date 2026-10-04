@@ -52,7 +52,7 @@ function aEsito(scelta, persona, mansione, risposta) {
  * 5. **`match` arriva solo dal backend** (il `matched` della decisione): qui non
  *    si deduce niente, e «È un match!» non può comparire prima.
  */
-export function useCandidati({ token }) {
+export function useCandidati({ token, utenteId = null }) {
   const [candidati, setCandidati] = useState(null);
   const [proposte, setProposte] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
@@ -79,7 +79,7 @@ export function useCandidati({ token }) {
     setCaricamento(true);
     setErrore(null);
     try {
-      const feed = await ottieniFeedSwipes(token, LIMITE_FEED);
+      const feed = await ottieniFeedSwipes(token, LIMITE_FEED, utenteId);
       if (seq !== richiestaRef.current) {
         return;
       }
@@ -98,7 +98,7 @@ export function useCandidati({ token }) {
         setCaricamento(false);
       }
     }
-  }, [token]);
+  }, [token, utenteId]);
 
   // Si ricaricano le schede quando la schermata torna in primo piano: le scelte
   // fatte altrove (o in un'altra finestra) devono valere anche qui.

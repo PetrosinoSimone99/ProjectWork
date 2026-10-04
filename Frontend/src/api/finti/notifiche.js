@@ -21,7 +21,7 @@
  */
 
 import { TIPI_NOTIFICA } from '@/servizi/notifiche';
-import { adessoBackend } from './coda-dati';
+import { adessoBackend } from './tempo';
 import { assegnaToken } from './token';
 
 const CHIAVE_PERSISTENZA = 'barattolo.finti.notifiche';

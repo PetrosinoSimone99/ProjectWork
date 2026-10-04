@@ -28,6 +28,15 @@ export function ModalConferma({
    * passa `primary`, altrimenti il colore direbbe una cosa che non è.
    */
   varianteConferma = 'danger',
+  /**
+   * Slot opzionale **prima dei pulsanti**: un componente figlio — per esempio il
+   * campo `motivo` dell'annullamento di una catena — che il chiamante gestisce
+   * (valore, errori, lunghezza massima). Retro-compatibile: senza figli la
+   * finestra è quella di sempre. Con il figlio ha senso anche
+   * `confermaDisabilitata`, per non far partire l'azione con il campo vuoto.
+   */
+  children = null,
+  confermaDisabilitata = false,
 }) {
   const t = useTokens();
 
@@ -56,6 +65,7 @@ export function ModalConferma({
             <AppText variant="heading">{titolo}</AppText>
             <AppText tone="secondary">{messaggio}</AppText>
           </View>
+          {children}
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <AppButton
               label={etichettaAnnulla}
@@ -69,6 +79,7 @@ export function ModalConferma({
               variant={varianteConferma}
               onPress={onConferma}
               loading={loading}
+              disabled={confermaDisabilitata}
               style={{ flex: 1 }}
             />
           </View>
