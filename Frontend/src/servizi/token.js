@@ -25,12 +25,12 @@
  *   L'unico calcolo è il residuo leggibile, che è un'informazione in più, non un
  *   esito (un `AVAILABLE` con la data passata resta `AVAILABLE` a schermo);
  * - **non traduce uno stato ignoto**: passa così com'è e la schermata lo mostra
- *   **grezzo**, come fa la coda con gli stati del gruppo;
+ *   **grezzo**, come fanno le catene con gli stati del ciclo di vita;
  * - **non implementa il consumo e il rilascio**: sono del sistema. Qui ci sono
  *   solo le due domande che la schermata deve poter fare.
  *
- * Il formato delle date si **importa** da `@/accordi/stati` (`formattaData`) in sola lettura,
- * come già fa `servizi/coda.js` con `formattaDurata`: l'area 1:1 è in attesa di riscrittura e quel
+ * Il formato delle date si **importa** da `@/accordi/stati` (`formattaData`) in sola lettura, come
+ * già fa `servizi/catene.js` con `formattaDurata`: l'area 1:1 è in attesa di riscrittura e quel
  * prestito non la modifica — il giorno in cui si sposta, le due funzioni di formato finiscono in un
  * modulo condiviso.
  *
