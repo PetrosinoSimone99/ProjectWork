@@ -1,5 +1,8 @@
 # Baratto-lo backend
 
+Service-chain endpoints, reservations, compensation, migration checks and scheduler setup
+are documented in [CHAINS_API.md](CHAINS_API.md).
+
 This directory contains the first Symfony backend for Baratto-lo: public registration and login for regular users and staff.
 
 ## Requirements

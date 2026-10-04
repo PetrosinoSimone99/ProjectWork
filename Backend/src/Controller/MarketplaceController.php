@@ -11,6 +11,9 @@ use App\Entity\Service;
 use App\Entity\SwipeDecision;
 use App\Entity\User;
 use App\Repository\ServiceRepository;
+use App\Repository\ChainRepository;
+use App\Service\ChainError;
+use App\Service\ServiceCompatibility;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +25,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api')]
 class MarketplaceController extends AbstractController
 {
+    public function __construct(private ServiceCompatibility $compatibility, private ChainRepository $chains) {}
+
     #[Route('/categories', name: 'api_categories_list', methods: ['GET'])]
     public function listCategories(EntityManagerInterface $entityManager): JsonResponse
     {
@@ -134,6 +139,8 @@ class MarketplaceController extends AbstractController
                     foreach ($otherServices as $candidateRequest) {
                         if ($candidateRequest->getUser() !== $candidate || $candidateRequest->getType() !== Service::TYPE_REQUEST
                             || !$this->sharesCategory($ownOffer, $candidateRequest) || !$this->sharesCategory($candidateOffer, $ownRequest)
+                            || $this->chains->reserved($ownOffer->getId()) || $this->chains->reserved($ownRequest->getId())
+                            || $this->chains->reserved($candidateOffer->getId()) || $this->chains->reserved($candidateRequest->getId())
                             || $this->decisionExists($entityManager, $user, $candidate, $ownOffer, $ownRequest, $candidateOffer, $candidateRequest)
                             || $this->proposalExistsForOfferPair($entityManager, $ownOffer, $candidateOffer)) {
                             continue;
@@ -199,17 +206,30 @@ class MarketplaceController extends AbstractController
 
         // The decision and proposal are written together so a failed request cannot leave a partial match behind.
         $decision = new SwipeDecision($actor, $candidate, $actorOffer, $actorRequest, $candidateOffer, $candidateRequest, $data['direction']);
-        $entityManager->wrapInTransaction(function () use ($entityManager, $decision, $data, $actor, $candidate, $actorOffer, $candidateOffer): void {
-            if ($data['direction'] === SwipeDecision::DIRECTION_RIGHT) {
-                $proposal = new Proposal($this->offerPairKey($actorOffer, $candidateOffer));
-                $proposal->addParticipant(new ProposalParticipant($proposal, $actor, $actorOffer, true));
-                $proposal->addParticipant(new ProposalParticipant($proposal, $candidate, $candidateOffer));
-                $decision->setProposal($proposal);
-                $entityManager->persist($proposal);
-            }
-            $entityManager->persist($decision);
-            $entityManager->flush();
-        });
+        try {
+            $entityManager->wrapInTransaction(function () use ($entityManager, $decision, $data, $actor, $candidate, $actorOffer, $actorRequest, $candidateOffer, $candidateRequest): void {
+                if ($data['direction'] === SwipeDecision::DIRECTION_RIGHT) {
+                    $ids = [$actorOffer->getId(), $actorRequest->getId(), $candidateOffer->getId(), $candidateRequest->getId()];
+                    $this->chains->lockServices($ids);
+                    foreach ($ids as $serviceId) {
+                        if ($this->chains->reserved($serviceId, true)) {
+                            throw new ChainError('One of these services is reserved by a chain.');
+                        }
+                    }
+                    $proposal = new Proposal($this->offerPairKey($actorOffer, $candidateOffer));
+                    $proposal->addParticipant(new ProposalParticipant($proposal, $actor, $actorOffer, true));
+                    $proposal->addParticipant(new ProposalParticipant($proposal, $candidate, $candidateOffer));
+                    $decision->setProposal($proposal);
+                    $entityManager->persist($proposal);
+                }
+                $entityManager->persist($decision);
+                $entityManager->flush();
+            });
+        } catch (ChainError $error) {
+            return $this->error($error->getMessage(), $error->status);
+        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException|\Doctrine\DBAL\Exception\RetryableException) {
+            return $this->error('A concurrent operation changed this candidate. Retry the request.', 409);
+        }
 
         return $this->swipeResponse($decision, 201);
     }
@@ -390,13 +410,7 @@ class MarketplaceController extends AbstractController
 
     private function sharesCategory(Service $first, Service $second): bool
     {
-        $firstIds = array_map(static fn (Category $category) => $category->getId(), $first->getCategories()->toArray());
-        foreach ($second->getCategories() as $category) {
-            if (in_array($category->getId(), $firstIds, true)) {
-                return true;
-            }
-        }
-        return false;
+        return $this->compatibility->sharesCategory($first, $second);
     }
 
     private function decisionExists(EntityManagerInterface $entityManager, User $actor, User $candidate, Service $actorOffer, Service $actorRequest, Service $candidateOffer, Service $candidateRequest): bool
