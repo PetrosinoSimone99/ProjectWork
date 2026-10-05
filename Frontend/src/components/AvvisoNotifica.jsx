@@ -6,6 +6,7 @@ import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { descriviNotifica, etichettaTipoNotifica } from '@/servizi/notifiche';
+import { useMovimentoRidotto } from '@/hooks/useMovimentoRidotto';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -23,7 +24,9 @@ import { space, useTokens } from '@/theme/tokens';
  *
  * L'animazione è una comparsa breve (opacità e scivolamento) e usa il driver
  * nativo solo dove esiste: sul web `react-native-web` non lo supporta e
- * altrimenti lascierebbe un avviso in console (parte di P44). Una notifica senza
+ * altrimenti lascierebbe un avviso in console (parte di P44). Con «Riduci
+ * movimento» la comparsa **non avviene**: l'avviso è informazione (c'è una
+ * notifica), non spettacolo, quindi compare già visibile. Una notifica senza
  * testo — un tipo ignoto senza messaggio del backend — **non si disegna**: meglio
  * niente che una scheda vuota.
  *
@@ -39,14 +42,25 @@ export function AvvisoNotifica({ notifica, inChiusura = false, onChiudi, onApriT
   // eslint vietano di leggere un ref nel render. È lo stesso motivo per cui
   // `SchedaTrascinabile` crea il suo `Animated.ValueXY` così.
   const [comparsa] = useState(() => new Animated.Value(0));
+  const movimentoRidotto = useMovimentoRidotto();
 
   useEffect(() => {
-    Animated.timing(comparsa, {
+    // Con «Riduci movimento» si salta l'animazione e si va subito al valore
+    // finale: l'avviso deve restare sempre leggibile, anche senza transizione.
+    if (movimentoRidotto) {
+      comparsa.setValue(1);
+      return undefined;
+    }
+    const animazione = Animated.timing(comparsa, {
       toValue: 1,
       duration: 220,
       useNativeDriver: Platform.OS !== 'web',
-    }).start();
-  }, [comparsa]);
+    });
+    animazione.start();
+    // Se la preferenza cambia mentre l'animazione è in volo, la si ferma: il
+    // render successivo passa dal ramo ridotto e porta al valore finale.
+    return () => animazione.stop();
+  }, [comparsa, movimentoRidotto]);
 
   const testo = descriviNotifica(notifica);
   if (!testo) {

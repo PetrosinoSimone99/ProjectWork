@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Animated, PanResponder, Platform, View } from 'react-native';
 import { AppText } from './AppText';
+import { useMovimentoRidotto } from '@/hooks/useMovimentoRidotto';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -32,6 +33,12 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * trasformazione), e il `PanResponder` si ricrea con `useMemo` quando cambiano
  * `disabled` o la larghezza misurata — sempre fra un gesto e l'altro, mai
  * durante.
+ *
+ * **Con «Riduci movimento» cambiano solo le animazioni autonome**, non il gesto:
+ * il trascinamento resta legato al dito (il dito *è* il movimento, non
+ * un'animazione imposta), mentre il **ritorno** sotto soglia e il **volo** oltre
+ * soglia passano subito alla posizione finale. Portare a scatti anche il
+ * trascinamento peggiorerebbe il gesto invece di rispettare la preferenza.
  */
 
 /** Quanto bisogna muoversi perché il gesto parta: sotto, è un tocco. */
@@ -69,6 +76,7 @@ export function SchedaTrascinabile({
   const t = useTokens();
   const [pos] = useState(() => new Animated.ValueXY());
   const [larghezza, setLarghezza] = useState(0);
+  const movimentoRidotto = useMovimentoRidotto();
 
   // Una scelta fallita non fa avanzare la pila: questo riporta la scheda al
   // centro. Il cambio di scheda non serve, perché lì il componente viene
@@ -79,6 +87,12 @@ export function SchedaTrascinabile({
 
   const panResponder = useMemo(() => {
     function rientra() {
+      // Il ritorno è un'animazione autonoma: con «Riduci movimento» si torna
+      // subito al centro.
+      if (movimentoRidotto) {
+        pos.setValue({ x: 0, y: 0 });
+        return;
+      }
       Animated.spring(pos, {
         toValue: { x: 0, y: 0 },
         useNativeDriver: false,
@@ -88,19 +102,31 @@ export function SchedaTrascinabile({
     }
 
     function vola(verso, dy) {
-      Animated.timing(pos, {
-        toValue: { x: verso * larghezza * 1.5, y: dy },
-        duration: DURATA_VOLO_MS,
-        useNativeDriver: false,
-      }).start(() => {
-        // La scelta parte adesso, con la scheda fuori schermo: se il backend
-        // rifiuta, `ripristino` la riporta al centro e la scheda resta la stessa.
+      const destinazione = { x: verso * larghezza * 1.5, y: dy };
+      function decidi() {
+        // La scelta parte a fine animazione, con la scheda fuori schermo: se il
+        // backend rifiuta, `ripristino` la riporta al centro e la scheda resta
+        // la stessa.
         if (verso > 0) {
           onInteressa();
         } else {
           onPassa();
         }
-      });
+      }
+
+      // Il volo è un'animazione autonoma: con «Riduci movimento» la scheda
+      // passa subito fuori schermo e la scelta parte comunque.
+      if (movimentoRidotto) {
+        pos.setValue(destinazione);
+        decidi();
+        return;
+      }
+
+      Animated.timing(pos, {
+        toValue: destinazione,
+        duration: DURATA_VOLO_MS,
+        useNativeDriver: false,
+      }).start(decidi);
     }
 
     function rilascia(gesto) {
@@ -132,7 +158,7 @@ export function SchedaTrascinabile({
       onPanResponderRelease: (_, gesto) => rilascia(gesto),
       onPanResponderTerminate: () => rientra(),
     });
-  }, [disabled, larghezza, onInteressa, onPassa, pos]);
+  }, [disabled, larghezza, onInteressa, onPassa, pos, movimentoRidotto]);
 
   const riferimentoRotazione = Math.max(larghezza / 2, LARGHEZZA_RIPIEGO / 2);
   const riferimentoAnteprima = Math.max(larghezza * PROPORZIONE_CONFERMA, 60);
