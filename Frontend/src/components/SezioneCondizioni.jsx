@@ -142,18 +142,21 @@ function FormCondizioni({ catena, azioneInCorso, onProponi }) {
     ? catena.partecipanti.find((partecipante) => partecipante.chiave === io.offreAChiave)
     : null;
 
-  // Le condizioni già in attesa o accettate sul mio arco: finché c'è una, il
-  // backend rifiuterebbe con `409`, quindi il form non si propone.
-  const condizioniAttiveSulMioArco = destinatario
-    ? catena.condizioni.some(
-        (condizioni) =>
-          condizioni.sonoProvider &&
-          condizioni.stato !== STATI_CONDIZIONI.RIFIUTATE,
-      )
-    : false;
-
-  const condizioniRifiutateSulMioArco = catena.condizioni.filter(
-    (condizioni) => condizioni.sonoProvider && condizioni.stato === STATI_CONDIZIONI.RIFIUTATE,
+  // Le condizioni del mio arco da provider, divise per stato: con una in attesa
+  // o accettata il backend rifiuterebbe una nuova proposta con `409`, quindi il
+  // form non si propone. Le **accettate** però hanno già una risposta: non sono
+  // «in attesa» e vogliono un riscontro di completamento, non l'attesa (P58).
+  const condizioniSulMioArco = destinatario
+    ? catena.condizioni.filter((condizioni) => condizioni.sonoProvider)
+    : [];
+  const condizioniInAttesaSulMioArco = condizioniSulMioArco.filter(
+    (condizioni) => condizioni.stato === STATI_CONDIZIONI.IN_ATTESA,
+  );
+  const condizioniAccettateSulMioArco = condizioniSulMioArco.filter(
+    (condizioni) => condizioni.stato === STATI_CONDIZIONI.ACCETTATE,
+  );
+  const condizioniRifiutateSulMioArco = condizioniSulMioArco.filter(
+    (condizioni) => condizioni.stato === STATI_CONDIZIONI.RIFIUTATE,
   );
 
   if (!destinatario) {
@@ -185,18 +188,22 @@ function FormCondizioni({ catena, azioneInCorso, onProponi }) {
 
   return (
     <View style={{ gap: space.sm }}>
-      {condizioniRifiutateSulMioArco.length > 0 ? (
-        <AppText variant="small" style={{ color: t.danger }}>
-          Le condizioni precedenti sono state rifiutate: proponi un luogo o un orario diversi.
+      {condizioniAccettateSulMioArco.length > 0 ? (
+        <AppText variant="small" style={{ color: t.successText }}>
+          {`Le condizioni sono state accettate da ${nomePersona(destinatario.persona)}: luogo e orario sono confermati.`}
         </AppText>
-      ) : null}
-      {condizioniAttiveSulMioArco ? (
+      ) : condizioniInAttesaSulMioArco.length > 0 ? (
         <AppText variant="small" tone="secondary">
           Le tue condizioni sono in attesa della risposta di{' '}
           {nomePersona(destinatario.persona)}: nessuna azione finché non decide.
         </AppText>
       ) : (
         <>
+          {condizioniRifiutateSulMioArco.length > 0 ? (
+            <AppText variant="small" style={{ color: t.danger }}>
+              Le condizioni precedenti sono state rifiutate: proponi un luogo o un orario diversi.
+            </AppText>
+          ) : null}
           <AppInput
             label={`Luogo per ${nomePersona(destinatario.persona)}`}
             value={luogo}
