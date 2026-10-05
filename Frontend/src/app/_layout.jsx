@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
+import { AnelloFocus } from '@/components/AnelloFocus';
 import { AvvisoNotifica } from '@/components/AvvisoNotifica';
 import { AvvisoScadenza } from '@/components/AvvisoScadenza';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -47,6 +48,9 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* L'anello di focus da token vive in tutte le schermate: è una regola
+          globale su `:focus-visible` (P59) e non disegna nulla. */}
+      <AnelloFocus />
       {/* La safe area la aggiunge il contenitore degli avvisi, non lo `Stack`:
           senza avvisi lo `Stack` resta a filo schermo e ogni schermata mette il
           suo margine. */}
