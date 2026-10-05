@@ -233,9 +233,9 @@ export default function TokenScreen() {
 
       {endpointNonDisponibile ? (
         <EmptyState
-          icon="pricetag-outline"
+          variante="non-disponibile"
           title="I tuoi token non sono ancora disponibili"
-          description="Questa sezione arriva quando il backend la permetterà: qui troverai i buoni che ti assegna la staff, con la loro origine e la loro scadenza."
+          description="Non ancora attiva: qui troverai i buoni che ti assegna la staff, con la loro origine e la loro scadenza."
         />
       ) : null}
 
@@ -309,9 +309,12 @@ export default function TokenScreen() {
 
             {catalogo !== null && catalogo.length === 0 ? (
               <EmptyState
+                variante="mercato"
                 icon="search-outline"
                 title="Nessun servizio disponibile"
-                description="In questo momento non c'è nessun servizio pubblicato su cui usare il buono. Riprova più tardi."
+                description="In questo momento non c'è nessun servizio pubblicato su cui usare il buono."
+                etichettaAzione="Ricarica"
+                onAzione={() => void caricaCatalogo()}
               />
             ) : null}
 

@@ -61,7 +61,7 @@ import { space, useTokens } from '@/theme/tokens';
  * (decisione del piano del passo 2, vincolo 1).
  */
 const ESITO_VOCE_CREATA =
-  "La voce è stata creata. L'elenco delle tue voci non è ancora disponibile: arriverà quando il backend lo permetterà.";
+  "La voce è stata creata. L'elenco delle tue voci non è ancora attivo: quando lo sarà lo troverai qui.";
 
 /**
  * Lo stato vuoto delle sezioni con i finti spenti: non è «nessun risultato», è
@@ -73,7 +73,7 @@ function vuotoSenzaElenco(sezione) {
     icona: sezione.vuoto.icona,
     titolo: "L'elenco delle tue voci non è ancora disponibile",
     descrizione:
-      "Pubblica da qui: la voce finisce nel catalogo degli altri. L'elenco delle voci che hai creato arriverà quando il backend lo permetterà.",
+      "Pubblica da qui: la voce finisce nel catalogo degli altri. L'elenco delle voci che hai creato non è ancora attivo: arriverà appena lo sarà.",
   };
 }
 
@@ -393,6 +393,7 @@ export default function OffroECercoScreen() {
           key={sezione.chiave}
           sezione={sezione}
           vuoto={!USA_DATI_FINTI ? vuotoSenzaElenco(sezione) : undefined}
+          varianteVuoto={USA_DATI_FINTI ? 'dati' : 'non-disponibile'}
           voci={sezione.tipo === TIPI_VOCE.OFFERTA ? offerte : ricerche}
           categorie={categorie}
           statoCategorie={statoCategorie}

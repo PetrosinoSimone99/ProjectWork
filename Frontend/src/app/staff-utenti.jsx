@@ -191,7 +191,7 @@ export default function StaffUtentiScreen() {
         conferma.tipo === AZIONI_UTENTE.RUOLO
           ? descriviCambioRuolo(conferma.utente, conferma.valore)
           : descriviCambioStato(conferma.utente, conferma.valore)
-      }\n\nA decidere è il backend: se non è permesso risponde 403 e la schermata lo mostra.`
+      }\n\nSe la modifica non è permessa per il tuo ruolo, la schermata te lo dice.`
     : '';
   const etichettaConferma =
     conferma?.tipo === AZIONI_UTENTE.RUOLO ? 'Cambia il ruolo' : 'Cambia lo stato';
@@ -227,8 +227,8 @@ export default function StaffUtentiScreen() {
 
       {/* La regola della UI, dichiarata a chi la prova: nascondere non è proteggere. */}
       <AppText variant="small" tone="secondary">
-        Questa schermata nasconde i comandi che il tuo ruolo non consente, ma a decidere è il
-        backend: se una chiamata non è permessa risponde 403 e la schermata lo mostra.
+        Questa schermata nasconde i comandi che il tuo ruolo non consente, ma nasconderli non è
+        vietarli: se un'azione non è permessa, la schermata te lo dice.
       </AppText>
 
       <Card>

@@ -184,9 +184,9 @@ export default function AccordiScreen() {
 
       {endpointNonDisponibile ? (
         <EmptyState
-          icon="swap-horizontal-outline"
+          variante="non-disponibile"
           title="Gli accordi non sono ancora disponibili"
-          description="Questa sezione arriva quando il backend la permetterà: qui seguirai il ciclo completo di un accordo 1:1, dalla proposta alla conclusione."
+          description="Non ancora attiva: qui seguirai il ciclo completo di un accordo 1:1, dalla proposta alla conclusione."
         />
       ) : null}
 

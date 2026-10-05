@@ -271,8 +271,8 @@ export default function StaffScreen() {
 
       {/* La regola della UI, dichiarata a chi la prova: nascondere non è proteggere. */}
       <AppText variant="small" tone="secondary">
-        Questa schermata nasconde le azioni, ma a decidere chi può farle è il backend: se una
-        chiamata non è permessa risponde `403` e la schermata lo mostra.
+        Questa schermata nasconde le azioni, ma nasconderle non è vietarle: anche oltre la UI, chi
+        non è staff non le può fare. Se un'azione non è permessa, la schermata te lo dice.
       </AppText>
 
       <BarraStatoStaff filtro={filtro} onChange={setFiltro} disabled={caricamento} />
@@ -296,9 +296,12 @@ export default function StaffScreen() {
 
       {segnalazioni !== null && segnalazioni.length === 0 ? (
         <EmptyState
+          variante="mercato"
           icon="shield-checkmark-outline"
           title="Niente da esaminare"
           description={`${testoVuoto(filtro)} Quando qualcuno segnala un fatto concreto, la pratica compare qui.`}
+          etichettaAzione="Ricarica"
+          onAzione={() => void carica()}
         />
       ) : null}
 
