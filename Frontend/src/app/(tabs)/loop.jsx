@@ -207,23 +207,29 @@ export default function LoopScreen() {
 
       {/* Le proposte in attesa della mia decisione: «Accetta»/«Rifiuta» e il
           match solo dal `matched` del backend (vedi `SezioneProposte`). */}
+      {/* Con la pila vuota i due vuoti («Nessuna proposta in arrivo» della
+          sezione e quello del feed) si accorpano in uno solo: due riquadri
+          vuoti attaccati dicevano la stessa cosa due volte. */}
       <SezioneProposte
         proposte={proposte}
         categorie={categorie}
         decisioneInCorso={decisioneInCorso}
         accetta={accetta}
         rifiuta={rifiuta}
+        nascondiVuoto={pilaVuota}
       />
 
       {pilaVuota ? (
         <>
           <EmptyState
+            variante="mercato"
             icon="people-outline"
             title="Non ci sono altre persone in questo momento"
             description="Nessuno cerca quello che offri (o offre quello che cerchi) in questo momento. Per entrare nel feed ti serve almeno un'offerta e una ricerca pubblicate."
+            etichettaAzione="Ricarica"
+            onAzione={() => void ricarica()}
           />
           <View style={stileAzioniRiga}>
-            <AppButton label="Ricarica" icon="refresh-outline" onPress={() => void ricarica()} />
             <AppButton
               label="Le tue catene"
               variant="secondary"
@@ -240,12 +246,14 @@ export default function LoopScreen() {
       ) : pilaFinita ? (
         <>
           <EmptyState
+            variante="mercato"
             icon="checkmark-done-outline"
             title="Hai visto tutte le persone di questo giro"
             description="Le persone compatibili nuove compaiono qui: basta ricaricare."
+            etichettaAzione="Ricarica"
+            onAzione={() => void ricarica()}
           />
           <View style={stileAzioniRiga}>
-            <AppButton label="Ricarica" icon="refresh-outline" onPress={() => void ricarica()} />
             <AppButton
               label="Le tue catene"
               variant="secondary"

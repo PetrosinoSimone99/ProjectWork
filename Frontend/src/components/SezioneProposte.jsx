@@ -23,8 +23,21 @@ import { space } from '@/theme/tokens';
  *
  * Con la lista vuota mostra una riga neutra («Nessuna proposta in arrivo.»):
  * non ci sono dati da inventare, e la sezione resta visibile per quello che è.
+ * `nascondiVuoto` serve al Loop quando la pila è vuota: lì il vuoto del feed e
+ * questo si accorpano in un solo stato, quindi la sezione sparisce del tutto
+ * (titolo compreso) invece di affiancare due riquadri vuoti.
  */
-export function SezioneProposte({ proposte, categorie = [], decisioneInCorso = null, accetta, rifiuta }) {
+export function SezioneProposte({
+  proposte,
+  categorie = [],
+  decisioneInCorso = null,
+  accetta,
+  rifiuta,
+  nascondiVuoto = false,
+}) {
+  if (proposte.length === 0 && nascondiVuoto) {
+    return null;
+  }
   return (
     <View style={{ gap: space.sm }}>
       <AppText variant="title">Proposte in attesa</AppText>

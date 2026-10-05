@@ -62,6 +62,9 @@ export const SEZIONI_PUBBLICAZIONI = [
 export function SezionePubblicazioni({
   sezione,
   vuoto,
+  // «non-disponibile» quando l'elenco non esiste ancora (finti spenti): il
+  // vuoto diventa una riga sola, senza icona né CTA.
+  varianteVuoto = 'dati',
   voci,
   categorie,
   statoCategorie,
@@ -160,6 +163,7 @@ export function SezionePubblicazioni({
       {/* Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner. */}
       {voci.length === 0 && !formQui ? (
         <EmptyState
+          variante={varianteVuoto}
           icon={(vuoto ?? sezione.vuoto).icona}
           title={(vuoto ?? sezione.vuoto).titolo}
           description={(vuoto ?? sezione.vuoto).descrizione}

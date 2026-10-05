@@ -169,7 +169,7 @@ function VoceScelta({ voce, selezionata, onScegli }) {
       onPress={() => onScegli(voce.id)}
       style={({ pressed }) => ({
         opacity: pressed ? 0.7 : 1,
-        borderColor: selezionata ? t.primary : t.border,
+        borderColor: selezionata ? t.primary : t.borderInput,
         borderWidth: 1,
         borderRadius: radius.pill,
         paddingHorizontal: space.md,
@@ -214,13 +214,8 @@ function SezioneAvvio({ mieVoci, avvioInCorso, onAvvia }) {
               icon="cube-outline"
               title="Non hai voci da mettere in gioco"
               description="Per avviare una ricerca ti serve almeno un'offerta e una ricerca pubblicate: le crei da «Offro e cerco»."
-            />
-            <AppButton
-              label="Vai a Offro e cerco"
-              variant="secondary"
-              icon="add-circle-outline"
-              onPress={() => router.push('/offro-e-cerco')}
-              style={{ alignSelf: 'flex-start' }}
+              etichettaAzione="Vai a Offro e cerco"
+              onAzione={() => router.push('/offro-e-cerco')}
             />
           </>
         ) : (

@@ -137,7 +137,7 @@ export default function SegnalaScreen() {
       {!apribile ? (
         <>
           <EmptyState
-            icon="alert-circle-outline"
+            variante="non-disponibile"
             title="Manca il fatto da segnalare"
             description="Questa schermata si apre da una catena saltata o da un accordo non rispettato: da lì arrivano la persona e il riferimento. Riapri la segnalazione da lì."
           />
@@ -231,7 +231,7 @@ export default function SegnalaScreen() {
                         height: 22,
                         borderRadius: radius.pill,
                         borderWidth: 1,
-                        borderColor: scelto ? t.primary : t.border,
+                        borderColor: scelto ? t.primary : t.borderInput,
                         backgroundColor: t.surface,
                         alignItems: 'center',
                         justifyContent: 'center',
