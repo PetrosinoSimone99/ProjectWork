@@ -562,16 +562,55 @@ export function normalizzaCatalogo(risposta, utenteId) {
 // `{id, nome}` con l'id numerico e le righe senza id o senza nome si scartano,
 // così la tendina non mostra righe vuote; `queryDaFiltri` costruisce la query
 // string del catalogo e omette le condizioni non attive.
+//
+// Il `nome` è un'**etichetta di display**: il backend manda la `description`
+// come sta nel database (oggi in inglese per alcune categorie) e la mappa qui
+// sotto la traduce per chip e tendine. È una toppa di frontend, non la
+// correzione del dato: la fonte vera è il DB dei colleghi e la richiesta sta in
+// `temp/gruppo-3-mancanti/26-categorie-in-italiano.md` (scala §4 di
+// `AGENTS.md`). L'`id` non si tocca mai: i filtri viaggiano su quello.
 // ---------------------------------------------------------------------------
+
+/**
+ * Le etichette italiane delle categorie **a display**, con la `description`
+ * grezza come chiave.
+ *
+ * Copre solo i valori osservati nel database (`curl /api/categories` del
+ * 5 ottobre 2026: `Cleaning`, `Cooking`, `Danza`, `Gardening`, `Musica`); i
+ * valori già in italiano (`Danza`, `Musica`) non servono e ricadono sul
+ * fallback. Una categoria nuova e non mappata si mostra com'è (fallback nel
+ * valore grezzo): non si inventano traduzioni, si aggiorna la mappa quando il
+ * DB cresce.
+ */
+const ETICHETTE_CATEGORIE = {
+  Cleaning: 'Pulizie',
+  Cooking: 'Cucina',
+  Gardening: 'Giardinaggio',
+};
+
+/**
+ * L'etichetta italiana di una categoria a display: la traduzione della mappa
+ * quando esiste, altrimenti il valore grezzo. `null` per un valore assente o
+ * non testuale, così il chiamante può scartare la riga senza inventare nomi.
+ */
+export function etichettaCategoria(testo) {
+  const grezzo = testoONull(testo);
+  if (grezzo === null) {
+    return null;
+  }
+  return ETICHETTE_CATEGORIE[grezzo] ?? grezzo;
+}
 
 /**
  * Le categorie nella forma che serve alla UI: `[{id, nome}]`.
  *
  * Stessa normalizzazione per il finto e per il backend vero, così la schermata
  * non vede mai due forme diverse: il backend manda `{categories:[{id,
- * description}]}` e qui `description` diventa `nome`. L'id diventa numero (il
- * confronto con `idCategoria` è numerico) e le voci senza id o senza nome
- * vengono scartate invece di disegnare una tendina con righe vuote.
+ * description}]}` e qui `description` diventa `nome`, passando da
+ * `etichettaCategoria` (etichetta di display, con fallback sul grezzo). L'id
+ * diventa numero (il confronto con `idCategoria` è numerico) e le voci senza id
+ * o senza nome vengono scartate invece di disegnare una tendina con righe
+ * vuote.
  */
 export function normalizzaCategorie(risposta) {
   const elenco = risposta?.categories;
@@ -581,7 +620,7 @@ export function normalizzaCategorie(risposta) {
   return elenco
     .map((categoria) => ({
       id: Number(categoria?.id),
-      nome: typeof categoria?.description === 'string' ? categoria.description.trim() : '',
+      nome: etichettaCategoria(categoria?.description) ?? '',
     }))
     .filter((categoria) => Number.isInteger(categoria.id) && categoria.nome !== '');
 }
