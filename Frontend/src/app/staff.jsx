@@ -275,17 +275,13 @@ export default function StaffScreen() {
       <BarraStatoStaff filtro={filtro} onChange={setFiltro} disabled={caricamento} />
 
       {errore ? (
-        <View style={{ gap: space.sm }}>
-          <Banner kind="error" message={errore} />
-          <AppButton
-            label="Riprova"
-            variant="secondary"
-            icon="refresh-outline"
-            onPress={() => void carica()}
-            loading={caricamento}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </View>
+        <Banner
+          kind="error"
+          message={errore}
+          etichettaAzione="Riprova"
+          onAzione={() => void carica()}
+          caricamentoAzione={caricamento}
+        />
       ) : null}
 
       {messaggio ? <Banner kind="success" message={messaggio} /> : null}
