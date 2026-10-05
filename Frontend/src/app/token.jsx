@@ -207,9 +207,7 @@ export default function TokenScreen() {
       </View>
 
       <AppText variant="small" tone="secondary">
-        Il token è un buono per un servizio qualsiasi, non una valuta: non si somma e non si
-        guadagna scambiando. Ogni buono ha la sua origine e la sua scadenza, e se ne possono
-        avere più di uno.
+        Un buono per un servizio: lo assegna la staff, ha origine e scadenza.
       </AppText>
 
       {USA_DATI_FINTI ? <Banner kind="info" message={AVVISO_DEMO} /> : null}

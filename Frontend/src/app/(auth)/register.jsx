@@ -68,7 +68,7 @@ const SEZIONI = [
     tipo: TIPI_VOCE.OFFERTA,
     titolo: 'Cosa offri',
     introduzione:
-      'Scegli la categoria: è quella che permette di trovarti. Poi spiega in due righe cosa fai.',
+      'Scegli la categoria e spiega in due righe cosa fai.',
     etichettaAggiungi: "Aggiungi un'altra offerta",
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
     motivoObbligo: "Serve almeno un'offerta: senza, non entri nel match.",
@@ -345,7 +345,7 @@ export default function RegisterScreen() {
           error={fieldErrors.localita ?? null}
         />
         <AppText variant="small" tone="secondary">
-          Serve a far capire dove ti trovi: lo vedono le persone che ti contattano.
+          La vedono le persone che ti contattano.
         </AppText>
       </Card>
 

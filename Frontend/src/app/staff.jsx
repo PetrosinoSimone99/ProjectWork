@@ -269,11 +269,8 @@ export default function StaffScreen() {
 
       {USA_DATI_FINTI ? <Banner kind="info" message={AVVISO_DEMO} /> : null}
 
-      {/* La regola della UI, dichiarata a chi la prova: nascondere non è proteggere. */}
-      <AppText variant="small" tone="secondary">
-        Questa schermata nasconde le azioni, ma nasconderle non è vietarle: anche oltre la UI, chi
-        non è staff non le può fare. Se un'azione non è permessa, la schermata te lo dice.
-      </AppText>
+      {/* Nascondere non è proteggere: la protezione è del backend. Se un'azione non è permessa,
+          l'utente lo scopre dall'esito dell'azione, non da una nota a schermo. */}
 
       <BarraStatoStaff filtro={filtro} onChange={setFiltro} disabled={caricamento} />
 
