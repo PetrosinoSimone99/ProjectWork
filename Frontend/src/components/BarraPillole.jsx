@@ -47,7 +47,7 @@ export function BarraPillole({
               paddingHorizontal: space.lg,
               borderRadius: radius.pill,
               borderWidth: 1,
-              borderColor: attivo ? t.primary : t.border,
+              borderColor: attivo ? t.primary : t.borderInput,
               backgroundColor: attivo ? t.primary : pressed ? t.border : 'transparent',
               opacity: disabled ? 0.55 : 1,
             })}

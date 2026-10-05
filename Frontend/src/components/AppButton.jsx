@@ -41,7 +41,7 @@ export function AppButton({
       style={({ pressed }) => [
         styles.base,
         { backgroundColor: pressed ? palette.pressed : palette.normal },
-        variant === 'secondary' && { borderWidth: 1, borderColor: t.border },
+        variant === 'secondary' && { borderWidth: 1, borderColor: t.borderInput },
         variant === 'danger' && { borderWidth: 1, borderColor: t.danger },
         isDisabled && styles.disabled,
         style,

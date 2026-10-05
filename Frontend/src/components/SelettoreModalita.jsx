@@ -48,7 +48,7 @@ export function SelettoreModalita({ label = 'Modalità', value, onChange, disabl
                 paddingHorizontal: space.lg,
                 borderRadius: radius.pill,
                 borderWidth: 1,
-                borderColor: attiva ? t.primary : t.border,
+                borderColor: attiva ? t.primary : t.borderInput,
                 backgroundColor: attiva ? t.primary : pressed ? t.border : t.surface,
                 alignItems: 'center',
                 justifyContent: 'center',

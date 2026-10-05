@@ -49,7 +49,7 @@ export function AppCheckbox({ label, value, onChange, disabled = false, style })
           height: 22,
           borderRadius: radius.checkbox,
           borderWidth: 1,
-          borderColor: value ? t.primary : t.border,
+          borderColor: value ? t.primary : t.borderInput,
           backgroundColor: value ? t.primary : t.surface,
           alignItems: 'center',
           justifyContent: 'center',

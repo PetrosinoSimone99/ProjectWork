@@ -177,7 +177,7 @@ export default function ChatScreen() {
               height: 36,
               borderRadius: radius.pill,
               borderWidth: 1,
-              borderColor: t.border,
+              borderColor: t.borderInput,
               paddingHorizontal: space.md,
               backgroundColor: pressed ? t.border : 'transparent',
             })}

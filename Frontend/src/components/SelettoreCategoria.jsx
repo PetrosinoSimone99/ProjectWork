@@ -75,7 +75,7 @@ export function SelettoreCategoria({
             borderWidth: 1,
             borderRadius: radius.input,
             backgroundColor: pressed ? t.border : t.surface,
-            borderColor: error ? t.danger : t.border,
+            borderColor: error ? t.danger : t.borderInput,
             opacity: selezionabile ? 1 : 0.55,
           },
         ]}

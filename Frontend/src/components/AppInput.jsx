@@ -43,7 +43,8 @@ export function AppInput({
           styles.box,
           {
             backgroundColor: t.surface,
-            borderColor: error ? t.danger : focused ? t.primary : t.border,
+            // Bordo di controllo: `borderInput` garantisce ≥ 3:1 (WCAG 1.4.11).
+            borderColor: error ? t.danger : focused ? t.primary : t.borderInput,
           },
         ]}
       >

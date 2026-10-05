@@ -48,7 +48,7 @@ export function ThemeSelector() {
               paddingVertical: space.md,
               borderRadius: radius.input,
               borderWidth: 1,
-              borderColor: isSelected ? t.primary : t.border,
+              borderColor: isSelected ? t.primary : t.borderInput,
               backgroundColor: isSelected ? t.serviceBg : pressed ? t.border : 'transparent',
             })}
           >

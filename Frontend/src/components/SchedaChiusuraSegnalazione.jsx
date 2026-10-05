@@ -126,7 +126,7 @@ export function SchedaChiusuraSegnalazione({
                       height: 22,
                       borderRadius: radius.pill,
                       borderWidth: 1,
-                      borderColor: scelto ? t.primary : t.border,
+                      borderColor: scelto ? t.primary : t.borderInput,
                       backgroundColor: t.surface,
                       alignItems: 'center',
                       justifyContent: 'center',

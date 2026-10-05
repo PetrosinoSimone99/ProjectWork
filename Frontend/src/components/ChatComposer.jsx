@@ -32,7 +32,7 @@ export function ChatComposer({
           flexDirection: 'row',
           alignItems: 'center',
           backgroundColor: t.surface,
-          borderColor: t.border,
+          borderColor: t.borderInput,
           borderWidth: 1,
           borderRadius: radius.pill,
           paddingHorizontal: space.lg,

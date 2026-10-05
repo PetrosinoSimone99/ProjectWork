@@ -68,7 +68,7 @@ export function BarraFiltri({
             alignItems: 'center',
             gap: space.sm,
             backgroundColor: t.surface,
-            borderColor: t.border,
+            borderColor: t.borderInput,
             borderWidth: 1,
             borderRadius: radius.pill,
             paddingHorizontal: space.lg,

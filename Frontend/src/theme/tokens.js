@@ -9,11 +9,20 @@ import { useThemeScheme } from './theme-context';
  * - card e pannelli -> raggio 16
  * - input           -> raggio 12
  * - bottoni/chip    -> pill (raggio pieno)
+ *
+ * Bordo di controllo e bordo decorativo sono due token diversi (dal 5 ottobre
+ * 2026): WCAG 1.4.11 chiede ≥ 3:1 per il confine che identifica un controllo
+ * (campi, selettori, caselle di spunta, bottoni con contorno), mentre il bordo
+ * delle card è decorativo e resta delicato. `borderInput` vale ≥ 3:1 su
+ * `surface` e su `background` in entrambi i temi — gli stati pressed
+ * dei controlli usano `token.border` come sfondo e non cambiano.
  */
 const light = {
   background: '#F3F5F1',
   surface: '#FDFDFB',
   border: '#E1E5DD',
+  // Bordo dei controlli: 3.62:1 su surface, 3.36:1 su background (WCAG 1.4.11).
+  borderInput: '#84867F',
   text: '#1C211D',
   textSecondary: '#5D665F',
   primary: '#1F6B4E',
@@ -35,6 +44,8 @@ const dark = {
   background: '#111613',
   surface: '#1B221D',
   border: '#2C352E',
+  // Bordo dei controlli: 3.35:1 su surface, 3.77:1 su background (WCAG 1.4.11).
+  borderInput: '#6E736C',
   text: '#EBEFEA',
   textSecondary: '#99A49B',
   primary: '#4EA97F',
@@ -66,6 +77,14 @@ export const radius = { card: 16, input: 12, checkbox: 6, pill: 999 };
 export const target = { min: 44 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+
+/**
+ * Larghezze massime del layout su schermi larghi. Solo web le applica:
+ * `Screen` centra il contenuto su 560, il catalogo della home sale a 1024,
+ * la tab bar resta una barra stretta e centrata invece di correre tutto
+ * lo schermo (dati dalla prova su desktop, 5 ottobre 2026).
+ */
+export const layout = { maxContent: 560, maxCatalogo: 1024, maxTab: 460 };
 
 /**
  * Token del tema attivo: segue la preferenza scelta dall'utente (Profilo ->
