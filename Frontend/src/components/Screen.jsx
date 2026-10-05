@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { space, useTokens } from '@/theme/tokens';
+import { layout, space, useTokens } from '@/theme/tokens';
 
 /** Il pull-to-refresh è un gesto nativo: sul web la ScrollView lo ignorerebbe. */
 const SUPPORTA_AGGIORNAMENTO = Platform.OS !== 'web';
@@ -17,6 +17,12 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
 
 /**
  * Contenitore di schermata: sfondo tema, safe area, tastiera che non copre i campi.
+ *
+ * Su schermi larghi (web da desktop) il contenuto resta centrato con una
+ * larghezza massima (`layout.maxContent`, 560): le righe di form non si
+ * allargano per tutto lo schermo. `larga` alza il tetto a `layout.maxCatalogo`
+ * (1024) per la sola schermata con il catalogo dei servizi. `alignSelf: center`
+ * centra il blocco — senza, resterebbe attaccato a sinistra.
  *
  * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useAggiornamento`)
  * per il pull-to-refresh, attivo solo su mobile.
@@ -32,12 +38,17 @@ export function Screen({
   bottomSpacing = space.lg,
   refreshing = false,
   onRefresh = null,
+  larga = false,
 }) {
   const t = useTokens();
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const aggiornamentoAttivo = SUPPORTA_AGGIORNAMENTO && typeof onRefresh === 'function';
   const safeAreaBottomPadding = withBottomInset && !keyboardVisible ? insets.bottom : 0;
+  // Larghezza massima del contenuto: senza, a 1280 la casella di ricerca
+  // allarga a tutto lo schermo e «Filtra» scappa al capo opposto. Solo le
+  // schermate lunghe (catalogo) la allargano; tutte le altre restano centrate.
+  const larghezzaMassima = larga ? layout.maxCatalogo : layout.maxContent;
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener(KEYBOARD_SHOW_EVENT, () => {
@@ -53,15 +64,22 @@ export function Screen({
     };
   }, []);
 
+  // Stessi padding, gap e larghezza massima nei due rami; cambiano solo le
+  // proprietà di flessibilità: la ScrollView riempie con `flexGrow`, la View
+  // fissa con `flex: 1`.
+  const riempimento = {
+    padding: space.lg,
+    paddingBottom: bottomSpacing,
+    gap: space.lg,
+    maxWidth: larghezzaMassima,
+    width: '100%',
+    alignSelf: 'center',
+  };
+
   const content = scroll ? (
     <ScrollView
       style={{ flex: 1 }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: space.lg,
-        paddingBottom: bottomSpacing,
-        gap: space.lg,
-      }}
+      contentContainerStyle={{ ...riempimento, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         aggiornamentoAttivo ? (
@@ -78,9 +96,7 @@ export function Screen({
       {children}
     </ScrollView>
   ) : (
-    <View style={{ flex: 1, padding: space.lg, paddingBottom: bottomSpacing, gap: space.lg }}>
-      {children}
-    </View>
+    <View style={{ ...riempimento, flex: 1 }}>{children}</View>
   );
 
   return (

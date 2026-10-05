@@ -2,7 +2,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
-import { useTokens } from '@/theme/tokens';
+import { layout, useTokens } from '@/theme/tokens';
 
 export default function TabsLayout() {
   const t = useTokens();
@@ -22,8 +22,12 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: t.surface,
           borderTopColor: t.border,
-          // Sul web la barra di default è troppo bassa e tronca le etichette.
-          ...(Platform.OS === 'web' ? { height: 64, paddingTop: 6 } : {}),
+          // Sul web la barra di default è troppo bassa e tronca le etichette,
+          // e su schermi larghi corre per tutta la finestra: resta una barra
+          // stretta e centrata, come il contenuto delle schermate.
+          ...(Platform.OS === 'web'
+            ? { height: 64, paddingTop: 6, width: '100%', maxWidth: layout.maxTab, alignSelf: 'center' }
+            : {}),
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}

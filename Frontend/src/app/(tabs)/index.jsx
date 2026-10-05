@@ -101,19 +101,18 @@ export default function HomeScreen() {
               : 'Nessun risultato per questi filtri'
           }
           description={`Prova a toglierne uno: ${descriviFiltri(filtriApplicati, categorie)}.`}
-        />
-        <AppButton
-          label="Azzera filtri"
-          variant="secondary"
-          onPress={azzeraFiltri}
-          style={{ alignSelf: 'center' }}
+          etichettaAzione="Azzera filtri"
+          onAzione={azzeraFiltri}
         />
       </>
     ) : (
       <EmptyState
+        variante="mercato"
         icon="pricetags-outline"
         title="Nessun servizio attivo"
         description="Quando qualcuno pubblica un servizio, lo troverai qui: per ora nessuno ne ha pubblicati."
+        etichettaAzione="Ricarica"
+        onAzione={() => void riprova()}
       />
     );
   } else if (servizi !== null && servizi.length > 0) {
@@ -142,7 +141,9 @@ export default function HomeScreen() {
   }
 
   return (
-    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+    // L'unica schermata larga: le card del catalogo guadagnano spazio su
+    // desktop, tutte le altre restano su `layout.maxContent`.
+    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh} larga>
       <ModalDettaglioServizio servizio={dettaglio} onChiudi={() => setDettaglio(null)} />
 
       <View style={{ gap: space.xs }}>
