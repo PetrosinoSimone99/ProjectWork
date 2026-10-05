@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, isEndpointNonDisponibile } from '@/api/client';
 import { ottieniAccordi } from '@/api/barattolo';
 import {
   accordoConcluso,
@@ -109,6 +109,8 @@ export default function AccordiScreen() {
   const [accordi, setAccordi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // L'endpoint dell'elenco non esiste ancora: mancanza dichiarata, non guasto.
+  const [endpointNonDisponibile, setEndpointNonDisponibile] = useState(false);
 
   // L'id dell'accordo viaggia come stringa nei parametri di rotta: il dettaglio
   // lo riconverte e lo valida prima di usarlo.
@@ -126,8 +128,17 @@ export default function AccordiScreen() {
     setError(null);
     try {
       setAccordi(await ottieniAccordi(token, utente.id));
+      setEndpointNonDisponibile(false);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      if (isEndpointNonDisponibile(err)) {
+        // L'elenco non è ancora esposto: è una mancanza dichiarata, non un
+        // guasto. Il «Riprova» non potrebbe mai riuscire, quindi si mostra il
+        // vuoto dichiarato alla maniera di «Offro e cerco» (P61).
+        setEndpointNonDisponibile(true);
+        setError(null);
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      }
     } finally {
       setLoading(false);
     }
@@ -171,6 +182,14 @@ export default function AccordiScreen() {
         </AppText>
       </View>
 
+      {endpointNonDisponibile ? (
+        <EmptyState
+          icon="swap-horizontal-outline"
+          title="Gli accordi non sono ancora disponibili"
+          description="Questa sezione arriva quando il backend la permetterà: qui seguirai il ciclo completo di un accordo 1:1, dalla proposta alla conclusione."
+        />
+      ) : null}
+
       {error ? (
         <>
           <Banner kind="error" message={error} />
@@ -184,8 +203,9 @@ export default function AccordiScreen() {
       ) : null}
 
       {lista.length === 0 ? (
-        // Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner.
-        error ? null : (
+        // Con un errore o con l'endpoint mancante lo stato vuoto sarebbe
+        // fuorviante: c'è già il Banner o il vuoto dichiarato sopra.
+        error || endpointNonDisponibile ? null : (
           <EmptyState
             icon="swap-horizontal-outline"
             title="Non hai accordi"

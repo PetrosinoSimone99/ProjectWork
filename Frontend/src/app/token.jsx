@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, isEndpointNonDisponibile } from '@/api/client';
 import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import { impegnaToken, ottieniCatalogo, ottieniToken } from '@/api/barattolo';
 import { AppButton } from '@/components/AppButton';
@@ -52,6 +52,8 @@ export default function TokenScreen() {
   const [errore, setErrore] = useState(null);
   const [erroreAzione, setErroreAzione] = useState(null);
   const [messaggio, setMessaggio] = useState(null);
+  // L'endpoint dei buoni non esiste ancora: mancanza dichiarata, non guasto.
+  const [endpointNonDisponibile, setEndpointNonDisponibile] = useState(false);
 
   // La scelta del servizio: il buono scelto, il catalogo e i suoi stati.
   const [buonoScelto, setBuonoScelto] = useState(null);
@@ -82,11 +84,20 @@ export default function TokenScreen() {
       }
       setBuoni(elenco);
       setErrore(null);
+      setEndpointNonDisponibile(false);
     } catch (err) {
       if (seq !== richiestaRef.current) {
         return;
       }
-      setErrore(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      if (isEndpointNonDisponibile(err)) {
+        // L'elenco dei buoni non è ancora esposto: è una mancanza dichiarata,
+        // non un guasto. Il «Riprova» non potrebbe mai riuscire, quindi si
+        // mostra il vuoto dichiarato alla maniera di «Offro e cerco» (P61).
+        setEndpointNonDisponibile(true);
+        setErrore(null);
+      } else {
+        setErrore(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      }
     } finally {
       if (seq === richiestaRef.current) {
         setCaricamento(false);
@@ -175,7 +186,7 @@ export default function TokenScreen() {
     }
   }
 
-  if (buoni === null && !errore) {
+  if (buoni === null && !errore && !endpointNonDisponibile) {
     return <LoadingScreen label="Guardo i tuoi token…" />;
   }
 
@@ -220,7 +231,15 @@ export default function TokenScreen() {
       {messaggio ? <Banner kind="success" message={messaggio} /> : null}
       {erroreAzione ? <Banner kind="error" message={erroreAzione} /> : null}
 
-      {buoni !== null && buoni.length === 0 ? (
+      {endpointNonDisponibile ? (
+        <EmptyState
+          icon="pricetag-outline"
+          title="I tuoi token non sono ancora disponibili"
+          description="Questa sezione arriva quando il backend la permetterà: qui troverai i buoni che ti assegna la staff, con la loro origine e la loro scadenza."
+        />
+      ) : null}
+
+      {buoni !== null && buoni.length === 0 && !endpointNonDisponibile ? (
         <EmptyState
           icon="pricetag-outline"
           title="Non hai token"

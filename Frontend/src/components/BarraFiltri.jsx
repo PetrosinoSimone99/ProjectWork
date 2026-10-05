@@ -1,4 +1,4 @@
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
 import { AppInput } from './AppInput';
@@ -7,6 +7,12 @@ import { Card } from './Card';
 import { SelettoreCategoria } from './SelettoreCategoria';
 import { contaFiltri } from '@/servizi/offerta-ricerca';
 import { radius, space, useTokens } from '@/theme/tokens';
+
+/**
+ * Sotto questa larghezza il campo di ricerca e «Filtra» vanno su due righe:
+ * affiancati su 390px il placeholder veniva tagliato dal pulsante (P62).
+ */
+const SOGLIA_LAYOUT_STRETTO = 480;
 
 /**
  * La barra dei filtri della home: testo, categoria e località. Nessuno stato
@@ -44,13 +50,20 @@ export function BarraFiltri({
   const numeroFiltri = contaFiltri(filtriApplicati);
   const categoriePronte = statoCategorie === 'pronto';
   const testoAttivo = filtri.testo.trim() !== '';
+  const layoutStretto = useWindowDimensions().width < SOGLIA_LAYOUT_STRETTO;
 
   return (
     <Card style={style}>
-      <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+      <View
+        style={{
+          flexDirection: layoutStretto ? 'column' : 'row',
+          gap: space.sm,
+          alignItems: layoutStretto ? 'stretch' : 'center',
+        }}
+      >
         <View
           style={{
-            flex: 1,
+            flex: layoutStretto ? undefined : 1,
             flexDirection: 'row',
             alignItems: 'center',
             gap: space.sm,

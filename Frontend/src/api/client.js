@@ -21,6 +21,17 @@ export class ApiError extends Error {
 }
 
 /**
+ * `true` quando l'endpoint chiamato **non esiste ancora** (404 su una rotta
+ * assente) o la sezione è ancora chiusa (501, il guard dei dati finti): non è
+ * un guasto e non è riprovabile. Le schermate in questa condizione mostrano il
+ * **vuoto dichiarato** alla maniera di «Offro e cerco» — un EmptyState senza
+ * «Riprova» — invece di «errore + Riprova» (P61).
+ */
+export function isEndpointNonDisponibile(err) {
+  return err instanceof ApiError && (err.status === 404 || err.status === 501);
+}
+
+/**
  * Gestore chiamato quando una richiesta autenticata riceve 401:
  * la sessione non e' piu' valida (scaduta o revocata) e l'utente va
  * rimandato al login. Registrato dall'AuthProvider all'avvio.
