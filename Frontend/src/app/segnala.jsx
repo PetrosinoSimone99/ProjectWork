@@ -12,6 +12,7 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import { nomePersona } from '@/servizi/offerta-ricerca';
 import {
@@ -122,22 +123,7 @@ export default function SegnalaScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
         <AppText variant="title">Segnala alla staff</AppText>
       </View>
 

@@ -9,6 +9,7 @@ import { Banner } from '@/components/Banner';
 import { ChatComposer } from '@/components/ChatComposer';
 import { EmptyState } from '@/components/EmptyState';
 import { MessageBubble } from '@/components/MessageBubble';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import { useChat } from '@/hooks/useChat';
 import { radius, space, useTokens } from '@/theme/tokens';
@@ -120,22 +121,7 @@ export default function ChatScreen() {
   return (
     <Screen bottomSpacing={space.sm}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
 
         <View
           style={{

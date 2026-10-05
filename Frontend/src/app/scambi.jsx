@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
@@ -12,12 +11,13 @@ import { CardCatena } from '@/components/CardCatena';
 import { CardCatenaConclusa } from '@/components/CardCatenaConclusa';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import { SezioneCondizioni } from '@/components/SezioneCondizioni';
 import { useCatene } from '@/hooks/useCatene';
 import { ottieniMieVoci } from '@/servizi/mie-voci';
 import { VISTE, formattaDataOra, separaPerStato } from '@/servizi/catene';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * «Scambi»: le catene, collegate al contratto reale (`POST|GET /api/chains`,
@@ -144,27 +144,10 @@ export default function ScambiScreen() {
 
 /** Il titolo con il pulsante indietro, come le altre schermate di dettaglio. */
 function Intestazione() {
-  const t = useTokens();
-  const router = useRouter();
   return (
     <View style={{ gap: space.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
         <AppText variant="title">Scambi</AppText>
       </View>
       <AppText variant="small" tone="secondary">
@@ -191,6 +174,9 @@ function VoceScelta({ voce, selezionata, onScegli }) {
         borderRadius: radius.pill,
         paddingHorizontal: space.md,
         paddingVertical: space.xs,
+        // Bersaglio di tocco CT06 (P60): la pill non può restare alta 27px.
+        minHeight: target.min,
+        justifyContent: 'center',
         backgroundColor: selezionata ? t.serviceBg : 'transparent',
       })}
     >

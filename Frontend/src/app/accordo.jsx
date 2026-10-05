@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
@@ -19,8 +19,9 @@ import { Card, Chip } from '@/components/Card';
 import { ChipStatoAccordo } from '@/components/ChipStatoAccordo';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ModalConferma } from '@/components/ModalConferma';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space, useTokens } from '@/theme/tokens';
 
 function readParam(value) {
   return Array.isArray(value) ? value[0] ?? '' : value ?? '';
@@ -215,22 +216,7 @@ export default function AccordoScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={tornaIndietro}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro onPress={tornaIndietro} />
         <AppText variant="title" style={{ fontSize: 22 }}>
           Accordo
         </AppText>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /** Campo con etichetta SOPRA, errore SOTTO, focus visibile e toggle password. */
 export function AppInput({
@@ -70,6 +70,14 @@ export function AppInput({
             accessibilityLabel={hidden ? 'Mostra password' : 'Nascondi password'}
             onPress={() => setHidden(!hidden)}
             hitSlop={8}
+            // Bersaglio di tocco CT06 (P60): l'icona da 20px non basta.
+            style={({ pressed }) => ({
+              minWidth: target.min,
+              minHeight: target.min,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}
           >
             <Ionicons
               name={hidden ? 'eye-outline' : 'eye-off-outline'}

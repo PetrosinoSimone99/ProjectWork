@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
@@ -19,10 +18,11 @@ import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ModalConferma } from '@/components/ModalConferma';
 import { SchedaChiusuraSegnalazione } from '@/components/SchedaChiusuraSegnalazione';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import { STATI_SEGNALAZIONE } from '@/servizi/segnalazioni';
 import { conEsito, descriviEsiti, richiedeToken, validaChiusura } from '@/servizi/staff';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space, useTokens } from '@/theme/tokens';
 
 /**
  * «Area staff»: l'esame delle segnalazioni.
@@ -246,22 +246,7 @@ export default function StaffScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
         <AppText variant="title">Area staff</AppText>
       </View>
 

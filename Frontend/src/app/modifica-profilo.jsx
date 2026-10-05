@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { aggiornaProfilo, ottieniProfilo } from '@/api/barattolo';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
@@ -12,7 +12,7 @@ import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 const LIMITI = {
   localita: { max: 255, messaggio: 'La località può avere al massimo 255 caratteri.' },
@@ -57,7 +57,6 @@ function validaCampo(campo, testo) {
 export default function ModificaProfiloScreen() {
   const { token } = useAuth();
   const router = useRouter();
-  const t = useTokens();
 
   const [primoCaricamento, setPrimoCaricamento] = useState(true);
   const [caricamentoProfilo, setCaricamentoProfilo] = useState(false);
@@ -168,22 +167,7 @@ export default function ModificaProfiloScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
         <AppText variant="title">Modifica profilo</AppText>
       </View>
 

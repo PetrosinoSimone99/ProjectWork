@@ -59,6 +59,12 @@ const dark = {
  */
 export const radius = { card: 16, input: 12, checkbox: 6, pill: 999 };
 
+/**
+ * Bersaglio di tocco minimo, in pt: la regola di accessibilità CT06 dice che
+ * ogni controllo premibile è alto e largo almeno `target.min`.
+ */
+export const target = { min: 44 };
+
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
 /**

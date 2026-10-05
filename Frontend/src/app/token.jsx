@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
@@ -15,10 +14,11 @@ import { CardServizioCatalogo } from '@/components/CardServizioCatalogo';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ModalConferma } from '@/components/ModalConferma';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import { useCategorie } from '@/hooks/useCategorie';
 import { descriviOrigine, raggruppaPerStato } from '@/servizi/token';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space, useTokens } from '@/theme/tokens';
 
 /**
  * «I miei token»: i **buoni** che la staff ha assegnato, con origine e scadenza,
@@ -42,7 +42,6 @@ import { radius, space, useTokens } from '@/theme/tokens';
  */
 export default function TokenScreen() {
   const { token, utente } = useAuth();
-  const router = useRouter();
   const t = useTokens();
   const utenteId = utente?.id;
 
@@ -192,22 +191,7 @@ export default function TokenScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
         <AppText variant="title">I miei token</AppText>
       </View>
 

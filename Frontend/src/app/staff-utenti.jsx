@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
@@ -16,6 +15,7 @@ import { CardUtenteStaff } from '@/components/CardUtenteStaff';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ModalConferma } from '@/components/ModalConferma';
+import { BottoneIndietro } from '@/components/BottoneIndietro';
 import { Screen } from '@/components/Screen';
 import {
   AZIONI_UTENTE,
@@ -27,7 +27,7 @@ import {
   etichettaStatoUtente,
   filtraUtenti,
 } from '@/servizi/staff-utenti';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 /**
  * «Area staff → Utenti»: l'elenco degli utenti con ruolo e stato, e i due comandi
@@ -72,7 +72,6 @@ const STATI_NON_DISTRUTTIVI = [STATI_UTENTE[0]];
 export default function StaffUtentiScreen() {
   const { token, utente } = useAuth();
   const router = useRouter();
-  const t = useTokens();
   const utenteId = utente?.id;
   // Chi guarda: la regola dei permessi vuole id e ruolo, non tutto l'utente.
   const io = useMemo(
@@ -206,22 +205,7 @@ export default function StaffUtentiScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Torna indietro"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            backgroundColor: pressed ? t.border : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Ionicons name="arrow-back" size={22} color={t.text} />
-        </Pressable>
+        <BottoneIndietro />
         <AppText variant="title">Utenti</AppText>
       </View>
 
