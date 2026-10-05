@@ -82,9 +82,19 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
  * Larghezze massime del layout su schermi larghi. Solo web le applica:
  * `Screen` centra il contenuto su 560, il catalogo della home sale a 1024,
  * la tab bar resta una barra stretta e centrata invece di correre tutto
- * lo schermo (dati dalla prova su desktop, 5 ottobre 2026).
+ * lo schermo.
+ *
+ * `maxTab` non è una preferenza estetica, è la misura che evita il
+ * troncamento: sul web le tab mettono l'icona **accanto** all'etichetta,
+ * quindi a ogni etichetta restano `maxTab / 5 - 58` px. «Offro e cerco» è la
+ * più lunga e ne serve 65: a 460 (92 px per tab, 34 all'etichetta) e a 600
+ * (120 px per tab, 62) il browser taglia con i puntini, a 680 (136 px per
+ * tab, 78) entra con margine (misurato su `npm run web` a 1280×900 e
+ * 1440×900, 5 ottobre 2026).
+ * Su mobile l'etichetta sta **sotto** l'icona e la barra non ha tetto: a 390
+ * le cinque etichette entrano già da sole.
  */
-export const layout = { maxContent: 560, maxCatalogo: 1024, maxTab: 460 };
+export const layout = { maxContent: 560, maxCatalogo: 1024, maxTab: 680 };
 
 /**
  * Token del tema attivo: segue la preferenza scelta dall'utente (Profilo ->
