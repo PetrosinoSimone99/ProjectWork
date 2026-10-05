@@ -42,8 +42,9 @@ import { useAggiornamento } from '@/hooks/useAggiornamento';
  *    essere diverso da quello a schermo. I form mantengono i valori: il
  *    messaggio arriva in `errore`, i dati non si toccano.
  * 5. **`matchDiretto` è un flag, non un testo da indovinare.** Il `409`
- *    «c'è un match diretto» dell'avvio arriva dal layer con il suo messaggio; il
- *    flag dice alla schermata di mostrare il pulsante «Vai al Loop» accanto.
+ *    «c'è un match diretto» dell'avvio è in **mutua esclusione con `errore`**:
+ *    il flag dice alla schermata di mostrare il banner info con il pulsante
+ *    «Vai al Loop», e senza nessun «Riprova» che riprodurrebbe lo stesso `409`.
  */
 export function useCatene({ token, utenteId }) {
   const [catene, setCatene] = useState(null);
@@ -153,9 +154,14 @@ export function useCatene({ token, utenteId }) {
         // poi si mostra il messaggio dell'azione fallita. I form mantengono i
         // valori: `errore` parla, i dati non si toccano.
         await carica();
-        setErrore(messaggio);
         if (isErroreMatchDiretto(err)) {
+          // Il `409` «match diretto» non è un guasto: è una strada diversa.
+          // `matchDiretto` ed `errore` restano in mutua esclusione (P57): con
+          // entrambi accesi il banner «Vai al Loop» sarebbe coperto da quello
+          // d'errore con «Riprova», che qui non può funzionare.
           setMatchDiretto(true);
+        } else {
+          setErrore(messaggio);
         }
         return false;
       } finally {

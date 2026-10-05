@@ -61,6 +61,8 @@ export default function ScambiScreen() {
     onRefresh,
   } = useCatene({ token, utenteId: utente?.id });
 
+  const router = useRouter();
+
   const { attive, storico } = useMemo(() => separaPerStato(catene), [catene]);
   // Il registro si legge a ogni render: è una cache locale (localStorage/memoria),
   // cheap, e così una voce appena pubblicata compare senza remount.
@@ -89,8 +91,23 @@ export default function ScambiScreen() {
         </View>
       ) : null}
 
-      {matchDiretto && !errore ? (
-        <Banner kind="info" message="C'è un match diretto per questa coppia: apri il Loop per decidere sulla proposta." />
+      {/* `matchDiretto` è in mutua esclusione con `errore` (P57): il409 del
+          match diretto non è un guasto e la via d'uscita è il Loop, quindi il
+          banner è informativo e porta l'azione che serve. */}
+      {matchDiretto ? (
+        <View style={{ gap: space.sm }}>
+          <Banner
+            kind="info"
+            message="C'è un match diretto per questa coppia: apri il Loop per decidere sulla proposta."
+          />
+          <AppButton
+            label="Vai al Loop"
+            icon="sync-outline"
+            onPress={() => router.push('/loop')}
+            accessibilityLabel="Vai al Loop per decidere sulla proposta di match diretto"
+            style={{ alignSelf: 'flex-start' }}
+          />
+        </View>
       ) : null}
 
       <SezioneAvvio
