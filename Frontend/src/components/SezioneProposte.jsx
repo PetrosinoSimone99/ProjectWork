@@ -21,11 +21,11 @@ import { space } from '@/theme/tokens';
  * e un lettore di schermo non li vedrebbe (difetto trovato e riparato il 3
  * ottobre 2026, durante la prova del flusso).
  *
- * Con la lista vuota mostra una riga neutra («Nessuna proposta in arrivo.»):
- * non ci sono dati da inventare, e la sezione resta visibile per quello che è.
- * `nascondiVuoto` serve al Loop quando la pila è vuota: lì il vuoto del feed e
- * questo si accorpano in un solo stato, quindi la sezione sparisce del tutto
- * (titolo compreso) invece di affiancare due riquadri vuoti.
+ * Con la lista vuota la sezione non esiste: niente da decidere, niente da
+ * dire. Il vuoto totale del Loop resta quello del feed (`EmptyState` in
+ * `loop.jsx`), che è l'unico stato esplicito della schermata. L'etichetta è una
+ * riga discreta (`caption` secondaria): il titolo forte della schermata è
+ * quello del deck, in `loop.jsx`.
  */
 export function SezioneProposte({
   proposte,
@@ -33,75 +33,70 @@ export function SezioneProposte({
   decisioneInCorso = null,
   accetta,
   rifiuta,
-  nascondiVuoto = false,
 }) {
-  if (proposte.length === 0 && nascondiVuoto) {
+  if (proposte.length === 0) {
     return null;
   }
   return (
     <View style={{ gap: space.sm }}>
-      <AppText variant="title">Proposte in attesa</AppText>
-      {proposte.length === 0 ? (
-        <AppText variant="small" tone="secondary">
-          Nessuna proposta in arrivo.
-        </AppText>
-      ) : (
-        proposte.map((proposta) => {
-          const nome = nomePersona(proposta.persona);
-          const categoria =
-            nomeCategoria(categorie, proposta.servizio.idCategoria) ?? 'Categoria non disponibile';
-          const mansione = proposta.servizio.mansione.trim() || 'Mansione non indicata';
-          const inCorso =
-            decisioneInCorso?.id === proposta.id ? decisioneInCorso.decisione : null;
-          return (
-            <Card
-              key={proposta.id}
-              role="group"
-              accessibilityLabel={descriviProposta(proposta, categorie)}
-            >
-              {/* `aria-hidden`: la riga parla con una sola frase (quella del
-                  gruppo). I pulsanti qui sotto restano fuori (vedi sopra). */}
-              <View aria-hidden={true} style={{ gap: space.sm }}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: space.sm,
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                  }}
-                >
-                  <AppText variant="heading">{nome}</AppText>
-                  {proposta.persona.username ? (
-                    <AppText variant="small" tone="secondary">
-                      {`@${proposta.persona.username}`}
-                    </AppText>
-                  ) : null}
-                </View>
-                <AppText variant="body">{`Offre: ${categoria} · ${mansione}`}</AppText>
+      <AppText variant="caption" tone="secondary">
+        Proposte in attesa
+      </AppText>
+      {proposte.map((proposta) => {
+        const nome = nomePersona(proposta.persona);
+        const categoria =
+          nomeCategoria(categorie, proposta.servizio.idCategoria) ?? 'Categoria non disponibile';
+        const mansione = proposta.servizio.mansione.trim() || 'Mansione non indicata';
+        const inCorso =
+          decisioneInCorso?.id === proposta.id ? decisioneInCorso.decisione : null;
+        return (
+          <Card
+            key={proposta.id}
+            role="group"
+            accessibilityLabel={descriviProposta(proposta, categorie)}
+          >
+            {/* `aria-hidden`: la riga parla con una sola frase (quella del
+                gruppo). I pulsanti qui sotto restano fuori (vedi sopra). */}
+            <View aria-hidden={true} style={{ gap: space.sm }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: space.sm,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <AppText variant="heading">{nome}</AppText>
+                {proposta.persona.username ? (
+                  <AppText variant="small" tone="secondary">
+                    {`@${proposta.persona.username}`}
+                  </AppText>
+                ) : null}
               </View>
-              <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-                <AppButton
-                  label="Accetta"
-                  icon="checkmark-outline"
-                  loading={inCorso === DECISIONI_PROPOSTA.ACCETTA}
-                  disabled={decisioneInCorso !== null}
-                  onPress={() => void accetta(proposta.id)}
-                  accessibilityLabel={`Accetta la proposta di ${nome}`}
-                />
-                <AppButton
-                  label="Rifiuta"
-                  variant="secondary"
-                  icon="close-outline"
-                  loading={inCorso === DECISIONI_PROPOSTA.RIFIUTA}
-                  disabled={decisioneInCorso !== null}
-                  onPress={() => void rifiuta(proposta.id)}
-                  accessibilityLabel={`Rifiuta la proposta di ${nome}`}
-                />
-              </View>
-            </Card>
-          );
-        })
-      )}
+              <AppText variant="body">{`Offre: ${categoria} · ${mansione}`}</AppText>
+            </View>
+            <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
+              <AppButton
+                label="Accetta"
+                icon="checkmark-outline"
+                loading={inCorso === DECISIONI_PROPOSTA.ACCETTA}
+                disabled={decisioneInCorso !== null}
+                onPress={() => void accetta(proposta.id)}
+                accessibilityLabel={`Accetta la proposta di ${nome}`}
+              />
+              <AppButton
+                label="Rifiuta"
+                variant="secondary"
+                icon="close-outline"
+                loading={inCorso === DECISIONI_PROPOSTA.RIFIUTA}
+                disabled={decisioneInCorso !== null}
+                onPress={() => void rifiuta(proposta.id)}
+                accessibilityLabel={`Rifiuta la proposta di ${nome}`}
+              />
+            </View>
+          </Card>
+        );
+      })}
     </View>
   );
 }

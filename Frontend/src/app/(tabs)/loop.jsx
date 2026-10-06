@@ -132,11 +132,14 @@ export default function LoopScreen() {
     });
   }
 
+  // L'intestazione della schermata **è** l'intestazione del deck: un solo
+  // titolo forte, quello che introduce l'azione principale. Il nome «Loop»
+  // resta nella barra delle schede in basso.
   const intestazione = (
     <View style={{ gap: space.xs }}>
-      <AppText variant="title">Loop</AppText>
+      <AppText variant="title">Scegli chi ti interessa</AppText>
       <AppText variant="small" tone="secondary">
-        Le persone con cui puoi scambiare: scorri, decidi tu chi ti interessa.
+        Le persone con cui puoi scambiare, una scheda per volta.
       </AppText>
     </View>
   );
@@ -167,6 +170,20 @@ export default function LoopScreen() {
   // Un'azione per volta: durante una scelta o una decisione la scheda resta
   // ferma (anche il gesto) e i comandi dicono quale è in volo.
   const occupato = sceltaInCorso !== null || decisioneInCorso !== null;
+
+  // Le proposte in attesa della mia decisione: «Accetta»/«Rifiuta» e il match
+  // solo dal `matched` del backend (vedi `SezioneProposte`). La sezione sparisce
+  // del tutto quando non c'è nulla da decidere: il suo vuoto attirava l'occhio
+  // prima del deck, che è l'azione principale.
+  const bloccoProposte = (
+    <SezioneProposte
+      proposte={proposte}
+      categorie={categorie}
+      decisioneInCorso={decisioneInCorso}
+      accetta={accetta}
+      rifiuta={rifiuta}
+    />
+  );
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
@@ -205,19 +222,11 @@ export default function LoopScreen() {
         </>
       ) : null}
 
-      {/* Le proposte in attesa della mia decisione: «Accetta»/«Rifiuta» e il
-          match solo dal `matched` del backend (vedi `SezioneProposte`). */}
-      {/* Con la pila vuota i due vuoti («Nessuna proposta in arrivo» della
-          sezione e quello del feed) si accorpano in uno solo: due riquadri
-          vuoti attaccati dicevano la stessa cosa due volte. */}
-      <SezioneProposte
-        proposte={proposte}
-        categorie={categorie}
-        decisioneInCorso={decisioneInCorso}
-        accetta={accetta}
-        rifiuta={rifiuta}
-        nascondiVuoto={pilaVuota}
-      />
+      {/* L'ordine mette prima ciò che è azionabile: con una scheda a schermo il
+          deck apre e le proposte seguono; senza scheda le proposte (se ci
+          sono) salgono sopra il vuoto del feed. L'ordine del DOM segue sempre
+          quello visivo. */}
+      {candidato ? null : bloccoProposte}
 
       {pilaVuota ? (
         <>
@@ -307,6 +316,8 @@ export default function LoopScreen() {
           />
         </>
       ) : null}
+
+      {candidato ? bloccoProposte : null}
     </Screen>
   );
 }
