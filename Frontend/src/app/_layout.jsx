@@ -11,6 +11,7 @@ import { useNotifiche } from '@/hooks/useNotifiche';
 import { useScadenzaSessione } from '@/hooks/useScadenzaSessione';
 import { space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
+import { TourAutomatico } from '@/dev/tour-automatico';
 
 /**
  * La navigazione dipende dallo stato di autenticazione:
@@ -74,6 +75,7 @@ function RootNavigator() {
           ) : null}
         </View>
       ) : null}
+      <TourAutomatico />
       <Stack screenOptions={{ headerShown: false }}>
         {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
         {utente ? <Stack.Screen name="chat" /> : null}
