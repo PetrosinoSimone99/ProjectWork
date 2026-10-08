@@ -68,8 +68,11 @@ function TourVisibile() {
     setPasso(n);
   }, []);
 
-  // L'app parte da dove era: per una verifica ripetibile si disconnette prima.
+  // L'app può partire male: se Expo Go riapre un deep link vecchio, il router
+  // atterra su «Unmatched route» senza via d'uscita. Prima mossa: si torna al
+  // login e si disconnette, così la verifica parte da una condizione nota.
   useEffect(() => {
+    router.replace('/login');
     const timer = setTimeout(() => {
       const via = utente ? signOut() : Promise.resolve();
       Promise.resolve(via)

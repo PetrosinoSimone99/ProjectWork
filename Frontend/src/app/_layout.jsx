@@ -75,7 +75,6 @@ function RootNavigator() {
           ) : null}
         </View>
       ) : null}
-      <TourAutomatico />
       <Stack screenOptions={{ headerShown: false }}>
         {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
         {utente ? <Stack.Screen name="chat" /> : null}
@@ -89,6 +88,9 @@ function RootNavigator() {
         {utente ? <Stack.Screen name="staff" /> : null}
         {utente ? <Stack.Screen name="staff-utenti" /> : null}
       </Stack>
+      {/* Il tour va dopo: i componenti successivi nella stessa View disegnano
+          sopra, e prima sarebbe stato coperto dalla schermata. */}
+      <TourAutomatico />
     </View>
   );
 }
