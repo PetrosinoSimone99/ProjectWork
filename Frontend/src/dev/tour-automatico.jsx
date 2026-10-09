@@ -15,28 +15,31 @@
 //  I giri:
 //    app    ingresso → register → finestra «login sbagliato» (a mano) → login
 //           → tutte le schermate dell'app, tab e stack, compreso il recupero
-//           delle rotte inesistenti (`+not-found`);
+//           delle rotte inesistenti (`+not-found`); tema chiaro forzato;
 //    staff  ingresso → login con utente staff → profilo, staff, staff-utenti;
-//    scuro  ingresso → login → le schermate principali col tema scuro forzato,
-//           poi la preferenza del telefono torna «Sistema».
+//           tema chiaro forzato;
+//    scuro  ingresso → login → le schermate principali col tema scuro forzato.
+//  A fine giro la preferenza del telefono torna «Sistema»: lo strumento non
+//  lascia tracce sul dispositivo.
 //
 //  L'unica mossa che resta a mano è il login sbagliato della finestra «errore»:
 //  il banner d'errore è stato locale del form (`login.jsx`), e farlo scattare
 //  da fuori vorrebbe dire toccare il codice dell'app per una verifica.
 // ===========================================================================
 import { useCallback, useEffect, useState } from 'react';
-import { router, usePathname } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { router } from 'expo-router';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { API_BASE_URL, USA_DATI_FINTI } from '@/api/config';
 import { useAuth } from '@/auth/auth-context';
 import { PREFERENZA_TEMA } from '@/theme/theme-store';
 import { useThemePreference } from '@/theme/theme-context';
 import { useTokens } from '@/theme/tokens';
 import { AppText } from '@/components/AppText';
 
-/** Millisecondi di attesa tra un passo e l'altro: il tempo per fotografare. */
-const ATTESA_PASSO = 6000;
+/** Millisecondi di attesa tra un passo e l'altro: il tempo per fotografare e
+ * per lasciar caricare i dati della schermata (alcune API rispondono in 2-4
+ * secondi, e con 6 la foto coglieva il solo stato di caricamento). */
+const ATTESA_PASSO = 9000;
 /** Millisecondi sull'ingresso: il tempo per fotografare il login a schermo intero. */
 const ATTESA_INGRESSO = 8000;
 /** Millisecondi della finestra del login sbagliato: il tempo per la mossa a mano. */
@@ -49,11 +52,11 @@ const ATTESA_ERRORE = 25000;
  * finti ma plausibili: si fotografa lo stato che mostrano, anche se è un vuoto.
  */
 const PASSI_APP = [
-  '/(tabs)/index',
-  '/(tabs)/offro-e-cerco',
-  '/(tabs)/loop',
-  '/(tabs)/accordi',
-  '/(tabs)/profilo',
+  '/',
+  '/offro-e-cerco',
+  '/loop',
+  '/accordi',
+  '/profilo',
   '/scambi',
   '/token',
   '/modifica-profilo',
@@ -66,10 +69,24 @@ const PASSI_APP = [
 ];
 
 /** Il giro «staff»: prima il profilo (dove compare l'area staff), poi le due aree. */
-const PASSI_STAFF = ['/(tabs)/profilo', '/staff', '/staff-utenti'];
+const PASSI_STAFF = ['/profilo', '/staff', '/staff-utenti'];
 
 /** Il giro «scuro»: le schermate principali, per la ripresa del tema scuro. */
-const PASSI_SCURO = ['/(tabs)/index', '/(tabs)/loop', '/(tabs)/accordi', '/scambi', '/(tabs)/profilo'];
+const PASSI_SCURO = ['/', '/loop', '/accordi', '/scambi', '/profilo'];
+
+/**
+ * Le rotte che si aprono con `replace`: i tab e le schermate d'ingresso. Con
+ * `push` la stessa rotta aprirebbe copie di sé sopra sé stessa.
+ */
+const REPLACE_ROTTE = new Set([
+  '/',
+  '/offro-e-cerco',
+  '/loop',
+  '/accordi',
+  '/profilo',
+  '/login',
+  '/register',
+]);
 
 /**
  * Le tappe del tour: ogni tappa apre una rotta e attende, così l'assistente
@@ -87,7 +104,7 @@ function costruisciTappe(giro) {
     const passi = giro === 'staff' ? PASSI_STAFF : PASSI_SCURO;
     passi.forEach((rotta) => tappe.push({ fase: 'giro', rotta, attesa: ATTESA_PASSO }));
   }
-  tappe.push({ fase: 'fine', rotta: '/(tabs)/index', attesa: ATTESA_PASSO });
+  tappe.push({ fase: 'fine', rotta: '/', attesa: ATTESA_PASSO });
   return tappe;
 }
 
@@ -105,7 +122,6 @@ export function TourAutomatico() {
 
 function TourVisibile() {
   const { utente, signIn, signOut } = useAuth();
-  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const t = useTokens();
   const { ready: temaPronto, setPreferenzaTema } = useThemePreference();
@@ -117,7 +133,7 @@ function TourVisibile() {
   const avanza = useCallback(() => setIndice((i) => i + 1), []);
 
   const vaiAlla = useCallback((rotta) => {
-    if (rotta.startsWith('/(tabs)/')) {
+    if (REPLACE_ROTTE.has(rotta)) {
       router.replace(rotta);
       return;
     }
@@ -136,15 +152,13 @@ function TourVisibile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Il giro «scuro» forza il tema appena la preferenza è caricata: prima
-  // verrebbe sovrascritta dal ripristino della preferenza salvata. Alla fine
-  // del tour la preferenza del telefono torna «Sistema»: lo strumento non
-  // lascia tracce sul dispositivo.
+  // Il tema si forza appena la preferenza è caricata: prima verrebbe
+  // sovrascritta dal ripristino della preferenza salvata. Il giro «scuro»
+  // fotografa le schermate principali in scuro; gli altri due in chiaro (il
+  // telefono può essere in tema scuro, e la review chiede entrambi i temi).
   useEffect(() => {
     if (!temaPronto) return undefined;
-    if (giro === 'scuro') {
-      setPreferenzaTema(PREFERENZA_TEMA.SCURO);
-    }
+    setPreferenzaTema(giro === 'scuro' ? PREFERENZA_TEMA.SCURO : PREFERENZA_TEMA.CHIARO);
     return undefined;
   }, [giro, temaPronto, setPreferenzaTema]);
 
@@ -153,7 +167,7 @@ function TourVisibile() {
   useEffect(() => {
     const tappa = tappe[indice];
     if (!tappa) {
-      if (indice >= tappe.length && giro === 'scuro') {
+      if (indice >= tappe.length) {
         setPreferenzaTema(PREFERENZA_TEMA.SISTEMA);
       }
       return undefined;
@@ -172,7 +186,7 @@ function TourVisibile() {
         vivo = false;
       };
     }
-    const timer = setTimeout(avanza, tappa.atta);
+    const timer = setTimeout(avanza, tappa.attesa);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indice]);
@@ -180,32 +194,40 @@ function TourVisibile() {
   const tappa = tappe[indice];
   const chiuso = indice >= tappe.length;
   const istruzione = tappa?.fase === 'errore'
-    ? 'MANO: login sbagliato adesso'
+    ? 'MANO: password sbagliata + Accedi, poi lascia il banner'
     : '';
+  const tema = t.background === '#F3F5F1' ? 'chiaro' : 'scuro';
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#00000099',
-        paddingTop: insets.top + 2,
-        paddingBottom: 4,
-        paddingHorizontal: 8,
-      }}
-    >
-      <AppText variant="caption" style={{ color: '#7DF0A8' }}>
-        TOUR {chiuso ? 'chiuso' : `${tappa?.fase ?? 'attesa'} ${Math.min(indice + 1, tappe.length)}/${tappe.length}`} {tappa?.rotta ?? ''} {pathname}
-      </AppText>
-      <AppText variant="caption" style={{ color: '#7DF0A8' }}>
-        {Platform.OS} · giro {giro} · tema {t.background === '#F3F5F1' ? 'chiaro' : 'scuro'} · {API_BASE_URL} {USA_DATI_FINTI ? '(finti)' : ''} · sessione {utente ? 'attiva' : 'no'}
-      </AppText>
-      {istruzione ? (
-        <AppText variant="caption" style={{ color: '#FFD866' }}>{istruzione}</AppText>
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+      {/* L'etichetta sta nella fascia della barra di stato: il contenuto
+          dell'app comincia sotto la safe area, quindi non copre nulla di ciò
+          che la review deve giudicare. */}
+      <View
+        style={{
+          height: insets.top,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#000000CC',
+          paddingHorizontal: 4,
+        }}
+      >
+        <AppText variant="caption" style={{ color: '#7DF0A8', fontSize: 11 }} numberOfLines={1}>
+          {chiuso
+            ? 'TOUR chiuso'
+            : `TOUR ${tappa?.fase ?? 'attesa'} ${Math.min(indice + 1, tappe.length)}/${tappe.length} ${tappa?.rotta ?? ''}`}
+          {' · '}{tema}{' · '}{utente ? 'attiva' : 'no'}{giro !== 'app' ? ` · ${giro}` : ''}
+        </AppText>
+      </View>
+      {istruzione || margine ? (
+        <View style={{ backgroundColor: '#000000CC', paddingHorizontal: 6, paddingVertical: 2 }}>
+          {istruzione ? (
+            <AppText variant="caption" style={{ color: '#FFD866', fontSize: 12 }}>{istruzione}</AppText>
+          ) : null}
+          {margine ? (
+            <AppText variant="caption" style={{ color: '#E0716A', fontSize: 12 }}>{margine}</AppText>
+          ) : null}
+        </View>
       ) : null}
-      {margine ? <AppText variant="caption" style={{ color: '#E0716A' }}>{margine}</AppText> : null}
     </View>
   );
 }
