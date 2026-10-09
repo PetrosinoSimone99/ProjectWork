@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout, space, useTokens } from '@/theme/tokens';
+import { tourScroll } from '@/dev/tour-automatico';
 
 /** Il pull-to-refresh è un gesto nativo: sul web la ScrollView lo ignorerebbe. */
 const SUPPORTA_AGGIORNAMENTO = Platform.OS !== 'web';
@@ -64,6 +65,29 @@ export function Screen({
     };
   }, []);
 
+  // =========================================================================
+  //  TOUR AUTOMATICO (strumento di verifica) — GANCIO DA RIMUOVERE
+  //  -------------------------------------------------------------------
+  //  Lo scroll a tappe: il tour chiede a `Screen` le posizioni del contenuto
+  //  (frazione 0..1) per fotografare interamente le schermate più alte dello
+  //  schermo. Gira SOLO con EXPO_PUBLIC_TOUR=1: senza tour non ci sono
+  //  iscritti né notifiche e questo blocco non fa nulla. NON È UNA FEATURE
+  //  DELL'APP: quando la review è finita va rimosso (o lasciato commentato,
+  //  se il tour riparte) — nota anche in `temp/ios-mirror/` e nel diario.
+  // =========================================================================
+  const scrollRef = useRef(null);
+  const [dimensioneContenuto, setDimensioneContenuto] = useState(0);
+  const [dimensioneVista, setDimensioneVista] = useState(0);
+  useEffect(() => {
+    const scorri = (frazione) => {
+      const scrollView = scrollRef.current;
+      if (!scrollView?.scrollTo || dimensioneContenuto <= dimensioneVista) return;
+      const massimo = dimensioneContenuto - dimensioneVista;
+      scrollView.scrollTo({ y: Math.round(massimo * frazione), animated: false });
+    };
+    return tourScroll.iscriviti(scorri);
+  }, [dimensioneContenuto, dimensioneVista]);
+
   // Stessi padding, gap e larghezza massima nei due rami; cambiano solo le
   // proprietà di flessibilità: la ScrollView riempie con `flexGrow`, la View
   // fissa con `flex: 1`.
@@ -78,9 +102,11 @@ export function Screen({
 
   const content = scroll ? (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1 }}
       contentContainerStyle={{ ...riempimento, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
+      onContentSizeChange={(_, altezza) => setDimensioneContenuto(altezza)}
       refreshControl={
         aggiornamentoAttivo ? (
           <RefreshControl
@@ -112,6 +138,7 @@ export function Screen({
           // aggiungere anche la safe area inferiore mentre è aperta.
           paddingBottom: safeAreaBottomPadding,
         }}
+        onLayout={(evento) => setDimensioneVista(evento.nativeEvent.layout.height)}
       >
         {content}
       </View>

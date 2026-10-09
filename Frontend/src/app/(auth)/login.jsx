@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
@@ -35,6 +35,34 @@ export default function LoginScreen() {
       setSubmitting(false);
     }
   }
+
+  // =========================================================================
+  //  TOUR AUTOMATICO (strumento di verifica) — GANCIO DA RIMUOVERE
+  //  -------------------------------------------------------------------
+  //  Provoca da solo il banner «login sbagliato»: il tour arriva su
+  //  `/login?tourErrore=1` e il form invia credenziali apposta sbagliate
+  //  (fisse, mai quelle di prova), così il messaggio d'errore reale del
+  //  backend si fotografa senza mano. Gira SOLO con EXPO_PUBLIC_TOUR=1 e
+  //  solo in sviluppo (__DEV__). NON È UNA FEATURE DELL'APP:
+  //  quando la review è finita questo blocco va rimosso (o lasciato
+  //  commentato, se il tour riparte) — nota anche in `temp/ios-mirror/`
+  //  e nel diario di `docs/00-progetto/stato-e-diario.md`.
+  // =========================================================================
+  const parametri = useLocalSearchParams();
+  useEffect(() => {
+    if (!__DEV__ || process.env.EXPO_PUBLIC_TOUR !== '1') return undefined;
+    if (parametri.tourErrore !== '1') return undefined;
+    let vivo = true;
+    void signIn('tour-errore', 'tour-errore').catch((errore) => {
+      if (vivo) {
+        setError(errore instanceof ApiError ? errore.message : 'Errore imprevisto. Riprova.');
+      }
+    });
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parametri.tourErrore]);
 
   return (
     <Screen scroll>
