@@ -26,11 +26,34 @@ class ChatRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
     
-    public function getChatByProposalId(int $proposalId): ?Chat
+    public function getChatByMutualProposalId(int $proposalId): ?Chat
     {
         return $this->createQueryBuilder('c')
             ->andWhere('c.proposalMutualId = :proposalId')
             ->setParameter('proposalId', $proposalId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function getChatByGroupProposalId(int $proposalId): ?Chat
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.proposalGroupId = :proposalId')
+            ->setParameter('proposalId', $proposalId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+    //May need to add a condition where a chat is open
+    public function getChatByParticipants(int $participant1, int $participant2, int $proposalGroupId): ?Chat
+    {
+        return $this->createQueryBuilder('c')
+            ->join('c.chatParticipants', 'cp')
+            ->where('cp.userId IN (:participant1, :participant2) AND c.proposalGroupId = :proposalGroupId')
+            ->setParameter('participant1', $participant1)
+            ->setParameter('participant2', $participant2)
+            ->setParameter('proposalGroupId', $proposalGroupId)
+            ->groupBy('c.id')
+            ->having('COUNT(DISTINCT cp.userId) = 2')
             ->getQuery()
             ->getOneOrNullResult();
     }

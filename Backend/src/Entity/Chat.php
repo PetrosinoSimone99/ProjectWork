@@ -2,10 +2,12 @@
 declare(strict_types=1);
 
 namespace App\Entity;
-use App\Entity\Proposal;
 
+use App\Entity\ChatParticipant;
 use App\Repository\ChatRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity(repositoryClass: ChatRepository::class)]
 #[ORM\Table(name: "chat")]
@@ -21,6 +23,20 @@ class Chat
 
     #[ORM\Column(name: "proposal_group_id")]
     private ?int $proposalGroupId = null;
+
+    /** @var Collection<int, ChatParticipant> */
+    #[ORM\OneToMany(
+        targetEntity: ChatParticipant::class,
+        mappedBy: 'chat',
+        cascade: ['persist'],
+        orphanRemoval: true,
+    )]
+    private Collection $chatParticipants;
+
+    public function __construct()
+    {
+        $this->chatParticipants = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -55,5 +71,4 @@ class Chat
 
         return $this;
     }
-
 }

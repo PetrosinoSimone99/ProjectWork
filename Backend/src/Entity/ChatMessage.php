@@ -26,6 +26,9 @@ class ChatMessage
     #[ORM\Column(name: "message")]
     private ?string $message = null;
 
+    #[ORM\Column(name: "creation_date", type: "datetime")]
+    private ?\DateTimeInterface $creationDate = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -63,6 +66,18 @@ class ChatMessage
         public function setMessage(?string $message): self
     {
         $this->message = $message;
+
+        return $this;
+    }
+
+    public function getCreationDate(): ?\DateTimeInterface
+    {
+        return $this->creationDate;
+    }
+
+    public function setCreationDate(\DateTimeInterface $creationDate): self
+    {
+        $this->creationDate = $creationDate;
 
         return $this;
     }
