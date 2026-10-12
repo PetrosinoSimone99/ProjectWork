@@ -58,6 +58,15 @@ class ChatRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function getUserChats(int $userId): ?array
+    {
+        return $this->createQueryBuilder('c')
+            ->join('c.chatParticipants', 'cp')
+            ->where('cp.userId = :userId')
+            ->setParameter(':userId', $userId)
+            ->getQuery()
+            ->getResult();
+    }
 //    /**
 //     * @return Chat[] Returns an array of Chat objects
 //     */

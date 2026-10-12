@@ -91,4 +91,34 @@ class ChatController extends AbstractController
         }
     }
 
+    #[Route('/chats/most-recent-message', name: 'get_most_recent_message', methods: ['GET'])]
+    public function getUserMostRecentReceivedMessage(): JsonResponse
+    {   
+        $user = $this->getUser();
+        try{
+            $mostRecentMessage = $this->chatManager->getUserMostRecentReceivedMessage($user->getId());
+
+            return $this->json(["chatMessageId" => $mostRecentMessage->getId()]);
+
+        }catch(\Exception $e){
+            return $this->json(["error" => (string)$e], 400);
+        }
+    }
+
+    #[Route('/chats/check-new-messages/{recentMessageId}', name: 'check_new_messages', methods: ['GET'])]
+    public function checkNewMessagesForUser(int $recentMessageId): JsonResponse
+    {
+        $user = $this->getUser();
+        try{
+            $newMessages = $this->chatManager->checkNewMessagesForUser($user->getId(), $recentMessageId);
+
+            return $this->json($newMessages);
+
+        }catch(\Exception $e){
+            return $this->json(["error" => (string)$e], 400);
+        }
+    }
+
+    //There are some inconsistencies with how chat messages are returned. Some return a DTO and some return the Entity. Look for a better way.
+    //TODO: Possibly make the DTO better
 }

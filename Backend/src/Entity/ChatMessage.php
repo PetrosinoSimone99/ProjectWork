@@ -16,9 +16,8 @@ class ChatMessage
     #[ORM\Column(name: "id")]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Chat::class)]
-    #[ORM\JoinColumn(name: "chat_id", referencedColumnName: "id")]
-    private ?Chat $chat = null;
+    #[ORM\Column(name: "chat_id")]
+    private ?int $chatId = null;
 
     #[ORM\Column(name: "user_id")]
     private ?int $userId = null;
@@ -34,14 +33,14 @@ class ChatMessage
         return $this->id;
     }
 
-    public function getChat(): ?Chat
+    public function getChatId(): ?int
     {
-        return $this->chat;
+        return $this->chatId;
     }
 
-    public function setChat(?Chat $chat): self
+    public function setChatId(?int $chatId): self
     {
-        $this->chat = $chat;
+        $this->chatId = $chatId;
 
         return $this;
     }

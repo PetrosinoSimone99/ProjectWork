@@ -118,6 +118,34 @@ class ChatManager
         $this->entityManager->flush();
     }
 
+
+    public function getUserMostRecentReceivedMessage(int $userId): ?ChatMessage
+    {   
+        $chatIds = [];
+        $userChats = $this->chatRepository->getUserChats($userId);
+        
+        foreach($userChats as $chat)
+        {
+            $chatIds[] = $chat->getId();
+        }
+        $mostRecentMessage = $this->chatMessageRepository->getUserMostRecentReceivedMessage($userId, $chatIds);
+
+        return $mostRecentMessage;
+    }
+
+    public function checkNewMessagesForUser(int $userId, int $recentMessageId): array
+    {
+        $chatIds = [];
+        $userChats = $this->chatRepository->getUserChats($userId);
+
+        foreach($userChats as $chat){
+            $chatIds[] = $chat->getId();
+        }
+
+        $newMessages = $this->chatMessageRepository->getNewMessagesForUser($userId, $chatIds, $recentMessageId);
+
+        return $newMessages;
+    }
     //Internal Only
     private function createChatMutual(int $proposalId): Chat
     {
