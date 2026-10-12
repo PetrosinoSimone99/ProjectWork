@@ -87,7 +87,6 @@ const ROTTE_UTENTE = [
   { rotta: '/scambi', etichetta: 'scambi' },
   { rotta: '/token', etichetta: 'token' },
   { rotta: '/modifica-profilo', etichetta: 'modifica-profilo', scroll: [0.5, 1] },
-  { rotta: '/inviti', etichetta: 'inviti' },
   { rotta: '/nuovo-accordo?id=2&username=brunob&nome=Bruno', etichetta: 'nuovo-accordo' },
   { rotta: '/accordo?id=1', etichetta: 'accordo', scroll: [1] },
   {

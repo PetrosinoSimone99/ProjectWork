@@ -46,7 +46,7 @@ export function setSessionExpiredHandler(handler) {
  * Messaggio da mostrare all'utente quando la risposta non e' ok.
  * Il backend Symfony manda la busta {"error": "<testo inglese>"}: si legge per
  * prima. Le chiavi vecchie restano per le chiamate non ancora portate al
- * backend nuovo ("errore" di ricerca/richieste/inviti, "message" di
+ * backend nuovo ("errore" di ricerca/richieste, "message" di
  * Accordi1_a_1) e per i dati finti, non perche' il backend vero le mandi.
  * Cosi' ogni endpoint porta il suo messaggio invece di lasciare l'utente
  * davanti a un testo tecnico.

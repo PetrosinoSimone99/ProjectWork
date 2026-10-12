@@ -18,7 +18,7 @@ import { TourAutomatico } from '@/dev/tour-automatico';
  * - nessun utente  -> gruppo (auth) con login e registrazione
  * - utente attivo  -> gruppo (tabs) con le schermate principali
  *
- * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, inviti, token,
+ * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, token,
  * segnalazione, area staff e utenti dell'area staff) sono elencate a mano: senza
  * la riga giusta non sono raggiungibili con una sessione attiva, pur esistendo il
  * file.
@@ -81,7 +81,6 @@ function RootNavigator() {
         {utente ? <Stack.Screen name="scambi" /> : null}
         {utente ? <Stack.Screen name="accordo" /> : null}
         {utente ? <Stack.Screen name="nuovo-accordo" /> : null}
-        {utente ? <Stack.Screen name="inviti" /> : null}
         {utente ? <Stack.Screen name="token" /> : null}
         {utente ? <Stack.Screen name="modifica-profilo" /> : null}
         {utente ? <Stack.Screen name="segnala" /> : null}

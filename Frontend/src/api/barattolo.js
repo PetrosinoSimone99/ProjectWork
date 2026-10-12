@@ -646,24 +646,6 @@ export async function cambiaStatoUtente(token, utenteId, id, stato) {
   return normalizzaEsitoUtenteStaff(risposta);
 }
 
-/** POST inviti.php azione "genera" — crea (o restituisce) il codice invito del mese. */
-export function generaInvito(token) {
-  return apiFetch('inviti.php', {
-    method: 'POST',
-    body: { azione: 'genera' },
-    token,
-  });
-}
-
-/** POST inviti.php azione "riscatta" — usa un codice invito ricevuto. */
-export function riscattaInvito(token, codice) {
-  return apiFetch('inviti.php', {
-    method: 'POST',
-    body: { azione: 'riscatta', codice },
-    token,
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Accordi 1:1 — API/Accordi1_a_1/
 //

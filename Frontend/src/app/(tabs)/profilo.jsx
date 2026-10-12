@@ -205,7 +205,7 @@ export default function ProfiloScreen() {
       </Card>
 
       {/* La modifica ha una schermata a sé: la card si limita ad aprirla,
-          così come fanno le card «I miei token» e «Inviti». */}
+          così come fa la card «I miei token». */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Apri la schermata Modifica profilo"
@@ -252,27 +252,6 @@ export default function ProfiloScreen() {
             </AppText>
             <AppText variant="small" tone="secondary">
               I buoni che la staff ti ha assegnato: usali su un servizio.
-            </AppText>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
-        </Card>
-      </Pressable>
-
-      {/* Gli inviti non sono più una tab: si aprono da qui come rotta a sé. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Apri la schermata Inviti"
-        onPress={() => router.push('/inviti')}
-        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-      >
-        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <Ionicons name="ticket-outline" size={20} color={t.primary} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <AppText variant="heading" style={{ fontSize: 16 }}>
-              Inviti
-            </AppText>
-            <AppText variant="small" tone="secondary">
-              Genera il tuo codice del mese o riscatta quello di un amico.
             </AppText>
           </View>
           <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
