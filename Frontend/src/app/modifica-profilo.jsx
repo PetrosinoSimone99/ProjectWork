@@ -12,6 +12,13 @@ import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { SelettoreElenco } from '@/components/SelettoreElenco';
+import {
+  REGIONI,
+  analizzaLocalita,
+  formattaLocalita,
+  provincePerRegione,
+} from '@/servizi/aree-italiane';
 import { space } from '@/theme/tokens';
 
 const LIMITI = {
@@ -42,6 +49,13 @@ function validaCampo(campo, testo) {
  * backend è rispettata senza controlli speciali e «Salva» è disabilitato quando
  * non c'è nulla da mandare.
  *
+ * La località si sceglie con due selettori a cascata (regione → provincia) e
+ * viene composta in `Provincia (Regione)` da `formattaLocalita`: il backend
+ * continua a ricevere la stringa `location` di sempre. Un valore salvato in
+ * vecchio formato (non parsabile) parte con i selettori vuoti e viene mostrato
+ * così com'è, mai azzerato in silenzio: si aggiorna solo se chi lo possiede
+ * sceglie esplicitamente regione e provincia.
+ *
  * Gli stati sono tutti espliciti (§7 di `AGENTS.md`):
  * - **caricamento**: `LoadingScreen` finché la GET non porta i valori attuali
  *   (il form non apre mai vuoto o a metà);
@@ -62,9 +76,12 @@ export default function ModificaProfiloScreen() {
   const [caricamentoProfilo, setCaricamentoProfilo] = useState(false);
   const [caricamentoErrore, setCaricamentoErrore] = useState(null);
 
-  const [localita, setLocalita] = useState('');
+  const [regione, setRegione] = useState(null);
+  const [provincia, setProvincia] = useState(null);
+  // Valore `location` in vecchio formato (non parsabile): si mostra così com'è
+  // finché l'utente non aggiorna i selettori; `null` se non serve.
+  const [legacyLocalita, setLegacyLocalita] = useState(null);
   const [bio, setBio] = useState('');
-  const [erroreLocalita, setErroreLocalita] = useState(null);
   const [erroreBio, setErroreBio] = useState(null);
 
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
@@ -82,9 +99,13 @@ export default function ModificaProfiloScreen() {
       const profilo = await ottieniProfilo(token);
       const attuali = { localita: profilo?.localita ?? '', bio: profilo?.bio ?? '' };
       setValoriIniziali(attuali);
-      setLocalita(attuali.localita);
+      // Valore parsabile → selettori precaricati; valore legacy (o vuoto) →
+      // selettori vuoti e, se non era vuoto, riga con il valore attuale.
+      const coppia = analizzaLocalita(attuali.localita);
+      setRegione(coppia?.regione ?? null);
+      setProvincia(coppia?.provincia ?? null);
+      setLegacyLocalita(coppia ? null : attuali.localita || null);
       setBio(attuali.bio);
-      setErroreLocalita(null);
       setErroreBio(null);
       setErroreSalvataggio(null);
       setCaricamentoErrore(null);
@@ -108,20 +129,32 @@ export default function ModificaProfiloScreen() {
     }, [caricaProfilo]),
   );
 
-  const aggiornaLocalita = useCallback((testo) => {
-    setLocalita(testo);
-    setErroreLocalita(validaCampo('localita', testo));
+  const cambiaRegione = useCallback((nuovaRegione) => {
+    setRegione(nuovaRegione);
+    // Nella nuova regione la provincia vecchia non è valida: si azzera sempre.
+    setProvincia(null);
   }, []);
+
+  // `setProvincia` già è stabile: nessun useCallback serve.
+  const cambiaProvincia = setProvincia;
 
   const aggiornaBio = useCallback((testo) => {
     setBio(testo);
     setErroreBio(validaCampo('bio', testo));
   }, []);
 
-  const localitaCambiata = localita.trim() !== valoriIniziali.localita;
+  // Derivati, non stato: la provincia manca solo dopo una scelta di regione,
+  // quindi l'errore si ricalcola a ogni render senza venire memorizzato.
+  const nuovaLocalita = formattaLocalita(provincia, regione);
+  const localitaCambiata = nuovaLocalita !== null && nuovaLocalita !== valoriIniziali.localita;
   const bioCambiata = bio.trim() !== valoriIniziali.bio;
   const formNonCambiato = !(localitaCambiata || bioCambiata);
-  const validazione = erroreLocalita === null && erroreBio === null;
+  const erroreProvincia = regione && !provincia ? 'Seleziona la provincia.' : null;
+  // Rete di sicurezza sul limite del backend (255): col formato composto
+  // non si sfora di norma, resta per il caso fuori scala.
+  const erroreLunghezzaLocalita = nuovaLocalita ? validaCampo('localita', nuovaLocalita) : null;
+  const validazione =
+    erroreBio === null && erroreProvincia === null && erroreLunghezzaLocalita === null;
 
   async function handleSalva() {
     if (!token || formNonCambiato || !validazione) {
@@ -131,7 +164,7 @@ export default function ModificaProfiloScreen() {
     setErroreSalvataggio(null);
     const modifiche = {};
     if (localitaCambiata) {
-      modifiche.localita = localita.trim();
+      modifiche.localita = nuovaLocalita;
     }
     if (bioCambiata) {
       modifiche.bio = bio.trim();
@@ -172,7 +205,8 @@ export default function ModificaProfiloScreen() {
       </View>
 
       <AppText variant="small" tone="secondary">
-        Puoi cambiare la località e la bio. Nome e cognome non si cambiano da qui.
+        Puoi cambiare la località, scegliendo regione e provincia, e la bio. Nome e cognome non si
+        cambiano da qui.
       </AppText>
 
       {caricamentoErrore ? (
@@ -191,16 +225,32 @@ export default function ModificaProfiloScreen() {
 
       <Card>
         <View style={{ gap: space.md }}>
-          <AppInput
-            label="Località"
-            value={localita}
-            onChangeText={aggiornaLocalita}
-            placeholder="Es. Roma"
-            optionalHint="Solo te la vedi"
-            maxLength={LIMITI.localita.max + 1}
-            editable={!caricamentoProfilo && !salvataggioInCorso}
-            error={erroreLocalita}
+          <SelettoreElenco
+            label="Regione"
+            valore={regione}
+            opzioni={REGIONI.map((r) => r.nome)}
+            onChange={cambiaRegione}
+            disabled={caricamentoProfilo || salvataggioInCorso}
           />
+          <SelettoreElenco
+            label="Provincia"
+            placeholder={regione ? 'Scegli' : 'Scegli prima la regione'}
+            valore={provincia}
+            opzioni={provincePerRegione(regione)}
+            onChange={cambiaProvincia}
+            disabled={!regione || caricamentoProfilo || salvataggioInCorso}
+            errore={erroreProvincia}
+          />
+          {legacyLocalita ? (
+            <AppText variant="small" tone="secondary">
+              Valore attuale: {legacyLocalita} — scegli regione e provincia per aggiornarlo.
+            </AppText>
+          ) : null}
+          {erroreLunghezzaLocalita ? (
+            <AppText variant="small" tone="danger">
+              {erroreLunghezzaLocalita}
+            </AppText>
+          ) : null}
           <AppInput
             label="Bio"
             value={bio}
