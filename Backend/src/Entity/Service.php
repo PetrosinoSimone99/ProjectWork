@@ -105,7 +105,7 @@ class Service
     }
 
     /** @return array{id: int|null, type: string, description: string, createdAt: string, categories: list<array{id: int|null, description: string}>} */
-    public function toOwnedOfferApiArray(): array
+    public function toOwnedServiceApiArray(): array
     {
         return [
             'id' => $this->id,

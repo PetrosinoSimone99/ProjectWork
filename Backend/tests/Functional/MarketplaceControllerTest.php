@@ -27,6 +27,8 @@ class MarketplaceControllerTest extends WebTestCase
         self::ensureKernelShutdown();
         $this->client = static::createClient();
         $this->entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        // Remove the unmapped reservation fixture left by interrupted earlier runs.
+        $this->entityManager->getConnection()->executeStatement('DROP TABLE IF EXISTS chain_service_reservations');
         $tool = new SchemaTool($this->entityManager);
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         $tool->dropSchema($metadata);
@@ -134,9 +136,13 @@ class MarketplaceControllerTest extends WebTestCase
         $connection->executeStatement('CREATE TABLE chain_service_reservations (service_id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL)');
         $connection->insert('chain_service_reservations', ['service_id' => $offer->getId(), 'group_id' => 1]);
         $this->authenticate($alice);
-
-        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
-        self::assertResponseStatusCodeSame(409);
+        try {
+            $this->client->request('DELETE', '/api/offers/'.$offer->getId());
+            self::assertResponseStatusCodeSame(409);
+        } finally {
+            // This extra table is not mapped by Doctrine, so SchemaTool will not remove it.
+            $connection->executeStatement('DROP TABLE chain_service_reservations');
+        }
     }
 
     public function testUserCanDeleteAnUnusedOffer(): void
@@ -145,9 +151,11 @@ class MarketplaceControllerTest extends WebTestCase
         $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $this->createCategory('Cooking'));
         $this->authenticate($alice);
 
-        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
+        $id = $offer->getId();
+        $this->client->request('DELETE', '/api/offers/'.$id);
         self::assertResponseStatusCodeSame(204);
-        self::assertNull($this->entityManager->find(Service::class, $offer->getId()));
+        $this->entityManager->clear();
+        self::assertNull($this->entityManager->find(Service::class, $id));
     }
 
     public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void

@@ -30,7 +30,7 @@ final class OfferController extends AbstractController
         }
 
         return $this->json(['offers' => array_map(
-            static fn (Service $service) => $service->toOwnedOfferApiArray(),
+            static fn (Service $service) => $service->toOwnedServiceApiArray(),
             $services->findOwnedOffers($user),
         )]);
     }
@@ -113,7 +113,7 @@ final class OfferController extends AbstractController
             return $this->error('The offer changed during this request. Please try again.', 409);
         }
 
-        return $this->json(['offer' => $offer->toOwnedOfferApiArray()]);
+        return $this->json(['offer' => $offer->toOwnedServiceApiArray()]);
     }
 
     #[Route('/{id}', name: 'api_offers_delete', requirements: ['id' => '\\d+'], methods: ['DELETE'])]
