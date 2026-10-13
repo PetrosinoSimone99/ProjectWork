@@ -625,3 +625,66 @@ SOURCE Context_and_DB_V2/barattolo_v2_13102026_staff.sql;
 Point your uncommitted `Backend/.env.local` database URL to that database, configure your local JWT keys, and run the migration command above. The included migration history matches the exported schema, so current migrations should already be applied. Create the first staff account with the server command and log in to obtain its JWT. Do not import a full dump over a database whose data you want to keep: it replaces tables.
 
 The staff dump was generated and reimported on isolated MySQL 8.4.3 databases. Verification covered preserved local data, schema, migration history, staff user operations and report review through the actual APIs. The original local database was not changed. Functional tests also cover existing JWTs after account changes and concurrent review/promotion operations. To run staff tests, set `STAFF_TEST_DATABASE_URL` to a disposable MySQL database URL named `staff_check_<your_name>`; test configuration appends `_test`. Create that suffixed database first. The tests reset tables only inside this explicitly checked namespace.
+
+## Manage your own service requests
+
+These endpoints manage services whose type is `REQUEST`. All three endpoints require an active account and `Authorization: Bearer YOUR_JWT_TOKEN`. The owner is always the signed-in user.
+
+### List your requests
+
+```bash
+curl http://localhost:8000/api/requests/mine \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Returns `200 OK` with requests ordered by creation date and then ID, both newest first. The response contains every category for each request:
+
+```json
+{
+  "requests": [
+    {
+      "id": 2,
+      "type": "REQUEST",
+      "description": "I need help with gardening.",
+      "createdAt": "2026-10-13T10:30:00+00:00",
+      "categories": [{ "id": 1, "description": "Gardening" }]
+    }
+  ]
+}
+```
+
+If the user has no requests, the response is `{"requests":[]}`. Offers and other users' requests are excluded. There is no pagination.
+
+### Update your request
+
+```bash
+curl -X PATCH http://localhost:8000/api/requests/2 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"description":"I need help pruning trees.","categoryIds":[1]}'
+```
+
+Send `description`, `categoryIds`, or both. Omitted fields stay unchanged; `categoryIds` replaces all selected categories. Descriptions are trimmed and must contain 1 to 255 characters. Category IDs must be a non-empty list of unique positive integers referring to existing categories. Numeric strings are also accepted, as in the offers API. The owner, type, and creation time cannot be changed. Empty bodies, invalid JSON, and unknown fields are rejected. Invalid input never saves part of an update.
+
+Returns `200 OK` with the updated service in `{"request":{...}}`, using the same fields as the list response.
+
+### Delete your request
+
+```bash
+curl -X DELETE http://localhost:8000/api/requests/2 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Permanently deletes an unused request and returns `204 No Content` with an empty response body.
+
+### Errors and linked services
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid JSON, an empty update, invalid description/category IDs, or unknown fields |
+| `401` | Missing, invalid, or expired JWT |
+| `403` | The signed-in account is inactive |
+| `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
+| `409` | The request is connected to a proposal/exchange, or a concurrent database operation conflicts with the write |
+
+Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. No database migration is needed for this feature; use `barattolo_v2_13102026_staff.sql` for a fresh setup.

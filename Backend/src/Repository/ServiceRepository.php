@@ -29,24 +29,44 @@ final class ServiceRepository extends ServiceEntityRepository
     /** @return list<Service> */
     public function findOwnedOffers(User $owner): array
     {
+        return $this->findOwnedServices($owner, Service::TYPE_OFFER);
+    }
+
+    /** @return list<Service> */
+    public function findOwnedRequests(User $owner): array
+    {
+        return $this->findOwnedServices($owner, Service::TYPE_REQUEST);
+    }
+
+    /** @return list<Service> */
+    private function findOwnedServices(User $owner, string $type): array
+    {
         return $this->createQueryBuilder('service')
             ->select('service, category')
             ->leftJoin('service.categories', 'category')
             ->andWhere('service.user = :owner')
-            ->andWhere('service.type = :offerType')
+            ->andWhere('service.type = :type')
             ->setParameter('owner', $owner)
-            ->setParameter('offerType', Service::TYPE_OFFER)
+            ->setParameter('type', $type)
             ->orderBy('service.createdAt', 'DESC')
             ->addOrderBy('service.id', 'DESC')
             ->getQuery()
             ->getResult();
     }
 
-    /** Checks every table that can keep an offer tied to a proposal or exchange. */
+    /** Checks whether a service is tied to any proposal or exchange, including finished ones. */
     public function isInUse(int $serviceId): bool
     {
         $tables = $this->db->createSchemaManager()->listTableNames();
         $suffix = $this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform ? '' : ' FOR UPDATE';
+        // Direct proposals store offers as participants, but their requests are recorded in the swipe.
+        if (in_array('swipe_decisions', $tables, true)
+            && $this->db->fetchOne(
+                'SELECT id FROM swipe_decisions WHERE proposal_id IS NOT NULL AND (actor_offer_id = ? OR actor_request_id = ? OR candidate_offer_id = ? OR candidate_request_id = ?) LIMIT 1'.$suffix,
+                array_fill(0, 4, $serviceId),
+            ) !== false) {
+            return true;
+        }
         $references = [
             'proposal_participants' => ['service_id'],
             'exchange_participants' => ['service_id'],

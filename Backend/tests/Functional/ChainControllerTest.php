@@ -383,6 +383,26 @@ final class ChainControllerTest extends WebTestCase
         } finally { unlink($gate); }
     }
 
+    public function testRequestsInAChainCannotBeChangedOrDeletedEvenAfterCancellation(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $requestId = $members[0]['request']->getId();
+        $this->as($members[0]['user']);
+
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$requestId, ['description' => 'Changed']);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->request('DELETE', '/api/requests/'.$requestId);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->jsonRequest('POST', '/api/chains/'.$chain['id'].'/cancel', ['reason' => 'Test cancellation']);
+        self::assertResponseIsSuccessful();
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$requestId, ['description' => 'Still blocked']);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->request('DELETE', '/api/requests/'.$requestId);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('REQUEST service', $this->em->find(Service::class, $requestId)->getDescription());
+    }
+
     private function cycle(int $length): array
     {
         $categories = [];
