@@ -340,3 +340,34 @@ The `offers` array contains the service description, its categories, creation ti
 | `403` | The account is inactive | An active account is required to use marketplace endpoints |
 
 The homepage API shows offers from other active users only. It never returns the signed-in user's own offers or private owner fields such as email and roles.
+
+### Manage your own offers
+
+Load the offers published by the signed-in user. Results are ordered newest first and include the offer description, categories, and creation time:
+
+```bash
+curl http://localhost:8000/api/offers/mine \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+The response contains an `offers` array. It is empty when the user has not published any offers.
+
+Update an offer with `PATCH /api/offers/{id}`. You can send the description, category IDs, or both. Omitted fields stay unchanged, while `categoryIds` replaces the full category list:
+
+```bash
+curl -X PATCH http://localhost:8000/api/offers/12 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"description":"I can repair bicycles and scooters.","categoryIds":[3]}'
+```
+
+The response contains the updated offer in an `offer` field. Descriptions must contain 1 to 255 characters. Category IDs must be a non-empty list of unique IDs that exist in the database.
+
+Delete an unused offer with `DELETE /api/offers/{id}`:
+
+```bash
+curl -X DELETE http://localhost:8000/api/offers/12 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Successful deletion returns `204 No Content`. Updating or deleting an offer returns `404` when it does not exist or belongs to another user, `400` for invalid update data, and `409` when the offer is already connected to a proposal or exchange. All these endpoints require an active account and a JWT.
