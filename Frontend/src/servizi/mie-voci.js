@@ -5,12 +5,13 @@ import { TIPI_VOCE } from './offerta-ricerca';
  * serve a «Scambi» per far scegliere la coppia (`offeredServiceId`,
  * `requestedServiceId`) con cui avviare una ricerca di catena.
  *
- * Esiste perché **non esiste** un endpoint che elenchi le proprie voci
- * (segnalazione in `temp/gruppo-3-mancanti/26`): il registro si alimenta solo
+ * Esiste perché il frontend **non è ancora collegato** all'endpoint che elenca le proprie voci
+ * (`temp/gruppo-3-mancanti/27-endpoint-proprie-servizi.md`; l'endpoint esiste dal 13 ottobre 2026,
+ * `GET /api/offers/mine` di PR #30, **solo offerte**): il registro si alimenta solo
  * da risposte **reali** del backend — la registrazione (`offers`/`requests`),
  * la creazione di una voce (`service`) e le righe del feed Loop
  * (`actorOfferService`/`actorRequestService`) — e **non inventa mai righe**.
- * Quando arriverà `GET /api/services/mine`, il registro si toglie.
+ * Quando l'elenco vero è agganciato in schermata, il registro si toglie.
  *
  * Degradazione dichiarata, come per i finti: persistenza in `localStorage`
  * **solo su web** (chiave `barattolo.mie-voci`), memoria di processo su native.
