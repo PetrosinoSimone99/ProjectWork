@@ -53,6 +53,103 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertArrayHasKey('error', $this->data());
     }
 
+    public function testUserCanListOnlyTheirOffersAndUpdateDescriptionAndCategories(): void
+    {
+        $alice = $this->createUser('alice');
+        $bob = $this->createUser('bob');
+        $firstCategory = $this->createCategory('Cooking');
+        $secondCategory = $this->createCategory('Repairs');
+        $olderOffer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $firstCategory);
+        $newerOffer = $this->createService($alice, Service::TYPE_OFFER, 'I bake.', $firstCategory);
+        $this->createService($bob, Service::TYPE_OFFER, 'Bob cooks.', $firstCategory);
+        $this->createService($alice, Service::TYPE_REQUEST, 'I need repairs.', $secondCategory);
+        $this->authenticate($alice);
+
+        $this->client->request('GET', '/api/offers/mine');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$newerOffer->getId(), $olderOffer->getId()], array_column($this->data()['offers'], 'id'));
+
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$olderOffer->getId(), ['description' => '  I cook fresh pasta.  ', 'categoryIds' => [$secondCategory->getId()]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('I cook fresh pasta.', $this->data()['offer']['description']);
+        self::assertSame('Repairs', $this->data()['offer']['categories'][0]['description']);
+
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$olderOffer->getId(), ['description' => 'Updated only.']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('Repairs', $this->data()['offer']['categories'][0]['description']);
+    }
+
+    public function testOfferManagementRejectsInvalidInputAndOtherUsersServices(): void
+    {
+        $alice = $this->createUser('alice');
+        $bob = $this->createUser('bob');
+        $category = $this->createCategory('Cooking');
+        $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $category);
+        $request = $this->createService($alice, Service::TYPE_REQUEST, 'I need food.', $category);
+        $this->authenticate($bob);
+
+        $this->client->request('GET', '/api/offers/mine');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->data()['offers']);
+
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['description' => 'Hijack']);
+        self::assertResponseStatusCodeSame(404);
+        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
+        self::assertResponseStatusCodeSame(404);
+
+        $this->authenticate($alice);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$request->getId(), ['description' => 'Change request']);
+        self::assertResponseStatusCodeSame(404);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['description' => '   ']);
+        self::assertResponseStatusCodeSame(400);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['categoryIds' => [$category->getId(), $category->getId()]]);
+        self::assertResponseStatusCodeSame(400);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['unknown' => true]);
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testOfferCannotBeChangedOrDeletedAfterItIsAddedToAProposal(): void
+    {
+        $alice = $this->createUser('alice');
+        $category = $this->createCategory('Cooking');
+        $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $category);
+        $proposal = new Proposal('1:2');
+        $proposal->addParticipant(new ProposalParticipant($proposal, $alice, $offer));
+        $this->entityManager->persist($proposal);
+        $this->entityManager->flush();
+        $this->authenticate($alice);
+
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['description' => 'Changed']);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('I cook.', $this->entityManager->find(Service::class, $offer->getId())->getDescription());
+    }
+
+    public function testOfferReservedByAChainCannotBeDeleted(): void
+    {
+        $alice = $this->createUser('alice');
+        $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $this->createCategory('Cooking'));
+        $connection = $this->entityManager->getConnection();
+        $connection->executeStatement('CREATE TABLE chain_service_reservations (service_id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL)');
+        $connection->insert('chain_service_reservations', ['service_id' => $offer->getId(), 'group_id' => 1]);
+        $this->authenticate($alice);
+
+        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testUserCanDeleteAnUnusedOffer(): void
+    {
+        $alice = $this->createUser('alice');
+        $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $this->createCategory('Cooking'));
+        $this->authenticate($alice);
+
+        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
+        self::assertResponseStatusCodeSame(204);
+        self::assertNull($this->entityManager->find(Service::class, $offer->getId()));
+    }
+
     public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void
     {
         [$alice, $bob, $ids] = $this->createReciprocalCombination();

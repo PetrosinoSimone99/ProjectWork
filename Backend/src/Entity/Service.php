@@ -56,6 +56,7 @@ class Service
     public function getUser(): User { return $this->user; }
     public function getType(): string { return $this->type; }
     public function getDescription(): string { return $this->description; }
+    public function setDescription(string $description): void { $this->description = $description; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     /** @return Collection<int, Category> */
     public function getCategories(): Collection { return $this->categories; }
@@ -64,6 +65,11 @@ class Service
         if (!$this->categories->contains($category)) {
             $this->categories->add($category);
         }
+    }
+
+    public function clearCategories(): void
+    {
+        $this->categories->clear();
     }
 
     /** @return array{id: int|null, type: string, description: string, categories: list<array{id: int|null, description: string}>} */
@@ -95,6 +101,18 @@ class Service
             'createdAt' => $this->createdAt->format(DATE_ATOM),
             'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
             'owner' => $this->user->toPublicApiArray(),
+        ];
+    }
+
+    /** @return array{id: int|null, type: string, description: string, createdAt: string, categories: list<array{id: int|null, description: string}>} */
+    public function toOwnedOfferApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'type' => $this->type,
+            'description' => $this->description,
+            'createdAt' => $this->createdAt->format(DATE_ATOM),
+            'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
         ];
     }
 }
