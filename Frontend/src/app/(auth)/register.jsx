@@ -24,6 +24,8 @@ import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { SezioneVociServizio } from '@/components/SezioneVociServizio';
+import { SelettoreElenco } from '@/components/SelettoreElenco';
+import { REGIONI, formattaLocalita, provincePerRegione } from '@/servizi/aree-italiane';
 import { space } from '@/theme/tokens';
 
 /**
@@ -32,7 +34,9 @@ import { space } from '@/theme/tokens';
  * Le voci di offerta e ricerca sono la versione strutturata del vecchio «servizio
  * che offri»: categoria (da una lista che arriva dal backend), mansione in testo
  * libero e casella «da remoto». La località invece è della **persona**, non della
- * voce: serve a sapere dove sta chi si contatta.
+ * voce: si sceglie la regione e poi la provincia, e le due si salvano in un'unica
+ * stringa `Provincia (Regione)` nel campo `location` del backend (`users.location`
+ * è `varchar(255)` e non ha campi separati).
  *
  * Le regole delle voci stanno in `src/servizi/offerta-ricerca.js`; qui restano
  * solo le regole anagrafiche, la chiamata e i messaggi da disegnare.
@@ -58,7 +62,8 @@ const FORM_VUOTO = {
   username: '',
   email: '',
   password: '',
-  localita: '',
+  regione: '',
+  provincia: '',
 };
 
 /** Le due sezioni ripetibili, con i testi che le distinguono. */
@@ -121,8 +126,12 @@ function validaAnagrafica(form) {
   if (form.password.length < MIN_PASSWORD_LENGTH) {
     errori.password = `Almeno ${MIN_PASSWORD_LENGTH} caratteri.`;
   }
-  if (!form.localita.trim()) {
-    errori.localita = 'Indica dove ti trovi.';
+  if (!form.regione) {
+    errori.regione = 'Seleziona la regione.';
+  } else if (!form.provincia) {
+    // La provincia si può chiedere solo dopo la regione: primo dato mancante
+    // = un solo errore, mai due insieme.
+    errori.provincia = 'Seleziona la provincia.';
   }
   return errori;
 }
@@ -207,6 +216,15 @@ export default function RegisterScreen() {
     setFieldErrors((correnti) => senzaChiave(correnti, campo));
   }
 
+  /**
+   * Al cambio di regione la provincia scelta prima non vale più: si azzera
+   * (copia, mai mutazione) e si tolgono gli errori di entrambi i campi.
+   */
+  function cambiaRegione(valore) {
+    setForm((correnti) => ({ ...correnti, regione: valore, provincia: '' }));
+    setFieldErrors((correnti) => senzaChiave(senzaChiave(correnti, 'regione'), 'provincia'));
+  }
+
   function cambiaVoce(chiave, indice, campo, valore) {
     const setVoci = chiave === 'offerte' ? setOfferte : setRicerche;
     setVoci((correnti) =>
@@ -258,7 +276,7 @@ export default function RegisterScreen() {
         // `localita`, `offerte` e `ricerche` partono nel payload: la forma inglese
         // del contratto ({description, categoryIds}, {location} ecc.) la costruisce
         // `api/barattolo.js`, che è l'unico posto che conosce il backend.
-        localita: form.localita.trim(),
+        localita: formattaLocalita(form.provincia, form.regione),
         offerte: aPayloadApi(offerte),
         ricerche: aPayloadApi(ricerche),
       });
@@ -335,14 +353,22 @@ export default function RegisterScreen() {
           secureTextEntry
           error={fieldErrors.password ?? null}
         />
-        <AppInput
-          label="Località"
-          value={form.localita}
-          onChangeText={(valore) => cambiaCampo('localita', valore)}
-          placeholder="Firenze"
-          autoCapitalize="words"
-          optionalHint="dove ti trovi"
-          error={fieldErrors.localita ?? null}
+        <SelettoreElenco
+          label="Regione"
+          placeholder="Scegli la regione"
+          valore={form.regione}
+          opzioni={REGIONI.map((r) => r.nome)}
+          onChange={cambiaRegione}
+          errore={fieldErrors.regione ?? null}
+        />
+        <SelettoreElenco
+          label="Provincia"
+          placeholder={form.regione ? 'Scegli la provincia' : 'Scegli prima la regione'}
+          valore={form.provincia}
+          opzioni={provincePerRegione(form.regione)}
+          onChange={(valore) => cambiaCampo('provincia', valore)}
+          disabled={!form.regione}
+          errore={fieldErrors.provincia ?? null}
         />
         <AppText variant="small" tone="secondary">
           La vedono le persone che ti contattano.
