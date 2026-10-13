@@ -11,6 +11,7 @@ import {
   nomeCategoria,
   tonoStatoPubblicazione,
 } from '@/servizi/offerta-ricerca';
+import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -95,7 +96,7 @@ export function CardVoceServizio({
             <>
               <Ionicons name="location-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
-                {voce.localita}
+                {localitaPerDisplay(voce.localita)}
               </AppText>
               <AppText variant="small" tone="secondary">
                 ·

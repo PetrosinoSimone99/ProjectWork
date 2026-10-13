@@ -9,6 +9,7 @@ import {
   etichettaMotivo,
 } from '@/servizi/candidati';
 import { etichettaModalita, nomeCategoria, nomePersona } from '@/servizi/offerta-ricerca';
+import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -99,7 +100,7 @@ export function CardCandidato({ candidato, categorie = [] }) {
                 dice dove sta chi si contatterà. Se manca, la riga non compare. */}
             {persona.localita ? (
               <AppText variant="small" tone="secondary">
-                {`si trova a ${persona.localita}`}
+                {`si trova a ${localitaPerDisplay(persona.localita)}`}
               </AppText>
             ) : null}
           </View>
@@ -125,7 +126,7 @@ export function CardCandidato({ candidato, categorie = [] }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 <Ionicons name="location-outline" size={14} color={t.textSecondary} />
                 <AppText variant="small" tone="secondary">
-                  {offerta.localita}
+                  {localitaPerDisplay(offerta.localita)}
                 </AppText>
               </View>
             ) : null}

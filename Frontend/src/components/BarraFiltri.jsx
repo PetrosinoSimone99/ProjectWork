@@ -1,11 +1,12 @@
 import { Pressable, TextInput, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
-import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { SelettoreCategoria } from './SelettoreCategoria';
+import { SelettoreElenco } from './SelettoreElenco';
 import { contaFiltri } from '@/servizi/offerta-ricerca';
+import { REGIONI, provincePerRegione } from '@/servizi/aree-italiane';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -15,17 +16,20 @@ import { radius, space, useTokens } from '@/theme/tokens';
 const SOGLIA_LAYOUT_STRETTO = 480;
 
 /**
- * La barra dei filtri della home: testo, categoria e località. Nessuno stato
- * proprio: i filtri e le callback arrivano dall'hook (`useCatalogoServizi`),
- * così quello che c'è nella barra è anche quello che produce la lista — una sola
- * verità. Il filtro **modalità non c'è più**: il backend Symfony non ha un campo
- * «da remoto» e una scelta senza supporto si toglie, non si finta.
+ * La barra dei filtri della home: testo, categoria e area (regione →
+ * provincia). Nessuno stato proprio: i filtri e le callback arrivano dall'hook
+ * (`useCatalogoServizi`), così quello che c'è nella barra è anche quello che
+ * produce la lista — una sola verità. Il filtro **modalità non c'è più**: il
+ * backend Symfony non ha un campo «da remoto» e una scelta senza supporto si
+ * toglie, non si finta. Anche la **località a testo libero non c'è più**: era un
+ * errore di sicurezza, ora sono due tendine dal dataset statico.
  *
  * Quando ogni controllo fa partire la richiesta:
- * - **testo e località** con Invio o con il pulsante «Filtra»: non si fa una
- *   richiesta per tasto premuto, altrimenti ogni lettera produrrebbe una
- *   richiesta e una raffica di risposte da scartare;
- * - **categoria** al tocco: è una scelta discreta e non ha costo.
+ * - **testo** con Invio o con il pulsante «Filtra»: non si fa una richiesta per
+ *   tasto premuto, altrimenti ogni lettera produrrebbe una richiesta e una
+ *   raffica di risposte da scartare;
+ * - **categoria, regione e provincia** al tocco: sono scelte discrete e non
+ *   hanno costo. L'azzeramento di provincia al cambio regione lo fa l'hook.
  *
  * Il pulsante di azzeramento compare **solo** quando qualcosa è attivo, e non
  * sparisce mai quando serve. La X nel campo di testo azzera **solo** il testo e
@@ -114,18 +118,37 @@ export function BarraFiltri({
         onChange={(idCategoria) => onCambiaScelta('idCategoria', idCategoria)}
       />
 
-      <AppInput
-        label="Località"
-        value={filtri.localita}
-        onChangeText={(valore) => onCambiaTesto('localita', valore)}
-        placeholder="es. Firenze"
-        autoCapitalize="words"
-        returnKeyType="search"
-        onSubmitEditing={onApplica}
-      />
+      <View
+        style={{
+          flexDirection: layoutStretto ? 'column' : 'row',
+          gap: space.sm,
+          alignItems: layoutStretto ? 'stretch' : 'flex-end',
+        }}
+      >
+        <SelettoreElenco
+          label="Regione"
+          placeholder="Tutte le regioni"
+          opzioni={REGIONI.map((r) => r.nome)}
+          valore={filtri.regione}
+          onChange={(valore) => onCambiaScelta('regione', valore)}
+          style={{ flex: layoutStretto ? undefined : 1 }}
+        />
+        <SelettoreElenco
+          label="Provincia"
+          placeholder={filtri.regione === '' ? 'Scegli prima una regione' : 'Tutte le province'}
+          opzioni={provincePerRegione(filtri.regione)}
+          valore={filtri.provincia}
+          disabled={filtri.regione === ''}
+          onChange={(valore) => onCambiaScelta('provincia', valore)}
+          style={{ flex: layoutStretto ? undefined : 1 }}
+        />
+      </View>
+      <AppText variant="small" tone="secondary">
+        Nessuna scelta: tutti i servizi. La regione allarga la ricerca, la provincia la restringe.
+      </AppText>
 
       {/* Il catalogo **non** dipende dalle categorie: se non arrivano, il
-          selettore è spento e lo dice, ma testo e località funzionano
+          selettore è spento e lo dice, ma testo e area funzionano
           lo stesso. È la differenza rispetto alla registrazione, dove senza
           categorie non si salva niente. */}
       {categoriePronte ? null : (
@@ -176,9 +199,9 @@ function messaggioCategorie(stato, dettaglio) {
     return 'Sto caricando le categorie…';
   }
   if (stato === 'vuoto') {
-    return 'Non ci sono categorie: puoi filtrare per testo e località.';
+    return 'Non ci sono categorie: puoi filtrare per testo e area.';
   }
-  return `Non riesco a caricare le categorie: puoi filtrare per testo e località.${
+  return `Non riesco a caricare le categorie: puoi filtrare per testo e area.${
     dettaglio ? ` ${dettaglio}` : ''
   }`;
 }

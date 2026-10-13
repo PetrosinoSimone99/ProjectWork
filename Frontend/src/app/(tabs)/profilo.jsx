@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { formatOrarioScadenza, tokenExpiresAt } from '@/auth/token-store';
 import { ottieniProfilo } from '@/api/barattolo';
+import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { useAggiornamento } from '@/hooks/useAggiornamento';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -194,7 +195,11 @@ export default function ProfiloScreen() {
             <RigaProfilo icona="mail-outline" etichetta="Email" valore={email} />
           ) : null}
           {localita ? (
-            <RigaProfilo icona="location-outline" etichetta="Località" valore={localita} />
+            <RigaProfilo
+              icona="location-outline"
+              etichetta="Località"
+              valore={localitaPerDisplay(localita)}
+            />
           ) : null}
           <RigaProfilo
             icona="document-text-outline"

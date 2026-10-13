@@ -20,6 +20,7 @@ import {
   senzaChiave,
   validaVoce,
 } from '@/servizi/offerta-ricerca';
+import { analizzaLocalita } from '@/servizi/aree-italiane';
 import { useAggiornamento } from '@/hooks/useAggiornamento';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -218,12 +219,14 @@ export default function OffroECercoScreen() {
     setEsito(null);
     setErroreForm(null);
     setFieldErrors({});
-    // La località nasce da quella della persona, se la sessione la conosce:
-    // è la stessa persona, e cambiarla resta un tocco.
+    // La località nasce da quella della persona, se la sessione la conosce: si
+    // rilegge la coppia provincia/regione dal valore formattato e si precompilano
+    // le due tendine. Un valore legacy non conforme lascia le tendine vuote.
     const vuota = nuovaVoce(tipo);
+    const coppia = analizzaLocalita(utente?.localita);
     setForm({
       tipo,
-      voce: utente?.localita ? aggiornaVoce(vuota, 'localita', utente.localita) : vuota,
+      voce: { ...vuota, regione: coppia?.regione ?? '', provincia: coppia?.provincia ?? '' },
     });
   }
 
@@ -231,8 +234,13 @@ export default function OffroECercoScreen() {
     setEsito(null);
     setErroreForm(null);
     setFieldErrors({});
-    // Copia: «Annulla» scarta senza lasciare modifiche a metà.
-    setForm({ tipo: voce.tipo, voce: { ...voce } });
+    // Copia: «Annulla» scarta senza lasciare modifiche a metà. La località salvata
+    // si rilegge nella coppia provincia/regione per precompilare le tendine.
+    const coppia = analizzaLocalita(voce.localita);
+    setForm({
+      tipo: voce.tipo,
+      voce: { ...voce, regione: coppia?.regione ?? '', provincia: coppia?.provincia ?? '' },
+    });
   }
 
   function cambiaCampoForm(campo, valore) {

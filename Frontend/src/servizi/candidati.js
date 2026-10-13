@@ -15,6 +15,7 @@
  */
 
 import { etichettaModalita, nomeCategoria, nomePersona } from './offerta-ricerca';
+import { localitaPerDisplay } from './aree-italiane';
 
 /** Le due scelte che si registrano su una scheda. */
 export const SCELTE_CANDIDATO = { INTERESSE: 'INTERESSE', PASSA: 'PASSA' };
@@ -119,7 +120,7 @@ export function descriviCandidato(candidato, categorie = []) {
     testa.push(modalita);
   }
   if (offerta.localita) {
-    testa.push(`a ${offerta.localita}`);
+    testa.push(`a ${localitaPerDisplay(offerta.localita)}`);
   }
 
   const frasi = [testa.join(', ')];

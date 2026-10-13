@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { Chip } from './Card';
 import { nomePersona } from '@/servizi/offerta-ricerca';
+import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import {
   descriviPartecipante,
   etichettaDecisione,
@@ -104,7 +105,7 @@ function RigaPartecipante({ partecipante, elenco }) {
 
           {partecipante.persona.localita ? (
             <AppText variant="small" tone="secondary">
-              {`si trova a ${partecipante.persona.localita}`}
+              {`si trova a ${localitaPerDisplay(partecipante.persona.localita)}`}
             </AppText>
           ) : null}
 

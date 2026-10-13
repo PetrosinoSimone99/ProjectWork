@@ -9,6 +9,8 @@
  * Nessuna funzione muta i dati ricevuti: copia, trasforma, restituisce.
  */
 
+import { formattaLocalita } from '@/servizi/aree-italiane';
+
 /** I due tipi di voce. Stringhe, perché viaggiano in JSON e finiscono nelle query. */
 export const TIPI_VOCE = { OFFERTA: 'OFFERTA', RICERCA: 'RICERCA' };
 
@@ -49,7 +51,9 @@ export const ETICHETTE_STATO_PUBBLICAZIONE = {
  * @property {number|null} idCategoria  null finché non scelta; è l'unica cosa che fa match
  * @property {string} mansione      testo libero
  * @property {boolean} daRemoto     false = in presenza (la casella ha sempre un valore)
- * @property {string} localita      località dell'annuncio: '' in registrazione
+ * @property {string} regione       regione scelta nel form (nome del dataset), '' = non scelta
+ * @property {string} provincia     provincia scelta nel form (nome del dataset), '' = non scelta
+ * @property {string} localita      valore che viaggia: `Provincia (Regione)` derivato da regione/provincia; '' in registrazione
  * @property {string|null} stato    stato di pubblicazione: null finché arriva dall'elenco
  * @property {number|null} id       id del server: null in registrazione e nel form
  */
@@ -70,10 +74,25 @@ export function nuovaVoce(tipo) {
     idCategoria: null,
     mansione: '',
     daRemoto: false,
+    regione: '',
+    provincia: '',
     localita: '',
     stato: null,
     id: null,
   };
+}
+
+/**
+ * La località di una voce nella forma che viaggia: `Provincia (Regione)`, oppure
+ * '' se manca la provincia (la sola regione non è un valore di località, formato
+ * imposto dal piano). Helper unico: form, validazione e payload usano questa.
+ *
+ * Nota di design: un valore `localita` legacy non conforme (testo libero scritto
+ * prima del piano) si perde alla prima modifica della voce. Accettato e deciso
+ * il 2026-10-13: il database di deploy sarà fresco e conterrà solo valori conformi.
+ */
+export function localitaDaVoce(voce) {
+  return formattaLocalita(voce?.provincia, voce?.regione) ?? '';
 }
 
 /** Copia della voce con un solo campo cambiato. */
@@ -124,9 +143,9 @@ export function validaVoce(voce, categorie = []) {
     errori.mansione = `Massimo ${LIMITE_MANSIONE} caratteri.`;
   }
 
-  // La località è facoltativa: si controlla solo la lunghezza, come rete di
-  // sicurezza per un incollaggio da tastiera (il campo ha già `maxLength`).
-  const localita = typeof voce.localita === 'string' ? voce.localita.trim() : '';
+  // La località è facoltativa e derivata da regione/provincia: si controlla solo
+  // la lunghezza, come rete di sicurezza se il dataset cambiasse.
+  const localita = localitaDaVoce(voce);
   if (localita.length > LIMITE_LOCALITA) {
     errori.localita = `Massimo ${LIMITE_LOCALITA} caratteri.`;
   }
@@ -204,7 +223,7 @@ export function nomePersona(persona) {
  * di oggi con `richieste.php` (stringa vuota salvata come `NULL`).
  */
 export function aPayloadPubblicazione(voce) {
-  const localita = typeof voce.localita === 'string' ? voce.localita.trim() : '';
+  const localita = localitaDaVoce(voce);
   return {
     tipo: voce.tipo,
     id_categoria: voce.idCategoria,
@@ -241,7 +260,10 @@ export function senzaPrefisso(oggetto, prefisso) {
 // non deve vivere dentro una schermata. La **semantica del confronto** (maiuscole,
 // accenti, quali campi guarda il testo) non sta qui: è una decisione del backend
 // (`ServiceRepository::paginateHomepageOffers` fa le LIKE su `description` e
-// sulla località della persona).
+// sulla località della persona). Il filtro località non è più testo libero: è
+// regione + provincia dal dataset statico, composti in una stringa (stessa
+// semantica `LIKE` del backend: sola regione = regione intera, regione +
+// provincia = quella provincia).
 //
 // Il filtro **modalità non c'è più**: il backend Symfony non ha un campo
 // «da remoto» e una scelta senza supporto si toglie, non si finta.
@@ -264,7 +286,7 @@ export const SCELTE_MODALITA = [
  * Ogni chiamata restituisce un oggetto nuovo (nessuna condivisione mutabile).
  */
 export function nuoviFiltri() {
-  return { testo: '', idCategoria: null, localita: '' };
+  return { testo: '', idCategoria: null, regione: '', provincia: '' };
 }
 
 /** Quante condizioni sono attive: per il testo «n filtri attivi» e per «Azzera filtri». */
@@ -276,7 +298,12 @@ export function contaFiltri(filtri) {
   if (Number.isInteger(filtri.idCategoria)) {
     quanti += 1;
   }
-  if (typeof filtri.localita === 'string' && filtri.localita.trim() !== '') {
+  // La località è una condizione sola: regione più provincia è una ricerca più
+  // precisa, non due filtri.
+  if (
+    (typeof filtri.regione === 'string' && filtri.regione.trim() !== '') ||
+    (typeof filtri.provincia === 'string' && filtri.provincia.trim() !== '')
+  ) {
     quanti += 1;
   }
   return quanti;
@@ -291,7 +318,11 @@ export function contaFiltri(filtri) {
  */
 export function filtriDaQuery(filtri) {
   const testo = typeof filtri.testo === 'string' ? filtri.testo.trim() : '';
-  const localita = typeof filtri.localita === 'string' ? filtri.localita.trim() : '';
+  const regione = typeof filtri.regione === 'string' ? filtri.regione.trim() : '';
+  const provincia = typeof filtri.provincia === 'string' ? filtri.provincia.trim() : '';
+  // Provincia (se c'è) formattata con la regione, altrimenti la sola regione:
+  // `location` resta una stringa sola, come vuole il contratto.
+  const localita = provincia ? formattaLocalita(provincia, regione) : regione;
   return {
     ...(testo ? { q: testo } : {}),
     ...(Number.isInteger(filtri.idCategoria) ? { categoryIds: filtri.idCategoria } : {}),
@@ -310,9 +341,13 @@ export function descriviFiltri(filtri, categorie = []) {
   if (categoria) {
     parti.push(`categoria ${categoria}`);
   }
-  const localita = typeof filtri.localita === 'string' ? filtri.localita.trim() : '';
+  const regione = typeof filtri.regione === 'string' ? filtri.regione.trim() : '';
+  const provincia = typeof filtri.provincia === 'string' ? filtri.provincia.trim() : '';
+  const localita = provincia ? formattaLocalita(provincia, regione) : null;
   if (localita) {
     parti.push(`località ${localita}`);
+  } else if (regione) {
+    parti.push(`regione ${regione}`);
   }
   return parti.join(', ');
 }

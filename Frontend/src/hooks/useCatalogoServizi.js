@@ -136,15 +136,22 @@ export function useCatalogoServizi({ token, utenteId }) {
     }, [esegui]),
   );
 
-  /** Testo e località: cambiano la bozza senza fare richieste (si applicano con Invio). */
+  /** Testo: cambia la bozza senza fare richieste (si applica con Invio o «Filtra»). */
   const cambiaTesto = useCallback((campo, valore) => {
     setFiltri((correnti) => ({ ...correnti, [campo]: valore }));
   }, []);
 
-  /** Categoria: la scelta è discreta e non ha costo, quindi chiede subito. */
+  /**
+   * Categoria, regione e provincia: scelte discrete, quindi chiedono subito.
+   * Cambiare regione azzera la provincia (cascata): le province della regione
+   * vecchia non hanno senso nella nuova. Una sola richiesta, mai due.
+   */
   const cambiaScelta = useCallback(
     (campo, valore) => {
-      const prossimi = { ...filtri, [campo]: valore };
+      const prossimi =
+        campo === 'regione'
+          ? { ...filtri, regione: valore, provincia: '' }
+          : { ...filtri, [campo]: valore };
       setFiltri(prossimi);
       void esegui(prossimi);
     },

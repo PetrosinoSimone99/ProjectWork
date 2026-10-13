@@ -4,6 +4,7 @@ import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formattaDataIso } from '@/accordi/stati';
 import { nomePersona } from '@/servizi/offerta-ricerca';
+import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -80,7 +81,7 @@ export function CardServizioCatalogo({ servizio, onPress }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
               <Ionicons name="location-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
-                {servizio.offerente.localita}
+                {localitaPerDisplay(servizio.offerente.localita)}
               </AppText>
             </View>
           ) : null}

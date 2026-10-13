@@ -16,8 +16,8 @@ import { space, useTokens } from '@/theme/tokens';
 
 /**
  * Home dei servizi: il catalogo delle offerte pubblicate e attive **degli
- * altri** (`GET /api/services`), con i filtri in cima (testo, categoria,
- * località) e «Carica altri» in fondo alla lista.
+ * altri** (`GET /api/services`), con i filtri in cima (testo, categoria e area —
+ * regione o provincia) e «Carica altri» in fondo alla lista.
  *
  * Tutta la logica di rete e dei filtri sta in `useCatalogoServizi`; qui restano
  * il disegno, gli stati e il dettaglio. Le voci proprie non entrano nel catalogo
@@ -149,7 +149,7 @@ export default function HomeScreen() {
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Servizi</AppText>
         <AppText variant="small" tone="secondary">
-          I servizi pubblicati dagli altri: filtra per testo, categoria e località.
+          I servizi pubblicati dagli altri: filtra per testo, categoria e area.
         </AppText>
       </View>
 

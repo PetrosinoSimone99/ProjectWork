@@ -1,10 +1,11 @@
 import { View } from 'react-native';
 import { AppButton } from './AppButton';
-import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { Banner } from './Banner';
 import { EditorVoceServizio } from './EditorVoceServizio';
-import { LIMITE_LOCALITA, TIPI_VOCE } from '@/servizi/offerta-ricerca';
+import { SelettoreElenco } from './SelettoreElenco';
+import { REGIONI, provincePerRegione } from '@/servizi/aree-italiane';
+import { TIPI_VOCE } from '@/servizi/offerta-ricerca';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -68,16 +69,33 @@ export function FormVoceServizio({
         onCambia={onCambia}
       />
 
-      <AppInput
-        label="Località"
-        value={voce.localita}
-        onChangeText={(valore) => onCambia('localita', valore)}
-        placeholder="es. Firenze"
-        autoCapitalize="words"
-        maxLength={LIMITE_LOCALITA}
-        optionalHint="facoltativa"
-        error={fieldErrors.localita ?? null}
+      <SelettoreElenco
+        label="Regione"
+        placeholder="Tutte le regioni"
+        opzioni={REGIONI.map((regione) => regione.nome)}
+        valore={voce.regione ?? ''}
+        onChange={(valore) => {
+          // Cascata: la provincia della regione precedente non vale più.
+          onCambia('regione', valore);
+          onCambia('provincia', '');
+        }}
       />
+
+      <SelettoreElenco
+        label="Provincia"
+        placeholder={voce.regione ? 'Tutte le province' : 'Scegli prima una regione'}
+        opzioni={provincePerRegione(voce.regione)}
+        valore={voce.provincia ?? ''}
+        disabled={!voce.regione}
+        errore={fieldErrors.localita ?? null}
+        onChange={(valore) => onCambia('provincia', valore)}
+      />
+
+      <AppText variant="small" tone="secondary">
+        {`La località è facoltativa e si completa scegliendo la provincia: nel profilo appare come Provincia (Regione).${
+          voce.regione && !voce.provincia ? ' Scegli anche la provincia per completare la località.' : ''
+        }`}
+      </AppText>
 
       {/* L'errore del backend sta sopra i pulsanti, dove sta lo sguardo. */}
       {errore ? <Banner kind="error" message={errore} /> : null}

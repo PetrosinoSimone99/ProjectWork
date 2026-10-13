@@ -6,6 +6,7 @@ import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formattaDataIso } from '@/accordi/stati';
 import { nomePersona } from '@/servizi/offerta-ricerca';
+import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -99,7 +100,7 @@ export function ModalDettaglioServizio({ servizio, onChiudi }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                   <Ionicons name="location-outline" size={16} color={t.textSecondary} />
                   <AppText variant="small" tone="secondary">
-                    {nome} si trova a {offerente.localita}
+                    {nome} si trova a {localitaPerDisplay(offerente.localita)}
                   </AppText>
                 </View>
               ) : null}
