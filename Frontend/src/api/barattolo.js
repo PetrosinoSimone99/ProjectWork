@@ -297,12 +297,12 @@ export function inviaMessaggio(token, chatId, utenteId, messaggio) {
 // Offro e cerco — le proprie offerte e ricerche
 //
 // Tutta l'area vive in `aree/servizi.js` (P53): la creazione reale
-// (`POST /api/services`) e, dal 14/10/2026, la lettura reale dell'elenco
-// (`GET /api/offers/mine` + `GET /api/requests/mine`, PR #30 e #32) più le
-// funzioni fintate di modifica, cambio stato ed eliminazione, che restano in
-// attesa dei loro endpoint (`PATCH`/`DELETE` del pezzo 02; lo **stato** di
-// pubblicazione non esiste nel contratto). Le si re-espongono sopra, con le
-// altre funzioni di area, così gli import delle schermate non cambiano (§3).
+// (`POST /api/services`), dal 14/10/2026 la lettura reale dell'elenco
+// (`GET /api/offers/mine` + `GET /api/requests/mine`, PR #30 e #32) e la
+// **modifica** e l'**eliminazione** (`PATCH`/`DELETE` su `/api/offers/{id}` e
+// `/api/requests/{id}`). Resta fintato **solo il cambio di stato**: non esiste
+// nel contratto. Le si re-espongono sopra, con le altre funzioni di area, così
+// gli import delle schermate non cambiano (§3).
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------

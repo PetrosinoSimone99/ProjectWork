@@ -18,11 +18,12 @@ import { aggiungiMiaVoce } from '@/servizi/mie-voci';
  * Area «Offro e cerco»: la **creazione** di una voce via `POST /api/services`
  * (primo smistamento dell'area, decide il piano del passo 2, P53), dal
  * 14/10/2026 anche la **lettura** dell'elenco delle voci proprie
- * (`GET /api/offers/mine` + `GET /api/requests/mine`, PR #30 e #32).
- * Modifica e cambio stato ed eliminazione restano fintate (pezzo 02 del piano
- * *offro-e-cerco-reale* per i primi due): le quattro funzioni dell'area se ne
- * vanno qui (pattern P53), con il ramo finto identico a prima — la demo non
- * si tocca.
+ * (`GET /api/offers/mine` + `GET /api/requests/mine`, PR #30 e #32) e, dal
+ * 14/10/2026, la **modifica** e l'**eliminazione** (`PATCH`/`DELETE` su
+ * `/api/offers/{id}` e `/api/requests/{id}`, PR #30 e #32). Resta fintato
+ * **solo il cambio di stato**: non esiste nel contratto. Le quattro funzioni
+ * dell'area se ne vanno qui (pattern P53), con il ramo finto identico a prima —
+ * la demo non si tocca.
  *
  * Per §3 di `AGENTS.md`: questo file traduce forma interna ↔ contratto, le
  * schermate non vedono mai i nomi del backend. `normalizzazioni.js` resta la
@@ -31,23 +32,47 @@ import { aggiungiMiaVoce } from '@/servizi/mie-voci';
  * a `normalizzaServizioCreato` che già tratta questa forma.
  */
 
-/** Messaggio generico per gli errori di input della creazione (regola del 27/09/2026). */
+/** Messaggio generico per gli errori di input (regola del 27/09/2026). */
 const MESSAGGIO_INPUT_NON_VALIDO =
   'Controlla i dati inseriti: manca qualcosa o non è valido.';
 
+/** La creazione traduce `400` e `404` (input invalido, categoria inesistente) nello stesso testo. */
+const MESSAGGI_CREAZIONE = {
+  400: MESSAGGIO_INPUT_NON_VALIDO,
+  404: MESSAGGIO_INPUT_NON_VALIDO,
+};
+
 /**
- * Rilancia l'errore della creazione con il messaggio generico per `400` e
- * `404` (input invalido, categoria inesistente): qualunque testo mandi il
- * backend, la UI vede solo questo. Gli altri status (rete assente, timeout,
- * 5xx, e il `401` che gestisce da solo `client.js`) passano immutati, già
- * generici perché il messaggio lo costruisce `client.js`.
+ * La modifica e l'eliminazione hanno messaggi propri (14/10/2026): §3, la UI
+ * non mostra mai l'inglese del backend. Il `409` non sta qui perché il testo
+ * cambia fra modifica ed eliminazione: si aggiunge al momento della chiamata.
+ * Il `403` è l'account inattivo, l'unico caso in cui la scrittura è respinta
+ * per lo stato dell'utente e non per la voce.
  */
-async function conMessaggioGenerico(chiamata) {
+const MESSAGGI_GESTIONE_VOCE = {
+  400: MESSAGGIO_INPUT_NON_VALIDO,
+  403: 'Il tuo account non è attivo: non puoi gestire le tue voci.',
+  404: 'Non trovo più questa voce: potrebbe essere stata eliminata.',
+};
+
+const MESSAGGIO_409_MODIFICA =
+  'Questa voce è usata in una proposta o in uno scambio: non si può modificare finché dura.';
+const MESSAGGIO_409_ELIMINA =
+  'Questa voce è usata in una proposta o in uno scambio: non si può eliminare finché dura.';
+
+/**
+ * Rilancia l'errore di una scrittura sostituendo il testo del backend con
+ * quello della mappa passata: qualunque testo mandi il backend, la UI vede il
+ * nostro. Gli status fuori mappa (rete assente, timeout, 5xx, e il `401` che
+ * gestisce da solo `client.js`) passano immutati, già generici perché il
+ * messaggio lo costruisce `client.js`.
+ */
+async function conMessaggioGenerico(chiamata, messaggi = MESSAGGI_CREAZIONE) {
   try {
     return await chiamata;
   } catch (err) {
-    if (err instanceof ApiError && (err.status === 400 || err.status === 404)) {
-      throw new ApiError(err.status, MESSAGGIO_INPUT_NON_VALIDO);
+    if (err instanceof ApiError && messaggi[err.status]) {
+      throw new ApiError(err.status, messaggi[err.status]);
     }
     throw err;
   }
@@ -84,6 +109,48 @@ function aCorpoCreazione(voce) {
     description: String(voce?.mansione ?? '').trim(),
     categoryIds: voce?.idCategoria === null || voce?.idCategoria === undefined ? [] : [voce.idCategoria],
   };
+}
+
+/**
+ * La voce del form nella **modifica**: solo le due cose che il contratto
+ * ammette, `{description, categoryIds}`. `categoryIds` **sostituisce**
+ * l'intera lista, per questo una voce porta la sua sola categoria; `id`,
+ * `type` e `createdAt` non si mandano — non si cambiano, e un campo in più fa
+ * `400`.
+ *
+ * Una categoria mancante o non intera positiva è un errore di chi chiama, non
+ * del server: la schermata valida prima di arrivare qui, quindi la si rifiuta
+ * con lo stesso `400` generico invece di far rispondere il backend. `null` =
+ * non inviare.
+ */
+function aCorpoAggiornamento(voce) {
+  const idCategoria = numeroInteroONull(voce?.idCategoria);
+  if (idCategoria === null || idCategoria < 1) {
+    return null;
+  }
+  return {
+    description: String(voce?.mansione ?? '').trim(),
+    categoryIds: [idCategoria],
+  };
+}
+
+/**
+ * La rotta della voce nel contratto: `offers/{id}` per l'offerta,
+ * `requests/{id}` per la ricerca. Un tipo sconosciuto o un id non intero
+ * positivo non scelgono una rotta: `null`, e chi chiama rifiuta l'invio.
+ */
+function rottaVoce(tipo, id) {
+  const idValido = numeroInteroONull(id);
+  if (idValido === null || idValido < 1) {
+    return null;
+  }
+  if (tipo === TIPI_VOCE.OFFERTA) {
+    return `offers/${idValido}`;
+  }
+  if (tipo === TIPI_VOCE.RICERCA) {
+    return `requests/${idValido}`;
+  }
+  return null;
 }
 
 /**
@@ -210,41 +277,61 @@ export async function ottieniPubblicazioni(token, utenteId) {
   return normalizzaVociProprie(rispostaOfferte, rispostaRichieste);
 }
 
-/** POST servizi.php azione "aggiorna" — modifica categoria, mansione, remoto, località. */
+/**
+ * PATCH /api/offers/{id} o PATCH /api/requests/{id} — modifica descrizione e
+ * categorie di una voce propria (contratto reale dal 13/10/2026, PR #30 e #32).
+ *
+ * La risposta `{offer}`/`{request}` torna normalizzata con
+ * `normalizzaVocePropria`, la stessa forma dell'elenco: alla schermata serve la
+ * riga aggiornata, non la busta. Il `409` («voce usata in una proposta o in uno
+ * scambio») ha il suo testo in `MESSAGGIO_409_MODIFICA`. `utenteId` serve solo
+ * al ramo finto, che non decodifica il token.
+ */
 export async function aggiornaPubblicazione(token, utenteId, voce) {
-  const corpo = aPayloadAggiornamento(voce);
   if (USA_DATI_FINTI) {
     // TODO(backend): POST servizi.php {azione:'aggiorna', id, …}.
     return normalizzaServizio(
-      fintiServizi.aggiornaServizio(utenteId, voce.id, voce.tipo, corpo),
+      fintiServizi.aggiornaServizio(
+        utenteId,
+        voce.id,
+        voce.tipo,
+        aPayloadAggiornamento(voce),
+      ),
     );
   }
-  // TODO(backend): PATCH /api/offers/{id} e PATCH /api/requests/{id} — il ramo
-  // vero arriva nel pezzo 02 del piano (descrizione e categorie si
-  // sostituiscono, il resto del form si scarta). Finché non c'è si fallisce in
-  // modo esplicito: niente rotte inventate (§4 di AGENTS.md); con il vecchio
-  // ramo su `servizi.php` il `404` arriva lo stesso, ma da una rotta che non
-  // esiste e senza un messaggio nostro.
-  throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
+  const rotta = rottaVoce(voce?.tipo, voce?.id);
+  const corpo = aCorpoAggiornamento(voce);
+  if (!rotta || !corpo || !corpo.description) {
+    throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
+  }
+  const risposta = await conMessaggioGenerico(apiFetch(rotta, { method: 'PATCH', token, body: corpo }), {
+    ...MESSAGGI_GESTIONE_VOCE,
+    409: MESSAGGIO_409_MODIFICA,
+  });
+  return normalizzaVocePropria(risposta?.offer ?? risposta?.request);
 }
 
-/** POST servizi.php azione "stato" — sospende o ripubblica una voce. */
+/**
+ * Il **cambio di stato** di una voce (pubblica/sospesa) non esiste nel
+ * contratto (decisione del titolare, 14/10/2026): con i finti accesi resta
+ * fintato, con i finti spenti si dichiara che l'azione non è disponibile
+ * invece di colpire una rotta inesistente (§4). La schermata nasconde
+ * l'azione nel ramo reale (pezzo 04 del piano).
+ */
 export async function cambiaStatoPubblicazione(token, utenteId, id, tipo, stato) {
   if (USA_DATI_FINTI) {
     // TODO(backend): POST servizi.php {azione:'stato', id, tipo, stato}.
     return normalizzaServizio(fintiServizi.cambiaStatoServizio(utenteId, id, tipo, stato));
   }
-  // Lo stato di pubblicazione **non esiste nel contratto** (decisione del
-  // titolare, 14/10/2026): nessun ramo vero. Il pezzo 04 nasconde l'azione
-  // nella schermata; qui si fallisce esplicitamente invece che colpire una
-  // rotta inesistente (§4).
-  throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
+  // TODO(backend): stato della voce (pubblica/sospesa) — segnalazione temp/gruppo-3-mancanti/27.
+  throw new ApiError(501, 'Il cambio di stato non è ancora disponibile.');
 }
 
 /**
- * POST servizi.php azione "elimina" — toglie la voce.
- * Cancellazione definitiva o rimozione logica la deciderà il `DELETE` vero
- * (pezzo 02); per la UI il risultato è lo stesso: la voce non c'è più.
+ * DELETE /api/offers/{id} o DELETE /api/requests/{id} — toglie una voce propria
+ * (contratto reale dal 13/10/2026, PR #30 e #32). Il `204` non porta corpo: la
+ * funzione non restituisce niente, la voce non c'è più. Il `409` («voce usata
+ * in una proposta o in uno scambio») ha il suo testo in `MESSAGGIO_409_ELIMINA`.
  */
 export async function eliminaPubblicazione(token, utenteId, id, tipo) {
   if (USA_DATI_FINTI) {
@@ -252,10 +339,14 @@ export async function eliminaPubblicazione(token, utenteId, id, tipo) {
     fintiServizi.eliminaServizio(utenteId, id, tipo);
     return;
   }
-  // TODO(backend): DELETE /api/offers/{id} e DELETE /api/requests/{id}
-  // (pezzo 02); come sopra, niente rotte inventate finché il ramo vero non
-  // ha la sua funzione (§4).
-  throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
+  const rotta = rottaVoce(tipo, id);
+  if (!rotta) {
+    throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
+  }
+  await conMessaggioGenerico(apiFetch(rotta, { method: 'DELETE', token }), {
+    ...MESSAGGI_GESTIONE_VOCE,
+    409: MESSAGGIO_409_ELIMINA,
+  });
 }
 
 /**
