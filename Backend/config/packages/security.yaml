@@ -26,6 +26,7 @@ security:
         # Register and login are deliberately public. Future API endpoints require a JWT.
         - { path: ^/api/auth, roles: PUBLIC_ACCESS }
         - { path: ^/api/categories, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/staff(?:/|$), roles: ROLE_STAFF }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:

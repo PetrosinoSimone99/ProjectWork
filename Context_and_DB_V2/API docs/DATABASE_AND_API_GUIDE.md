@@ -371,3 +371,320 @@ curl -X DELETE http://localhost:8000/api/offers/12 \
 ```
 
 Successful deletion returns `204 No Content`. Updating or deleting an offer returns `404` when it does not exist or belongs to another user, `400` for invalid update data, and `409` when the offer is already connected to a proposal or exchange. All these endpoints require an active account and a JWT.
+
+## User reports API and updated database dump (2026-10-13)
+
+### Report another user
+
+`POST /api/reports` allows an active, authenticated user to report another existing user. No previous chat or exchange is required. The reported account may be inactive. The author is always taken from the JWT, so the frontend must not send an author ID.
+
+```bash
+curl -X POST http://localhost:8000/api/reports \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reportedUserId":2,"reason":"This user repeatedly sent offensive messages."}'
+```
+
+| Field | Required | Rules |
+| --- | --- | --- |
+| `reportedUserId` | Yes | A positive JSON integer identifying an existing user other than the author; numeric strings are rejected |
+| `reason` | Yes | Free text containing 1 to 2000 characters after removing leading and trailing whitespace |
+
+Unknown fields are rejected. A successful request returns `201 Created`:
+
+```json
+{
+  "report": {
+    "id": 1,
+    "reportedUserId": 2,
+    "reason": "This user repeatedly sent offensive messages.",
+    "createdAt": "2026-10-13T12:00:00+00:00"
+  }
+}
+```
+
+The response contains only the report data and the target ID, without private user profiles. Each author can report a given user only once, permanently. Repeating the request returns `409` and preserves the original report. The opposite direction is independent: user B can still report user A after A reports B. A unique database constraint also prevents duplicates from simultaneous requests.
+
+| Status | Meaning |
+| --- | --- |
+| `201` | The report was saved |
+| `400` | Invalid JSON, missing or unknown fields, invalid field values, or an attempt to report yourself |
+| `401` | Missing, invalid, or expired JWT; use the existing authentication endpoints |
+| `403` | The author's account is inactive |
+| `404` | The reported user does not exist |
+| `409` | The author has already reported this user |
+
+Application validation errors use `{"error":"An English explanation."}`. Authentication errors continue to use the existing JWT security responses. This endpoint records the report only; it does not notify anyone, disable accounts, or provide staff review endpoints.
+
+### Database addition
+
+The new Doctrine migration `Version20261013000100` creates `user_reports` without changing existing users:
+
+| Column | Type | Purpose |
+| --- | --- | --- |
+| `id` | Auto-increment integer, primary key | Report identifier |
+| `reporter_id` | Required integer, foreign key to `users.id` | Authenticated author |
+| `reported_user_id` | Required integer, foreign key to `users.id` | Reported user |
+| `reason` | Required `VARCHAR(2000)` | Trimmed report text |
+| `creation_date` | Required `DATETIME` | Creation time assigned by the backend |
+
+The pair `(reporter_id, reported_user_id)` is unique. Both foreign keys prevent deletion of referenced users rather than automatically deleting reports. There is no review status in this version.
+
+### Update an existing database
+
+Keep your existing database and its data. From `Backend`, run:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+This runs all pending backend migrations, including the reports migration. Do not import the new full dump over a database you want to keep: the dump contains table replacement statements. The reports migration skips table creation if `user_reports` already exists in an imported updated dump.
+
+### Start from the new full dump
+
+Use `Context_and_DB_V2/barattolo_v2_13102026.sql` for a fresh student setup. This is a complete snapshot of the local `barattolo` application database, with backend migrations applied to an isolated copy. It includes the existing IDs, relationships and password hashes, plus the new reports table. It is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
+
+The snapshot contains 2 users, 2 services, 2 categories, 2 service-category links, and 5 recorded migrations. The remaining application tables, including `user_reports`, are empty. No verification users or reports were included. Connection passwords, MySQL server accounts and JWT keys are not part of the dump.
+
+From the project root, open the MySQL client (use Laragon's full executable path if `mysql` is not in PATH):
+
+```bash
+mysql -u root -p
+```
+
+Adjust the username and enter your local MySQL password; press Enter if your local root account has no password. In the MySQL client, create an empty database and import the dump:
+
+```sql
+CREATE DATABASE barattolo_student CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE barattolo_student;
+SOURCE Context_and_DB_V2/barattolo_v2_13102026.sql;
+EXIT;
+```
+
+Set `DATABASE_URL` in your uncommitted `Backend/.env.local` to use `barattolo_student`, your local credentials and your actual server version. Follow the existing backend setup instructions for Composer dependencies and local JWT keys. Then, from `Backend`, run:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+The dump includes migration history matching its schema, so this command should report that the current migrations are already applied. Future migrations can still be applied normally. Existing password hashes are preserved; if you do not know an existing account's password, register a new account through `/api/auth/register` and use its JWT to try the reports API.
+
+The full dump was reimported and checked on MySQL 8.4.3. Verification covered preserved application data, equivalent schema, migration history, report creation through JWT authentication, duplicate rejection and foreign-key enforcement. The original local database was not migrated or modified to generate this dump.
+
+## Staff administration and report review API (2026-10-13)
+
+### Staff access and first account
+
+Every `/api/staff` endpoint requires a valid JWT, an active account and `ROLE_STAFF`. Staff log in through the existing `POST /api/auth/login` endpoint. Account roles and status are loaded from the database for each authenticated request: an existing JWT gains staff access after promotion, and an inactive account cannot use protected APIs even with an unexpired token. Reactivation lets that token work again until its original expiry.
+
+Login, registration, public category reads and CORS preflight keep their existing behavior. Inactive accounts are still refused at login. Public registration never accepts a chosen staff role.
+
+To create the first staff account, run the existing server command from `Backend`:
+
+```bash
+php bin/console app:create-staff Alice Bianchi alice.staff alice@example.com 'safe-password'
+```
+
+Once a staff account exists, it can promote existing active users through the API. There is no demotion endpoint. Staff cannot change the account status of themselves or any other staff member.
+
+### Endpoint overview
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/staff/users` | List users, including inactive users and staff |
+| `GET` | `/api/staff/users/{id}` | Read one user's administrative profile |
+| `POST` | `/api/staff/users/{id}/promote` | Add the staff role to an active user |
+| `PATCH` | `/api/staff/users/{id}/status` | Activate or deactivate a regular user |
+| `GET` | `/api/staff/reports` | List reports and their review information |
+| `GET` | `/api/staff/reports/{id}` | Read one report |
+| `PATCH` | `/api/staff/reports/{id}/review` | Confirm or reject a pending report permanently |
+
+Send `Authorization: Bearer YOUR_STAFF_JWT` with every request. User responses include ID, name, surname, location, biography, profile image URL, username, email, roles and account status. They never include passwords or password hashes.
+
+### List and inspect users
+
+```bash
+curl "http://localhost:8000/api/staff/users?q=mario&accountStatus=ACTIVE&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_STAFF_JWT"
+
+curl http://localhost:8000/api/staff/users/2 \
+  -H "Authorization: Bearer YOUR_STAFF_JWT"
+```
+
+All query parameters are optional:
+
+| Parameter | Rules |
+| --- | --- |
+| `page` | Positive integer, default `1` |
+| `limit` | Integer from `1` to `50`, default `20` |
+| `q` | Search text, at most 255 characters, matching name, surname, username or email case-insensitively; SQL LIKE wildcards `%` and `_` are supported |
+| `accountStatus` | Exactly `ACTIVE` or `INACTIVE` |
+
+Users are ordered by ID ascending. The list response is `{"users":[...],"pagination":{"page":1,"limit":20,"totalItems":2,"totalPages":1}}`; detail responses use `{"user":...}`. A page beyond the final page returns an empty array with the correct totals. Unknown or invalid query parameters return `400`.
+
+### Promote, activate or deactivate a user
+
+Promotion does not require a request body:
+
+```bash
+curl -X POST http://localhost:8000/api/staff/users/2/promote \
+  -H "Authorization: Bearer YOUR_STAFF_JWT"
+```
+
+It adds `ROLE_STAFF`, preserving all existing roles. Repeating promotion of an active staff account returns `200` without changes. An inactive account returns `409`: activate the regular user first. This endpoint does not accept role selection or other editable fields.
+
+To change a regular user's account status:
+
+```bash
+curl -X PATCH http://localhost:8000/api/staff/users/2/status \
+  -H "Authorization: Bearer YOUR_STAFF_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"accountStatus":"INACTIVE"}'
+```
+
+Use `ACTIVE` to reactivate. Both operations return `200` with `{"user":...}`. Applying the same status again is allowed. Attempting to change any staff account's status returns `403`. Promotion and status changes lock the same user row in a transaction, so concurrent requests cannot produce an inactive staff account. Deactivation changes access to protected APIs; it does not delete services, reports or exchanges.
+
+### List and inspect reports
+
+```bash
+curl "http://localhost:8000/api/staff/reports?status=PENDING&reportedUserId=2&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_STAFF_JWT"
+
+curl http://localhost:8000/api/staff/reports/1 \
+  -H "Authorization: Bearer YOUR_STAFF_JWT"
+```
+
+Optional filters are `status` (`PENDING`, `CONFIRMED` or `REJECTED`), `reporterId` and `reportedUserId` (positive integers). Without filters, all reports are listed. Pagination uses the same `page` and `limit` rules as the user list. Reports are ordered by creation time descending, then ID descending.
+
+List responses contain `reports` and `pagination`; detail and review responses contain `report`. A pending report has this shape:
+
+```json
+{
+  "report": {
+    "id": 1,
+    "reportedUserId": 2,
+    "reason": "Repeated offensive messages.",
+    "createdAt": "2026-10-13T12:00:00+00:00",
+    "reporter": {"id": 1, "username": "alice", "name": "Alice", "surname": "Bianchi"},
+    "reportedUser": {"id": 2, "username": "mario", "name": "Mario", "surname": "Rossi"},
+    "status": "PENDING",
+    "reviewNote": null,
+    "reviewedBy": null,
+    "reviewedAt": null
+  }
+}
+```
+
+Author, target and reviewer summaries contain only ID, username, name and surname. Report list filters matching no rows return an empty array, including when a filtered user ID does not exist.
+
+### Close a report with an outcome and note
+
+```bash
+curl -X PATCH http://localhost:8000/api/staff/reports/1/review \
+  -H "Authorization: Bearer YOUR_STAFF_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"CONFIRMED","reviewNote":"The supplied evidence confirms the reported behavior."}'
+```
+
+Use `CONFIRMED` or `REJECTED`. A `reviewNote` containing 1 to 2000 characters after trimming whitespace is mandatory. The reviewer comes from the authenticated staff account; the backend supplies the review time. A successful review returns `200` with the full report, its final status, note, reviewer summary and ISO 8601 review time.
+
+Closure is definitive. A second review, even an identical retry, returns `409` without changing the first review. The backend locks the report while checking its pending state and saving the outcome, preventing concurrent reviewers from overwriting each other. Confirmation does not automatically deactivate the target: use the separate status endpoint when appropriate. Closing a report does not allow its author to submit another report for the same user. The existing `POST /api/reports` request and response shapes remain unchanged.
+
+### Errors and schema update
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid JSON, unknown fields or query parameters, invalid filters, unsupported account/report status, or a missing/invalid review note |
+| `401` | Missing, invalid or expired JWT |
+| `403` | A regular user attempted staff access, the requester is inactive, or the target status belongs to a staff account |
+| `404` | The user or report identified in the path does not exist |
+| `409` | Promotion of an inactive account, an already reviewed report, or a retryable database concurrency conflict |
+
+Controller validation errors use `{"error":"An English explanation."}`. Firewall authentication and role-denial responses retain the existing Symfony/JWT behavior. All statuses and request field names are case-sensitive. Modification payloads reject unknown fields.
+
+Migration `Version20261013000200` adds four fields to `user_reports`: `status VARCHAR(10) NOT NULL DEFAULT 'PENDING'`, nullable `review_note VARCHAR(2000)`, nullable `reviewed_by_id INT` referencing `users.id`, and nullable `reviewed_at DATETIME`. It also adds status and reviewer indexes. Existing reports become pending and retain their original author, target, reason and date. Referenced reviewers cannot be deleted automatically. No user table changes are needed.
+
+To update an existing database, run from `Backend`:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+### Updated full dump for students
+
+For a fresh setup use `Context_and_DB_V2/barattolo_v2_13102026_staff.sql`. It contains the local application's schema and data, with all six backend migrations recorded, including staff report review. The previous dumps are preserved. The snapshot contains 2 users, 2 services, 2 categories and 2 service-category links; reports are empty. Test users and reviews, database connection credentials and JWT keys are excluded.
+
+Open the MySQL client from the project root and import into a new empty database:
+
+```sql
+CREATE DATABASE barattolo_staff_student CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE barattolo_staff_student;
+SOURCE Context_and_DB_V2/barattolo_v2_13102026_staff.sql;
+```
+
+Point your uncommitted `Backend/.env.local` database URL to that database, configure your local JWT keys, and run the migration command above. The included migration history matches the exported schema, so current migrations should already be applied. Create the first staff account with the server command and log in to obtain its JWT. Do not import a full dump over a database whose data you want to keep: it replaces tables.
+
+The staff dump was generated and reimported on isolated MySQL 8.4.3 databases. Verification covered preserved local data, schema, migration history, staff user operations and report review through the actual APIs. The original local database was not changed. Functional tests also cover existing JWTs after account changes and concurrent review/promotion operations. To run staff tests, set `STAFF_TEST_DATABASE_URL` to a disposable MySQL database URL named `staff_check_<your_name>`; test configuration appends `_test`. Create that suffixed database first. The tests reset tables only inside this explicitly checked namespace.
+
+## Manage your own service requests
+
+These endpoints manage services whose type is `REQUEST`. All three endpoints require an active account and `Authorization: Bearer YOUR_JWT_TOKEN`. The owner is always the signed-in user.
+
+### List your requests
+
+```bash
+curl http://localhost:8000/api/requests/mine \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Returns `200 OK` with requests ordered by creation date and then ID, both newest first. The response contains every category for each request:
+
+```json
+{
+  "requests": [
+    {
+      "id": 2,
+      "type": "REQUEST",
+      "description": "I need help with gardening.",
+      "createdAt": "2026-10-13T10:30:00+00:00",
+      "categories": [{ "id": 1, "description": "Gardening" }]
+    }
+  ]
+}
+```
+
+If the user has no requests, the response is `{"requests":[]}`. Offers and other users' requests are excluded. There is no pagination.
+
+### Update your request
+
+```bash
+curl -X PATCH http://localhost:8000/api/requests/2 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"description":"I need help pruning trees.","categoryIds":[1]}'
+```
+
+Send `description`, `categoryIds`, or both. Omitted fields stay unchanged; `categoryIds` replaces all selected categories. Descriptions are trimmed and must contain 1 to 255 characters. Category IDs must be a non-empty list of unique positive integers referring to existing categories. Numeric strings are also accepted, as in the offers API. The owner, type, and creation time cannot be changed. Empty bodies, invalid JSON, and unknown fields are rejected. Invalid input never saves part of an update.
+
+Returns `200 OK` with the updated service in `{"request":{...}}`, using the same fields as the list response.
+
+### Delete your request
+
+```bash
+curl -X DELETE http://localhost:8000/api/requests/2 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+Permanently deletes an unused request and returns `204 No Content` with an empty response body.
+
+### Errors and linked services
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid JSON, an empty update, invalid description/category IDs, or unknown fields |
+| `401` | Missing, invalid, or expired JWT |
+| `403` | The signed-in account is inactive |
+| `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
+| `409` | The request is connected to a proposal/exchange, or a concurrent database operation conflicts with the write |
+
+Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. No database migration is needed for this feature; use `barattolo_v2_13102026_staff.sql` for a fresh setup.
