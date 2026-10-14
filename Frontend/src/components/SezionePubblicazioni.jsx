@@ -53,18 +53,9 @@ export const SEZIONI_PUBBLICAZIONI = [
  * indicata dalle regole del progetto, e perché la useranno anche la home («le
  * mie pubblicazioni») e il Profilo. Nessuno stato proprio: tutto arriva dalla
  * schermata, che è l'unica a sapere cosa sta pubblicando.
- *
- * `vuoto` sostituisce il testo di stato vuoto della sezione: l'elenco delle
- * proprie voci non esiste ancora nel backend (solo la creazione è reale), e con
- * i finti spenti il testo «Non hai pubblicato nessuna offerta» mentirebbe — il
- * vuoto non è una scelta dell'utente, è una cosa che manca sopra.
  */
 export function SezionePubblicazioni({
   sezione,
-  vuoto,
-  // «non-disponibile» quando l'elenco non esiste ancora (finti spenti): il
-  // vuoto diventa una riga sola, senza icona né CTA.
-  varianteVuoto = 'dati',
   voci,
   categorie,
   statoCategorie,
@@ -163,10 +154,10 @@ export function SezionePubblicazioni({
       {/* Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner. */}
       {voci.length === 0 && !formQui ? (
         <EmptyState
-          variante={varianteVuoto}
-          icon={(vuoto ?? sezione.vuoto).icona}
-          title={(vuoto ?? sezione.vuoto).titolo}
-          description={(vuoto ?? sezione.vuoto).descrizione}
+          variante="dati"
+          icon={sezione.vuoto.icona}
+          title={sezione.vuoto.titolo}
+          description={sezione.vuoto.descrizione}
         />
       ) : null}
     </View>
