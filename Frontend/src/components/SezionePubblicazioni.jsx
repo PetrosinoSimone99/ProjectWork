@@ -65,6 +65,7 @@ export function SezionePubblicazioni({
   categoriePronte,
   salvataggio,
   azioneInCorso,
+  mostraStato,
   onApriNuova,
   onCambiaCampo,
   onSalva,
@@ -144,6 +145,7 @@ export function SezionePubblicazioni({
               azioneInCorso && azioneInCorso.id === voce.id ? azioneInCorso.nome : null
             }
             disabilitato={!categoriePronte}
+            mostraStato={mostraStato}
             onModifica={onModifica}
             onCambiaStato={onCambiaStato}
             onElimina={onElimina}

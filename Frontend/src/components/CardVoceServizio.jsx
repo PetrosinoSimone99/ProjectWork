@@ -22,6 +22,11 @@ import { space, useTokens } from '@/theme/tokens';
  * la useranno anche la home («le mie pubblicazioni») e il Profilo quando
  * mostreranno le voci dell'utente.
  *
+ * `mostraStato` (default `true`) spegne chip di stato e «Sospendi/Ripubblica»:
+ * con il backend vero il cambio di stato non è nel contratto (segnalazione 27),
+ * e un'azione non disponibile non si disegna spenta — si toglie (convenzione in
+ * `design-system.md`).
+ *
  * `azioneInCorso` è `null` oppure il nome dell'azione in volo su **questa** voce
  * (`'stato'` o `'elimina'`): così lo spinner compare sul pulsante giusto e le
  * altre card restano usabili.
@@ -43,6 +48,7 @@ export function CardVoceServizio({
   categorie = [],
   azioneInCorso = null,
   disabilitato = false,
+  mostraStato = true,
   onModifica,
   onCambiaStato,
   onElimina,
@@ -77,11 +83,13 @@ export function CardVoceServizio({
             {ETICHETTE_TIPO[voce.tipo] ?? voce.tipo}
           </AppText>
         </Chip>
-        <Chip background={paletteStato.background}>
-          <AppText variant="caption" style={{ color: paletteStato.color }}>
-            {etichettaStato}
-          </AppText>
-        </Chip>
+        {mostraStato ? (
+          <Chip background={paletteStato.background}>
+            <AppText variant="caption" style={{ color: paletteStato.color }}>
+              {etichettaStato}
+            </AppText>
+          </Chip>
+        ) : null}
       </View>
 
       <View style={{ gap: space.xs }}>
@@ -118,15 +126,17 @@ export function CardVoceServizio({
           onPress={() => onModifica(voce)}
           accessibilityLabel={`Modifica ${articolo}: ${testoVoce}`}
         />
-        <AppButton
-          label={azioneStato}
-          variant="secondary"
-          icon={sospesa ? 'eye-outline' : 'eye-off-outline'}
-          disabled={bloccato}
-          loading={azioneInCorso === 'stato'}
-          onPress={() => onCambiaStato(voce)}
-          accessibilityLabel={`${azioneStato} ${articolo}: ${testoVoce}`}
-        />
+        {mostraStato ? (
+          <AppButton
+            label={azioneStato}
+            variant="secondary"
+            icon={sospesa ? 'eye-outline' : 'eye-off-outline'}
+            disabled={bloccato}
+            loading={azioneInCorso === 'stato'}
+            onPress={() => onCambiaStato(voce)}
+            accessibilityLabel={`${azioneStato} ${articolo}: ${testoVoce}`}
+          />
+        ) : null}
         <AppButton
           label="Elimina"
           variant="danger"

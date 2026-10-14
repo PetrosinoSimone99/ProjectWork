@@ -49,10 +49,12 @@ import { space, useTokens } from '@/theme/tokens';
  * - con i finti accesi il comportamento demo resta quello di prima: elenco,
  *   modifica, stato ed eliminazione passano dal deposito finto.
  *
- * La modifica e l'eliminazione **reali** (PATCH/DELETE, pezzo 04 del piano) —
- * l'aggancio dei pulsanti delle card al contratto reale, e il silenzio sulle
- * azioni che il contratto non ha — viene dopo: nel frattempo i pulsanti delle
- * card toccano le funzioni del layer, che con i finti girano sul deposito.
+ * Anche la **modifica** e l'**eliminazione** sono reali (PATCH/DELETE su
+ * `/api/offers/{id}` e `/api/requests/{id}`): modificare e togliere una voce
+ * funziona nello stesso modo con i finti e senza. Solamente il **cambio di
+ * stato** (pubblica/sospesa) è azione di demo: nel contratto non esiste
+ * (segnalazione 27), e nel ramo reale chip di stato e «Sospendi/Ripubblica»
+ * non si disegnano — riappiono quando il campo arriva.
  *
  * Con i finti accesi l'elenco non ha una copia locale come verità: dopo ogni
  * scrittura riuscita si richiama `carica()`, così «ho pubblicato e non lo vedo»
@@ -285,6 +287,13 @@ export default function OffroECercoScreen() {
       setEsito(messaggio);
       await carica();
     } catch (err) {
+      // Voce sparita (404: eliminata altrove o sessione successiva): l'elenco si
+      // rilegge comunque, così non resta in carta una riga morta. Si rilegge
+      // prima di mostrare l'errore, perché `carica()` ripulisce il messaggio a
+      // inizio lettura; con un 409 la voce c'è ancora, e il reload non serve.
+      if (err instanceof ApiError && err.status === 404) {
+        await carica();
+      }
       setErroreElenco(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
       setAzioneInCorso(null);
@@ -378,6 +387,9 @@ export default function OffroECercoScreen() {
           categoriePronte={categoriePronte}
           salvataggio={salvataggio}
           azioneInCorso={azioneInCorso}
+          // Il cambio di stato è solo di demo: nel contratto reale non esiste
+          // (segnalazione 27), quindi chip e «Sospendi» spariscono senza finti.
+          mostraStato={USA_DATI_FINTI}
           onApriNuova={() => apriNuova(sezione.tipo)}
           onCambiaCampo={cambiaCampoForm}
           onSalva={salva}
