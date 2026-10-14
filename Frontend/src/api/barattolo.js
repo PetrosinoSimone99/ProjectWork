@@ -8,11 +8,9 @@ import {
   normalizzaEsitoInvio,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
-  normalizzaPubblicazioni,
   normalizzaRispostaAccesso,
   normalizzaSegnalazioneStaff,
   normalizzaSegnalazioniStaff,
-  normalizzaServizio,
   normalizzaToken,
   normalizzaUtentiStaff,
   numeroInteroONull,
@@ -23,12 +21,10 @@ import * as fintiCategorie from './finti/categorie';
 import * as fintiChat from './finti/chat';
 import * as fintiNotifiche from './finti/notifiche';
 import * as fintiSegnalazioni from './finti/segnalazioni';
-import * as fintiServizi from './finti/servizi';
 import * as fintiStaff from './finti/staff';
 import * as fintiToken from './finti/token';
 import * as fintiUtenti from './finti/utenti';
 import { aPayloadLetta } from '@/servizi/notifiche';
-import { aPayloadAggiornamento } from '@/servizi/offerta-ricerca';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
 import { aPayloadImpegno } from '@/servizi/token';
@@ -52,7 +48,13 @@ export {
 // resta un punto unico (§3 di `AGENTS.md`). Il prossimo smistamento lascerà
 // qui una riga in meno e una export in più, non il contrario.
 export { ottieniProfilo, aggiornaProfilo } from './aree/profilo';
-export { creaPubblicazione } from './aree/servizi';
+export {
+  aggiornaPubblicazione,
+  cambiaStatoPubblicazione,
+  creaPubblicazione,
+  eliminaPubblicazione,
+  ottieniPubblicazioni,
+} from './aree/servizi';
 export { ottieniFeedSwipes, registraScelta, decidiProposta } from './aree/loop';
 export {
   annullaCatena,
@@ -294,80 +296,14 @@ export function inviaMessaggio(token, chatId, utenteId, messaggio) {
 // ---------------------------------------------------------------------------
 // Offro e cerco — le proprie offerte e ricerche
 //
-// Il backend nuovo offre **solo la creazione** (`POST /api/services`, rotta di
-// `MarketplaceController`): quella funzione vive in `aree/servizi.js` e qui
-// sopra la si re-espone (P53). Il resto — elenco, modifica, stato,
-// eliminazione — non ha endpoint: restano le funzioni fintate qui sotto,
-// **inutilizzate** finché i colleghi non aggiungono il loro `servizi.php` (la
-// schermata con i finti spenti non mostra l'elenco e non le può chiamare).
+// Tutta l'area vive in `aree/servizi.js` (P53): la creazione reale
+// (`POST /api/services`) e, dal 14/10/2026, la lettura reale dell'elenco
+// (`GET /api/offers/mine` + `GET /api/requests/mine`, PR #30 e #32) più le
+// funzioni fintate di modifica, cambio stato ed eliminazione, che restano in
+// attesa dei loro endpoint (`PATCH`/`DELETE` del pezzo 02; lo **stato** di
+// pubblicazione non esiste nel contratto). Le si re-espongono sopra, con le
+// altre funzioni di area, così gli import delle schermate non cambiano (§3).
 // ---------------------------------------------------------------------------
-
-/**
- * GET servizi.php — le proprie offerte e ricerche, **sospese comprese**.
- * `utenteId` serve solo al ramo finto: il finto non decodifica il token
- * (su native `atob` non è garantito), come già fa `ottieniAccordi`.
- * TODO(backend): l'elenco delle proprie voci è la stessa cosa che manca a
- * modifica, stato ed eliminazione sotto: finché non c'è, con i finti spenti la
- * schermata non mostra l'elenco e nessuna di queste funzioni viene chiamata.
- */
-export async function ottieniPubblicazioni(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET servizi.php → {success, message, data:{servizi:[…]}}.
-    return normalizzaPubblicazioni(fintiServizi.ottieniServizi(utenteId));
-  }
-  return normalizzaPubblicazioni(await apiFetch('servizi.php', { token }));
-}
-
-/** POST servizi.php azione "aggiorna" — modifica categoria, mansione, remoto, località. */
-export async function aggiornaPubblicazione(token, utenteId, voce) {
-  const corpo = aPayloadAggiornamento(voce);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php {azione:'aggiorna', id, …}.
-    return normalizzaServizio(
-      fintiServizi.aggiornaServizio(utenteId, voce.id, voce.tipo, corpo),
-    );
-  }
-  return normalizzaServizio(
-    await apiFetch('servizi.php', {
-      method: 'POST',
-      token,
-      body: { azione: 'aggiorna', ...corpo },
-    }),
-  );
-}
-
-/** POST servizi.php azione "stato" — sospende o ripubblica una voce. */
-export async function cambiaStatoPubblicazione(token, utenteId, id, tipo, stato) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php {azione:'stato', id, tipo, stato}.
-    return normalizzaServizio(fintiServizi.cambiaStatoServizio(utenteId, id, tipo, stato));
-  }
-  return normalizzaServizio(
-    await apiFetch('servizi.php', {
-      method: 'POST',
-      token,
-      body: { azione: 'stato', id, tipo, stato },
-    }),
-  );
-}
-
-/**
- * POST servizi.php azione "elimina" — toglie la voce.
- * Cancellazione definitiva o stato «eliminata» lo decidono i colleghi: per la
- * UI il risultato è lo stesso, la voce non c'è più.
- */
-export async function eliminaPubblicazione(token, utenteId, id, tipo) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php {azione:'elimina', id, tipo}.
-    fintiServizi.eliminaServizio(utenteId, id, tipo);
-    return;
-  }
-  await apiFetch('servizi.php', {
-    method: 'POST',
-    token,
-    body: { azione: 'elimina', id, tipo },
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Home — il catalogo dei servizi
