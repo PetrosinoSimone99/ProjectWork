@@ -143,8 +143,8 @@ class ChatManager
         }
 
         $newMessages = $this->chatMessageRepository->getNewMessagesForUser($userId, $chatIds, $recentMessageId);
-
-        return $newMessages;
+        $chatMessageDTOs = $this->prepareChatMessageDTO($newMessages);
+        return $chatMessageDTOs;
     }
     //Internal Only
     private function createChatMutual(int $proposalId): Chat
@@ -225,6 +225,7 @@ class ChatManager
         $dtos = array_map(
             fn($chatMessages) => new ChatMessageDTO(
                 $chatMessages->getId(),
+                $chatMessages->getChatId(),
                 $users[$chatMessages->getUserId()]->getUsername(),
                 $chatMessages->getMessage(),
                 $chatMessages->getCreationDate()

@@ -110,15 +110,12 @@ class ChatController extends AbstractController
     {
         $user = $this->getUser();
         try{
-            $newMessages = $this->chatManager->checkNewMessagesForUser($user->getId(), $recentMessageId);
+            $chatMessageDTOS = $this->chatManager->checkNewMessagesForUser($user->getId(), $recentMessageId);
 
-            return $this->json($newMessages);
+            return $this->json($chatMessageDTOS);
 
         }catch(\Exception $e){
             return $this->json(["error" => (string)$e], 400);
         }
     }
-
-    //There are some inconsistencies with how chat messages are returned. Some return a DTO and some return the Entity. Look for a better way.
-    //TODO: Possibly make the DTO better
 }
