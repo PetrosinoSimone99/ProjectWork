@@ -7,8 +7,9 @@ namespace App\Repository;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 
-/** Small repository containing the queries needed by authentication. */
+/** Queries used by authentication and the staff user list. */
 class UserRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -33,5 +34,18 @@ class UserRepository extends ServiceEntityRepository
             ->setParameter('userId', $userId)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+    public function paginateForStaff(int $page, int $limit, ?string $search, ?string $status): Paginator
+    {
+        $query = $this->createQueryBuilder('user')->orderBy('user.id', 'ASC');
+        if ($search !== null && $search !== '') {
+            $query->andWhere('LOWER(user.name) LIKE :search OR LOWER(user.surname) LIKE :search OR LOWER(user.username) LIKE :search OR LOWER(user.email) LIKE :search')
+                ->setParameter('search', '%'.mb_strtolower($search).'%');
+        }
+        if ($status !== null) {
+            $query->andWhere('user.accountStatus = :status')->setParameter('status', $status);
+        }
+        $query->setFirstResult(($page - 1) * $limit)->setMaxResults($limit);
+        return new Paginator($query, false);
     }
 }

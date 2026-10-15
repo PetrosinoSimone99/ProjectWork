@@ -50,7 +50,7 @@ class CreateStaffUserCommand extends Command
             return Command::FAILURE;
         }
 
-        // Staff accounts can only be created on the server through this command.
+        // Bootstrap the first staff account here. Existing staff can then promote users through the API.
         $staff = new User($name, $surname, $username, $email);
         $staff->setRoles([User::ROLE_STAFF]);
         $staff->setPassword($this->passwordHasher->hashPassword($staff, $password));

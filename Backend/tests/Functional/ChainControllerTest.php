@@ -383,6 +383,283 @@ final class ChainControllerTest extends WebTestCase
         } finally { unlink($gate); }
     }
 
+    public function testRequestsInAChainCannotBeChangedOrDeletedEvenAfterCancellation(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $requestId = $members[0]['request']->getId();
+        $this->as($members[0]['user']);
+
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$requestId, ['description' => 'Changed']);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->request('DELETE', '/api/requests/'.$requestId);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->jsonRequest('POST', '/api/chains/'.$chain['id'].'/cancel', ['reason' => 'Test cancellation']);
+        self::assertResponseIsSuccessful();
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$requestId, ['description' => 'Still blocked']);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->request('DELETE', '/api/requests/'.$requestId);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('REQUEST service', $this->em->find(Service::class, $requestId)->getDescription());
+    }
+
+    public function testStaffCanManageManualTokensAndPersonalListsStayPrivate(): void
+    {
+        $owner = $this->user('token-owner');
+        $staff = $this->user('token-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $owner->getId()]);
+        self::assertResponseStatusCodeSame(201);
+        $token = $this->data()['token'];
+        self::assertSame($owner->getId(), $token['userId']);
+        self::assertNull($token['chainId']);
+        self::assertSame('2026-10-03T12:00:00+00:00', $token['issuedAt']);
+        self::assertSame('2026-11-02T12:00:00+00:00', $token['expiresAt']);
+        self::assertFalse($token['expired']);
+        $path = '/api/staff/tokens/'.$token['id'];
+
+        $this->client->jsonRequest('PUT', $path, ['expiresAt' => '2026-11-10T14:30:00+02:00']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('2026-11-10T12:30:00+00:00', $this->data()['token']['expiresAt']);
+        $this->client->jsonRequest('PATCH', $path, ['expiresAt' => '2026-10-03T12:00:00Z']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->data()['token']['expired']);
+        $this->client->jsonRequest('PATCH', $path, ['expiresAt' => '2026-10-01T00:00:00Z']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->data()['token']['expired']);
+        self::assertSame($token['issuedAt'], $this->data()['token']['issuedAt']);
+
+        $this->client->request('GET', '/api/tokens');
+        self::assertSame([], $this->data()['tokens']);
+        $this->as($owner);
+        $this->client->request('GET', '/api/tokens');
+        self::assertCount(1, $this->data()['tokens']);
+        self::assertSame($token['id'], $this->data()['tokens'][0]['id']);
+        self::assertTrue($this->data()['tokens'][0]['expired']);
+        self::assertArrayNotHasKey('userId', $this->data()['tokens'][0]);
+
+        $this->as($staff);
+        $this->client->request('DELETE', $path);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $this->client->getResponse()->getContent());
+        foreach (['PUT', 'PATCH', 'DELETE'] as $method) {
+            $this->client->jsonRequest($method, $path, ['expiresAt' => '2026-11-01T00:00:00Z']);
+            self::assertResponseStatusCodeSame(404);
+        }
+        $this->as($owner);
+        $this->client->request('GET', '/api/tokens');
+        self::assertSame([], $this->data()['tokens']);
+    }
+
+    public function testManualTokensAcceptExistingChainsAndInactiveRecipientsButRejectDuplicates(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $staff = $this->user('manual-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $members[1]['user']->setAccountStatus(User::STATUS_INACTIVE);
+        $this->em->flush();
+        $this->as($staff);
+        $payload = ['userId' => $members[1]['user']->getId(), 'chainId' => $chain['id']];
+        // Manual assignment does not require a cancelled or confirmed chain.
+        $this->client->jsonRequest('POST', '/api/staff/tokens', $payload);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($chain['id'], $this->data()['token']['chainId']);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', $payload);
+        self::assertResponseStatusCodeSame(409);
+        foreach ([1, 2] as $attempt) {
+            $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $members[1]['user']->getId(), 'chainId' => null]);
+            self::assertResponseStatusCodeSame(201);
+        }
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => 999999]);
+        self::assertResponseStatusCodeSame(404);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $staff->getId(), 'chainId' => 999999]);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testManualTokenDoesNotBlockAutomaticCompensationOnCancellation(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $this->confirm($chain['id'], $members);
+        $staff = $this->user('compensation-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $members[1]['user']->getId(), 'chainId' => $chain['id']]);
+        self::assertResponseStatusCodeSame(201);
+        $manual = $this->data()['token'];
+        $this->as($members[0]['user']);
+        $this->client->jsonRequest('POST', '/api/chains/'.$chain['id'].'/cancel', ['reason' => 'Cannot continue']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('CANCELLED', $this->data()['chain']['status']);
+        self::assertSame(2, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM tokens WHERE group_id = ?', [$chain['id']]));
+        $this->as($members[1]['user']);
+        $this->client->request('GET', '/api/tokens');
+        self::assertCount(1, $this->data()['tokens']);
+        self::assertSame($manual['id'], $this->data()['tokens'][0]['id']);
+        self::assertSame($manual['expiresAt'], $this->data()['tokens'][0]['expiresAt']);
+    }
+
+    public function testStaffTokenValidationRejectsInvalidBodiesAndImmutableFields(): void
+    {
+        $staff = $this->user('validation-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        foreach ([[], ['userId' => '1'], ['userId' => 0], ['userId' => true], ['userId' => $staff->getId(), 'chainId' => '1'], ['userId' => $staff->getId(), 'expiresAt' => '2026-11-01T00:00:00Z']] as $body) {
+            $this->client->jsonRequest('POST', '/api/staff/tokens', $body);
+            self::assertResponseStatusCodeSame(400);
+        }
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $staff->getId()]);
+        self::assertResponseStatusCodeSame(201);
+        $original = $this->data()['token'];
+        $path = '/api/staff/tokens/'.$original['id'];
+        foreach (['PUT', 'PATCH'] as $method) {
+            foreach ([[], ['userId' => $staff->getId()], ['chainId' => null], ['issuedAt' => '2026-10-01T00:00:00Z'], ['expiresAt' => null], ['expiresAt' => '2026-02-30T12:00:00Z'], ['expiresAt' => '2026-11-01T12:00:00'], ['expiresAt' => '2026-11-01T12:00:00+25:00']] as $body) {
+                $this->client->jsonRequest($method, $path, $body);
+                self::assertResponseStatusCodeSame(400);
+            }
+            foreach (['{', 'null', '[]', '"text"'] as $body) {
+                $this->client->request($method, $path, server: ['CONTENT_TYPE' => 'application/json'], content: $body);
+                self::assertResponseStatusCodeSame(400);
+            }
+        }
+        $this->client->request('GET', '/api/tokens');
+        self::assertSame($original['expiresAt'], $this->data()['tokens'][0]['expiresAt']);
+        foreach (['0000-01-01T00:00:00Z', '1000-01-01T00:00:00+01:00', '9999-12-31T23:59:59-01:00'] as $date) {
+            $this->client->jsonRequest('PATCH', $path, ['expiresAt' => $date]);
+            self::assertResponseStatusCodeSame(400);
+        }
+    }
+
+    public function testTokenWritesRequireAnActiveStaffAccount(): void
+    {
+        $user = $this->user('permissions-user');
+        $staff = $this->user('inactive-token-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $staff->setAccountStatus(User::STATUS_INACTIVE);
+        $this->em->flush();
+        foreach ([null, $user, $staff] as $actor) {
+            $this->client->setServerParameter('HTTP_AUTHORIZATION', '');
+            if ($actor !== null) { $this->as($actor); }
+            foreach (['POST', 'PUT', 'PATCH', 'DELETE'] as $method) {
+                $path = '/api/staff/tokens'.($method === 'POST' ? '' : '/999999');
+                $this->client->jsonRequest($method, $path, ['userId' => $user->getId()]);
+                self::assertResponseStatusCodeSame($actor === null ? 401 : 403);
+            }
+        }
+    }
+
+    public function testSuspensionBlocksChainStartsAndCandidatesUntilReactivation(): void
+    {
+        $members = $this->cycle(3);
+        foreach (['offer' => 'offers', 'request' => 'requests'] as $key => $resource) {
+            $this->as($members[0]['user']);
+            $path = '/api/'.$resource.'/'.$members[0][$key]->getId();
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
+            self::assertResponseIsSuccessful();
+            $this->client->jsonRequest('POST', '/api/chains', ['offeredServiceId' => $members[0]['offer']->getId(), 'requestedServiceId' => $members[0]['request']->getId()]);
+            self::assertResponseStatusCodeSame(409);
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => false]);
+            self::assertResponseIsSuccessful();
+        }
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM proposal_groups'));
+
+        $this->as($members[1]['user']);
+        foreach (['offer' => 'offers', 'request' => 'requests'] as $key => $resource) {
+            $this->client->jsonRequest('PATCH', '/api/'.$resource.'/'.$members[1][$key]->getId(), ['isSuspended' => true]);
+            self::assertResponseIsSuccessful();
+        }
+        $chain = $this->start($members[0]);
+        self::assertSame('SEARCHING', $chain['status']);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$members[0]['offer']->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+        foreach (['offer' => 'offers', 'request' => 'requests'] as $key => $resource) {
+            $this->as($members[1]['user']);
+            $this->client->jsonRequest('PATCH', '/api/'.$resource.'/'.$members[1][$key]->getId(), ['isSuspended' => false]);
+            self::assertResponseIsSuccessful();
+            $this->clock->time = $this->clock->time->modify('+10 minutes');
+            static::getContainer()->get(ChainService::class)->process($chain['id']);
+            // Only the initiator can inspect a search before its candidates become participants.
+            $this->as($members[0]['user']);
+            $this->client->request('GET', '/api/chains/'.$chain['id']);
+            self::assertResponseIsSuccessful();
+            self::assertSame($key === 'offer' ? 'SEARCHING' : 'AWAITING_CONFIRMATIONS', $this->data()['chain']['status']);
+        }
+        $this->as($members[1]['user']);
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$members[1]['request']->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testMatchingReadsSuspensionFromDatabaseEvenWithLoadedEntities(): void
+    {
+        $members = $this->cycle(3);
+        $matcher = static::getContainer()->get(\App\Service\ChainMatcher::class);
+        $db = $this->em->getConnection();
+        self::assertCount(3, $matcher->find($members[0]['offer'], $members[0]['request']));
+        foreach ($members as $member) {
+            foreach (['offer', 'request'] as $key) {
+                $id = $member[$key]->getId();
+                $db->update('services', ['is_suspended' => 1], ['id' => $id]);
+                self::assertSame([], $matcher->find($members[0]['offer'], $members[0]['request']));
+                $db->update('services', ['is_suspended' => 0], ['id' => $id]);
+            }
+        }
+        $direct = $this->user('direct');
+        $offer = $this->service($direct, 'OFFER', $members[0]['request']->getCategories()->first());
+        $request = $this->service($direct, 'REQUEST', $members[0]['offer']->getCategories()->first());
+        foreach ([$members[0]['offer'], $members[0]['request'], $offer, $request] as $service) {
+            self::assertTrue($matcher->directAvailable($members[0]['offer'], $members[0]['request']));
+            $db->update('services', ['is_suspended' => 1], ['id' => $service->getId()]);
+            self::assertFalse($matcher->directAvailable($members[0]['offer'], $members[0]['request']));
+            $db->update('services', ['is_suspended' => 0], ['id' => $service->getId()]);
+        }
+    }
+
+    public static function suspensionTargets(): array
+    {
+        return [[0, 'offer', 'offers'], [0, 'request', 'requests'], [1, 'offer', 'offers'], [1, 'request', 'requests']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('suspensionTargets')]
+    public function testConcurrentSuspensionAndChainNeverReserveSuspendedServices(int $index, string $key, string $resource): void
+    {
+        $members = $this->cycle(3);
+        $results = $this->workers([
+            ['action' => 'start', 'userId' => $members[0]['user']->getId(), 'offerId' => $members[0]['offer']->getId(), 'requestId' => $members[0]['request']->getId()],
+            ['action' => 'suspend', 'userId' => $members[$index]['user']->getId(), 'serviceId' => $members[$index][$key]->getId(), 'resource' => $resource, 'payload' => ['isSuspended' => true]],
+        ]);
+        self::assertContains($results[1]['statusCode'], [200, 409]);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM chain_service_reservations r JOIN services s ON s.id = r.service_id WHERE s.is_suspended = 1'));
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM proposal_groups g JOIN services s ON s.id IN (g.offered_service_id, g.requested_service_id) WHERE s.is_suspended = 1'));
+        if ($index === 0 && $results[1]['statusCode'] === 200) {
+            self::assertSame(409, $results[0]['statusCode']);
+        } else {
+            self::assertArrayHasKey('id', $results[0]);
+        }
+    }
+
+    public function testConcurrentSuspensionAndDirectSwipeCannotCreateAProposalForASuspendedService(): void
+    {
+        $members = $this->cycle(2);
+        $results = $this->workers([
+            ['action' => 'swipe', 'userId' => $members[0]['user']->getId(), 'payload' => [
+                'direction' => 'RIGHT', 'actorOfferServiceId' => $members[0]['offer']->getId(), 'actorRequestServiceId' => $members[0]['request']->getId(),
+                'candidateOfferServiceId' => $members[1]['offer']->getId(), 'candidateRequestServiceId' => $members[1]['request']->getId(),
+            ]],
+            ['action' => 'suspend', 'userId' => $members[1]['user']->getId(), 'serviceId' => $members[1]['request']->getId(), 'resource' => 'requests', 'payload' => ['isSuspended' => true]],
+        ]);
+        self::assertContains($results[0]['statusCode'], [201, 409]);
+        self::assertContains($results[1]['statusCode'], [200, 409]);
+        self::assertTrue($results[0]['statusCode'] === 409 || $results[1]['statusCode'] === 409);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM swipe_decisions d JOIN services s ON s.id IN (d.actor_offer_id, d.actor_request_id, d.candidate_offer_id, d.candidate_request_id) WHERE d.proposal_id IS NOT NULL AND s.is_suspended = 1'));
+    }
+
     private function cycle(int $length): array
     {
         $categories = [];

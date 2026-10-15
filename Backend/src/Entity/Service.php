@@ -33,6 +33,14 @@ class Service
     #[ORM\Column(length: 255)]
     private string $description;
 
+    // Both offers and requests can be marked as available remotely.
+    #[ORM\Column(name: 'is_remote', options: ['default' => false])]
+    private bool $isRemote = false;
+
+    // Suspended services stay in the owner's list but cannot receive new matches.
+    #[ORM\Column(name: 'is_suspended', options: ['default' => false])]
+    private bool $isSuspended = false;
+
     #[ORM\Column(name: 'creation_date')]
     private \DateTimeImmutable $createdAt;
 
@@ -56,6 +64,11 @@ class Service
     public function getUser(): User { return $this->user; }
     public function getType(): string { return $this->type; }
     public function getDescription(): string { return $this->description; }
+    public function setDescription(string $description): void { $this->description = $description; }
+    public function isRemote(): bool { return $this->isRemote; }
+    public function setIsRemote(bool $isRemote): void { $this->isRemote = $isRemote; }
+    public function isSuspended(): bool { return $this->isSuspended; }
+    public function setIsSuspended(bool $isSuspended): void { $this->isSuspended = $isSuspended; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     /** @return Collection<int, Category> */
     public function getCategories(): Collection { return $this->categories; }
@@ -66,13 +79,20 @@ class Service
         }
     }
 
-    /** @return array{id: int|null, type: string, description: string, categories: list<array{id: int|null, description: string}>} */
+    public function clearCategories(): void
+    {
+        $this->categories->clear();
+    }
+
+    /** @return array{id: int|null, type: string, description: string, isRemote: bool, isSuspended: bool, categories: list<array{id: int|null, description: string}>} */
     public function toApiArray(): array
     {
         return [
             'id' => $this->id,
             'type' => $this->type,
             'description' => $this->description,
+            'isRemote' => $this->isRemote,
+            'isSuspended' => $this->isSuspended,
             'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
         ];
     }
@@ -84,7 +104,7 @@ class Service
      * keeps private account fields, such as the email address and roles, out of
      * a response that is shared with other authenticated users.
      *
-     * @return array{id: int|null, type: string, description: string, createdAt: string, categories: list<array{id: int|null, description: string}>, owner: array{id: int|null, name: string, surname: string, username: string, location: string|null}}
+     * @return array{id: int|null, type: string, description: string, isRemote: bool, isSuspended: bool, createdAt: string, categories: list<array{id: int|null, description: string}>, owner: array{id: int|null, name: string, surname: string, username: string, location: string|null}}
      */
     public function toHomepageOfferApiArray(): array
     {
@@ -92,9 +112,25 @@ class Service
             'id' => $this->id,
             'type' => $this->type,
             'description' => $this->description,
+            'isRemote' => $this->isRemote,
+            'isSuspended' => $this->isSuspended,
             'createdAt' => $this->createdAt->format(DATE_ATOM),
             'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
             'owner' => $this->user->toPublicApiArray(),
+        ];
+    }
+
+    /** @return array{id: int|null, type: string, description: string, isRemote: bool, isSuspended: bool, createdAt: string, categories: list<array{id: int|null, description: string}>} */
+    public function toOwnedServiceApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'type' => $this->type,
+            'description' => $this->description,
+            'isRemote' => $this->isRemote,
+            'isSuspended' => $this->isSuspended,
+            'createdAt' => $this->createdAt->format(DATE_ATOM),
+            'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
         ];
     }
 }

@@ -110,7 +110,13 @@ final class ChainRepository
     public function release(int $chainId): void { $this->db->delete('chain_service_reservations', ['group_id' => $chainId]); }
     public function serviceAvailable(int $serviceId, bool $currentRead = false): bool
     {
-        return !$this->reserved($serviceId, $currentRead) && !$this->hasDirectProposal($serviceId, $currentRead);
+        return $this->serviceNotSuspended($serviceId, $currentRead) && !$this->reserved($serviceId, $currentRead) && !$this->hasDirectProposal($serviceId, $currentRead);
+    }
+    public function serviceNotSuspended(int $serviceId, bool $currentRead = false): bool
+    {
+        // Read the database directly: an entity loaded before a row lock may be stale.
+        $suffix = $currentRead && !($this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform) ? ' FOR UPDATE' : '';
+        return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND is_suspended = 0'.$suffix, [$serviceId]) !== false;
     }
     public function hasDirectProposal(int $serviceId, bool $currentRead = false): bool
     {
@@ -138,5 +144,34 @@ final class ChainRepository
     public function tokens(int $userId): array
     {
         return $this->db->fetchAllAssociative('SELECT * FROM tokens WHERE user_id = ? ORDER BY id DESC', [$userId]);
+    }
+
+    public function token(int $id, bool $lock = false): array
+    {
+        $row = $this->db->fetchAssociative('SELECT * FROM tokens WHERE id = ?'.($lock ? ' FOR UPDATE' : ''), [$id]);
+        if ($row === false) {
+            throw new ChainError('The token does not exist.', 404);
+        }
+        return $row;
+    }
+
+    public function tokenUserExists(int $id): bool
+    {
+        return $this->db->fetchOne('SELECT id FROM users WHERE id = ?', [$id]) !== false;
+    }
+
+    public function tokenChainExists(int $id): bool
+    {
+        return $this->db->fetchOne('SELECT id FROM proposal_groups WHERE id = ?', [$id]) !== false;
+    }
+
+    public function updateTokenExpiration(int $id, string $expiration): void
+    {
+        $this->db->update('tokens', ['expiration_date' => $expiration], ['id' => $id]);
+    }
+
+    public function deleteToken(int $id): void
+    {
+        $this->db->delete('tokens', ['id' => $id]);
     }
 }
