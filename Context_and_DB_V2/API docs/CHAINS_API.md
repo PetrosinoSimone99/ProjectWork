@@ -22,6 +22,10 @@ The implementation never creates a chat or calls the chat manager.
 | `POST /api/chains/{id}/provisions/{provisionId}/receipt` | None | `chain` |
 | `POST /api/chains/{id}/cancel` | `reason` | `chain` |
 | `GET /api/tokens` | None | `tokens` |
+| `POST /api/staff/tokens` | `userId`, optional `chainId` | `token` (201; staff only) |
+| `PUT /api/staff/tokens/{id}` | `expiresAt` | `token` (staff only) |
+| `PATCH /api/staff/tokens/{id}` | `expiresAt` | `token` (staff only) |
+| `DELETE /api/staff/tokens/{id}` | None | No content (204; staff only) |
 
 IDs must be positive JSON integers. Location and cancellation reason must contain
 1–255 characters after trimming. `startAt` must include seconds and a timezone,
@@ -208,6 +212,101 @@ exactly 30 days after issuance, and `(group_id, user_id)` is unique.
 including expired tokens. Existing tokens imported from the dump can have a null
 chain origin and issuance date; the migration does not invent their history. Token
 spending and disputes are outside this API.
+
+## Staff token management
+
+These endpoints manage compensation tokens stored in `tokens`, not authentication
+JWTs. Every request requires a valid JWT, an active account and `ROLE_STAFF`.
+The existing `GET /api/tokens` remains available to active users and returns only
+their own tokens, including expired ones, with its existing response format.
+
+### Create a token manually
+
+`POST /api/staff/tokens` requires a positive integer `userId`. The recipient must
+exist but may be inactive. Optional `chainId` must be a positive integer identifying
+an existing `proposal_groups` row, or `null`; omitting it also means `null`.
+Staff assignments do not check chain cancellation, participation or service receipts.
+Automatic compensation on chain cancellation continues to work as before.
+
+The server sets `issuedAt` to the current UTC time and `expiresAt` to exactly 30 days
+later. The client cannot choose either date during creation. A chain/user pair can
+have only one token, including expired tokens; duplicates return `409`. Multiple
+manual tokens without a chain are allowed for the same user.
+If cancellation later compensates a user who already has a token for that chain,
+the existing token is kept unchanged and cancellation still completes; no second
+token is issued, even if the existing one has expired.
+
+```bash
+curl -X POST "$API_BASE_URL/api/staff/tokens" \
+  -H 'Authorization: Bearer YOUR_STAFF_JWT' \
+  -H 'Content-Type: application/json' \
+  -d '{"userId":12,"chainId":34}'
+```
+
+To assign a token without a chain, send `{"userId":12}` instead.
+Successful creation returns `201` with this shape (example dates and IDs):
+
+```json
+{
+  "token": {
+    "id": 7,
+    "userId": 12,
+    "chainId": 34,
+    "issuedAt": "2026-10-15T12:00:00+00:00",
+    "expiresAt": "2026-11-14T12:00:00+00:00",
+    "expired": false
+  }
+}
+```
+
+### Replace or update the expiration
+
+`PUT /api/staff/tokens/{id}` and `PATCH /api/staff/tokens/{id}` both require
+`expiresAt`, the only editable field. Supply a valid ISO 8601 date with seconds and
+a timezone, such as `2026-11-20T14:00:00+02:00` or `2026-11-20T12:00:00Z`.
+Dates are stored and returned in UTC; the normalized UTC year must be between
+1000 and 9999, the range supported by MySQL DATETIME. Past dates are allowed so staff can expire a
+token immediately. `expired` is true when expiration is at or before the current time.
+Recipient, chain and issuance date cannot be changed, even for historical tokens
+whose chain or issuance date is `null`. To correct those fields, delete and recreate
+the token. Both methods return `200` with the same `token` shape shown above.
+
+```bash
+curl -X PUT "$API_BASE_URL/api/staff/tokens/7" \
+  -H 'Authorization: Bearer YOUR_STAFF_JWT' \
+  -H 'Content-Type: application/json' \
+  -d '{"expiresAt":"2026-11-20T14:00:00+02:00"}'
+
+curl -X PATCH "$API_BASE_URL/api/staff/tokens/7" \
+  -H 'Authorization: Bearer YOUR_STAFF_JWT' \
+  -H 'Content-Type: application/json' \
+  -d '{"expiresAt":"2026-10-01T00:00:00Z"}'
+```
+
+### Delete a token
+
+`DELETE /api/staff/tokens/{id}` permanently removes the token and returns `204`
+with an empty body. This is administrative removal, not spending a token for a service.
+It does not change the chain or create a replacement token.
+
+```bash
+curl -X DELETE "$API_BASE_URL/api/staff/tokens/7" \
+  -H 'Authorization: Bearer YOUR_STAFF_JWT'
+```
+
+### Errors
+
+POST, PUT and PATCH require a JSON object and reject unknown fields. PUT and PATCH
+also reject empty objects. Application errors use `{"error":"An English explanation."}`;
+authentication and role errors retain the existing security responses.
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid JSON, missing required fields, unknown fields, invalid IDs or invalid expiration date |
+| `401` | Missing, invalid or expired JWT |
+| `403` | Account is inactive or does not have `ROLE_STAFF` |
+| `404` | Token, recipient or chain does not exist |
+| `409` | Duplicate chain/user token or concurrent operation; retry where appropriate |
 
 ## Database upgrade and verification
 
