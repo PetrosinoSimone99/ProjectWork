@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\Controller;
 use App\Manager\ChatManager;
 use App\Entity\User;
+use App\DTO\ChatMessageDTO;
+use App\DTO\GroupParticipantDTO;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,13 +22,14 @@ class ChatController extends AbstractController
         $this->chatManager = $chatManager;
     }
 
-    #[Route('/chats/{proposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
+    #[Route('/chats/mutual-proposal/{proposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
     public function getChatAndHistoryByProposalId(int $proposalId): JsonResponse
     {
         try{
-            $chatMessages = $this->chatManager->getChatAndHistoryByProposalId($proposalId);
-
-            return $this->json(["chatMessages" => $chatMessages]);
+            $chat = $this->chatManager->getOrCreateMutualProposalChat($proposalId);
+            $chatMessageDTOs = $this->chatManager->getChatHistory($chat->getId());
+            
+            return $this->json(["chatId" => $chat->getId(),"messages" => $chatMessageDTOs]);
 
         }catch(\Exception $e){
             return $this->json(["error" => (string)$e], 400);
@@ -34,15 +37,50 @@ class ChatController extends AbstractController
         
     }
 
-    #[Route('/chats/{chatId}/send', name: 'send_message', methods: ['POST'])]
+    #[Route('/chats/group-proposal/beneficiary/{groupProposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
+    public function getChatAndHistoryByGroupProposalIdBeneficiary(int $groupProposalId): JsonResponse
+    {
+        $user = $this->getUser();
+
+        try{
+            
+            $chat = $this->chatManager->getOrCreateGroupProposalChatBeneficiary($groupProposalId, $user->getId());
+
+            $chatMessageDTOs = $this->chatManager->getChatHistory($chat->getId());
+            
+            return $this->json(["chatId" => $chat->getId(),"messages" => $chatMessageDTOs]);
+
+        }catch(\Exception $e){
+            return $this->json(["error" => (string)$e], 400);
+        }
+    }
+
+    #[Route('/chats/group-proposal/provider/{groupProposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
+    public function getChatAndHistoryByGroupProposalIdProvider(int $groupProposalId): JsonResponse
+    {
+        $user = $this->getUser();
+
+        try{
+            $chat = $this->chatManager->getOrCreateGroupProposalChatProvider($groupProposalId, $user);
+
+            $chatMessageDTOs = $this->chatManager->getChatHistory($chat->getId());
+            
+            return $this->json(["chatId" => $chat->getId(),"messages" => $chatMessageDTOs]);
+
+        }catch(\Exception $e){
+            return $this->json(["error" => (string)$e], 400);
+        }
+    }
+
+    #[Route('/chats/send-message/{chatId}', name: 'send_message', methods: ['POST'])]
     public function sendMessage(Request $request, int $chatId): JsonResponse
     {   
         $data = json_decode($request->getContent(), true);
         $user = $this->getUser();
         $message = $data['message'] ?? null;
 
-        if ($userId === null || $message === null) {
-            return $this->json(['error' => 'One or more paramters are missing'], 400);
+        if ($user === null || $message === null) {
+            return $this->json(['error' => 'One or more parameters are missing'], 400);
         }
 
         try {
@@ -53,4 +91,31 @@ class ChatController extends AbstractController
         }
     }
 
+    #[Route('/chats/most-recent-message', name: 'get_most_recent_message', methods: ['GET'])]
+    public function getUserMostRecentReceivedMessage(): JsonResponse
+    {   
+        $user = $this->getUser();
+        try{
+            $mostRecentMessage = $this->chatManager->getUserMostRecentReceivedMessage($user->getId());
+
+            return $this->json(["chatMessageId" => $mostRecentMessage->getId()]);
+
+        }catch(\Exception $e){
+            return $this->json(["error" => (string)$e], 400);
+        }
+    }
+
+    #[Route('/chats/check-new-messages/{recentMessageId}', name: 'check_new_messages', methods: ['GET'])]
+    public function checkNewMessagesForUser(int $recentMessageId): JsonResponse
+    {
+        $user = $this->getUser();
+        try{
+            $chatMessageDTOS = $this->chatManager->checkNewMessagesForUser($user->getId(), $recentMessageId);
+
+            return $this->json($chatMessageDTOS);
+
+        }catch(\Exception $e){
+            return $this->json(["error" => (string)$e], 400);
+        }
+    }
 }
