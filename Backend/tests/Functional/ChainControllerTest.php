@@ -553,6 +553,113 @@ final class ChainControllerTest extends WebTestCase
         }
     }
 
+    public function testSuspensionBlocksChainStartsAndCandidatesUntilReactivation(): void
+    {
+        $members = $this->cycle(3);
+        foreach (['offer' => 'offers', 'request' => 'requests'] as $key => $resource) {
+            $this->as($members[0]['user']);
+            $path = '/api/'.$resource.'/'.$members[0][$key]->getId();
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
+            self::assertResponseIsSuccessful();
+            $this->client->jsonRequest('POST', '/api/chains', ['offeredServiceId' => $members[0]['offer']->getId(), 'requestedServiceId' => $members[0]['request']->getId()]);
+            self::assertResponseStatusCodeSame(409);
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => false]);
+            self::assertResponseIsSuccessful();
+        }
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM proposal_groups'));
+
+        $this->as($members[1]['user']);
+        foreach (['offer' => 'offers', 'request' => 'requests'] as $key => $resource) {
+            $this->client->jsonRequest('PATCH', '/api/'.$resource.'/'.$members[1][$key]->getId(), ['isSuspended' => true]);
+            self::assertResponseIsSuccessful();
+        }
+        $chain = $this->start($members[0]);
+        self::assertSame('SEARCHING', $chain['status']);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$members[0]['offer']->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+        foreach (['offer' => 'offers', 'request' => 'requests'] as $key => $resource) {
+            $this->as($members[1]['user']);
+            $this->client->jsonRequest('PATCH', '/api/'.$resource.'/'.$members[1][$key]->getId(), ['isSuspended' => false]);
+            self::assertResponseIsSuccessful();
+            $this->clock->time = $this->clock->time->modify('+10 minutes');
+            static::getContainer()->get(ChainService::class)->process($chain['id']);
+            // Only the initiator can inspect a search before its candidates become participants.
+            $this->as($members[0]['user']);
+            $this->client->request('GET', '/api/chains/'.$chain['id']);
+            self::assertResponseIsSuccessful();
+            self::assertSame($key === 'offer' ? 'SEARCHING' : 'AWAITING_CONFIRMATIONS', $this->data()['chain']['status']);
+        }
+        $this->as($members[1]['user']);
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$members[1]['request']->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testMatchingReadsSuspensionFromDatabaseEvenWithLoadedEntities(): void
+    {
+        $members = $this->cycle(3);
+        $matcher = static::getContainer()->get(\App\Service\ChainMatcher::class);
+        $db = $this->em->getConnection();
+        self::assertCount(3, $matcher->find($members[0]['offer'], $members[0]['request']));
+        foreach ($members as $member) {
+            foreach (['offer', 'request'] as $key) {
+                $id = $member[$key]->getId();
+                $db->update('services', ['is_suspended' => 1], ['id' => $id]);
+                self::assertSame([], $matcher->find($members[0]['offer'], $members[0]['request']));
+                $db->update('services', ['is_suspended' => 0], ['id' => $id]);
+            }
+        }
+        $direct = $this->user('direct');
+        $offer = $this->service($direct, 'OFFER', $members[0]['request']->getCategories()->first());
+        $request = $this->service($direct, 'REQUEST', $members[0]['offer']->getCategories()->first());
+        foreach ([$members[0]['offer'], $members[0]['request'], $offer, $request] as $service) {
+            self::assertTrue($matcher->directAvailable($members[0]['offer'], $members[0]['request']));
+            $db->update('services', ['is_suspended' => 1], ['id' => $service->getId()]);
+            self::assertFalse($matcher->directAvailable($members[0]['offer'], $members[0]['request']));
+            $db->update('services', ['is_suspended' => 0], ['id' => $service->getId()]);
+        }
+    }
+
+    public static function suspensionTargets(): array
+    {
+        return [[0, 'offer', 'offers'], [0, 'request', 'requests'], [1, 'offer', 'offers'], [1, 'request', 'requests']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('suspensionTargets')]
+    public function testConcurrentSuspensionAndChainNeverReserveSuspendedServices(int $index, string $key, string $resource): void
+    {
+        $members = $this->cycle(3);
+        $results = $this->workers([
+            ['action' => 'start', 'userId' => $members[0]['user']->getId(), 'offerId' => $members[0]['offer']->getId(), 'requestId' => $members[0]['request']->getId()],
+            ['action' => 'suspend', 'userId' => $members[$index]['user']->getId(), 'serviceId' => $members[$index][$key]->getId(), 'resource' => $resource, 'payload' => ['isSuspended' => true]],
+        ]);
+        self::assertContains($results[1]['statusCode'], [200, 409]);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM chain_service_reservations r JOIN services s ON s.id = r.service_id WHERE s.is_suspended = 1'));
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM proposal_groups g JOIN services s ON s.id IN (g.offered_service_id, g.requested_service_id) WHERE s.is_suspended = 1'));
+        if ($index === 0 && $results[1]['statusCode'] === 200) {
+            self::assertSame(409, $results[0]['statusCode']);
+        } else {
+            self::assertArrayHasKey('id', $results[0]);
+        }
+    }
+
+    public function testConcurrentSuspensionAndDirectSwipeCannotCreateAProposalForASuspendedService(): void
+    {
+        $members = $this->cycle(2);
+        $results = $this->workers([
+            ['action' => 'swipe', 'userId' => $members[0]['user']->getId(), 'payload' => [
+                'direction' => 'RIGHT', 'actorOfferServiceId' => $members[0]['offer']->getId(), 'actorRequestServiceId' => $members[0]['request']->getId(),
+                'candidateOfferServiceId' => $members[1]['offer']->getId(), 'candidateRequestServiceId' => $members[1]['request']->getId(),
+            ]],
+            ['action' => 'suspend', 'userId' => $members[1]['user']->getId(), 'serviceId' => $members[1]['request']->getId(), 'resource' => 'requests', 'payload' => ['isSuspended' => true]],
+        ]);
+        self::assertContains($results[0]['statusCode'], [201, 409]);
+        self::assertContains($results[1]['statusCode'], [200, 409]);
+        self::assertTrue($results[0]['statusCode'] === 409 || $results[1]['statusCode'] === 409);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM swipe_decisions d JOIN services s ON s.id IN (d.actor_offer_id, d.actor_request_id, d.candidate_offer_id, d.candidate_request_id) WHERE d.proposal_id IS NOT NULL AND s.is_suspended = 1'));
+    }
+
     private function cycle(int $length): array
     {
         $categories = [];

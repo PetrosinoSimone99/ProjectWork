@@ -21,6 +21,9 @@ final class ChainService
         $key = $actor->getId().':'.$offerId.':'.$requestId;
         $id = $this->repository->transaction(function () use ($actor, $offer, $request, $key): int {
             $this->repository->lockServices([$offer->getId(), $request->getId()]);
+            if (!$this->repository->serviceNotSuspended($offer->getId(), true) || !$this->repository->serviceNotSuspended($request->getId(), true)) {
+                throw new ChainError('Suspended services cannot start a chain.');
+            }
             $existing = $this->repository->activeSearch($key);
             if ($existing !== null) {
                 return $existing;
@@ -52,7 +55,8 @@ final class ChainService
             }
             $offer = $this->em->find(Service::class, (int) $chain['offered_service_id']);
             $request = $this->em->find(Service::class, (int) $chain['requested_service_id']);
-            if (!$offer || !$request || !$this->repository->activeUser((int) $chain['initiator_id'])) {
+            if (!$offer || !$request || !$this->repository->activeUser((int) $chain['initiator_id'])
+                || !$this->repository->serviceNotSuspended($offer->getId()) || !$this->repository->serviceNotSuspended($request->getId())) {
                 $this->cancelRow($chain, null, 'INITIAL_SERVICES_UNAVAILABLE');
                 return;
             }

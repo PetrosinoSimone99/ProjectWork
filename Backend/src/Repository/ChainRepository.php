@@ -110,7 +110,13 @@ final class ChainRepository
     public function release(int $chainId): void { $this->db->delete('chain_service_reservations', ['group_id' => $chainId]); }
     public function serviceAvailable(int $serviceId, bool $currentRead = false): bool
     {
-        return !$this->reserved($serviceId, $currentRead) && !$this->hasDirectProposal($serviceId, $currentRead);
+        return $this->serviceNotSuspended($serviceId, $currentRead) && !$this->reserved($serviceId, $currentRead) && !$this->hasDirectProposal($serviceId, $currentRead);
+    }
+    public function serviceNotSuspended(int $serviceId, bool $currentRead = false): bool
+    {
+        // Read the database directly: an entity loaded before a row lock may be stale.
+        $suffix = $currentRead && !($this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform) ? ' FOR UPDATE' : '';
+        return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND is_suspended = 0'.$suffix, [$serviceId]) !== false;
     }
     public function hasDirectProposal(int $serviceId, bool $currentRead = false): bool
     {

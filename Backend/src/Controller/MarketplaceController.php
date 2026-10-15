@@ -80,6 +80,13 @@ class MarketplaceController extends AbstractController
             return $this->error('Type, description, and one or more unique category IDs are required.', 400);
         }
 
+        if (array_key_exists('isRemote', $data) && !is_bool($data['isRemote'])) {
+            return $this->error('isRemote must be a boolean.', 400);
+        }
+        if (array_key_exists('isSuspended', $data) && !is_bool($data['isSuspended'])) {
+            return $this->error('isSuspended must be a boolean.', 400);
+        }
+
         $categories = [];
         foreach ($categoryIds as $categoryId) {
             if (!is_int($categoryId) && !ctype_digit((string) $categoryId)) {
@@ -93,6 +100,8 @@ class MarketplaceController extends AbstractController
         }
 
         $service = new Service($user, $type, $description);
+        $service->setIsRemote($data['isRemote'] ?? false);
+        $service->setIsSuspended($data['isSuspended'] ?? false);
         foreach ($categories as $category) {
             $service->addCategory($category);
         }
@@ -121,8 +130,8 @@ class MarketplaceController extends AbstractController
         usort($pending, static fn (array $left, array $right) => $left['createdAt'] <=> $right['createdAt']);
 
         $candidates = [];
-        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user]);
-        $otherServices = $entityManager->getRepository(Service::class)->findBy([], ['id' => 'ASC']);
+        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user, 'isSuspended' => false]);
+        $otherServices = $entityManager->getRepository(Service::class)->findBy(['isSuspended' => false], ['id' => 'ASC']);
         foreach ($ownServices as $ownOffer) {
             if ($ownOffer->getType() !== Service::TYPE_OFFER) {
                 continue;
@@ -208,9 +217,15 @@ class MarketplaceController extends AbstractController
         $decision = new SwipeDecision($actor, $candidate, $actorOffer, $actorRequest, $candidateOffer, $candidateRequest, $data['direction']);
         try {
             $entityManager->wrapInTransaction(function () use ($entityManager, $decision, $data, $actor, $candidate, $actorOffer, $actorRequest, $candidateOffer, $candidateRequest): void {
+                $ids = [$actorOffer->getId(), $actorRequest->getId(), $candidateOffer->getId(), $candidateRequest->getId()];
+                $this->chains->lockServices($ids);
+                // Check again after locking; the owner may have suspended a service since the feed was read.
+                foreach ($ids as $serviceId) {
+                    if (!$this->chains->serviceNotSuspended($serviceId, true)) {
+                        throw new ChainError('Suspended services cannot receive new swipe decisions.');
+                    }
+                }
                 if ($data['direction'] === SwipeDecision::DIRECTION_RIGHT) {
-                    $ids = [$actorOffer->getId(), $actorRequest->getId(), $candidateOffer->getId(), $candidateRequest->getId()];
-                    $this->chains->lockServices($ids);
                     foreach ($ids as $serviceId) {
                         if ($this->chains->reserved($serviceId, true)) {
                             throw new ChainError('One of these services is reserved by a chain.');
