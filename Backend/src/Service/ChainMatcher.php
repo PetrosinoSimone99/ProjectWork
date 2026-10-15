@@ -16,7 +16,7 @@ final class ChainMatcher
     /** @return list<array{userId:int, offer:Service, request:Service}> */
     public function choices(): array
     {
-        $services = $this->em->getRepository(Service::class)->findBy([], ['id' => 'ASC']);
+        $services = $this->em->getRepository(Service::class)->findBy(['isSuspended' => false], ['id' => 'ASC']);
         $choices = [];
         foreach ($services as $offer) {
             if ($offer->getType() !== Service::TYPE_OFFER || !$offer->getUser()->isActive()) {
@@ -34,6 +34,9 @@ final class ChainMatcher
 
     public function directAvailable(Service $offer, Service $request, bool $currentRead = false): bool
     {
+        if (!$this->repository->serviceNotSuspended($offer->getId(), $currentRead) || !$this->repository->serviceNotSuspended($request->getId(), $currentRead)) {
+            return false;
+        }
         if ($this->repository->hasDirectProposal($offer->getId(), $currentRead) || $this->repository->hasDirectProposal($request->getId(), $currentRead)) {
             return true;
         }
@@ -53,6 +56,9 @@ final class ChainMatcher
 
     public function find(Service $offer, Service $request): array
     {
+        if (!$this->repository->serviceNotSuspended($offer->getId()) || !$this->repository->serviceNotSuspended($request->getId())) {
+            return [];
+        }
         $choices = array_values(array_filter($this->choices(), fn (array $c) => $this->repository->serviceAvailable($c['offer']->getId()) && $this->repository->serviceAvailable($c['request']->getId())));
         $first = ['userId' => $offer->getUser()->getId(), 'offer' => $offer, 'request' => $request];
         foreach ([3, 4] as $length) {

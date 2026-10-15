@@ -116,6 +116,7 @@ final class ServiceRepository extends ServiceEntityRepository
             ->innerJoin('service.user', 'owner')
             ->leftJoin('service.categories', 'category')
             ->andWhere('service.type = :offerType')
+            ->andWhere('service.isSuspended = false')
             ->andWhere('owner.accountStatus = :activeStatus')
             ->andWhere('owner != :viewer')
             ->setParameter('offerType', Service::TYPE_OFFER)

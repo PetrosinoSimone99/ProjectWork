@@ -1,5 +1,49 @@
 # Database and API quick guide
 
+## Current student database (2026-10-15)
+
+Use [barattolo_v2_15102026_services.sql](../barattolo_v2_15102026_services.sql) for new student installations. `../LAST_DB_TO_USE.txt` identifies this as the current dump. Older dumps are preserved as historical references.
+
+This dump contains the current local database schema: 16 tables, 2 public categories and all 8 backend migration records. It includes `services.is_remote` and `services.is_suspended`, both `BOOLEAN NOT NULL DEFAULT FALSE`. Users, password hashes, published services, proposals, exchanges, messages, reports and tokens are excluded. There are no shared login credentials: register your own user through the API and create a staff account with the existing backend command when needed. The original local database was not modified during export.
+
+### Import for a fresh setup
+
+Open the MySQL client from the repository root (`mysql -u root -p`, adding your local host/port options if needed), then import into a new empty database:
+
+```sql
+CREATE DATABASE barattolo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE barattolo;
+SOURCE Context_and_DB_V2/barattolo_v2_15102026_services.sql;
+```
+
+If `barattolo` already exists and contains data you want to keep, choose a different new database name and point `Backend/.env.local` to it. This dump includes table replacement statements. For an existing application database, apply migrations instead of importing the full dump.
+
+Configure the database connection and your own JWT keys as described below. From `Backend`, check and apply pending migrations:
+
+```bash
+php bin/console doctrine:migrations:status
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+All 8 migrations are already recorded in this dump, through `Version20261015000200`, so there should be no pending migrations for the current backend. Do not execute the two new migrations manually after importing this file. When upgrading an older installation, the migration command applies the missing migrations while preserving its existing data.
+
+### Changes introduced in this chat
+
+| API field | SQL column | Default | Behavior |
+| --- | --- | --- | --- |
+| `isRemote` | `services.is_remote` | `false` | Marks an offer or request as remote; does not change geographic filters or category matching |
+| `isSuspended` | `services.is_suspended` | `false` | Hides an offer or request from the catalog and new direct/chain matches; the owner still sees it in personal lists |
+
+Both fields are optional in `POST /api/services` and in every `offers`/`requests` item in `POST /api/auth/register`. Change them with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`. For example:
+
+```json
+{"isRemote":true,"isSuspended":false}
+```
+
+Only JSON booleans are accepted; other types, including `null`, return `400` without partial changes. Omitted PATCH fields retain their values. Suspension is manual: send `true` to suspend or `false` to reactivate. Only the active owner can update a service. Any update is blocked with `409` when the service is already connected to a proposal, exchange, chain or reservation, even if that record is finished, rejected or cancelled. New swipe decisions and chain starts using a suspended service also return `409`. All service representations include both fields. The detailed sections at the end of this guide describe each feature and its rollback.
+
+The dump was reimported into an isolated MySQL database. Verification covered all table definitions, both new columns, the category and migration seed data, and the absence of application rows. The backend changes passed the complete suite: 87 tests and 1209 assertions, including concurrent suspension/proposal/chain checks.
+
 ## 1. Configure the database connection
 
 Create an empty MySQL database called `barattolo`, then create `Backend/.env.local`.
@@ -22,7 +66,7 @@ DATABASE_URL="mysql://root:@127.0.0.1:3306/barattolo?serverVersion=8.0&charset=u
 
 If the local database uses a different password, port, or MariaDB version, replace those values. For MariaDB, use its actual version, for example `serverVersion=mariadb-10.11.2`.
 
-Generate the database table from the backend directory:
+After importing the current student dump, check for pending migrations from the backend directory. To create an empty installation without the category seed, run migrations instead of importing a dump:
 
 ```bash
 php bin/console doctrine:migrations:migrate
@@ -352,7 +396,7 @@ curl http://localhost:8000/api/offers/mine \
 
 The response contains an `offers` array. It is empty when the user has not published any offers.
 
-Update an offer with `PATCH /api/offers/{id}`. You can send the description, category IDs, or both. Omitted fields stay unchanged, while `categoryIds` replaces the full category list:
+Update an offer with `PATCH /api/offers/{id}`. You can send any combination of description, category IDs, and isRemote. Omitted fields stay unchanged, while `categoryIds` replaces the full category list:
 
 ```bash
 curl -X PATCH http://localhost:8000/api/offers/12 \
@@ -442,7 +486,7 @@ This runs all pending backend migrations, including the reports migration. Do no
 
 ### Start from the new full dump
 
-Use `Context_and_DB_V2/barattolo_v2_13102026.sql` for a fresh student setup. This is a complete snapshot of the local `barattolo` application database, with backend migrations applied to an isolated copy. It includes the existing IDs, relationships and password hashes, plus the new reports table. It is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
+Historical snapshot: `Context_and_DB_V2/barattolo_v2_13102026.sql` was provided for the reports feature. For a new setup, use the current 2026-10-15 dump described at the top of this guide. This is a complete snapshot of the local `barattolo` application database, with backend migrations applied to an isolated copy. It includes the existing IDs, relationships and password hashes, plus the new reports table. It is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
 
 The snapshot contains 2 users, 2 services, 2 categories, 2 service-category links, and 5 recorded migrations. The remaining application tables, including `user_reports`, are empty. No verification users or reports were included. Connection passwords, MySQL server accounts and JWT keys are not part of the dump.
 
@@ -612,7 +656,7 @@ php bin/console doctrine:migrations:migrate --no-interaction
 
 ### Updated full dump for students
 
-For a fresh setup use `Context_and_DB_V2/barattolo_v2_13102026_staff.sql`. It contains the local application's schema and data, with all six backend migrations recorded, including staff report review. The previous dumps are preserved. The snapshot contains 2 users, 2 services, 2 categories and 2 service-category links; reports are empty. Test users and reviews, database connection credentials and JWT keys are excluded.
+Historical staff snapshot: `Context_and_DB_V2/barattolo_v2_13102026_staff.sql`. For a new setup, use `Context_and_DB_V2/barattolo_v2_15102026_services.sql`, described at the top of this guide. It contains the local application's schema and data, with all six backend migrations recorded, including staff report review. The previous dumps are preserved. The snapshot contains 2 users, 2 services, 2 categories and 2 service-category links; reports are empty. Test users and reviews, database connection credentials and JWT keys are excluded.
 
 Open the MySQL client from the project root and import into a new empty database:
 
@@ -687,4 +731,74 @@ Permanently deletes an unused request and returns `204 No Content` with an empty
 | `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
 | `409` | The request is connected to a proposal/exchange, or a concurrent database operation conflicts with the write |
 
-Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. No database migration is needed for this feature; use `barattolo_v2_13102026_staff.sql` for a fresh setup.
+Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. Request management itself does not need a migration. For a fresh setup, import `barattolo_v2_15102026_services.sql`, which already includes remote availability and suspension, and check for pending migrations.
+
+## Optional remote availability for offers and requests
+
+Both `OFFER` and `REQUEST` services have an `isRemote` boolean. Use `true` for a remote service. The field is optional when creating a service and defaults to `false`, including for existing services after migration.
+
+Send it in `POST /api/services`:
+
+```json
+{"type":"OFFER","description":"I can teach English online.","categoryIds":[1],"isRemote":true}
+```
+
+During `POST /api/auth/register`, each item in both `offers` and `requests` also accepts `isRemote`. For example, an item can be `{"description":"Online English lessons.","categories":["Languages"],"isRemote":true}`.
+
+Update either type with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`:
+
+```json
+{"isRemote":false}
+```
+
+A PATCH can contain only `isRemote`, or combine it with `description` and `categoryIds`. Omitted fields keep their current values. Only JSON `true` and `false` are accepted; explicit `null`, strings, numbers, arrays and objects return `400` without saving changes. Existing ownership, authentication and proposal/exchange restrictions still apply.
+
+Service objects in creation and registration responses, the homepage, personal lists, swipe candidates and proposals include `isRemote` as a boolean. The field does not change geographic filters or matching rules.
+
+### Database update
+
+The current `barattolo_v2_15102026_services.sql` dump already includes this migration. Keep `barattolo_v2_13102026_staff.sql` as the original historical snapshot. When upgrading an existing installation or an older dump, run pending migrations from `Backend`:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+For an existing installation, run the same command without reimporting the dump. Migration `Version20261015000100` adds only `services.is_remote BOOLEAN NOT NULL DEFAULT FALSE` and preserves other data. To reverse this migration when it is the latest applied migration:
+
+```bash
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261015000100' --down --no-interaction
+```
+
+Rollback removes the column and its remote values.
+
+## Suspend or reactivate an offer or request
+
+Both service types have an `isSuspended` boolean. It defaults to `false`, including for existing services after migration. Suspension is manual and has no automatic expiry.
+
+The active owner can suspend a service with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`:
+
+```json
+{"isSuspended":true}
+```
+
+Send `{"isSuspended":false}` to reactivate it. The same optional field is accepted by `POST /api/services` and by each item in `offers` and `requests` during registration. Only JSON booleans are valid; `null`, strings, numbers, arrays and objects return `400`. Omitted PATCH fields retain their current values. You can combine `isSuspended` with `description`, `categoryIds` and `isRemote`; invalid payloads save no changes.
+
+Service responses include `isSuspended`. Suspended services stay in the owner's personal list and can still be edited or deleted under the existing rules. They are excluded from the homepage catalog, swipe candidates and direct/chain matching, on both sides of a match. New swipe decisions and chain starts using a suspended service return `409`, including requests made from an older feed. Existing repeated swipe decisions retain their retry behavior.
+
+Suspension and reactivation use the existing ownership and reference checks. A service connected to a proposal, exchange, chain or reservation cannot be changed (`409`), including when the referenced record is rejected, cancelled or completed. Existing proposals and exchanges are not cancelled by this feature. Database row locks serialize suspension with proposal creation and chain reservations.
+
+### Suspension migration
+
+The current `barattolo_v2_15102026_services.sql` dump already includes suspension. The original `barattolo_v2_13102026_staff.sql` snapshot is unchanged. When upgrading that older snapshot or an existing installation, run pending migrations from `Backend`:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+`Version20261015000200` follows the `isRemote` migration and adds only `services.is_suspended BOOLEAN NOT NULL DEFAULT FALSE`. To roll it back when it is the latest applied migration:
+
+```bash
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261015000200' --down --no-interaction
+```
+
+Rollback removes suspension values and preserves all other columns and data.

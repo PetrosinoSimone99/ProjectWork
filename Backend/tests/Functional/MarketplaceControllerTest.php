@@ -22,6 +22,64 @@ class MarketplaceControllerTest extends WebTestCase
     private EntityManagerInterface $entityManager;
     private KernelBrowser $client;
 
+    /** Both flags accept only JSON booleans and support partial updates. */
+    public static function booleanFields(): array
+    {
+        return [['isRemote'], ['isSuspended']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('booleanFields')]
+    public function testBooleanServiceFlagsCanBePublishedEditedAndReadForBothServiceTypes(string $field): void
+    {
+        $alice = $this->createUser('alice');
+        $category = $this->createCategory('Tutoring');
+        $this->authenticate($alice);
+
+        foreach (['OFFER' => 'offers', 'REQUEST' => 'requests'] as $type => $resource) {
+            foreach ([[], [$field => false], [$field => true]] as $flags) {
+                $this->client->jsonRequest('POST', '/api/services', [
+                    'type' => $type, 'description' => 'Online tutoring.', 'categoryIds' => [$category->getId()], ...$flags,
+                ]);
+                self::assertResponseStatusCodeSame(201);
+                $service = $this->data()['service'];
+                self::assertSame($flags[$field] ?? false, $service[$field]);
+                $path = '/api/'.$resource.'/'.$service['id'];
+                $key = $type === 'OFFER' ? 'offer' : 'request';
+
+                $this->client->jsonRequest('PATCH', $path, [$field => true]);
+                self::assertResponseIsSuccessful();
+                self::assertTrue($this->data()[$key][$field]);
+                $this->client->jsonRequest('PATCH', $path, ['description' => 'Updated tutoring.']);
+                self::assertResponseIsSuccessful();
+                self::assertTrue($this->data()[$key][$field]);
+
+                foreach ([null, 'true', 0, 1, [], new \stdClass()] as $invalid) {
+                    $this->client->jsonRequest('PATCH', $path, ['description' => 'Must not save.', $field => $invalid]);
+                    self::assertResponseStatusCodeSame(400);
+                }
+                $this->client->request('GET', '/api/'.$resource.'/mine');
+                self::assertResponseIsSuccessful();
+                $saved = array_values(array_filter($this->data()[$resource], static fn (array $row) => $row['id'] === $service['id']))[0];
+                self::assertTrue($saved[$field]);
+                self::assertSame('Updated tutoring.', $saved['description']);
+
+                $this->client->jsonRequest('PATCH', $path, [$field => false]);
+                self::assertResponseIsSuccessful();
+                self::assertFalse($this->data()[$key][$field]);
+                $this->entityManager->clear();
+                self::assertFalse($this->entityManager->find(Service::class, $service['id'])->$field());
+            }
+            $before = $this->entityManager->getRepository(Service::class)->count([]);
+            foreach ([null, 'false', 0, 1, [], new \stdClass()] as $invalid) {
+                $this->client->jsonRequest('POST', '/api/services', [
+                    'type' => $type, 'description' => 'Invalid boolean value.', 'categoryIds' => [$category->getId()], $field => $invalid,
+                ]);
+                self::assertResponseStatusCodeSame(400);
+            }
+            self::assertSame($before, $this->entityManager->getRepository(Service::class)->count([]));
+        }
+    }
+
     protected function setUp(): void
     {
         self::ensureKernelShutdown();
@@ -33,6 +91,57 @@ class MarketplaceControllerTest extends WebTestCase
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         $tool->dropSchema($metadata);
         $tool->createSchema($metadata);
+    }
+
+    public function testSuspensionHidesEachSideOfAMatchAndRejectsStaleSwipes(): void
+    {
+        [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        foreach ($ids as $name => $id) {
+            $owner = str_starts_with($name, 'actor') ? $alice : $bob;
+            $resource = str_contains($name, 'Offer') ? 'offers' : 'requests';
+            $path = '/api/'.$resource.'/'.$id;
+            $this->authenticate($owner === $alice ? $bob : $alice);
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
+            self::assertResponseStatusCodeSame(404);
+            $this->authenticate($owner);
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
+            self::assertResponseIsSuccessful();
+
+            $this->authenticate($alice);
+            $this->client->request('GET', '/api/swipes');
+            self::assertSame([], $this->data()['candidates']);
+            foreach (['LEFT', 'RIGHT'] as $direction) {
+                $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => $direction]);
+                self::assertResponseStatusCodeSame(409);
+            }
+            self::assertSame(0, $this->entityManager->getRepository(Proposal::class)->count([]));
+            self::assertSame(0, $this->entityManager->getRepository(\App\Entity\SwipeDecision::class)->count([]));
+            if ($name === 'candidateOfferServiceId') {
+                $this->client->request('GET', '/api/services');
+                self::assertSame(0, $this->data()['pagination']['totalItems']);
+            }
+
+            $this->authenticate($owner);
+            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => false]);
+            self::assertResponseIsSuccessful();
+            $this->authenticate($alice);
+            $this->client->request('GET', '/api/swipes');
+            self::assertCount(1, $this->data()['candidates']);
+            self::assertFalse($this->data()['candidates'][0]['actorOfferService']['isSuspended']);
+            $this->client->request('GET', '/api/services');
+            self::assertSame(1, $this->data()['pagination']['totalItems']);
+            self::assertFalse($this->data()['offers'][0]['isSuspended']);
+        }
+
+        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
+        self::assertResponseStatusCodeSame(201);
+        foreach ($ids as $name => $id) {
+            $this->authenticate(str_starts_with($name, 'actor') ? $alice : $bob);
+            $resource = str_contains($name, 'Offer') ? 'offers' : 'requests';
+            $this->client->jsonRequest('PATCH', '/api/'.$resource.'/'.$id, ['isSuspended' => true]);
+            self::assertResponseStatusCodeSame(409);
+            self::assertFalse($this->entityManager->find(Service::class, $id)->isSuspended());
+        }
     }
 
     public function testCategoriesAndServicePublishingRequireValidAuthenticatedInput(): void
@@ -96,6 +205,8 @@ class MarketplaceControllerTest extends WebTestCase
 
         $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['description' => 'Hijack']);
         self::assertResponseStatusCodeSame(404);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['isRemote' => true]);
+        self::assertResponseStatusCodeSame(404);
         $this->client->request('DELETE', '/api/offers/'.$offer->getId());
         self::assertResponseStatusCodeSame(404);
 
@@ -123,6 +234,12 @@ class MarketplaceControllerTest extends WebTestCase
 
         $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['description' => 'Changed']);
         self::assertResponseStatusCodeSame(409);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['isRemote' => true]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertFalse($this->entityManager->find(Service::class, $offer->getId())->isRemote());
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertFalse($this->entityManager->find(Service::class, $offer->getId())->isSuspended());
         $this->client->request('DELETE', '/api/offers/'.$offer->getId());
         self::assertResponseStatusCodeSame(409);
         self::assertSame('I cook.', $this->entityManager->find(Service::class, $offer->getId())->getDescription());
@@ -161,6 +278,8 @@ class MarketplaceControllerTest extends WebTestCase
     public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void
     {
         [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        $this->entityManager->find(Service::class, $ids['actorOfferServiceId'])->setIsRemote(true);
+        $this->entityManager->find(Service::class, $ids['candidateRequestServiceId'])->setIsRemote(true);
         $bob->setBio('I enjoy gardening.');
         $bob->setProfileImageUrl('https://example.test/bob.jpg');
         $this->entityManager->flush();
@@ -170,6 +289,9 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(0, $this->data()['pendingProposals']);
         self::assertCount(1, $this->data()['candidates']);
+        self::assertTrue($this->data()['candidates'][0]['actorOfferService']['isRemote']);
+        self::assertTrue($this->data()['candidates'][0]['candidateRequestService']['isRemote']);
+        self::assertFalse($this->data()['candidates'][0]['actorRequestService']['isRemote']);
         self::assertSame('I enjoy gardening.', $this->data()['candidates'][0]['candidate']['bio']);
         self::assertSame('https://example.test/bob.jpg', $this->data()['candidates'][0]['candidate']['profileImageUrl']);
         self::assertArrayNotHasKey('email', $this->data()['candidates'][0]['candidate']);
@@ -189,6 +311,7 @@ class MarketplaceControllerTest extends WebTestCase
         $this->client->request('GET', '/api/swipes');
         self::assertCount(1, $this->data()['pendingProposals']);
         self::assertSame($proposalId, $this->data()['pendingProposals'][0]['id']);
+        self::assertTrue($this->data()['pendingProposals'][0]['participants'][0]['service']['isRemote']);
         self::assertSame('I enjoy gardening.', $this->data()['pendingProposals'][0]['participants'][1]['user']['bio']);
         self::assertArrayNotHasKey('email', $this->data()['pendingProposals'][0]['participants'][1]['user']);
 
@@ -196,6 +319,7 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertTrue($this->data()['matched']);
         self::assertSame('ACCEPTED', $this->data()['proposal']['status']);
+        self::assertTrue($this->data()['proposal']['participants'][0]['service']['isRemote']);
     }
 
     public function testLeftSwipeHidesExactCombinationAndInvalidOwnershipIsRejected(): void
@@ -251,6 +375,7 @@ class MarketplaceControllerTest extends WebTestCase
         $this->createService($viewer, Service::TYPE_OFFER, 'My private offer.', $cooking);
         $this->createService($romeOwner, Service::TYPE_REQUEST, 'I need a meal.', $cooking);
         $pasta = $this->createService($romeOwner, Service::TYPE_OFFER, 'I can cook pasta.', $cooking);
+        $pasta->setIsRemote(true);
         $inactiveOffer = $this->createService($inactiveOwner, Service::TYPE_OFFER, 'I repair clocks.', $repairs);
         $this->entityManager->flush();
 
@@ -260,6 +385,7 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(1, $this->data()['pagination']['totalItems']);
         self::assertSame($pasta->getId(), $this->data()['offers'][0]['id']);
+        self::assertTrue($this->data()['offers'][0]['isRemote']);
         self::assertSame('Rome', $this->data()['offers'][0]['owner']['location']);
         self::assertArrayNotHasKey('email', $this->data()['offers'][0]['owner']);
         self::assertArrayNotHasKey('roles', $this->data()['offers'][0]['owner']);

@@ -115,6 +115,8 @@ final class RequestControllerTest extends WebTestCase
         foreach ([$request->getId(), $offer->getId(), 999999] as $id) {
             $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['description' => 'Unauthorized change']);
             self::assertResponseStatusCodeSame(404);
+            $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['isRemote' => true]);
+            self::assertResponseStatusCodeSame(404);
             $this->client->request('DELETE', '/api/requests/'.$id);
             self::assertResponseStatusCodeSame(404);
         }
@@ -138,6 +140,12 @@ final class RequestControllerTest extends WebTestCase
 
         $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['description' => 'Changed']);
         self::assertResponseStatusCodeSame(409);
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isRemote' => true]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertFalse($request->isRemote());
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertFalse($request->isSuspended());
         $this->client->request('DELETE', '/api/requests/'.$request->getId());
         self::assertResponseStatusCodeSame(409);
         self::assertSame('Original description.', $request->getDescription());

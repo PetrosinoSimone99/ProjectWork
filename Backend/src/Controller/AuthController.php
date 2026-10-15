@@ -110,7 +110,7 @@ class AuthController extends AbstractController
         }
     }
 
-    /** @return array{name: string, surname: string, username: string, email: string, password: string, location: string, offers: list<array{description: string, categoryIds: list<int>, categories: list<string>}>, requests: list<array{description: string, categoryIds: list<int>, categories: list<string>}>}|null */
+    /** @return array{name: string, surname: string, username: string, email: string, password: string, location: string, offers: list<array{description: string, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>, requests: list<array{description: string, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>}|null */
     private function validateRegistration(array $data): ?array
     {
         $name = trim((string) ($data['name'] ?? ''));
@@ -132,7 +132,7 @@ class AuthController extends AbstractController
         return compact('name', 'surname', 'username', 'email', 'password', 'location', 'offers', 'requests');
     }
 
-    /** @return list<array{description: string, categoryIds: list<int>, categories: list<string>}>|null */
+    /** @return list<array{description: string, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>|null */
     private function validateServices(mixed $services): ?array
     {
         if (!is_array($services) || !array_is_list($services) || $services === []) {
@@ -142,6 +142,8 @@ class AuthController extends AbstractController
         $validatedServices = [];
         foreach ($services as $service) {
             if (!is_array($service) || !is_string($service['description'] ?? null)
+                || (array_key_exists('isSuspended', $service) && !is_bool($service['isSuspended']))
+                || (array_key_exists('isRemote', $service) && !is_bool($service['isRemote']))
                 || (array_key_exists('categoryIds', $service) && (!is_array($service['categoryIds']) || !array_is_list($service['categoryIds'])))
                 || (array_key_exists('categories', $service) && (!is_array($service['categories']) || !array_is_list($service['categories'])))) {
                 return null;
@@ -186,7 +188,7 @@ class AuthController extends AbstractController
                 return null;
             }
 
-            $validatedServices[] = ['description' => $description, 'categoryIds' => $categoryIds, 'categories' => $categoryNames];
+            $validatedServices[] = ['description' => $description, 'isRemote' => $service['isRemote'] ?? false, 'isSuspended' => $service['isSuspended'] ?? false, 'categoryIds' => $categoryIds, 'categories' => $categoryNames];
         }
 
         return $validatedServices;
@@ -195,11 +197,11 @@ class AuthController extends AbstractController
     /**
      * Finds existing categories by ID or name and creates missing names in memory.
      *
-     * @param list<array{description: string, categoryIds: list<int>, categories: list<string>}> $serviceData
+     * @param list<array{description: string, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}> $serviceData
      * @param array<int, Category> $categoriesById
      * @param array<string, Category> $categoriesByName
      * @param array<string, Category> $newCategories
-     * @return list<array{description: string, categories: list<Category>}>|false|null
+     * @return list<array{description: string, isRemote: bool, isSuspended: bool, categories: list<Category>}>|false|null
      */
     private function resolveServices(array $serviceData, array &$categoriesById, array &$categoriesByName, array &$newCategories): array|false|null
     {
@@ -240,18 +242,20 @@ class AuthController extends AbstractController
                 $categories[] = $category;
             }
 
-            $resolvedServices[] = ['description' => $item['description'], 'categories' => $categories];
+            $resolvedServices[] = ['description' => $item['description'], 'isRemote' => $item['isRemote'], 'isSuspended' => $item['isSuspended'], 'categories' => $categories];
         }
 
         return $resolvedServices;
     }
 
-    /** @param list<array{description: string, categories: list<Category>}> $serviceData @return list<Service> */
+    /** @param list<array{description: string, isRemote: bool, isSuspended: bool, categories: list<Category>}> $serviceData @return list<Service> */
     private function createServices(User $user, array $serviceData, string $type): array
     {
         $services = [];
         foreach ($serviceData as $item) {
             $service = new Service($user, $type, $item['description']);
+            $service->setIsRemote($item['isRemote']);
+            $service->setIsSuspended($item['isSuspended']);
             foreach ($item['categories'] as $category) {
                 $service->addCategory($category);
             }
