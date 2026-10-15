@@ -22,7 +22,7 @@ class ChatController extends AbstractController
         $this->chatManager = $chatManager;
     }
 
-    #[Route('/chats/mutual-proposal/{proposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
+    #[Route('/chats/mutual-proposal/{proposalId}', name: 'get_chat_by_mutual_proposal_id', methods: ['GET'])]
     public function getChatAndHistoryByProposalId(int $proposalId): JsonResponse
     {
         try{
@@ -37,7 +37,7 @@ class ChatController extends AbstractController
         
     }
 
-    #[Route('/chats/group-proposal/beneficiary/{groupProposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
+    #[Route('/chats/group-proposal/beneficiary/{groupProposalId}', name: 'get_chat_by_group_proposal_id_beneficiary', methods: ['GET'])]
     public function getChatAndHistoryByGroupProposalIdBeneficiary(int $groupProposalId): JsonResponse
     {
         $user = $this->getUser();
@@ -55,7 +55,7 @@ class ChatController extends AbstractController
         }
     }
 
-    #[Route('/chats/group-proposal/provider/{groupProposalId}', name: 'get_chat_by_proposal_id', methods: ['GET'])]
+    #[Route('/chats/group-proposal/provider/{groupProposalId}', name: 'get_chat_by_group_proposal_id_provider', methods: ['GET'])]
     public function getChatAndHistoryByGroupProposalIdProvider(int $groupProposalId): JsonResponse
     {
         $user = $this->getUser();
