@@ -266,7 +266,11 @@ final class ChainService
                     $userId = (int) $member['user_id'];
                     // The interrupter is excluded even when that person has not received anything.
                     if ($userId !== $actor->getId() && !in_array($userId, $received, true)) {
-                        $this->repository->add('tokens', ['user_id' => $userId, 'group_id' => $chain['id'], 'issued_at' => $this->date($now), 'expiration_date' => $this->date($now->modify('+30 days'))]);
+                        try {
+                            $this->repository->add('tokens', ['user_id' => $userId, 'group_id' => $chain['id'], 'issued_at' => $this->date($now), 'expiration_date' => $this->date($now->modify('+30 days'))]);
+                        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException) {
+                            // Staff may have already assigned this chain/user token. Keep it and finish cancellation.
+                        }
                     }
                 }
             }

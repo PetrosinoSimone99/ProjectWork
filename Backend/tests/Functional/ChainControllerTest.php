@@ -403,6 +403,156 @@ final class ChainControllerTest extends WebTestCase
         self::assertSame('REQUEST service', $this->em->find(Service::class, $requestId)->getDescription());
     }
 
+    public function testStaffCanManageManualTokensAndPersonalListsStayPrivate(): void
+    {
+        $owner = $this->user('token-owner');
+        $staff = $this->user('token-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $owner->getId()]);
+        self::assertResponseStatusCodeSame(201);
+        $token = $this->data()['token'];
+        self::assertSame($owner->getId(), $token['userId']);
+        self::assertNull($token['chainId']);
+        self::assertSame('2026-10-03T12:00:00+00:00', $token['issuedAt']);
+        self::assertSame('2026-11-02T12:00:00+00:00', $token['expiresAt']);
+        self::assertFalse($token['expired']);
+        $path = '/api/staff/tokens/'.$token['id'];
+
+        $this->client->jsonRequest('PUT', $path, ['expiresAt' => '2026-11-10T14:30:00+02:00']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('2026-11-10T12:30:00+00:00', $this->data()['token']['expiresAt']);
+        $this->client->jsonRequest('PATCH', $path, ['expiresAt' => '2026-10-03T12:00:00Z']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->data()['token']['expired']);
+        $this->client->jsonRequest('PATCH', $path, ['expiresAt' => '2026-10-01T00:00:00Z']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->data()['token']['expired']);
+        self::assertSame($token['issuedAt'], $this->data()['token']['issuedAt']);
+
+        $this->client->request('GET', '/api/tokens');
+        self::assertSame([], $this->data()['tokens']);
+        $this->as($owner);
+        $this->client->request('GET', '/api/tokens');
+        self::assertCount(1, $this->data()['tokens']);
+        self::assertSame($token['id'], $this->data()['tokens'][0]['id']);
+        self::assertTrue($this->data()['tokens'][0]['expired']);
+        self::assertArrayNotHasKey('userId', $this->data()['tokens'][0]);
+
+        $this->as($staff);
+        $this->client->request('DELETE', $path);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $this->client->getResponse()->getContent());
+        foreach (['PUT', 'PATCH', 'DELETE'] as $method) {
+            $this->client->jsonRequest($method, $path, ['expiresAt' => '2026-11-01T00:00:00Z']);
+            self::assertResponseStatusCodeSame(404);
+        }
+        $this->as($owner);
+        $this->client->request('GET', '/api/tokens');
+        self::assertSame([], $this->data()['tokens']);
+    }
+
+    public function testManualTokensAcceptExistingChainsAndInactiveRecipientsButRejectDuplicates(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $staff = $this->user('manual-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $members[1]['user']->setAccountStatus(User::STATUS_INACTIVE);
+        $this->em->flush();
+        $this->as($staff);
+        $payload = ['userId' => $members[1]['user']->getId(), 'chainId' => $chain['id']];
+        // Manual assignment does not require a cancelled or confirmed chain.
+        $this->client->jsonRequest('POST', '/api/staff/tokens', $payload);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($chain['id'], $this->data()['token']['chainId']);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', $payload);
+        self::assertResponseStatusCodeSame(409);
+        foreach ([1, 2] as $attempt) {
+            $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $members[1]['user']->getId(), 'chainId' => null]);
+            self::assertResponseStatusCodeSame(201);
+        }
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => 999999]);
+        self::assertResponseStatusCodeSame(404);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $staff->getId(), 'chainId' => 999999]);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testManualTokenDoesNotBlockAutomaticCompensationOnCancellation(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $this->confirm($chain['id'], $members);
+        $staff = $this->user('compensation-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $members[1]['user']->getId(), 'chainId' => $chain['id']]);
+        self::assertResponseStatusCodeSame(201);
+        $manual = $this->data()['token'];
+        $this->as($members[0]['user']);
+        $this->client->jsonRequest('POST', '/api/chains/'.$chain['id'].'/cancel', ['reason' => 'Cannot continue']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('CANCELLED', $this->data()['chain']['status']);
+        self::assertSame(2, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM tokens WHERE group_id = ?', [$chain['id']]));
+        $this->as($members[1]['user']);
+        $this->client->request('GET', '/api/tokens');
+        self::assertCount(1, $this->data()['tokens']);
+        self::assertSame($manual['id'], $this->data()['tokens'][0]['id']);
+        self::assertSame($manual['expiresAt'], $this->data()['tokens'][0]['expiresAt']);
+    }
+
+    public function testStaffTokenValidationRejectsInvalidBodiesAndImmutableFields(): void
+    {
+        $staff = $this->user('validation-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        foreach ([[], ['userId' => '1'], ['userId' => 0], ['userId' => true], ['userId' => $staff->getId(), 'chainId' => '1'], ['userId' => $staff->getId(), 'expiresAt' => '2026-11-01T00:00:00Z']] as $body) {
+            $this->client->jsonRequest('POST', '/api/staff/tokens', $body);
+            self::assertResponseStatusCodeSame(400);
+        }
+        $this->client->jsonRequest('POST', '/api/staff/tokens', ['userId' => $staff->getId()]);
+        self::assertResponseStatusCodeSame(201);
+        $original = $this->data()['token'];
+        $path = '/api/staff/tokens/'.$original['id'];
+        foreach (['PUT', 'PATCH'] as $method) {
+            foreach ([[], ['userId' => $staff->getId()], ['chainId' => null], ['issuedAt' => '2026-10-01T00:00:00Z'], ['expiresAt' => null], ['expiresAt' => '2026-02-30T12:00:00Z'], ['expiresAt' => '2026-11-01T12:00:00'], ['expiresAt' => '2026-11-01T12:00:00+25:00']] as $body) {
+                $this->client->jsonRequest($method, $path, $body);
+                self::assertResponseStatusCodeSame(400);
+            }
+            foreach (['{', 'null', '[]', '"text"'] as $body) {
+                $this->client->request($method, $path, server: ['CONTENT_TYPE' => 'application/json'], content: $body);
+                self::assertResponseStatusCodeSame(400);
+            }
+        }
+        $this->client->request('GET', '/api/tokens');
+        self::assertSame($original['expiresAt'], $this->data()['tokens'][0]['expiresAt']);
+        foreach (['0000-01-01T00:00:00Z', '1000-01-01T00:00:00+01:00', '9999-12-31T23:59:59-01:00'] as $date) {
+            $this->client->jsonRequest('PATCH', $path, ['expiresAt' => $date]);
+            self::assertResponseStatusCodeSame(400);
+        }
+    }
+
+    public function testTokenWritesRequireAnActiveStaffAccount(): void
+    {
+        $user = $this->user('permissions-user');
+        $staff = $this->user('inactive-token-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $staff->setAccountStatus(User::STATUS_INACTIVE);
+        $this->em->flush();
+        foreach ([null, $user, $staff] as $actor) {
+            $this->client->setServerParameter('HTTP_AUTHORIZATION', '');
+            if ($actor !== null) { $this->as($actor); }
+            foreach (['POST', 'PUT', 'PATCH', 'DELETE'] as $method) {
+                $path = '/api/staff/tokens'.($method === 'POST' ? '' : '/999999');
+                $this->client->jsonRequest($method, $path, ['userId' => $user->getId()]);
+                self::assertResponseStatusCodeSame($actor === null ? 401 : 403);
+            }
+        }
+    }
+
     private function cycle(int $length): array
     {
         $categories = [];

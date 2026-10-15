@@ -139,4 +139,33 @@ final class ChainRepository
     {
         return $this->db->fetchAllAssociative('SELECT * FROM tokens WHERE user_id = ? ORDER BY id DESC', [$userId]);
     }
+
+    public function token(int $id, bool $lock = false): array
+    {
+        $row = $this->db->fetchAssociative('SELECT * FROM tokens WHERE id = ?'.($lock ? ' FOR UPDATE' : ''), [$id]);
+        if ($row === false) {
+            throw new ChainError('The token does not exist.', 404);
+        }
+        return $row;
+    }
+
+    public function tokenUserExists(int $id): bool
+    {
+        return $this->db->fetchOne('SELECT id FROM users WHERE id = ?', [$id]) !== false;
+    }
+
+    public function tokenChainExists(int $id): bool
+    {
+        return $this->db->fetchOne('SELECT id FROM proposal_groups WHERE id = ?', [$id]) !== false;
+    }
+
+    public function updateTokenExpiration(int $id, string $expiration): void
+    {
+        $this->db->update('tokens', ['expiration_date' => $expiration], ['id' => $id]);
+    }
+
+    public function deleteToken(int $id): void
+    {
+        $this->db->delete('tokens', ['id' => $id]);
+    }
 }
