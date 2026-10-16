@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,9 +7,10 @@ import { AnelloFocus } from '@/components/AnelloFocus';
 import { AvvisoNotifica } from '@/components/AvvisoNotifica';
 import { AvvisoScadenza } from '@/components/AvvisoScadenza';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { MenuNavigazioneWeb } from '@/components/MenuNavigazioneWeb';
 import { useNotifiche } from '@/hooks/useNotifiche';
 import { useScadenzaSessione } from '@/hooks/useScadenzaSessione';
-import { space } from '@/theme/tokens';
+import { fasciaPallinoMenuWeb, space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
 import { TourAutomatico } from '@/dev/tour-automatico';
 
@@ -52,14 +53,21 @@ function RootNavigator() {
       {/* L'anello di focus da token vive in tutte le schermate: è una regola
           globale su `:focus-visible` (P59) e non disegna nulla. */}
       <AnelloFocus />
+      {/* Il menu di navigazione del web: pallino fisso + tendina, su ogni
+          schermata con sessione (anche le rotte secondarie). Da nativo non
+          disegna nulla. */}
+      {utente ? <MenuNavigazioneWeb /> : null}
       {/* La safe area la aggiunge il contenitore degli avvisi, non lo `Stack`:
           senza avvisi lo `Stack` resta a filo schermo e ogni schermata mette il
-          suo margine. */}
+          suo margine. Sul web il bordo destro si tiene fuori dalla fascia del
+          pallino del menu (`fasciaPallinoMenuWeb`): l'avviso è a tutta
+          larghezza e altrimenti il suo testo finirebbe sotto il pallino. */}
       {mostraAvvisi ? (
         <View
           style={{
             paddingTop: insets.top,
-            paddingHorizontal: space.lg,
+            paddingLeft: space.lg,
+            paddingRight: Platform.OS === 'web' ? fasciaPallinoMenuWeb : space.lg,
             paddingBottom: space.sm,
             gap: space.sm,
           }}

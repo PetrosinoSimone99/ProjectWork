@@ -5,14 +5,16 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { layout, space, useTokens } from '@/theme/tokens';
+import { fasciaPallinoMenuWeb, layout, space, useTokens } from '@/theme/tokens';
 import { tourScroll } from '@/dev/tour-automatico';
 
 /** Il pull-to-refresh è un gesto nativo: sul web la ScrollView lo ignorerebbe. */
 const SUPPORTA_AGGIORNAMENTO = Platform.OS !== 'web';
+
 const KEYBOARD_SHOW_EVENT = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
 const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
@@ -31,6 +33,11 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * `bottomSpacing` è lo spazio sotto il contenuto, misurato dentro la safe area:
  * le schermate con una barra ancorata in fondo (chat) lo riducono, altrimenti
  * sopra l'home indicator resta un vuoto troppo alto.
+ *
+ * Sul web, quando la finestra è così stretta che la colonna del contenuto entra
+ * nella fascia del pallino di `MenuNavigazioneWeb` (`fasciaPallinoMenuWeb`, in
+ * alto a destra), quella fascia viene riservata con un padding in più: il titolo
+ * non finisce sotto il pallino. Da nativo non cambia niente.
  */
 export function Screen({
   children,
@@ -43,6 +50,7 @@ export function Screen({
 }) {
   const t = useTokens();
   const insets = useSafeAreaInsets();
+  const { width: larghezzaFinestra } = useWindowDimensions();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const aggiornamentoAttivo = SUPPORTA_AGGIORNAMENTO && typeof onRefresh === 'function';
   const safeAreaBottomPadding = withBottomInset && !keyboardVisible ? insets.bottom : 0;
@@ -50,6 +58,12 @@ export function Screen({
   // allarga a tutto lo schermo e «Filtra» scappa al capo opposto. Solo le
   // schermate lunghe (catalogo) la allargano; tutte le altre restano centrate.
   const larghezzaMassima = larga ? layout.maxCatalogo : layout.maxContent;
+  // La colonna è centrata: il suo bordo destro entra nella fascia del pallino
+  // quando la finestra è più stretta del tetto di colonna aumentato della fascia
+  // su entrambi i lati. Allora il contenuto scende sotto la fascia.
+  const riservaMenuWeb =
+    Platform.OS === 'web' &&
+    larghezzaFinestra < larghezzaMassima + 2 * fasciaPallinoMenuWeb;
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener(KEYBOARD_SHOW_EVENT, () => {
@@ -133,7 +147,7 @@ export function Screen({
       <View
         style={{
           flex: 1,
-          paddingTop: insets.top,
+          paddingTop: insets.top + (riservaMenuWeb ? fasciaPallinoMenuWeb : 0),
           // KeyboardAvoidingView gestisce già l'altezza della tastiera: non
           // aggiungere anche la safe area inferiore mentre è aperta.
           paddingBottom: safeAreaBottomPadding,
