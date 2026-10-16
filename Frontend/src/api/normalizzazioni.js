@@ -504,7 +504,9 @@ export function normalizzaPaginazione(paginazione) {
  * Le righe **senza descrizione si scartano** (per contratto non esistono) e le
  * categorie si normalizzano con `normalizzaCategorie`: le righe di `offers`
  * portano lo stesso formato della tendina (`[{id, description}]`), quindi la
- * mappatura `{id, nome}` è una sola.
+ * mappatura `{id, nome}` è una sola. La riga non porta tipo né stato, ma porta
+ * `isRemote` (modalità «da remoto»/«in presenza»): qui diventa `daRemoto`, lo
+ * stesso vocabolario di `VoceServizio`.
  */
 export function normalizzaOffertaCatalogo(riga, indice = 0) {
   if (!riga || typeof riga !== 'object') {
@@ -519,6 +521,7 @@ export function normalizzaOffertaCatalogo(riga, indice = 0) {
     chiave: id === null ? `offerta-riga-${indice}` : `offerta-${id}`,
     id,
     descrizione,
+    daRemoto: riga.isRemote === true,
     categorie: normalizzaCategorie(riga),
     offerente: normalizzaOfferente(riga),
     // `createdAt` è ISO 8601 (DATE_ATOM): qui non si parsano date, il formato

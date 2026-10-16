@@ -5,7 +5,7 @@ import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formattaDataIso } from '@/accordi/stati';
-import { nomePersona } from '@/servizi/offerta-ricerca';
+import { etichettaModalita, nomePersona } from '@/servizi/offerta-ricerca';
 import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -17,7 +17,7 @@ import { radius, space, useTokens } from '@/theme/tokens';
  *
  * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
  * come nella card, la località è della **persona** e la modalità («da remoto» /
- * «in presenza») non esiste più, quindi non c'è nessun chip che la descriva.
+ * «in presenza») arriva dalla riga normalizzata (`servizio.daRemoto`).
  *
  * Non esiste il ramo «è il tuo annuncio»: nel catalogo arrivano solo i servizi
  * degli altri (le proprie voci non entrano, per decisione del titolare), quindi
@@ -104,6 +104,16 @@ export function ModalDettaglioServizio({ servizio, onChiudi }) {
                   </AppText>
                 </View>
               ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Ionicons
+                  name={servizio?.daRemoto ? 'videocam-outline' : 'people-outline'}
+                  size={16}
+                  color={t.textSecondary}
+                />
+                <AppText variant="small" tone="secondary">
+                  Si svolge {etichettaModalita(servizio?.daRemoto)}
+                </AppText>
+              </View>
               {pubblicatoIl ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                   <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />

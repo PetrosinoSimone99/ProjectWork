@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formattaDataIso } from '@/accordi/stati';
-import { nomePersona } from '@/servizi/offerta-ricerca';
+import { etichettaModalita, nomePersona } from '@/servizi/offerta-ricerca';
 import { localitaPerDisplay } from '@/servizi/aree-italiane';
 import { space, useTokens } from '@/theme/tokens';
 
@@ -75,6 +75,19 @@ export function CardServizioCatalogo({ servizio, onPress }) {
         </AppText>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap' }}>
+          {/* La modalità è sempre nota (il contratto la manda come booleano),
+              quindi la riga compare sempre: l'icona distingue da remoto da in
+              presenza, e la parola lo dice a chi non vede l'icona. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+            <Ionicons
+              name={servizio.daRemoto ? 'videocam-outline' : 'people-outline'}
+              size={14}
+              color={t.textSecondary}
+            />
+            <AppText variant="small" tone="secondary">
+              {etichettaModalita(servizio.daRemoto)}
+            </AppText>
+          </View>
           {/* La località è della persona ed è facoltativa: se manca, la riga non
               compare (niente trattino, niente «N/D»). */}
           {servizio.offerente?.localita ? (
