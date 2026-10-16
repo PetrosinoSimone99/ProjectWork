@@ -166,12 +166,10 @@ export async function login(username, password) {
  * voce; la stessa categoria non può ripetersi nella stessa sezione (altrimenti
  * 400 — la validazione della schermata lo previene: vedi `register.jsx`).
  *
- * La casella «da remoto» della voce è **sospesa**: il contratto non modella il
- * campo (lo schema v2 non ha una colonna per lei) e il titolare ha deciso di
- * toglierla dalla UI finché il backend non lo aggiunge (decisione 27 settembre
- * 2026, vedi `temp/gruppo-2-domande/23`). Quando arriverà, il campo `da_remoto`
- * del payload diventerà un booleano `isRemote` nel corpo e le righe commentate
- * in `aCorpoVoci` e in `EditorVoceServizio` si riattiveranno.
+ * La casella «da remoto» della voce è attiva: il campo `da_remoto` del payload
+ * viaggia come booleano `isRemote` nel corpo di ogni voce (il backend lo modella
+ * dalla PR #34). `isSuspended` **non** si manda: la registrazione crea voci nuove
+ * e pubblicate, il backend mette `false` da solo.
  */
 export async function register(input) {
   if (USA_DATI_FINTI) {
@@ -208,15 +206,12 @@ export async function register(input) {
 /**
  * Le voci arrivano nella forma interna del modulo
  * (`aPayloadApi`: `{id_categoria, mansione, da_remoto}`) e diventano il corpo del
- * contratto: `{description, categoryIds}`.
+ * contratto: `{description, categoryIds, isRemote}`. Prima del contratto vero la
+ * casella «da remoto» era tradotta in testo nel `description`; ora il backend
+ * modella il campo (PR #34) e viaggia come booleano.
  *
- * La «da remoto» è **sospesa** (decisione del titolare, 27 settembre 2026): il
- * contratto non modella il campo, quindi finché il backend non lo aggiunge
- * (`isRemote` su `services`, vedi `temp/gruppo-2-domande/23`) la casella non
- * compare nella UI e il valore arriva sempre `false`. Le righe che la
- * traducevano in testo («mansione (da remoto)») sono commentate qui sotto: si
- * decommentano insieme al blocco `AppCheckbox` di `EditorVoceServizio.jsx`, e
- * poi si cambia il testo con il booleano vero nel corpo.
+ * `isSuspended` **non** si manda: la registrazione crea voci nuove e pubblicate,
+ * il backend mette `false` da solo.
  *
  * `id_categoria` qui è **sempre** un id scelto dalla tendina (la validazione
  * della schermata rifiuta l'invio senza categoria), quindi non serve un ramo
@@ -225,13 +220,7 @@ export async function register(input) {
 function aCorpoVoci(voci) {
   return (voci ?? []).map((voce) => ({
     description: String(voce.mansione ?? '').trim(),
-    // SOSPESO «da remoto»: da riattivare quando il backend aggiunge `isRemote`
-    // (vedi il commento della funzione). Il ramo sotto traduceva la casella in
-    // testo nel `description`, perché il contratto non aveva il campo:
-    // description: [
-    //   String(voce.mansione ?? '').trim(),
-    //   voce.da_remoto === true ? '(da remoto)' : null,
-    // ].filter(Boolean).join(' '),
+    isRemote: voce.da_remoto === true,
     categoryIds: voce.id_categoria === null || voce.id_categoria === undefined ? [] : [voce.id_categoria],
   }));
 }
