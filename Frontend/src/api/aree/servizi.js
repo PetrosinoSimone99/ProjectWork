@@ -13,6 +13,7 @@ import {
   TIPI_VOCE,
 } from '@/servizi/offerta-ricerca';
 import { aggiungiMiaVoce } from '@/servizi/mie-voci';
+import { formattaLocalita } from '@/servizi/aree-italiane';
 
 /**
  * Area «Offro e cerco»: la **creazione** di una voce via `POST /api/services`
@@ -97,40 +98,53 @@ function tipoContratto(tipo) {
 
 /**
  * La voce del form (forma interna, `{tipo, idCategoria, mansione, …}`) nel
- * corpo del contratto: `{type, description, categoryIds, isRemote}`. Stesso
+ * corpo del contratto: `{type, description, categoryIds, isRemote, location}`.
+ * Stesso
  * criterio di `aCorpoVoci` in `barattolo.js` per la registrazione, ma
  * dell'area: qui la categoria è una sola e il tipo viaggia nel corpo, non
  * nelle sezioni.
  *
  * La conversione sta **qui e non nella schermata** (§3): il form non sa niente
  * del backend. `daRemoto` viaggia come `isRemote` (il contratto lo modella dal
- * 14/10/2026); `localita` **non** viaggia: il backend non la salva (problema
- * 29). `isSuspended` non si manda: la creazione dal form è sempre pubblicata
- * (il backend mette `false`).
+ * 14/10/2026); `location` viaggia come `"Provincia (Regione)"` costruita dalla
+ * coppia `regione`/`provincia` della voce (dal 16/10/2026, PR #37: il backend
+ * la salva — problema 29 chiuso), o `null` se manca qualcosa. `isSuspended`
+ * non si manda: la creazione dal form è sempre pubblicata (il backend mette
+ * `false`).
  */
-function aCorpoCreazione(voce) {
+// Esportata solo per i controlli a terminale (pezzo 01 del piano 16/10/2026).
+export function aCorpoCreazione(voce) {
   return {
     type: tipoContratto(voce?.tipo),
     description: String(voce?.mansione ?? '').trim(),
     categoryIds: voce?.idCategoria === null || voce?.idCategoria === undefined ? [] : [voce.idCategoria],
     isRemote: voce?.daRemoto === true,
+    location: formattaLocalita(voce?.provincia, voce?.regione) ?? null,
   };
 }
 
 /**
  * La voce del form nella **modifica**: le cose che il contratto ammette,
- * `{description, categoryIds, isRemote}`. `categoryIds` **sostituisce**
+ * `{description, categoryIds, isRemote, location}`. `categoryIds`
+ * **sostituisce**
  * l'intera lista, per questo una voce porta la sua sola categoria; `id`,
  * `type` e `createdAt` non si mandano — non si cambiano, e un campo in più fa
  * `400`. `isSuspended` non si manda: lo stato si cambia con l'azione dedicata,
  * e il PATCH parziale lascia intatto ciò che non si manda.
+ *
+ * `location` è **sempre presente** nel corpo (stringa `"Provincia (Regione)"`
+ * o `null`): nel `PATCH` la chiave omessa lascia il valore attuale, il `null`
+ * esplicito lo cancella — così il PATCH è deterministico, ciò che il form
+ * mostra è ciò che il backend salva, e selettori svuotati cancellano la
+ * località (dal 16/10/2026, PR #37).
  *
  * Una categoria mancante o non intera positiva è un errore di chi chiama, non
  * del server: la schermata valida prima di arrivare qui, quindi la si rifiuta
  * con lo stesso `400` generico invece di far rispondere il backend. `null` =
  * non inviare.
  */
-function aCorpoAggiornamento(voce) {
+// Esportata solo per i controlli a terminale (pezzo 01 del piano 16/10/2026).
+export function aCorpoAggiornamento(voce) {
   const idCategoria = numeroInteroONull(voce?.idCategoria);
   if (idCategoria === null || idCategoria < 1) {
     return null;
@@ -139,6 +153,7 @@ function aCorpoAggiornamento(voce) {
     description: String(voce?.mansione ?? '').trim(),
     categoryIds: [idCategoria],
     isRemote: voce?.daRemoto === true,
+    location: formattaLocalita(voce?.provincia, voce?.regione) ?? null,
   };
 }
 
@@ -163,9 +178,11 @@ function rottaVoce(tipo, id) {
 
 /**
  * La busta `{service: {...}}` del backend nella forma interna della voce
- * creata: `{id, tipo, descrizione, categorie, data, daRemoto}` — le chiavi che
- * la UI conosce già (`tipo` nelle due parole italiane, `categorie` come
- * `{id, nome}`). Una risposta senza `service` non si inventa: esce `null`.
+ * creata: `{id, tipo, descrizione, categorie, data, daRemoto, localita}` —
+ * le chiavi che la UI conosce già (`tipo` nelle due parole italiane,
+ * `categorie` come `{id, nome}`); `localita` arriva da `location` (dal
+ * 16/10/2026, PR #37). Una risposta senza `service` non si inventa: esce
+ * `null`.
  * `toApiArray` non porta `createdAt`, quindi `data` resta `null`: è così, non
  * si inventa una data.
  */
@@ -190,6 +207,7 @@ export function normalizzaServizioCreato(risposta) {
     })),
     data: typeof servizio.createdAt === 'string' ? servizio.createdAt : null,
     daRemoto: servizio.isRemote === true,
+    localita: typeof servizio.location === 'string' ? servizio.location : '',
   };
 }
 
@@ -204,8 +222,9 @@ export function normalizzaServizioCreato(risposta) {
  * `chiave` segue lo stesso criterio (`${tipo}-${id}`) di
  * `normalizzaPubblicazione`. `createdAt` alla scheda non serve e non si
  * copia. `daRemoto` arriva da `isRemote` (lo modella dal 14/10/2026);
- * `localita` resta vuota: il backend non la salva (problema 29) e alla
- * modifica i selettori partono vuoti.
+ * `localita` arriva da `location` (dal 16/10/2026, PR #37: il backend la
+ * salva, problema 29 chiuso) e alla modifica alimenta i selettori
+ * regione/provincia (`analizzaLocalita` la rilegge in `offro-e-cerco.jsx`).
  * Lo **stato** di pubblicazione arriva da `isSuspended` (PR #34): sospesa solo
  * quando il booleano è `true`, pubblicata in ogni altro caso.
  *
@@ -234,7 +253,7 @@ export function normalizzaVocePropria(riga) {
     idCategoria: numeroInteroONull(riga.categories?.[0]?.id),
     mansione: typeof riga.description === 'string' ? riga.description : '',
     daRemoto: riga.isRemote === true,
-    localita: '',
+    localita: typeof riga.location === 'string' ? riga.location : '',
     stato,
   };
 }
