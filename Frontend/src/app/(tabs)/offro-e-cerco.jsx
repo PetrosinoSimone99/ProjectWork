@@ -49,27 +49,19 @@ import { space, useTokens } from '@/theme/tokens';
  * - con i finti accesi il comportamento demo resta quello di prima: elenco,
  *   modifica, stato ed eliminazione passano dal deposito finto.
  *
- * Anche la **modifica** e l'**eliminazione** sono reali (PATCH/DELETE su
- * `/api/offers/{id}` e `/api/requests/{id}`): modificare e togliere una voce
- * funziona nello stesso modo con i finti e senza. Solamente il **cambio di
- * stato** (pubblica/sospesa) è azione di demo: nel contratto non esiste
- * (segnalazione 27), e nel ramo reale chip di stato e «Sospendi/Ripubblica»
- * non si disegnano — riappiono quando il campo arriva.
+ * Anche la **modifica**, l'**eliminazione** e il **cambio di stato**
+ * (pubblica/sospesa) sono reali (PATCH/DELETE su `/api/offers/{id}` e
+ * `/api/requests/{id}`; lo stato passa da `isSuspended`, PR #34): tutte le
+ * azioni delle card funzionano allo stesso modo con i finti e senza.
  *
  * Con i finti accesi l'elenco non ha una copia locale come verità: dopo ogni
  * scrittura riuscita si richiama `carica()`, così «ho pubblicato e non lo vedo»
  * non esiste per costruzione.
  */
 
-/**
- * La spiegazione sotto il titolo: con i finti spenti si può fare davvero tutto
- * ciò che il contratto copre (elenco, correzione, eliminazione); con i finti
- * accesi resta anche «decidere quando non sono più visibili», che il contratto
- * reale non prevede.
- */
-const INTRODUZIONE = USA_DATI_FINTI
-  ? 'Le tue offerte e le tue ricerche: qui le pubblichi, le correggi e decidi quando non sono più visibili.'
-  : 'Le tue offerte e le tue ricerche: qui le pubblichi, le correggi e le elimini.';
+/** La spiegazione sotto il titolo: elenco, correzione, eliminazione e stato. */
+const INTRODUZIONE =
+  'Le tue offerte e le tue ricerche: qui le pubblichi, le correggi e decidi quando non sono più visibili.';
 
 /** Il testo del Banner di esito, con la parola giusta per il tipo di voce. */
 function testoEsito(azione, tipo) {
@@ -387,9 +379,6 @@ export default function OffroECercoScreen() {
           categoriePronte={categoriePronte}
           salvataggio={salvataggio}
           azioneInCorso={azioneInCorso}
-          // Il cambio di stato è solo di demo: nel contratto reale non esiste
-          // (segnalazione 27), quindi chip e «Sospendi» spariscono senza finti.
-          mostraStato={USA_DATI_FINTI}
           onApriNuova={() => apriNuova(sezione.tipo)}
           onCambiaCampo={cambiaCampoForm}
           onSalva={salva}

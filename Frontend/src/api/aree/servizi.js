@@ -3,13 +3,13 @@ import { USA_DATI_FINTI } from '../config';
 import {
   normalizzaPubblicazioni,
   normalizzaServizio,
-  normalizzaStatoPubblicazione,
   numeroInteroONull,
 } from '../normalizzazioni';
 import * as fintiServizi from '../finti/servizi';
 import {
   aPayloadAggiornamento,
   aPayloadPubblicazione,
+  STATI_PUBBLICAZIONE,
   TIPI_VOCE,
 } from '@/servizi/offerta-ricerca';
 import { aggiungiMiaVoce } from '@/servizi/mie-voci';
@@ -20,10 +20,10 @@ import { aggiungiMiaVoce } from '@/servizi/mie-voci';
  * 14/10/2026 anche la **lettura** dell'elenco delle voci proprie
  * (`GET /api/offers/mine` + `GET /api/requests/mine`, PR #30 e #32) e, dal
  * 14/10/2026, la **modifica** e l'**eliminazione** (`PATCH`/`DELETE` su
- * `/api/offers/{id}` e `/api/requests/{id}`, PR #30 e #32). Resta fintato
- * **solo il cambio di stato**: non esiste nel contratto. Le quattro funzioni
- * dell'area se ne vanno qui (pattern P53), con il ramo finto identico a prima —
- * la demo non si tocca.
+ * `/api/offers/{id}` e `/api/requests/{id}`, PR #30 e #32) e, dal 15/10/2026
+ * (PR #34), anche il **cambio di stato** (`isSuspended` nel `PATCH`). Le quattro
+ * funzioni dell'area se ne vanno qui (pattern P53), con il ramo finto identico
+ * a prima — la demo non si tocca.
  *
  * Per §3 di `AGENTS.md`: questo file traduce forma interna ↔ contratto, le
  * schermate non vedono mai i nomi del backend. `normalizzazioni.js` resta la
@@ -59,6 +59,8 @@ const MESSAGGIO_409_MODIFICA =
   'Questa voce è usata in una proposta o in uno scambio: non si può modificare finché dura.';
 const MESSAGGIO_409_ELIMINA =
   'Questa voce è usata in una proposta o in uno scambio: non si può eliminare finché dura.';
+const MESSAGGIO_409_STATO =
+  'Questa voce è usata in una proposta o in uno scambio: non si può sospendere né ripubblicare finché dura.';
 
 /**
  * Rilancia l'errore di una scrittura sostituendo il testo del backend con
@@ -120,8 +122,8 @@ function aCorpoCreazione(voce) {
  * `{description, categoryIds, isRemote}`. `categoryIds` **sostituisce**
  * l'intera lista, per questo una voce porta la sua sola categoria; `id`,
  * `type` e `createdAt` non si mandano — non si cambiano, e un campo in più fa
- * `400`. `isSuspended` non si manda: il PATCH parziale lascia intatto ciò che
- * non si manda.
+ * `400`. `isSuspended` non si manda: lo stato si cambia con l'azione dedicata,
+ * e il PATCH parziale lascia intatto ciò che non si manda.
  *
  * Una categoria mancante o non intera positiva è un errore di chi chiama, non
  * del server: la schermata valida prima di arrivare qui, quindi la si rifiuta
@@ -191,9 +193,6 @@ export function normalizzaServizioCreato(risposta) {
   };
 }
 
-/** Stato con cui il vecchio deposito finto segna la voce togliuta: non si mostra. */
-const STATO_ELIMINATA = 'ELIMINATA';
-
 /**
  * Una riga dell'elenco reale (`GET /api/offers/mine`, `GET /api/requests/mine`)
  * nella forma della voce della UI: le **stesse chiavi** di
@@ -207,8 +206,8 @@ const STATO_ELIMINATA = 'ELIMINATA';
  * copia. `daRemoto` arriva da `isRemote` (lo modella dal 14/10/2026);
  * `localita` resta vuota: il backend non la salva (problema 29) e alla
  * modifica i selettori partono vuoti.
- * Lo **stato** di pubblicazione non esiste nel contratto: resta «Pubblicata»
- * e la UI nasconderà chip e «Sospendi» nel ramo reale (pezzo 04).
+ * Lo **stato** di pubblicazione arriva da `isSuspended` (PR #34): sospesa solo
+ * quando il booleano è `true`, pubblicata in ogni altro caso.
  *
  * Una riga senza `id` intero o con `type` sconosciuto non si può mostrare:
  * `null`, come già fa `normalizzaPubblicazione` per la forma vecchia.
@@ -227,10 +226,7 @@ export function normalizzaVocePropria(riga) {
   if (tipo === null || id === null) {
     return null;
   }
-  const stato = normalizzaStatoPubblicazione(undefined);
-  if (stato === STATO_ELIMINATA) {
-    return null;
-  }
+  const stato = riga.isSuspended === true ? STATI_PUBBLICAZIONE.SOSPESA : STATI_PUBBLICAZIONE.PUBBLICATA;
   return {
     chiave: `${tipo}-${id}`,
     tipo,
@@ -320,19 +316,33 @@ export async function aggiornaPubblicazione(token, utenteId, voce) {
 }
 
 /**
- * Il **cambio di stato** di una voce (pubblica/sospesa) non esiste nel
- * contratto (decisione del titolare, 14/10/2026): con i finti accesi resta
- * fintato, con i finti spenti si dichiara che l'azione non è disponibile
- * invece di colpire una rotta inesistente (§4). La schermata nasconde
- * l'azione nel ramo reale (pezzo 04 del piano).
+ * PATCH /api/offers/{id} o PATCH /api/requests/{id} — il **cambio di stato** di
+ * una voce propria (pubblica/sospesa, reale dal 15/10/2026, PR #34): il corpo
+ * porta solo `isSuspended`, perché il PATCH parziale lascia intatto ciò che non
+ * si manda. La risposta `{offer}`/`{request}` torna normalizzata con
+ * `normalizzaVocePropria`, la stessa forma dell'elenco: alla schermata serve la
+ * riga aggiornata, non la busta. Il `409` («voce usata in una proposta o in uno
+ * scambio») ha il suo testo in `MESSAGGIO_409_STATO`. `utenteId` serve solo al
+ * ramo finto, che non decodifica il token.
  */
 export async function cambiaStatoPubblicazione(token, utenteId, id, tipo, stato) {
   if (USA_DATI_FINTI) {
     // TODO(backend): POST servizi.php {azione:'stato', id, tipo, stato}.
     return normalizzaServizio(fintiServizi.cambiaStatoServizio(utenteId, id, tipo, stato));
   }
-  // TODO(backend): stato della voce (pubblica/sospesa) — segnalazione temp/gruppo-3-mancanti/27.
-  throw new ApiError(501, 'Il cambio di stato non è ancora disponibile.');
+  const rotta = rottaVoce(tipo, id);
+  if (!rotta) {
+    throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
+  }
+  const risposta = await conMessaggioGenerico(
+    apiFetch(rotta, {
+      method: 'PATCH',
+      token,
+      body: { isSuspended: stato === STATI_PUBBLICAZIONE.SOSPESA },
+    }),
+    { ...MESSAGGI_GESTIONE_VOCE, 409: MESSAGGIO_409_STATO },
+  );
+  return normalizzaVocePropria(risposta?.offer ?? risposta?.request);
 }
 
 /**
