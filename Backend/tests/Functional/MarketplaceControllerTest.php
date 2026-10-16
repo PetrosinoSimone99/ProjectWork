@@ -272,7 +272,32 @@ class MarketplaceControllerTest extends WebTestCase
         $this->client->request('DELETE', '/api/offers/'.$id);
         self::assertResponseStatusCodeSame(204);
         $this->entityManager->clear();
-        self::assertNull($this->entityManager->find(Service::class, $id));
+        $saved = $this->entityManager->find(Service::class, $id);
+        self::assertTrue($saved->isDeleted());
+        self::assertCount(1, $saved->getCategories());
+        self::assertNotNull($this->entityManager->getConnection()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$id]));
+        $this->client->request('GET', '/api/offers/mine');
+        self::assertSame([], $this->data()['offers']);
+        $this->client->jsonRequest('PATCH', '/api/offers/'.$id, ['description' => 'Changed']);
+        self::assertResponseStatusCodeSame(404);
+        $this->client->request('DELETE', '/api/offers/'.$id);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testDeletedServicesDisappearFromCatalogAndSwipeAndCannotBeReused(): void
+    {
+        [$alice, $bob, $ids] = $this->createReciprocalCombination();
+        $this->authenticate($bob);
+        $this->client->request('DELETE', '/api/offers/'.$ids['candidateOfferServiceId']);
+        self::assertResponseStatusCodeSame(204);
+        $this->authenticate($alice);
+        $this->client->request('GET', '/api/services');
+        self::assertSame([], $this->data()['offers']);
+        $this->client->request('GET', '/api/swipes');
+        self::assertSame([], $this->data()['candidates']);
+        $this->client->jsonRequest('POST', '/api/swipes', ['direction' => 'RIGHT'] + $ids);
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(0, (int) $this->entityManager->getConnection()->fetchOne('SELECT COUNT(*) FROM proposals'));
     }
 
     public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void

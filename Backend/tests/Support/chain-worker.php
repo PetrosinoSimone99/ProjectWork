@@ -29,11 +29,11 @@ while (!is_file($input['gate'])) {
     usleep(10000);
 }
 try {
-    if (in_array($input['action'], ['swipe', 'suspend'], true)) {
+    if (in_array($input['action'], ['swipe', 'suspend', 'delete'], true)) {
         $jwt = $container->get(JWTTokenManagerInterface::class)->create($actor);
         $path = $input['action'] === 'swipe' ? '/api/swipes' : '/api/'.$input['resource'].'/'.$input['serviceId'];
-        $method = $input['action'] === 'swipe' ? 'POST' : 'PATCH';
-        $request = Request::create($path, $method, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$jwt, 'CONTENT_TYPE' => 'application/json'], content: json_encode($input['payload']));
+        $method = match ($input['action']) { 'swipe' => 'POST', 'delete' => 'DELETE', default => 'PATCH' };
+        $request = Request::create($path, $method, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$jwt, 'CONTENT_TYPE' => 'application/json'], content: json_encode($input['payload'] ?? []));
         $response = $kernel->handle($request);
         echo json_encode(['statusCode' => $response->getStatusCode()]), PHP_EOL;
         $kernel->shutdown();

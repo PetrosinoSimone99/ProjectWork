@@ -268,8 +268,9 @@ Dates are stored and returned in UTC; the normalized UTC year must be between
 1000 and 9999, the range supported by MySQL DATETIME. Past dates are allowed so staff can expire a
 token immediately. `expired` is true when expiration is at or before the current time.
 Recipient, chain and issuance date cannot be changed, even for historical tokens
-whose chain or issuance date is `null`. To correct those fields, delete and recreate
-the token. Both methods return `200` with the same `token` shape shown above.
+whose chain or issuance date is `null`. Tokens without a chain can be deleted and recreated.
+A chain/user pair stays unique even after deletion, so a token linked to a chain cannot be replaced for that pair.
+Both methods return `200` with the same `token` shape shown above.
 
 ```bash
 curl -X PUT "$API_BASE_URL/api/staff/tokens/7" \
@@ -285,7 +286,7 @@ curl -X PATCH "$API_BASE_URL/api/staff/tokens/7" \
 
 ### Delete a token
 
-`DELETE /api/staff/tokens/{id}` permanently removes the token and returns `204`
+`DELETE /api/staff/tokens/{id}` sets `deleted_at` in UTC, keeps the token row, and returns `204`
 with an empty body. This is administrative removal, not spending a token for a service.
 It does not change the chain or create a replacement token.
 
@@ -381,3 +382,5 @@ For cron, adapt the PHP executable and backend path:
 The command reports the number of due chains processed and returns a nonzero status
 on unexpected failures. Neither Task Scheduler nor cron is installed or configured
 automatically by this change.
+
+Soft deletion requires migration `Version20261016000100` before deploying the updated backend. Deleted tokens are omitted from `GET /api/tokens` and return 404 on updates or repeated deletion. Their unique chain/user pair is kept, preventing duplicate compensation even after deletion. See DATABASE_AND_API_GUIDE.md for migration instructions.

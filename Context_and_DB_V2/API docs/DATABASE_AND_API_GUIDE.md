@@ -1,10 +1,10 @@
 # Database and API quick guide
 
-## Current student database (2026-10-15)
+## Current student database (2026-10-16)
 
-Use [barattolo_v2_15102026_services.sql](../barattolo_v2_15102026_services.sql) for new student installations. `../LAST_DB_TO_USE.txt` identifies this as the current dump. Older dumps are preserved as historical references.
+Use [barattolo_v2_16102026_soft_delete.sql](../barattolo_v2_16102026_soft_delete.sql) for new student installations. `../LAST_DB_TO_USE.txt` identifies this as the current dump. Older dumps are preserved as historical references.
 
-This dump contains the current local database schema: 16 tables, 2 public categories and all 8 backend migration records. It includes `services.is_remote` and `services.is_suspended`, both `BOOLEAN NOT NULL DEFAULT FALSE`. Users, password hashes, published services, proposals, exchanges, messages, reports and tokens are excluded. There are no shared login credentials: register your own user through the API and create a staff account with the existing backend command when needed. The original local database was not modified during export.
+This dump contains the current student schema: 16 tables, 2 public categories and all 9 backend migration records. It includes `services.is_remote` and `services.is_suspended`, both `BOOLEAN NOT NULL DEFAULT FALSE`, and nullable `deleted_at` fields on `services` and `tokens`. Users, password hashes, published services, proposals, exchanges, messages, reports and tokens are excluded. There are no shared login credentials: register your own user through the API and create a staff account with the existing backend command when needed.
 
 ### Import for a fresh setup
 
@@ -13,7 +13,7 @@ Open the MySQL client from the repository root (`mysql -u root -p`, adding your 
 ```sql
 CREATE DATABASE barattolo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE barattolo;
-SOURCE Context_and_DB_V2/barattolo_v2_15102026_services.sql;
+SOURCE Context_and_DB_V2/barattolo_v2_16102026_soft_delete.sql;
 ```
 
 If `barattolo` already exists and contains data you want to keep, choose a different new database name and point `Backend/.env.local` to it. This dump includes table replacement statements. For an existing application database, apply migrations instead of importing the full dump.
@@ -484,9 +484,9 @@ php bin/console doctrine:migrations:migrate --no-interaction
 
 This runs all pending backend migrations, including the reports migration. Do not import the new full dump over a database you want to keep: the dump contains table replacement statements. The reports migration skips table creation if `user_reports` already exists in an imported updated dump.
 
-### Start from the new full dump
+### Historical full dump with sample application data
 
-Historical snapshot: `Context_and_DB_V2/barattolo_v2_13102026.sql` was provided for the reports feature. For a new setup, use the current 2026-10-15 dump described at the top of this guide. This is a complete snapshot of the local `barattolo` application database, with backend migrations applied to an isolated copy. It includes the existing IDs, relationships and password hashes, plus the new reports table. It is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
+The 2026-10-15 file `Context_and_DB_V2/barattolo_v2_13102026.sql` is a historical full snapshot provided for the reports feature. For a clean student setup, use `Context_and_DB_V2/barattolo_v2_16102026_soft_delete.sql` as described above. The historical snapshot contains the sample application data and reports schema from its own date; it is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
 
 The snapshot contains 2 users, 2 services, 2 categories, 2 service-category links, and 5 recorded migrations. The remaining application tables, including `user_reports`, are empty. No verification users or reports were included. Connection passwords, MySQL server accounts and JWT keys are not part of the dump.
 
@@ -656,7 +656,7 @@ php bin/console doctrine:migrations:migrate --no-interaction
 
 ### Updated full dump for students
 
-Historical staff snapshot: `Context_and_DB_V2/barattolo_v2_13102026_staff.sql`. For a new setup, use `Context_and_DB_V2/barattolo_v2_15102026_services.sql`, described at the top of this guide. It contains the local application's schema and data, with all six backend migrations recorded, including staff report review. The previous dumps are preserved. The snapshot contains 2 users, 2 services, 2 categories and 2 service-category links; reports are empty. Test users and reviews, database connection credentials and JWT keys are excluded.
+Historical staff snapshot: `Context_and_DB_V2/barattolo_v2_13102026_staff.sql`. For a new setup, use `Context_and_DB_V2/barattolo_v2_16102026_soft_delete.sql`, described at the top of this guide. It contains the current student schema and migration history, including soft deletion. Older dumps are preserved as historical references. Test users, personal data, database connection credentials and JWT keys are excluded.
 
 Open the MySQL client from the project root and import into a new empty database:
 
@@ -719,7 +719,7 @@ curl -X DELETE http://localhost:8000/api/requests/2 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-Permanently deletes an unused request and returns `204 No Content` with an empty response body.
+Soft deletes an unused request by setting its UTC deletion date and returns `204 No Content` with an empty response body.
 
 ### Errors and linked services
 
@@ -731,7 +731,7 @@ Permanently deletes an unused request and returns `204 No Content` with an empty
 | `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
 | `409` | The request is connected to a proposal/exchange, or a concurrent database operation conflicts with the write |
 
-Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. Request management itself does not need a migration. For a fresh setup, import `barattolo_v2_15102026_services.sql`, which already includes remote availability and suspension, and check for pending migrations.
+Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. The current `barattolo_v2_16102026_soft_delete.sql` dump includes migration `Version20261016000100` and is ready for a fresh setup.
 
 ## Optional remote availability for offers and requests
 
@@ -757,7 +757,7 @@ Service objects in creation and registration responses, the homepage, personal l
 
 ### Database update
 
-The current `barattolo_v2_15102026_services.sql` dump already includes this migration. Keep `barattolo_v2_13102026_staff.sql` as the original historical snapshot. When upgrading an existing installation or an older dump, run pending migrations from `Backend`:
+The current `barattolo_v2_16102026_soft_delete.sql` dump includes this migration. Keep older dumps as historical snapshots. When upgrading an existing installation or an older dump, run pending migrations from `Backend`:
 
 ```bash
 php bin/console doctrine:migrations:migrate --no-interaction
@@ -789,7 +789,7 @@ Suspension and reactivation use the existing ownership and reference checks. A s
 
 ### Suspension migration
 
-The current `barattolo_v2_15102026_services.sql` dump already includes suspension. The original `barattolo_v2_13102026_staff.sql` snapshot is unchanged. When upgrading that older snapshot or an existing installation, run pending migrations from `Backend`:
+The current `barattolo_v2_16102026_soft_delete.sql` dump includes suspension. Older snapshots are unchanged. When upgrading an older dump or an existing installation, run pending migrations from `Backend`:
 
 ```bash
 php bin/console doctrine:migrations:migrate --no-interaction
@@ -802,3 +802,19 @@ php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version202610150
 ```
 
 Rollback removes suspension values and preserves all other columns and data.
+
+## Soft deletion of offers, requests, and tokens
+
+Migration `Version20261016000100` adds only `deleted_at DATETIME NULL DEFAULT NULL` to `services` and `tokens`. This dump includes the new nullable columns and records the migration as already applied. Older dumps, including `barattolo_v2_15102026_services.sql`, remain unchanged.
+
+Before running the updated backend, back up the database and apply pending migrations from `Backend`:
+
+```sh
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+The three DELETE endpoints (`/api/offers/{id}`, `/api/requests/{id}`, and `/api/staff/tokens/{id}`) now save a UTC deletion date instead of removing rows. Success still returns 204 with an empty body. Deleted records return 404 on later updates or DELETE requests and disappear from personal lists, the catalog, swipe candidates, chain matching, and token lists. New swipes or chain starts with a deleted service ID return 404; availability is checked again after row locks.
+
+Services connected to proposals or exchanges still cannot be deleted (409), including historical connections. Categories, swipe decisions, and other related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided. The migration cannot be rolled back automatically because removing deletion markers would expose deleted records again.
+
+Deleted tokens retain the unique chain/user pair, so the same compensation cannot be issued again. Manual tokens without a chain follow the existing creation rules. Expired, non-deleted tokens remain visible as before. Internal deletion of chain reservation rows still releases resources normally.

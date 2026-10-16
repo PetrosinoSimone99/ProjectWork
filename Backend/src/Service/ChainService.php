@@ -21,6 +21,9 @@ final class ChainService
         $key = $actor->getId().':'.$offerId.':'.$requestId;
         $id = $this->repository->transaction(function () use ($actor, $offer, $request, $key): int {
             $this->repository->lockServices([$offer->getId(), $request->getId()]);
+            if (!$this->repository->serviceNotDeleted($offer->getId(), true) || !$this->repository->serviceNotDeleted($request->getId(), true)) {
+                throw new ChainError('The selected service does not exist.', 404);
+            }
             if (!$this->repository->serviceNotSuspended($offer->getId(), true) || !$this->repository->serviceNotSuspended($request->getId(), true)) {
                 throw new ChainError('Suspended services cannot start a chain.');
             }
@@ -297,7 +300,7 @@ final class ChainService
     private function ownedService(User $actor, int $id, string $type): Service
     {
         $service = $this->em->find(Service::class, $id);
-        if (!$service) {
+        if (!$service || $service->isDeleted()) {
             throw new ChainError('The selected service does not exist.', 404);
         }
         if ($service->getUser()->getId() !== $actor->getId() || $service->getType() !== $type) {
