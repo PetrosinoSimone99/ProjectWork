@@ -53,9 +53,20 @@ final class OfferController extends AbstractController
         } catch (\JsonException|\Symfony\Component\HttpKernel\Exception\BadRequestHttpException) {
             return $this->error('The request body must contain valid JSON.', 400);
         }
-        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds']) !== []) {
-            return $this->error('Provide a description, category IDs, or both.', 400);
+        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'isSuspended']) !== []) {
+            return $this->error('Provide a description, category IDs, isRemote, or isSuspended.', 400);
         }
+
+        if (array_key_exists('isRemote', $data) && !is_bool($data['isRemote'])) {
+            return $this->error('isRemote must be a boolean.', 400);
+        }
+        // Null means omitted here; an explicit false must still be saved.
+        $isRemote = $data['isRemote'] ?? null;
+
+        if (array_key_exists('isSuspended', $data) && !is_bool($data['isSuspended'])) {
+            return $this->error('isSuspended must be a boolean.', 400);
+        }
+        $isSuspended = $data['isSuspended'] ?? null;
 
         $description = null;
         if (array_key_exists('description', $data)) {
@@ -90,14 +101,22 @@ final class OfferController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $offer, $description, $categories, $entityManager, $services, $chains): void {
+            $entityManager->getConnection()->transactional(function () use ($id, $offer, $description, $categories, $isRemote, $isSuspended, $entityManager, $services, $chains): void {
                 // The same row lock is used by proposal and chain creation, so they cannot race this edit.
                 $chains->lockServices([$id]);
                 if ($services->isInUse($id)) {
                     throw new OfferInUseException();
                 }
+                // Reload after the lock so concurrent changes are reflected in this partial update.
+                $entityManager->refresh($offer);
                 if ($description !== null) {
                     $offer->setDescription($description);
+                }
+                if ($isRemote !== null) {
+                    $offer->setIsRemote($isRemote);
+                }
+                if ($isSuspended !== null) {
+                    $offer->setIsSuspended($isSuspended);
                 }
                 if ($categories !== null) {
                     $offer->clearCategories();

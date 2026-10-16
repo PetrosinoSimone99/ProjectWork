@@ -20,6 +20,47 @@ class AuthControllerTest extends WebTestCase
     private int $cookingCategoryId;
     private int $gardeningCategoryId;
 
+    /** Both flags accept only JSON booleans and support partial updates. */
+    public static function booleanFields(): array
+    {
+        return [['isRemote'], ['isSuspended']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('booleanFields')]
+    public function testRegistrationSavesBooleanServiceFlagsForOffersAndRequests(string $field): void
+    {
+        $services = [];
+        foreach ([[], [$field => false], [$field => true]] as $flags) {
+            $services[] = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], ...$flags];
+        }
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['offers' => $services, 'requests' => $services]));
+        self::assertResponseStatusCodeSame(201);
+        $response = $this->responseData();
+        foreach (['offers', 'requests'] as $key) {
+            self::assertSame([false, false, true], array_column($response[$key], $field));
+            $this->entityManager->clear();
+            foreach ($response[$key] as $service) {
+                self::assertSame($service[$field], $this->entityManager->find(Service::class, $service['id'])->$field());
+            }
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('booleanFields')]
+    public function testRegistrationRejectsNonBooleanServiceFlagsWithoutSaving(string $field): void
+    {
+        foreach (['offers', 'requests'] as $key) {
+            foreach ([null, 'false', 0, 1, [], new \stdClass()] as $invalid) {
+                $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData([
+                    $key => [['description' => 'Tutoring.', 'categories' => ['Must not be created'], $field => $invalid]],
+                ]));
+                self::assertResponseStatusCodeSame(400);
+                self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+                self::assertSame(0, $this->entityManager->getRepository(Service::class)->count([]));
+                self::assertSame(2, $this->entityManager->getRepository(Category::class)->count([]));
+            }
+        }
+    }
+
     protected function setUp(): void
     {
         self::ensureKernelShutdown();

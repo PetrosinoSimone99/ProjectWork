@@ -12,14 +12,9 @@ use Doctrine\ORM\Mapping as ORM;
 class ChatParticipant
 {
     #[ORM\Id]
-    #[ORM\ManyToOne(targetEntity: Chat::class)]
+    #[ORM\ManyToOne(targetEntity: Chat::class, inversedBy: 'chatParticipants')]
     #[ORM\JoinColumn(name: "chat_id", referencedColumnName: "id")]
     private ?Chat $chat = null;
-
-    /*#[ORM\Id]
-    #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id")]
-    private ?User $user = null;*/
 
     #[ORM\Id]
     #[ORM\Column(name: "user_id")]

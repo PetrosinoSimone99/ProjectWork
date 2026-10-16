@@ -27,6 +27,14 @@ class UserRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function getUserById(int $userId): ?User
+    {
+        return $this->createQueryBuilder('user')
+            ->where('user.id = :userId')
+            ->setParameter('userId', $userId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
     public function paginateForStaff(int $page, int $limit, ?string $search, ?string $status): Paginator
     {
         $query = $this->createQueryBuilder('user')->orderBy('user.id', 'ASC');
