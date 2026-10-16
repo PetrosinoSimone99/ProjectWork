@@ -9,6 +9,7 @@ use App\Entity\Service;
 use App\Entity\User;
 use App\Repository\ChainRepository;
 use App\Repository\ServiceRepository;
+use App\Service\ChainError;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -43,7 +44,7 @@ final class RequestController extends AbstractController
             return $user;
         }
 
-        $serviceRequest = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_REQUEST]);
+        $serviceRequest = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_REQUEST, 'deletedAt' => null]);
         if ($serviceRequest === null) {
             return $this->error('The request does not exist.', 404);
         }
@@ -53,8 +54,8 @@ final class RequestController extends AbstractController
         } catch (\JsonException|\Symfony\Component\HttpKernel\Exception\BadRequestHttpException) {
             return $this->error('The request body must contain valid JSON.', 400);
         }
-        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'isSuspended']) !== []) {
-            return $this->error('Provide a description, category IDs, isRemote, or isSuspended.', 400);
+        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'isSuspended', 'location']) !== []) {
+            return $this->error('Provide a description, category IDs, isRemote, isSuspended, or location.', 400);
         }
 
         if (array_key_exists('isRemote', $data) && !is_bool($data['isRemote'])) {
@@ -67,6 +68,13 @@ final class RequestController extends AbstractController
             return $this->error('isSuspended must be a boolean.', 400);
         }
         $isSuspended = $data['isSuspended'] ?? null;
+
+        // Keep presence separate from value: null explicitly clears the location.
+        $hasLocation = array_key_exists('location', $data);
+        $location = $data['location'] ?? null;
+        if ($location !== null && (!is_string($location) || mb_strlen(trim($location)) > 255)) {
+            return $this->error('Location must be text of at most 255 characters or null.', 400);
+        }
 
         $description = null;
         if (array_key_exists('description', $data)) {
@@ -101,14 +109,21 @@ final class RequestController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $entityManager, $services, $chains): void {
+            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services, $chains): void {
                 // The same row lock is used by proposal and chain creation, so they cannot race this edit.
                 $chains->lockServices([$id]);
+                // Another request may have deleted this row while we waited for the lock.
+                if (!$chains->serviceNotDeleted($id, true)) {
+                    throw new ChainError('The request does not exist.', 404);
+                }
                 if ($services->isInUse($id)) {
                     throw new RequestInUseException();
                 }
                 // Reload after the lock so concurrent changes are reflected in this partial update.
                 $entityManager->refresh($serviceRequest);
+                if ($hasLocation) {
+                    $serviceRequest->setLocation($location);
+                }
                 if ($description !== null) {
                     $serviceRequest->setDescription($description);
                 }
@@ -126,6 +141,8 @@ final class RequestController extends AbstractController
                 }
                 $entityManager->flush();
             });
+        } catch (ChainError $error) {
+            return $this->error($error->getMessage(), $error->status);
         } catch (RequestInUseException) {
             return $this->error('This request is already connected to a proposal or exchange.', 409);
         } catch (RetryableException|ForeignKeyConstraintViolationException) {
@@ -142,7 +159,7 @@ final class RequestController extends AbstractController
         if ($user instanceof JsonResponse) {
             return $user;
         }
-        $serviceRequest = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_REQUEST]);
+        $serviceRequest = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_REQUEST, 'deletedAt' => null]);
         if ($serviceRequest === null) {
             return $this->error('The request does not exist.', 404);
         }
@@ -151,12 +168,19 @@ final class RequestController extends AbstractController
             $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $entityManager, $services, $chains): void {
                 // Lock the service before checking references or removing it.
                 $chains->lockServices([$id]);
+                // Another request may have deleted this row while we waited for the lock.
+                if (!$chains->serviceNotDeleted($id, true)) {
+                    throw new ChainError('The request does not exist.', 404);
+                }
                 if ($services->isInUse($id)) {
                     throw new RequestInUseException();
                 }
-                $entityManager->remove($serviceRequest);
+                // Save a deletion date instead of removing the row and its related data.
+                $serviceRequest->markDeleted();
                 $entityManager->flush();
             });
+        } catch (ChainError $error) {
+            return $this->error($error->getMessage(), $error->status);
         } catch (RequestInUseException) {
             return $this->error('This request is already connected to a proposal or exchange.', 409);
         } catch (RetryableException|ForeignKeyConstraintViolationException) {

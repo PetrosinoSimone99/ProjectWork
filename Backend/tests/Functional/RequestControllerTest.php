@@ -143,12 +143,16 @@ final class RequestControllerTest extends WebTestCase
         $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isRemote' => true]);
         self::assertResponseStatusCodeSame(409);
         self::assertFalse($request->isRemote());
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['location' => 'Rome']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertNull($request->getLocation());
         $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isSuspended' => true]);
         self::assertResponseStatusCodeSame(409);
         self::assertFalse($request->isSuspended());
         $this->client->request('DELETE', '/api/requests/'.$request->getId());
         self::assertResponseStatusCodeSame(409);
         self::assertSame('Original description.', $request->getDescription());
+        self::assertNull($this->em->getConnection()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$request->getId()]));
         self::assertNotNull($this->em->find(Proposal::class, $proposal->getId()));
     }
 
@@ -162,7 +166,17 @@ final class RequestControllerTest extends WebTestCase
         $this->client->request('DELETE', '/api/requests/'.$id);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('', $this->client->getResponse()->getContent());
-        self::assertNull($this->em->find(Service::class, $id));
+        $this->em->clear();
+        $saved = $this->em->find(Service::class, $id);
+        self::assertTrue($saved->isDeleted());
+        self::assertCount(1, $saved->getCategories());
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM swipe_decisions WHERE actor_request_id = ?', [$id]));
+        $this->client->request('GET', '/api/requests/mine');
+        self::assertSame([], $this->data()['requests']);
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['description' => 'Changed']);
+        self::assertResponseStatusCodeSame(404);
+        $this->client->request('DELETE', '/api/requests/'.$id);
+        self::assertResponseStatusCodeSame(404);
     }
 
     private function swipe(string $direction): array

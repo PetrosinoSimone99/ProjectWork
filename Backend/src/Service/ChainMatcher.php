@@ -16,7 +16,7 @@ final class ChainMatcher
     /** @return list<array{userId:int, offer:Service, request:Service}> */
     public function choices(): array
     {
-        $services = $this->em->getRepository(Service::class)->findBy(['isSuspended' => false], ['id' => 'ASC']);
+        $services = $this->em->getRepository(Service::class)->findBy(['isSuspended' => false, 'deletedAt' => null], ['id' => 'ASC']);
         $choices = [];
         foreach ($services as $offer) {
             if ($offer->getType() !== Service::TYPE_OFFER || !$offer->getUser()->isActive()) {

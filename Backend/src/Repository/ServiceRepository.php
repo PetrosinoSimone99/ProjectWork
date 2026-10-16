@@ -46,6 +46,7 @@ final class ServiceRepository extends ServiceEntityRepository
             ->leftJoin('service.categories', 'category')
             ->andWhere('service.user = :owner')
             ->andWhere('service.type = :type')
+            ->andWhere('service.deletedAt IS NULL')
             ->setParameter('owner', $owner)
             ->setParameter('type', $type)
             ->orderBy('service.createdAt', 'DESC')
@@ -116,6 +117,7 @@ final class ServiceRepository extends ServiceEntityRepository
             ->innerJoin('service.user', 'owner')
             ->leftJoin('service.categories', 'category')
             ->andWhere('service.type = :offerType')
+            ->andWhere('service.deletedAt IS NULL')
             ->andWhere('service.isSuspended = false')
             ->andWhere('owner.accountStatus = :activeStatus')
             ->andWhere('owner != :viewer')
@@ -131,7 +133,7 @@ final class ServiceRepository extends ServiceEntityRepository
 
         if ($location !== null) {
             $queryBuilder
-                ->andWhere('LOWER(owner.location) LIKE :location')
+                ->andWhere('LOWER(service.location) LIKE :location')
                 ->setParameter('location', '%'.mb_strtolower($location).'%');
         }
 

@@ -87,6 +87,11 @@ class MarketplaceController extends AbstractController
             return $this->error('isSuspended must be a boolean.', 400);
         }
 
+        $location = $data['location'] ?? null;
+        if ($location !== null && (!is_string($location) || mb_strlen(trim($location)) > 255)) {
+            return $this->error('Location must be text of at most 255 characters or null.', 400);
+        }
+
         $categories = [];
         foreach ($categoryIds as $categoryId) {
             if (!is_int($categoryId) && !ctype_digit((string) $categoryId)) {
@@ -100,6 +105,7 @@ class MarketplaceController extends AbstractController
         }
 
         $service = new Service($user, $type, $description);
+        $service->setLocation($location);
         $service->setIsRemote($data['isRemote'] ?? false);
         $service->setIsSuspended($data['isSuspended'] ?? false);
         foreach ($categories as $category) {
@@ -130,8 +136,8 @@ class MarketplaceController extends AbstractController
         usort($pending, static fn (array $left, array $right) => $left['createdAt'] <=> $right['createdAt']);
 
         $candidates = [];
-        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user, 'isSuspended' => false]);
-        $otherServices = $entityManager->getRepository(Service::class)->findBy(['isSuspended' => false], ['id' => 'ASC']);
+        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user, 'isSuspended' => false, 'deletedAt' => null]);
+        $otherServices = $entityManager->getRepository(Service::class)->findBy(['isSuspended' => false, 'deletedAt' => null], ['id' => 'ASC']);
         foreach ($ownServices as $ownOffer) {
             if ($ownOffer->getType() !== Service::TYPE_OFFER) {
                 continue;
@@ -187,7 +193,8 @@ class MarketplaceController extends AbstractController
         $actorRequest = $entityManager->find(Service::class, (int) $data['actorRequestServiceId']);
         $candidateOffer = $entityManager->find(Service::class, (int) $data['candidateOfferServiceId']);
         $candidateRequest = $entityManager->find(Service::class, (int) $data['candidateRequestServiceId']);
-        if (!$actorOffer || !$actorRequest || !$candidateOffer || !$candidateRequest) {
+        if (!$actorOffer || !$actorRequest || !$candidateOffer || !$candidateRequest
+            || $actorOffer->isDeleted() || $actorRequest->isDeleted() || $candidateOffer->isDeleted() || $candidateRequest->isDeleted()) {
             return $this->error('One or more services do not exist.', 404);
         }
         $candidate = $candidateOffer->getUser();
@@ -221,6 +228,9 @@ class MarketplaceController extends AbstractController
                 $this->chains->lockServices($ids);
                 // Check again after locking; the owner may have suspended a service since the feed was read.
                 foreach ($ids as $serviceId) {
+                    if (!$this->chains->serviceNotDeleted($serviceId, true)) {
+                        throw new ChainError('One or more services do not exist.', 404);
+                    }
                     if (!$this->chains->serviceNotSuspended($serviceId, true)) {
                         throw new ChainError('Suspended services cannot receive new swipe decisions.');
                     }

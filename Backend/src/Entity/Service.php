@@ -33,6 +33,10 @@ class Service
     #[ORM\Column(length: 255)]
     private string $description;
 
+    // Each service has its own optional location, separate from the user's profile.
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $location = null;
+
     // Both offers and requests can be marked as available remotely.
     #[ORM\Column(name: 'is_remote', options: ['default' => false])]
     private bool $isRemote = false;
@@ -43,6 +47,10 @@ class Service
 
     #[ORM\Column(name: 'creation_date')]
     private \DateTimeImmutable $createdAt;
+
+    // Keep deleted rows for history. NULL means the service has not been deleted.
+    #[ORM\Column(name: 'deleted_at', nullable: true)]
+    private ?\DateTimeImmutable $deletedAt = null;
 
     /** @var Collection<int, Category> */
     #[ORM\ManyToMany(targetEntity: Category::class)]
@@ -61,10 +69,21 @@ class Service
     }
 
     public function getId(): ?int { return $this->id; }
+    public function isDeleted(): bool { return $this->deletedAt !== null; }
+    public function markDeleted(): void
+    {
+        $this->deletedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+    }
     public function getUser(): User { return $this->user; }
     public function getType(): string { return $this->type; }
     public function getDescription(): string { return $this->description; }
     public function setDescription(string $description): void { $this->description = $description; }
+    public function getLocation(): ?string { return $this->location; }
+    public function setLocation(?string $location): void
+    {
+        $location = $location === null ? null : trim($location);
+        $this->location = $location === '' ? null : $location;
+    }
     public function isRemote(): bool { return $this->isRemote; }
     public function setIsRemote(bool $isRemote): void { $this->isRemote = $isRemote; }
     public function isSuspended(): bool { return $this->isSuspended; }
@@ -84,13 +103,14 @@ class Service
         $this->categories->clear();
     }
 
-    /** @return array{id: int|null, type: string, description: string, isRemote: bool, isSuspended: bool, categories: list<array{id: int|null, description: string}>} */
+    /** @return array{id: int|null, type: string, description: string, location: string|null, isRemote: bool, isSuspended: bool, categories: list<array{id: int|null, description: string}>} */
     public function toApiArray(): array
     {
         return [
             'id' => $this->id,
             'type' => $this->type,
             'description' => $this->description,
+            'location' => $this->location,
             'isRemote' => $this->isRemote,
             'isSuspended' => $this->isSuspended,
             'categories' => array_map(static fn (Category $category) => $category->toApiArray(), $this->categories->toArray()),
@@ -104,7 +124,7 @@ class Service
      * keeps private account fields, such as the email address and roles, out of
      * a response that is shared with other authenticated users.
      *
-     * @return array{id: int|null, type: string, description: string, isRemote: bool, isSuspended: bool, createdAt: string, categories: list<array{id: int|null, description: string}>, owner: array{id: int|null, name: string, surname: string, username: string, location: string|null}}
+     * @return array{id: int|null, type: string, description: string, location: string|null, isRemote: bool, isSuspended: bool, createdAt: string, categories: list<array{id: int|null, description: string}>, owner: array{id: int|null, name: string, surname: string, username: string, location: string|null}}
      */
     public function toHomepageOfferApiArray(): array
     {
@@ -112,6 +132,7 @@ class Service
             'id' => $this->id,
             'type' => $this->type,
             'description' => $this->description,
+            'location' => $this->location,
             'isRemote' => $this->isRemote,
             'isSuspended' => $this->isSuspended,
             'createdAt' => $this->createdAt->format(DATE_ATOM),
@@ -120,13 +141,14 @@ class Service
         ];
     }
 
-    /** @return array{id: int|null, type: string, description: string, isRemote: bool, isSuspended: bool, createdAt: string, categories: list<array{id: int|null, description: string}>} */
+    /** @return array{id: int|null, type: string, description: string, location: string|null, isRemote: bool, isSuspended: bool, createdAt: string, categories: list<array{id: int|null, description: string}>} */
     public function toOwnedServiceApiArray(): array
     {
         return [
             'id' => $this->id,
             'type' => $this->type,
             'description' => $this->description,
+            'location' => $this->location,
             'isRemote' => $this->isRemote,
             'isSuspended' => $this->isSuspended,
             'createdAt' => $this->createdAt->format(DATE_ATOM),

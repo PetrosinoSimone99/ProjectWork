@@ -20,6 +20,40 @@ class AuthControllerTest extends WebTestCase
     private int $cookingCategoryId;
     private int $gardeningCategoryId;
 
+    public function testRegistrationSavesOptionalServiceLocationsSeparatelyFromProfile(): void
+    {
+        $services = [];
+        foreach ([[], ['location' => null], ['location' => '  '], ['location' => '  Rome  '], ['location' => str_repeat('é', 255)]] as $fields) {
+            $services[] = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], ...$fields];
+        }
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['offers' => $services, 'requests' => $services]));
+        self::assertResponseStatusCodeSame(201);
+        $response = $this->responseData();
+        self::assertSame('Milan', $response['user']['location']);
+        foreach (['offers', 'requests'] as $key) {
+            self::assertSame([null, null, null, 'Rome', str_repeat('é', 255)], array_column($response[$key], 'location'));
+            $this->entityManager->clear();
+            foreach ($response[$key] as $service) {
+                self::assertSame($service['location'], $this->entityManager->find(Service::class, $service['id'])->getLocation());
+            }
+        }
+    }
+
+    public function testRegistrationRejectsInvalidServiceLocationsWithoutSaving(): void
+    {
+        foreach (['offers', 'requests'] as $key) {
+            foreach ([false, 42, [], new \stdClass(), str_repeat('é', 256)] as $invalid) {
+                $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData([
+                    $key => [['description' => 'Tutoring.', 'categories' => ['Must not be created'], 'location' => $invalid]],
+                ]));
+                self::assertResponseStatusCodeSame(400);
+                self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+                self::assertSame(0, $this->entityManager->getRepository(Service::class)->count([]));
+                self::assertSame(2, $this->entityManager->getRepository(Category::class)->count([]));
+            }
+        }
+    }
+
     /** Both flags accept only JSON booleans and support partial updates. */
     public static function booleanFields(): array
     {

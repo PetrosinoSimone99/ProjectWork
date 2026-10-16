@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Entity\User;
 use App\Entity\UserReport;
+use App\Repository\ChainSchema;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -43,6 +44,8 @@ final class StaffControllerTest extends WebTestCase
         foreach ($db->createSchemaManager()->listTableNames() as $table) { $db->executeStatement('DROP TABLE '.$db->quoteSingleIdentifier($table)); }
         $db->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
+        foreach (ChainSchema::statements($db) as $sql) { $db->executeStatement($sql); }
+        $db->executeStatement('ALTER TABLE tokens ADD deleted_at DATETIME DEFAULT NULL');
         $this->staff = $this->createUser('staff', [User::ROLE_STAFF]);
         $this->author = $this->createUser('author');
         $this->target = $this->createUser('target', [User::ROLE_USER, 'ROLE_HELPER']);
@@ -65,6 +68,7 @@ final class StaffControllerTest extends WebTestCase
             ['GET', '/api/staff/users', null], ['GET', '/api/staff/users/1', null],
             ['POST', '/api/staff/users/1/promote', null], ['PATCH', '/api/staff/users/1/status', ['accountStatus' => 'INACTIVE']],
             ['GET', '/api/staff/reports', null], ['GET', '/api/staff/reports/1', null],
+            ['GET', '/api/staff/operations', null], ['GET', '/api/staff/operations/1', null],
             ['PATCH', '/api/staff/reports/1/review', ['status' => 'CONFIRMED', 'reviewNote' => 'Explanation']],
         ];
         foreach ([null, $this->author, $inactiveStaff] as $user) {
@@ -130,7 +134,7 @@ final class StaffControllerTest extends WebTestCase
         $this->send('PATCH', '/api/staff/users/'.$this->target->getId().'/status', ['accountStatus' => 'INACTIVE']);
         self::assertResponseIsSuccessful();
         $this->client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$targetToken);
-        foreach (['/api/profile', '/api/chats/1', '/api/services'] as $path) {
+        foreach (['/api/profile', '/api/chats/mutual-proposal/1', '/api/services'] as $path) {
             $this->send('GET', $path);
             self::assertResponseStatusCodeSame(403);
             self::assertSame(['error' => 'This account is inactive.'], $this->data());
@@ -236,6 +240,7 @@ final class StaffControllerTest extends WebTestCase
         $winner = $results[0]['status'] === 200 ? $results[0] : $results[1];
         $this->em->clear();
         self::assertSame($winner['data']['report'], $this->em->find(UserReport::class, $id)->toStaffApiArray());
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM staff_operation_logs WHERE action = 'REPORT_REVIEWED'"));
     }
 
     public function testConcurrentPromotionAndDeactivationCannotProduceInactiveStaff(): void
@@ -251,6 +256,155 @@ final class StaffControllerTest extends WebTestCase
         self::assertFalse(!$user->isActive() && in_array(User::ROLE_STAFF, $user->getRoles(), true));
         self::assertContains($results[0]['status'], [200, 409]);
         self::assertContains($results[1]['status'], [200, 403]);
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+    }
+
+    public function testUserAndReportHistoryContainsOnlyEffectiveChanges(): void
+    {
+        $report = new UserReport($this->author, $this->target, 'Private original reason');
+        $this->em->persist($report);
+        $this->em->flush();
+        $reportId = $report->toApiArray()['id'];
+        $id = $this->target->getId();
+        $statusPath = '/api/staff/users/'.$id.'/status';
+        foreach (['INACTIVE', 'INACTIVE', 'ACTIVE'] as $status) {
+            $this->send('PATCH', $statusPath, ['accountStatus' => $status]);
+            self::assertResponseIsSuccessful();
+        }
+        $this->send('POST', '/api/staff/users/'.$id.'/promote');
+        self::assertResponseIsSuccessful();
+        $this->send('POST', '/api/staff/users/'.$id.'/promote');
+        self::assertResponseIsSuccessful();
+        $this->send('PATCH', $statusPath, ['accountStatus' => 'INACTIVE']);
+        self::assertResponseStatusCodeSame(403);
+        $this->send('PATCH', '/api/staff/reports/'.$reportId.'/review', ['status' => 'CONFIRMED', 'reviewNote' => 'Checked.']);
+        self::assertResponseIsSuccessful();
+        $this->send('PATCH', '/api/staff/reports/'.$reportId.'/review', ['status' => 'REJECTED', 'reviewNote' => 'Again']);
+        self::assertResponseStatusCodeSame(409);
+        $this->send('GET', '/api/staff/operations');
+        self::assertResponseIsSuccessful();
+        $logs = $this->data()['operations'];
+        self::assertSame(4, $this->data()['pagination']['totalItems']);
+        self::assertSame(['REPORT_REVIEWED', 'USER_PROMOTED', 'USER_STATUS_CHANGED', 'USER_STATUS_CHANGED'], array_column($logs, 'action'));
+        self::assertEquals(['status' => 'PENDING', 'reviewNote' => null, 'reviewedById' => null, 'reviewedAt' => null], $logs[0]['before']);
+        self::assertSame('CONFIRMED', $logs[0]['after']['status']);
+        self::assertSame('Checked.', $logs[0]['after']['reviewNote']);
+        self::assertSame($this->staff->getId(), $logs[0]['after']['reviewedById']);
+        self::assertStringEndsWith('+00:00', $logs[0]['after']['reviewedAt']);
+        self::assertSame(['roles' => ['ROLE_USER', 'ROLE_HELPER']], $logs[1]['before']);
+        self::assertSame(['roles' => ['ROLE_USER', 'ROLE_HELPER', 'ROLE_STAFF']], $logs[1]['after']);
+        self::assertSame(['accountStatus' => 'INACTIVE'], $logs[2]['before']);
+        self::assertSame(['accountStatus' => 'ACTIVE'], $logs[2]['after']);
+        foreach ($logs as $log) {
+            self::assertSame(['id' => $this->staff->getId(), 'username' => 'staff'], $log['actor']);
+            self::assertStringEndsWith('+00:00', $log['createdAt']);
+        }
+        self::assertStringNotContainsString('Private original reason', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('password', $this->client->getResponse()->getContent());
+        $this->send('GET', '/api/staff/operations/'.$logs[0]['id']);
+        self::assertSame($logs[0], $this->data()['operation']);
+    }
+
+    public function testTokenHistorySurvivesSoftDeletionAndSkipsUnchangedExpiration(): void
+    {
+        $this->send('POST', '/api/staff/tokens', ['userId' => $this->target->getId()]);
+        self::assertResponseStatusCodeSame(201);
+        $token = $this->data()['token'];
+        $path = '/api/staff/tokens/'.$token['id'];
+        $this->send('PATCH', $path, ['expiresAt' => $token['expiresAt']]);
+        self::assertResponseIsSuccessful();
+        $this->send('PUT', $path, ['expiresAt' => '2030-01-01T01:00:00+01:00']);
+        self::assertResponseIsSuccessful();
+        $this->send('DELETE', $path);
+        self::assertResponseStatusCodeSame(204);
+        $this->send('DELETE', $path);
+        self::assertResponseStatusCodeSame(404);
+        $this->send('GET', '/api/staff/operations?targetType=TOKEN&targetId='.$token['id']);
+        self::assertResponseIsSuccessful();
+        $logs = $this->data()['operations'];
+        self::assertCount(3, $logs);
+        self::assertSame(['TOKEN_DELETED', 'TOKEN_EXPIRATION_CHANGED', 'TOKEN_CREATED'], array_column($logs, 'action'));
+        self::assertSame(['deletedAt' => null], $logs[0]['before']);
+        self::assertStringEndsWith('+00:00', $logs[0]['after']['deletedAt']);
+        self::assertSame(['expiresAt' => $token['expiresAt']], $logs[1]['before']);
+        self::assertSame(['expiresAt' => '2030-01-01T00:00:00+00:00'], $logs[1]['after']);
+        self::assertNull($logs[2]['before']);
+        self::assertEquals(['userId' => $token['userId'], 'chainId' => null, 'issuedAt' => $token['issuedAt'], 'expiresAt' => $token['expiresAt']], $logs[2]['after']);
+        $this->send('GET', '/api/staff/operations/'.$logs[2]['id']);
+        self::assertSame($logs[2], $this->data()['operation']);
+    }
+
+    public function testHistoryFiltersPaginationSnapshotsAndReadOnlyRoutes(): void
+    {
+        $this->send('POST', '/api/staff/users/'.$this->target->getId().'/promote');
+        $this->authenticate($this->target);
+        $this->send('PATCH', '/api/staff/users/'.$this->author->getId().'/status', ['accountStatus' => 'INACTIVE']);
+        self::assertResponseIsSuccessful();
+        // Equal timestamps must still sort consistently by ID.
+        $db = $this->em->getConnection();
+        $db->executeStatement("UPDATE staff_operation_logs SET created_at = '2026-10-16 12:00:00'");
+        $db->update('users', ['username' => 'renamed_staff'], ['id' => $this->staff->getId()]);
+        $this->send('GET', '/api/staff/operations?limit=1');
+        self::assertResponseIsSuccessful();
+        self::assertSame(['page' => 1, 'limit' => 1, 'totalItems' => 2, 'totalPages' => 2], $this->data()['pagination']);
+        self::assertSame('USER_STATUS_CHANGED', $this->data()['operations'][0]['action']);
+        $this->send('GET', '/api/staff/operations?limit=1&page=2');
+        $older = $this->data()['operations'][0];
+        self::assertSame('staff', $older['actor']['username']);
+        $db->delete('users', ['id' => $this->staff->getId()]);
+        $this->send('GET', '/api/staff/operations?staffId='.$this->staff->getId().'&action=USER_PROMOTED&targetType=USER&targetId='.$this->target->getId());
+        self::assertSame([$older], $this->data()['operations']);
+        $this->send('GET', '/api/staff/operations?staffId=2147483647');
+        self::assertSame([], $this->data()['operations']);
+        $this->send('GET', '/api/staff/operations?page=99');
+        self::assertSame([], $this->data()['operations']);
+        $this->send('GET', '/api/staff/operations/2147483647');
+        self::assertResponseStatusCodeSame(404);
+        foreach (['page=0', 'page[]=1', 'limit=51', 'limit=0', 'staffId=0', 'staffId[]=1', 'targetId=1', 'targetType=OTHER', 'action=OTHER', 'action[]=USER_PROMOTED', 'targetId=-1&targetType=USER', 'unknown=1', 'page=9999999999999999999999999'] as $query) {
+            $this->send('GET', '/api/staff/operations?'.$query);
+            self::assertResponseStatusCodeSame(400);
+        }
+        foreach (['POST', 'PATCH', 'DELETE'] as $method) {
+            $this->send($method, $method === 'POST' ? '/api/staff/operations' : '/api/staff/operations/'.$older['id'], ['action' => 'USER_PROMOTED']);
+            self::assertResponseStatusCodeSame(405);
+        }
+        self::assertSame(2, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+    }
+
+    public function testHistoryFailureRollsBackUserReportAndTokenChanges(): void
+    {
+        $report = new UserReport($this->author, $this->target, 'Reason');
+        $this->em->persist($report);
+        $this->em->flush();
+        $reportId = $report->toApiArray()['id'];
+        $db = $this->em->getConnection();
+        $db->insert('tokens', ['user_id' => $this->target->getId(), 'expiration_date' => '2030-01-01 00:00:00']);
+        $tokenId = $db->lastInsertId();
+        // A real database failure verifies atomicity without changing production code.
+        $db->executeStatement("CREATE TRIGGER reject_staff_log BEFORE INSERT ON staff_operation_logs FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Test history failure'");
+        try {
+            $this->send('PATCH', '/api/staff/users/'.$this->target->getId().'/status', ['accountStatus' => 'INACTIVE']);
+            self::assertResponseStatusCodeSame(500);
+            self::assertSame('ACTIVE', $db->fetchOne('SELECT account_status FROM users WHERE id = ?', [$this->target->getId()]));
+            $this->send('PATCH', '/api/staff/reports/'.$reportId.'/review', ['status' => 'CONFIRMED', 'reviewNote' => 'Checked']);
+            self::assertResponseStatusCodeSame(500);
+            self::assertSame('PENDING', $db->fetchOne('SELECT status FROM user_reports WHERE id = ?', [$reportId]));
+            $this->send('POST', '/api/staff/tokens', ['userId' => $this->target->getId()]);
+            self::assertResponseStatusCodeSame(500);
+            self::assertSame(1, (int) $db->fetchOne('SELECT COUNT(*) FROM tokens'));
+            $this->send('PATCH', '/api/staff/tokens/'.$tokenId, ['expiresAt' => '2031-01-01T00:00:00Z']);
+            self::assertResponseStatusCodeSame(500);
+            self::assertSame('2030-01-01 00:00:00', $db->fetchOne('SELECT expiration_date FROM tokens WHERE id = ?', [$tokenId]));
+            $this->send('DELETE', '/api/staff/tokens/'.$tokenId);
+            self::assertResponseStatusCodeSame(500);
+            self::assertNull($db->fetchOne('SELECT deleted_at FROM tokens WHERE id = ?', [$tokenId]));
+            self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+        } finally {
+            $db->executeStatement('DROP TRIGGER reject_staff_log');
+        }
+        $this->send('PATCH', '/api/staff/users/'.$this->target->getId().'/status', ['accountStatus' => 'INACTIVE']);
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
     }
 
     /** Hold the target row until both independent requests are ready to contend for it. */
@@ -282,7 +436,9 @@ final class StaffControllerTest extends WebTestCase
             foreach ($processes as $process) {
                 $process->wait();
                 self::assertTrue($process->isSuccessful(), $process->getErrorOutput());
-                $results[] = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+                $result = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+                self::assertLessThan(500, $result['status'], $process->getErrorOutput());
+                $results[] = $result;
             }
             return $results;
         } finally {

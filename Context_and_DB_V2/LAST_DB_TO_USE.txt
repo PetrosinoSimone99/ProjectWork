@@ -1,1 +1,1 @@
-barattolo_v2_15102026_services.sql
+barattolo_v2_16102026_soft_delete.sql
