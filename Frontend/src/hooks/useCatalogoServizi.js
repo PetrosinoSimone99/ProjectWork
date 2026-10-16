@@ -1,8 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError } from '@/api/client';
 import { ottieniCatalogo } from '@/api/barattolo';
-import { contaFiltri, nuoviFiltri } from '@/servizi/offerta-ricerca';
+import {
+  contaFiltri,
+  nuoviFiltri,
+  passaModalita,
+  VALORI_MODALITA,
+} from '@/servizi/offerta-ricerca';
 import { useAggiornamento } from '@/hooks/useAggiornamento';
 
 /**
@@ -34,6 +39,11 @@ import { useAggiornamento } from '@/hooks/useAggiornamento';
  *    che non è arrivata.
  * 5. **«Carica altri» appende in copia** (`[...correnti, ...elenco]`): l'array a
  *    schermo non si muta mai, e ogni richiesta porta con sé la propria pagina.
+ * 6. **La modalità non è una richiesta**: `GET /api/services` non accetta un
+ *    parametro per la modalità (segnalazione 31), quindi `cambiaModalita` non
+ *    chiama `esegui`: il filtro client-side deriva la lista visibile da quella
+ *    già caricata (`servizi` restituito è già filtrato), la paginazione del
+ *    backend resta intatta.
  */
 export function useCatalogoServizi({ token, utenteId }) {
   const [servizi, setServizi] = useState(null);
@@ -177,6 +187,18 @@ export function useCatalogoServizi({ token, utenteId }) {
     void esegui(vuoti);
   }, [esegui]);
 
+  /**
+   * Il cambio di modalità **non richiede nulla**: la richiesta al backend non
+   * ha un parametro per la modalità (segnalazione 31), quindi il filtro si
+   * applica solo alle righe già caricate, subito. Aggiorna bozza e filtri
+   * applicati in un colpo: quello che c'è a schermo cambia immantinente.
+   */
+  const cambiaModalita = useCallback((valore) => {
+    setFiltri((correnti) => ({ ...correnti, modalita: valore }));
+    setFiltriApplicati((correnti) => ({ ...correnti, modalita: valore }));
+    filtriApplicatiRef.current = { ...filtriApplicatiRef.current, modalita: valore };
+  }, []);
+
   /** «Riprova»: ripete la richiesta fallita, con filtri e pagina che l'avevano prodotta. */
   const riprova = useCallback(() => {
     const ultima = ultimaRichiestaRef.current;
@@ -201,8 +223,28 @@ export function useCatalogoServizi({ token, utenteId }) {
   const aggiorna = useCallback(() => esegui(filtriApplicatiRef.current), [esegui]);
   const { refreshing, onRefresh } = useAggiornamento(aggiorna);
 
+  // Il filtro modalità è l'unico client-side: droppa le righe già caricate
+  // senza richiedere nulla al backend, la cui paginazione resta intatta
+  // («Carica altri» porta pagine piene; a schermo resta la parte che passa). 
+  const serviziMostrate = useMemo(
+    () =>
+      Array.isArray(servizi)
+        ? servizi.filter((riga) => passaModalita(riga, filtriApplicati.modalita))
+        : servizi,
+    [servizi, filtriApplicati.modalita],
+  );
+
+  // Il filtro client-side ha svuotato a schermo un elenco che **non** era vuoto?
+  // Lo stato vuoto della schermata ne deve tenere conto: con altre pagine la via
+  // d'uscita è «Carica altri», non solo azzera.
+  const nascondeModalita =
+    filtriApplicati.modalita !== VALORI_MODALITA.TUTTE &&
+    Array.isArray(servizi) &&
+    servizi.length > 0 &&
+    serviziMostrate.length === 0;
+
   return {
-    servizi,
+    servizi: serviziMostrate,
     caricamento,
     errore,
     paginazione,
@@ -212,6 +254,7 @@ export function useCatalogoServizi({ token, utenteId }) {
     filtriApplicati,
     cambiaTesto,
     cambiaScelta,
+    cambiaModalita,
     applicaFiltri,
     azzeraTesto,
     azzeraFiltri,
@@ -219,5 +262,6 @@ export function useCatalogoServizi({ token, utenteId }) {
     caricaAltri,
     refreshing,
     onRefresh,
+    nascondeModalita,
   };
 }

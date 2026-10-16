@@ -5,7 +5,12 @@ import { AppText } from './AppText';
 import { Card } from './Card';
 import { SelettoreCategoria } from './SelettoreCategoria';
 import { SelettoreElenco } from './SelettoreElenco';
-import { contaFiltri } from '@/servizi/offerta-ricerca';
+import {
+  contaFiltri,
+  etichettaValoreModalita,
+  SCELTE_FILTRO_MODALITA,
+  valoreDaEtichettaModalita,
+} from '@/servizi/offerta-ricerca';
 import { REGIONI, provincePerRegione } from '@/servizi/aree-italiane';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -16,13 +21,16 @@ import { radius, space, useTokens } from '@/theme/tokens';
 const SOGLIA_LAYOUT_STRETTO = 480;
 
 /**
- * La barra dei filtri della home: testo, categoria e area (regione →
- * provincia). Nessuno stato proprio: i filtri e le callback arrivano dall'hook
+ * La barra dei filtri della home: testo, categoria, area (regione →
+ * provincia) e **modalità** (Tutti / solo da remoto / solo in presenza).
+ * Nessuno stato proprio: i filtri e le callback arrivano dall'hook
  * (`useCatalogoServizi`), così quello che c'è nella barra è anche quello che
- * produce la lista — una sola verità. Il filtro **modalità non c'è più**: il
- * backend Symfony non ha un campo «da remoto» e una scelta senza supporto si
- * toglie, non si finta. Anche la **località a testo libero non c'è più**: era un
- * errore di sicurezza, ora sono due tendine dal dataset statico.
+ * produce la lista — una sola verità. La modalità è l'unico filtro
+ * **client-side**: `GET /api/services` non accetta un parametro per la
+ * modalità (segnalazione 31), quindi la callback dell'hook non fa richieste e
+ * il filtro si applica alle righe già caricate. Anche la **località a testo
+ * libero non c'è più**: era un errore di sicurezza, ora sono due tendine dal
+ * dataset statico.
  *
  * Quando ogni controllo fa partire la richiesta:
  * - **testo** con Invio o con il pulsante «Filtra»: non si fa una richiesta per
@@ -43,6 +51,7 @@ export function BarraFiltri({
   erroreCategorie,
   onCambiaTesto,
   onCambiaScelta,
+  onCambiaModalita,
   onApplica,
   onAzzeraTesto,
   onAzzera,
@@ -142,9 +151,18 @@ export function BarraFiltri({
           onChange={(valore) => onCambiaScelta('provincia', valore)}
           style={{ flex: layoutStretto ? undefined : 1 }}
         />
+        <SelettoreElenco
+          label="Modalità"
+          placeholder="Tutti"
+          opzioni={SCELTE_FILTRO_MODALITA.map((scelta) => scelta.etichetta)}
+          valore={etichettaValoreModalita(filtri.modalita)}
+          onChange={(etichetta) => onCambiaModalita(valoreDaEtichettaModalita(etichetta))}
+          style={{ flex: layoutStretto ? undefined : 1 }}
+        />
       </View>
       <AppText variant="small" tone="secondary">
-        Nessuna scelta: tutti i servizi. La regione allarga la ricerca, la provincia la restringe.
+        Nessuna scelta: tutti i servizi. Regione e provincia restringono la
+        località, la modalità l'ambito («Tutti» non restringe).
       </AppText>
 
       {/* Il catalogo **non** dipende dalle categorie: se non arrivano, il

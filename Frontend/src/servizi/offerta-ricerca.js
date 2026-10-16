@@ -265,8 +265,11 @@ export function senzaPrefisso(oggetto, prefisso) {
 // semantica `LIKE` del backend: sola regione = regione intera, regione +
 // provincia = quella provincia).
 //
-// Il filtro **modalità non c'è più**: il backend Symfony non ha un campo
-// «da remoto» e una scelta senza supporto si toglie, non si finta.
+// Il filtro **modalità** è l'unico che si applica lato frontend: le righe del
+// catalogo portano `daRemoto`, ma `GET /api/services` non accetta ancora un
+// parametro per la modalità (segnalazione 31). Si filtra ciò che è già
+// caricato: al parametro lato server si sposta nel layer `src/api/*` senza
+// toccare la UI.
 // ---------------------------------------------------------------------------
 
 /**
@@ -281,12 +284,72 @@ export const SCELTE_MODALITA = [
 ];
 
 /**
+ * Le tre scelte del **filtro client-side** della home. `''` = tutti (nessun
+ * filtro), `'REMOTO'` = solo righe con `daRemoto === true`, `'PRESENZA'` = solo
+ * `daRemoto === false`. Sonorità distinte da `SCELTE_MODALITA` (sopra, residue
+ * di una versione precedente): non confonderle.
+ */
+export const VALORI_MODALITA = { TUTTE: '', REMOTO: 'REMOTO', PRESENZA: 'PRESENZA' };
+
+export const SCELTE_FILTRO_MODALITA = [
+  { valore: VALORI_MODALITA.TUTTE, etichetta: 'Tutti' },
+  { valore: VALORI_MODALITA.REMOTO, etichetta: 'Solo da remoto' },
+  { valore: VALORI_MODALITA.PRESENZA, etichetta: 'Solo in presenza' },
+];
+
+/** L'etichetta del valore del filtro modalità (`''` → 'Tutti'). */
+export function etichettaValoreModalita(valore) {
+  const trovata = SCELTE_FILTRO_MODALITA.find((scelta) => scelta.valore === valore);
+  return trovata ? trovata.etichetta : 'Tutti';
+}
+
+/** Il valore del filtro dalla sua etichetta (per il `SelettoreElenco`). */
+export function valoreDaEtichettaModalita(etichetta) {
+  const trovata = SCELTE_FILTRO_MODALITA.find((scelta) => scelta.etichetta === etichetta);
+  return trovata ? trovata.valore : VALORI_MODALITA.TUTTE;
+}
+
+/**
+ * La riga passa il filtro client-side della modalità? `''` non restringe;
+ * `'REMOTO'` e `'PRESENZA'` guardano `daRemoto` della riga del catalogo.
+ */
+export function passaModalita(riga, modalita) {
+  if (modalita === VALORI_MODALITA.REMOTO) {
+    return riga.daRemoto === true;
+  }
+  if (modalita === VALORI_MODALITA.PRESENZA) {
+    return riga.daRemoto === false;
+  }
+  return true;
+}
+
+/**
+ * La riga onesta sopra la lista quando il filtro client-side è attivo: dice che
+ * si vede solo parte del catalogo e come vedere altro. `''` → null (nessuna riga).
+ */
+export function rigaFiltroModalita(modalita) {
+  if (modalita === VALORI_MODALITA.REMOTO) {
+    return 'Stai vedendo solo i servizi da remoto tra quelli già caricati: usa «Carica altri» per averne altri.';
+  }
+  if (modalita === VALORI_MODALITA.PRESENZA) {
+    return 'Stai vedendo solo i servizi in presenza tra quelli già caricati: usa «Carica altri» per averne altri.';
+  }
+  return null;
+}
+
+/**
  * Lo stato vuoto dei filtri. Un solo punto: chi azzera e chi confronta usa
  * questa, così non nascono due definizioni di "nessun filtro".
  * Ogni chiamata restituisce un oggetto nuovo (nessuna condivisione mutabile).
  */
 export function nuoviFiltri() {
-  return { testo: '', idCategoria: null, regione: '', provincia: '' };
+  return {
+    testo: '',
+    idCategoria: null,
+    regione: '',
+    provincia: '',
+    modalita: VALORI_MODALITA.TUTTE,
+  };
 }
 
 /** Quante condizioni sono attive: per il testo «n filtri attivi» e per «Azzera filtri». */
@@ -304,6 +367,9 @@ export function contaFiltri(filtri) {
     (typeof filtri.regione === 'string' && filtri.regione.trim() !== '') ||
     (typeof filtri.provincia === 'string' && filtri.provincia.trim() !== '')
   ) {
+    quanti += 1;
+  }
+  if (filtri.modalita === VALORI_MODALITA.REMOTO || filtri.modalita === VALORI_MODALITA.PRESENZA) {
     quanti += 1;
   }
   return quanti;
@@ -348,6 +414,11 @@ export function descriviFiltri(filtri, categorie = []) {
     parti.push(`località ${localita}`);
   } else if (regione) {
     parti.push(`regione ${regione}`);
+  }
+  if (filtri.modalita === VALORI_MODALITA.REMOTO) {
+    parti.push('solo da remoto');
+  } else if (filtri.modalita === VALORI_MODALITA.PRESENZA) {
+    parti.push('solo in presenza');
   }
   return parti.join(', ');
 }

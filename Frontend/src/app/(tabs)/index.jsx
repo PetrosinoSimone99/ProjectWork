@@ -11,13 +11,23 @@ import { SezioneServizi } from '@/components/SezioneServizi';
 import { Screen } from '@/components/Screen';
 import { useCategorie } from '@/hooks/useCategorie';
 import { useCatalogoServizi } from '@/hooks/useCatalogoServizi';
-import { contaFiltri, descriviFiltri } from '@/servizi/offerta-ricerca';
+import {
+  contaFiltri,
+  descriviFiltri,
+  rigaFiltroModalita,
+  VALORI_MODALITA,
+} from '@/servizi/offerta-ricerca';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
  * Home dei servizi: il catalogo delle offerte pubblicate e attive **degli
- * altri** (`GET /api/services`), con i filtri in cima (testo, categoria e area —
- * regione o provincia) e «Carica altri» in fondo alla lista.
+ * altri** (`GET /api/services`), con i filtri in cima (testo, categoria, area —
+ * regione o provincia — e modalità) e «Carica altri» in fondo alla lista.
+ *
+ * Il filtro **modalità** è l'unico client-side: il backend non accetta un
+ * parametro per la modalità (segnalazione 31), quindi si filtrano le righe già
+ * caricate e la riga sopra la lista lo dice, con la via d'uscita onesta («Carica
+ * altri» se c'è, altrimenti azzera).
  *
  * Tutta la logica di rete e dei filtri sta in `useCatalogoServizi`; qui restano
  * il disegno, gli stati e il dettaglio. Le voci proprie non entrano nel catalogo
@@ -55,6 +65,7 @@ export default function HomeScreen() {
     filtriApplicati,
     cambiaTesto,
     cambiaScelta,
+    cambiaModalita,
     applicaFiltri,
     azzeraTesto,
     azzeraFiltri,
@@ -62,11 +73,20 @@ export default function HomeScreen() {
     caricaAltri,
     refreshing,
     onRefresh,
+    nascondeModalita,
   } = useCatalogoServizi({ token, utenteId: utente?.id });
 
   const numeroFiltri = contaFiltri(filtriApplicati);
   const haFiltri = numeroFiltri > 0;
   const soloTesto = numeroFiltri === 1 && filtriApplicati.testo.trim() !== '';
+
+  // Stato del filtro client-side della modalità: attivo, da solo, e il nome
+  // della modalità in italiano per i messaggi di vuoto.
+  const modalitaAttiva = filtriApplicati.modalita !== VALORI_MODALITA.TUTTE;
+  const soloModalita = numeroFiltri === 1 && modalitaAttiva;
+  const nomeModalita =
+    filtriApplicati.modalita === VALORI_MODALITA.REMOTO ? 'da remoto' : 'in presenza';
+  const testoModalita = rigaFiltroModalita(filtriApplicati.modalita);
 
   // «Carica altri» compare solo quando il backend dice che un'altra pagina c'è:
   // con 0 o 1 pagina il pulsante non esiste, e non si inventano numeri.
@@ -91,8 +111,23 @@ export default function HomeScreen() {
     );
   } else if (servizi !== null && servizi.length === 0 && !errore) {
     // Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner.
+    // Vuoto causato dal filtro client-side della modalità da solo: il messaggio
+    // dice la via d'uscita vera — «Carica altri» quando il backend ne ha, dato
+    // che il filtro vede solo ciò che è già caricato.
     contenuto = haFiltri ? (
-      <>
+      nascondeModalita && soloModalita ? (
+        <EmptyState
+          icon="search-outline"
+          title={`Nessun servizio ${nomeModalita} tra quelli caricati`}
+          description={
+            ciSonoAltri
+              ? 'Il catalogo ha altre pagine: caricarne altre può portarne qualcuna.'
+              : 'Tra le righe già caricate nessuna corrisponde: prova a togliere il filtro.'
+          }
+          etichettaAzione={ciSonoAltri ? 'Carica altri' : 'Azzera filtri'}
+          onAzione={ciSonoAltri ? () => void caricaAltri() : azzeraFiltri}
+        />
+      ) : (
         <EmptyState
           icon="search-outline"
           title={
@@ -104,7 +139,7 @@ export default function HomeScreen() {
           etichettaAzione="Azzera filtri"
           onAzione={azzeraFiltri}
         />
-      </>
+      )
     ) : (
       <EmptyState
         variante="mercato"
@@ -120,6 +155,13 @@ export default function HomeScreen() {
     // aggiungono allo stesso elenco, e il pulsante sta sotto la sezione.
     contenuto = (
       <>
+        {/* Riga onesta del filtro client-side: solo quando il filtro
+            modalità è attivo c'è davvero una parte di catalogo non visibile. */}
+        {testoModalita ? (
+          <AppText variant="small" tone="secondary">
+            {testoModalita}
+          </AppText>
+        ) : null}
         <SezioneServizi titolo="Servizi" voci={servizi} onSelect={setDettaglio} />
         {ciSonoAltri ? (
           <View style={{ alignItems: 'center', gap: space.sm }}>
@@ -149,7 +191,8 @@ export default function HomeScreen() {
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Servizi</AppText>
         <AppText variant="small" tone="secondary">
-          I servizi pubblicati dagli altri: filtra per testo, categoria e area.
+          I servizi pubblicati dagli altri: filtra per testo, categoria, area e
+          modalità.
         </AppText>
       </View>
 
@@ -161,6 +204,7 @@ export default function HomeScreen() {
         erroreCategorie={erroreCategorie}
         onCambiaTesto={cambiaTesto}
         onCambiaScelta={cambiaScelta}
+        onCambiaModalita={cambiaModalita}
         onApplica={applicaFiltri}
         onAzzeraTesto={azzeraTesto}
         onAzzera={azzeraFiltri}
