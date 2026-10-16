@@ -260,7 +260,7 @@ export function senzaPrefisso(oggetto, prefisso) {
 // non deve vivere dentro una schermata. La **semantica del confronto** (maiuscole,
 // accenti, quali campi guarda il testo) non sta qui: è una decisione del backend
 // (`ServiceRepository::paginateHomepageOffers` fa le LIKE su `description` e
-// sulla località della persona). Il filtro località non è più testo libero: è
+// sulla località del servizio, `service.location`). Il filtro località non è più testo libero: è
 // regione + provincia dal dataset statico, composti in una stringa (stessa
 // semantica `LIKE` del backend: sola regione = regione intera, regione +
 // provincia = quella provincia).
@@ -387,7 +387,8 @@ export function filtriDaQuery(filtri) {
   const regione = typeof filtri.regione === 'string' ? filtri.regione.trim() : '';
   const provincia = typeof filtri.provincia === 'string' ? filtri.provincia.trim() : '';
   // Provincia (se c'è) formattata con la regione, altrimenti la sola regione:
-  // `location` resta una stringa sola, come vuole il contratto.
+  // `location` resta una stringa sola, come vuole il contratto, e il backend la
+  // confronta con un LIKE su `service.location` (non più su quella della persona).
   const localita = provincia ? formattaLocalita(provincia, regione) : regione;
   return {
     ...(testo ? { q: testo } : {}),

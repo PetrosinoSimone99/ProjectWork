@@ -20,6 +20,14 @@ import {
 import { space, useTokens } from '@/theme/tokens';
 
 /**
+ * Frase onesta dello stato vuoto quando il filtro area è attivo (decisione del
+ * titolare, 16/10/2026): dal 16/10/2026 il backend cerca la località del
+ * servizio, e le voci pubblicate prima non ce l'hanno.
+ */
+const NOTA_FILTRO_AREA =
+  "Le ricerche per area trovano solo i servizi che hanno una località salvata: quelli pubblicati prima non ce l'hanno.";
+
+/**
  * Home dei servizi: il catalogo delle offerte pubblicate e attive **degli
  * altri** (`GET /api/services`), con i filtri in cima (testo, categoria, area —
  * regione o provincia — e modalità) e «Carica altri» in fondo alla lista.
@@ -88,6 +96,16 @@ export default function HomeScreen() {
     filtriApplicati.modalita === VALORI_MODALITA.REMOTO ? 'da remoto' : 'in presenza';
   const testoModalita = rigaFiltroModalita(filtriApplicati.modalita);
 
+  // Il filtro area (regione e/o provincia) è attivo: solo allora il vuoto può
+  // essere «ingiusto», perché le voci vecchie non hanno la località e non
+  // comparirebbero mai. Con filtri misti la frase compare lo stesso.
+  const filtroAreaAttivo =
+    (typeof filtriApplicati.regione === 'string' && filtriApplicati.regione.trim() !== '') ||
+    (typeof filtriApplicati.provincia === 'string' && filtriApplicati.provincia.trim() !== '');
+  const descrizioneVuotoFiltri =
+    `Prova a toglierne uno: ${descriviFiltri(filtriApplicati, categorie)}.` +
+    (filtroAreaAttivo ? ` ${NOTA_FILTRO_AREA}` : '');
+
   // «Carica altri» compare solo quando il backend dice che un'altra pagina c'è:
   // con 0 o 1 pagina il pulsante non esiste, e non si inventano numeri.
   const ciSonoAltri =
@@ -135,7 +153,7 @@ export default function HomeScreen() {
               ? `Nessun risultato per “${filtriApplicati.testo.trim()}”`
               : 'Nessun risultato per questi filtri'
           }
-          description={`Prova a toglierne uno: ${descriviFiltri(filtriApplicati, categorie)}.`}
+          description={descrizioneVuotoFiltri}
           etichettaAzione="Azzera filtri"
           onAzione={azzeraFiltri}
         />
