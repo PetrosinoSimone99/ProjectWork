@@ -9,6 +9,7 @@ use App\Entity\Service;
 use App\Entity\User;
 use App\Repository\ChainRepository;
 use App\Repository\ServiceRepository;
+use App\Service\ChainError;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -43,7 +44,7 @@ final class OfferController extends AbstractController
             return $user;
         }
 
-        $offer = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_OFFER]);
+        $offer = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_OFFER, 'deletedAt' => null]);
         if ($offer === null) {
             return $this->error('The offer does not exist.', 404);
         }
@@ -104,6 +105,10 @@ final class OfferController extends AbstractController
             $entityManager->getConnection()->transactional(function () use ($id, $offer, $description, $categories, $isRemote, $isSuspended, $entityManager, $services, $chains): void {
                 // The same row lock is used by proposal and chain creation, so they cannot race this edit.
                 $chains->lockServices([$id]);
+                // Another request may have deleted this row while we waited for the lock.
+                if (!$chains->serviceNotDeleted($id, true)) {
+                    throw new ChainError('The offer does not exist.', 404);
+                }
                 if ($services->isInUse($id)) {
                     throw new OfferInUseException();
                 }
@@ -126,6 +131,8 @@ final class OfferController extends AbstractController
                 }
                 $entityManager->flush();
             });
+        } catch (ChainError $error) {
+            return $this->error($error->getMessage(), $error->status);
         } catch (OfferInUseException) {
             return $this->error('This offer is already connected to a proposal or exchange.', 409);
         } catch (RetryableException|ForeignKeyConstraintViolationException) {
@@ -142,7 +149,7 @@ final class OfferController extends AbstractController
         if ($user instanceof JsonResponse) {
             return $user;
         }
-        $offer = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_OFFER]);
+        $offer = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_OFFER, 'deletedAt' => null]);
         if ($offer === null) {
             return $this->error('The offer does not exist.', 404);
         }
@@ -151,12 +158,19 @@ final class OfferController extends AbstractController
             $entityManager->getConnection()->transactional(function () use ($id, $offer, $entityManager, $services, $chains): void {
                 // Lock the service before checking references or removing it.
                 $chains->lockServices([$id]);
+                // Another request may have deleted this row while we waited for the lock.
+                if (!$chains->serviceNotDeleted($id, true)) {
+                    throw new ChainError('The offer does not exist.', 404);
+                }
                 if ($services->isInUse($id)) {
                     throw new OfferInUseException();
                 }
-                $entityManager->remove($offer);
+                // Save a deletion date instead of removing the row and its related data.
+                $offer->markDeleted();
                 $entityManager->flush();
             });
+        } catch (ChainError $error) {
+            return $this->error($error->getMessage(), $error->status);
         } catch (OfferInUseException) {
             return $this->error('This offer is already connected to a proposal or exchange.', 409);
         } catch (RetryableException|ForeignKeyConstraintViolationException) {

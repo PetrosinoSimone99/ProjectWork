@@ -130,8 +130,8 @@ class MarketplaceController extends AbstractController
         usort($pending, static fn (array $left, array $right) => $left['createdAt'] <=> $right['createdAt']);
 
         $candidates = [];
-        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user, 'isSuspended' => false]);
-        $otherServices = $entityManager->getRepository(Service::class)->findBy(['isSuspended' => false], ['id' => 'ASC']);
+        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user, 'isSuspended' => false, 'deletedAt' => null]);
+        $otherServices = $entityManager->getRepository(Service::class)->findBy(['isSuspended' => false, 'deletedAt' => null], ['id' => 'ASC']);
         foreach ($ownServices as $ownOffer) {
             if ($ownOffer->getType() !== Service::TYPE_OFFER) {
                 continue;
@@ -187,7 +187,8 @@ class MarketplaceController extends AbstractController
         $actorRequest = $entityManager->find(Service::class, (int) $data['actorRequestServiceId']);
         $candidateOffer = $entityManager->find(Service::class, (int) $data['candidateOfferServiceId']);
         $candidateRequest = $entityManager->find(Service::class, (int) $data['candidateRequestServiceId']);
-        if (!$actorOffer || !$actorRequest || !$candidateOffer || !$candidateRequest) {
+        if (!$actorOffer || !$actorRequest || !$candidateOffer || !$candidateRequest
+            || $actorOffer->isDeleted() || $actorRequest->isDeleted() || $candidateOffer->isDeleted() || $candidateRequest->isDeleted()) {
             return $this->error('One or more services do not exist.', 404);
         }
         $candidate = $candidateOffer->getUser();
@@ -221,6 +222,9 @@ class MarketplaceController extends AbstractController
                 $this->chains->lockServices($ids);
                 // Check again after locking; the owner may have suspended a service since the feed was read.
                 foreach ($ids as $serviceId) {
+                    if (!$this->chains->serviceNotDeleted($serviceId, true)) {
+                        throw new ChainError('One or more services do not exist.', 404);
+                    }
                     if (!$this->chains->serviceNotSuspended($serviceId, true)) {
                         throw new ChainError('Suspended services cannot receive new swipe decisions.');
                     }

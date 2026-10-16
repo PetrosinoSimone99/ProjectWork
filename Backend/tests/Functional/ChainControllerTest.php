@@ -46,6 +46,8 @@ final class ChainControllerTest extends WebTestCase
         $db->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         foreach (ChainSchema::statements($db) as $sql) { $db->executeStatement($sql); }
+        // ChainSchema represents the older migration; add the new token field for these tests.
+        $db->executeStatement('ALTER TABLE tokens ADD deleted_at DATETIME DEFAULT NULL');
         $this->clock = new class extends ChainClock {
             public \DateTimeImmutable $time;
             public function __construct() { $this->time = new \DateTimeImmutable('2026-10-03T12:00:00Z'); }
@@ -403,6 +405,116 @@ final class ChainControllerTest extends WebTestCase
         self::assertSame('REQUEST service', $this->em->find(Service::class, $requestId)->getDescription());
     }
 
+    #[\PHPUnit\Framework\Attributes\DataProvider('suspensionTargets')]
+    public function testConcurrentDeletionAndChainNeverReserveDeletedServices(int $index, string $key, string $resource): void
+    {
+        $members = $this->cycle(3);
+        $results = $this->workers([
+            ['action' => 'start', 'userId' => $members[0]['user']->getId(), 'offerId' => $members[0]['offer']->getId(), 'requestId' => $members[0]['request']->getId()],
+            ['action' => 'delete', 'userId' => $members[$index]['user']->getId(), 'serviceId' => $members[$index][$key]->getId(), 'resource' => $resource],
+        ]);
+        self::assertContains($results[1]['statusCode'], [204, 409]);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM chain_service_reservations r JOIN services s ON s.id = r.service_id WHERE s.deleted_at IS NOT NULL'));
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM proposal_groups g JOIN services s ON s.id IN (g.offered_service_id, g.requested_service_id) WHERE s.deleted_at IS NOT NULL'));
+        if ($index === 0 && $results[1]['statusCode'] === 204) {
+            self::assertSame(404, $results[0]['statusCode']);
+        } else {
+            self::assertArrayHasKey('id', $results[0]);
+        }
+    }
+
+    public function testConcurrentDeletionAndSwipeCannotUseADeletedService(): void
+    {
+        $members = $this->cycle(2);
+        $results = $this->workers([
+            ['action' => 'swipe', 'userId' => $members[0]['user']->getId(), 'payload' => [
+                'direction' => 'RIGHT', 'actorOfferServiceId' => $members[0]['offer']->getId(), 'actorRequestServiceId' => $members[0]['request']->getId(),
+                'candidateOfferServiceId' => $members[1]['offer']->getId(), 'candidateRequestServiceId' => $members[1]['request']->getId(),
+            ]],
+            ['action' => 'delete', 'userId' => $members[1]['user']->getId(), 'serviceId' => $members[1]['request']->getId(), 'resource' => 'requests'],
+        ]);
+        self::assertContains($results[0]['statusCode'], [201, 404]);
+        self::assertContains($results[1]['statusCode'], [204, 409]);
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM swipe_decisions d JOIN services s ON s.id IN (d.actor_offer_id, d.actor_request_id, d.candidate_offer_id, d.candidate_request_id) WHERE d.proposal_id IS NOT NULL AND s.deleted_at IS NOT NULL'));
+    }
+
+    public function testConcurrentDeleteRequestsMarkTheServiceOnlyOnce(): void
+    {
+        $members = $this->cycle(2);
+        $payload = ['action' => 'delete', 'userId' => $members[0]['user']->getId(), 'serviceId' => $members[0]['offer']->getId(), 'resource' => 'offers'];
+        $results = $this->workers([$payload, $payload]);
+        $statuses = array_column($results, 'statusCode');
+        sort($statuses);
+        self::assertSame([204, 404], $statuses);
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM services WHERE id = ? AND deleted_at IS NOT NULL', [$members[0]['offer']->getId()]));
+    }
+
+    public function testConcurrentUpdateCannotRestoreADeletedService(): void
+    {
+        $members = $this->cycle(2);
+        $target = ['userId' => $members[0]['user']->getId(), 'serviceId' => $members[0]['request']->getId(), 'resource' => 'requests'];
+        $results = $this->workers([
+            ['action' => 'delete'] + $target,
+            ['action' => 'suspend', 'payload' => ['description' => 'Updated during deletion']] + $target,
+        ]);
+        self::assertSame(204, $results[0]['statusCode']);
+        self::assertContains($results[1]['statusCode'], [200, 404]);
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM services WHERE id = ? AND deleted_at IS NOT NULL', [$members[0]['request']->getId()]));
+    }
+
+    public function testMatchingChecksDeletionEvenWhenEntitiesWereLoadedEarlier(): void
+    {
+        $members = $this->cycle(3);
+        $matcher = static::getContainer()->get(\App\Service\ChainMatcher::class);
+        $repository = static::getContainer()->get(\App\Repository\ChainRepository::class);
+        $db = $this->em->getConnection();
+        self::assertCount(3, $matcher->find($members[0]['offer'], $members[0]['request']));
+        foreach ($members as $member) {
+            foreach (['offer', 'request'] as $key) {
+                $id = $member[$key]->getId();
+                // Simulate a database change after Doctrine has loaded the entity.
+                $db->update('services', ['deleted_at' => '2026-10-16 12:00:00'], ['id' => $id]);
+                self::assertFalse($repository->serviceNotDeleted($id, true));
+                self::assertFalse($repository->serviceAvailable($id, true));
+                self::assertSame([], $matcher->find($members[0]['offer'], $members[0]['request']));
+                $db->update('services', ['deleted_at' => null], ['id' => $id]);
+            }
+        }
+    }
+
+    public function testDeletedServicesCannotStartOrCompleteAChainSearch(): void
+    {
+        $members = $this->cycle(3);
+        $this->as($members[1]['user']);
+        $this->client->request('DELETE', '/api/offers/'.$members[1]['offer']->getId());
+        self::assertResponseStatusCodeSame(204);
+        $this->client->jsonRequest('POST', '/api/chains', ['offeredServiceId' => $members[1]['offer']->getId(), 'requestedServiceId' => $members[1]['request']->getId()]);
+        self::assertResponseStatusCodeSame(404);
+        $chain = $this->start($members[0]);
+        self::assertSame('SEARCHING', $chain['status']);
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM chain_service_reservations'));
+    }
+
+    public function testDeletedTokenKeepsItsUniqueCompensationKey(): void
+    {
+        $members = $this->cycle(3);
+        $chain = $this->start($members[0]);
+        $staff = $this->user('deleting-staff');
+        $staff->setRoles([User::ROLE_STAFF]);
+        $this->em->flush();
+        $this->as($staff);
+        $body = ['userId' => $members[1]['user']->getId(), 'chainId' => $chain['id']];
+        $this->client->jsonRequest('POST', '/api/staff/tokens', $body);
+        self::assertResponseStatusCodeSame(201);
+        $id = $this->data()['token']['id'];
+        $this->client->request('DELETE', '/api/staff/tokens/'.$id);
+        self::assertResponseStatusCodeSame(204);
+        $this->client->jsonRequest('POST', '/api/staff/tokens', $body);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM tokens'));
+    }
+
     public function testStaffCanManageManualTokensAndPersonalListsStayPrivate(): void
     {
         $owner = $this->user('token-owner');
@@ -444,6 +556,8 @@ final class ChainControllerTest extends WebTestCase
         $this->client->request('DELETE', $path);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('', $this->client->getResponse()->getContent());
+        self::assertSame('2026-10-03 12:00:00', $this->em->getConnection()->fetchOne('SELECT deleted_at FROM tokens WHERE id = ?', [$token['id']]));
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM tokens WHERE id = ?', [$token['id']]));
         foreach (['PUT', 'PATCH', 'DELETE'] as $method) {
             $this->client->jsonRequest($method, $path, ['expiresAt' => '2026-11-01T00:00:00Z']);
             self::assertResponseStatusCodeSame(404);

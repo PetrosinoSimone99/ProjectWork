@@ -65,7 +65,7 @@ final class StaffTokenController extends AbstractController
     {
         return $this->respond(function () use ($id): null {
             $this->repository->token($id, true);
-            $this->repository->deleteToken($id);
+            $this->repository->deleteToken($id, $this->clock->now());
             return null;
         }, 204);
     }

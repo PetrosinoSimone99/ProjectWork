@@ -112,11 +112,17 @@ final class ChainRepository
     {
         return $this->serviceNotSuspended($serviceId, $currentRead) && !$this->reserved($serviceId, $currentRead) && !$this->hasDirectProposal($serviceId, $currentRead);
     }
+    public function serviceNotDeleted(int $serviceId, bool $currentRead = false): bool
+    {
+        // A locking read sees the latest committed value, even if an ORM entity is stale.
+        $suffix = $currentRead && !($this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform) ? ' FOR UPDATE' : '';
+        return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND deleted_at IS NULL'.$suffix, [$serviceId]) !== false;
+    }
     public function serviceNotSuspended(int $serviceId, bool $currentRead = false): bool
     {
         // Read the database directly: an entity loaded before a row lock may be stale.
         $suffix = $currentRead && !($this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform) ? ' FOR UPDATE' : '';
-        return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND is_suspended = 0'.$suffix, [$serviceId]) !== false;
+        return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND is_suspended = 0 AND deleted_at IS NULL'.$suffix, [$serviceId]) !== false;
     }
     public function hasDirectProposal(int $serviceId, bool $currentRead = false): bool
     {
@@ -143,12 +149,12 @@ final class ChainRepository
     }
     public function tokens(int $userId): array
     {
-        return $this->db->fetchAllAssociative('SELECT * FROM tokens WHERE user_id = ? ORDER BY id DESC', [$userId]);
+        return $this->db->fetchAllAssociative('SELECT * FROM tokens WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC', [$userId]);
     }
 
     public function token(int $id, bool $lock = false): array
     {
-        $row = $this->db->fetchAssociative('SELECT * FROM tokens WHERE id = ?'.($lock ? ' FOR UPDATE' : ''), [$id]);
+        $row = $this->db->fetchAssociative('SELECT * FROM tokens WHERE id = ? AND deleted_at IS NULL'.($lock ? ' FOR UPDATE' : ''), [$id]);
         if ($row === false) {
             throw new ChainError('The token does not exist.', 404);
         }
@@ -170,8 +176,9 @@ final class ChainRepository
         $this->db->update('tokens', ['expiration_date' => $expiration], ['id' => $id]);
     }
 
-    public function deleteToken(int $id): void
+    public function deleteToken(int $id, \DateTimeImmutable $now): void
     {
-        $this->db->delete('tokens', ['id' => $id]);
+        // Keep the row and its unique chain/user key to prevent duplicate compensation.
+        $this->db->update('tokens', ['deleted_at' => $now->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s')], ['id' => $id]);
     }
 }

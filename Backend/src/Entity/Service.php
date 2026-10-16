@@ -44,6 +44,10 @@ class Service
     #[ORM\Column(name: 'creation_date')]
     private \DateTimeImmutable $createdAt;
 
+    // Keep deleted rows for history. NULL means the service has not been deleted.
+    #[ORM\Column(name: 'deleted_at', nullable: true)]
+    private ?\DateTimeImmutable $deletedAt = null;
+
     /** @var Collection<int, Category> */
     #[ORM\ManyToMany(targetEntity: Category::class)]
     #[ORM\JoinTable(name: 'service_categories')]
@@ -61,6 +65,11 @@ class Service
     }
 
     public function getId(): ?int { return $this->id; }
+    public function isDeleted(): bool { return $this->deletedAt !== null; }
+    public function markDeleted(): void
+    {
+        $this->deletedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+    }
     public function getUser(): User { return $this->user; }
     public function getType(): string { return $this->type; }
     public function getDescription(): string { return $this->description; }
