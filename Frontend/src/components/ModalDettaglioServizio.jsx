@@ -16,8 +16,9 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * accordo.
  *
  * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
- * come nella card, la località è della **persona** e la modalità («da remoto» /
- * «in presenza») arriva dalla riga normalizzata (`servizio.daRemoto`).
+ * come nella card, la località è dell'**annuncio** (`servizio.localita`), con
+ * ripiego su quella della persona, e la modalità («da remoto» / «in presenza»)
+ * arriva dalla riga normalizzata (`servizio.daRemoto`).
  *
  * Non esiste il ramo «è il tuo annuncio»: nel catalogo arrivano solo i servizi
  * degli altri (le proprie voci non entrano, per decisione del titolare), quindi
@@ -31,6 +32,7 @@ export function ModalDettaglioServizio({ servizio, onChiudi }) {
   const router = useRouter();
   const t = useTokens();
   const offerente = servizio?.offerente ?? {};
+  const localita = servizio?.localita ?? offerente.localita;
   const nome = nomePersona(offerente);
   const categorie = servizio?.categorie?.length ? servizio.categorie : null;
   const descrizione = servizio?.descrizione ?? '';
@@ -94,13 +96,13 @@ export function ModalDettaglioServizio({ servizio, onChiudi }) {
                   </AppText>
                 ) : null}
               </View>
-              {/* La località è della persona (dal profilo) ed è facoltativa: se
-                  manca, la riga non compare. */}
-              {offerente.localita ? (
+              {/* La località è del servizio (ripiego: quella della persona) ed è
+                  facoltativa: se manca, la riga non compare. */}
+              {localita ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                   <Ionicons name="location-outline" size={16} color={t.textSecondary} />
                   <AppText variant="small" tone="secondary">
-                    {nome} si trova a {localitaPerDisplay(offerente.localita)}
+                    Si svolge a {localitaPerDisplay(localita)}
                   </AppText>
                 </View>
               ) : null}

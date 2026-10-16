@@ -9,12 +9,12 @@ import { space, useTokens } from '@/theme/tokens';
 
 /**
  * La card di un servizio del catalogo della home: categorie (una o più),
- * descrizione, località della persona che lo offre e data di pubblicazione.
+ * descrizione, località del servizio e data di pubblicazione.
  *
  * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
- * la località è della **persona**, non dell'annuncio — che non esiste più — e la
- * descrizione è sempre presente (per contratto), quindi non c'è nessun testo di
- * ripiego da inventare.
+ * la località è dell'**annuncio** (`servizio.localita`, dal 16/10/2026), con
+ * ripiego su quella della persona; la descrizione è sempre presente (per
+ * contratto), quindi non c'è nessun testo di ripiego da inventare.
  *
  * Non riusa `CardVoceServizio`, che è la card delle **proprie** voci (tipo, stato
  * e le tre azioni di gestione): un componente che fa due mestieri non ne fa bene
@@ -34,6 +34,7 @@ export function CardServizioCatalogo({ servizio, onPress }) {
   const categorie = servizio.categorie?.length ? servizio.categorie : null;
   const autore = nomePersona(servizio.offerente);
   const pubblicatoIl = formattaDataIso(servizio.pubblicatoIl);
+  const localita = servizio.localita ?? servizio.offerente?.localita;
 
   return (
     <Pressable
@@ -88,13 +89,14 @@ export function CardServizioCatalogo({ servizio, onPress }) {
               {etichettaModalita(servizio.daRemoto)}
             </AppText>
           </View>
-          {/* La località è della persona ed è facoltativa: se manca, la riga non
-              compare (niente trattino, niente «N/D»). */}
-          {servizio.offerente?.localita ? (
+          {/* La località del servizio (ripiego: quella della persona) è
+              facoltativa: se manca, la riga non compare (niente trattino,
+              niente «N/D»). */}
+          {localita ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
               <Ionicons name="location-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
-                {localitaPerDisplay(servizio.offerente.localita)}
+                {localitaPerDisplay(localita)}
               </AppText>
             </View>
           ) : null}
