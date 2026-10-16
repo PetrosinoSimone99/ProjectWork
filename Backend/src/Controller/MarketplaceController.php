@@ -87,6 +87,11 @@ class MarketplaceController extends AbstractController
             return $this->error('isSuspended must be a boolean.', 400);
         }
 
+        $location = $data['location'] ?? null;
+        if ($location !== null && (!is_string($location) || mb_strlen(trim($location)) > 255)) {
+            return $this->error('Location must be text of at most 255 characters or null.', 400);
+        }
+
         $categories = [];
         foreach ($categoryIds as $categoryId) {
             if (!is_int($categoryId) && !ctype_digit((string) $categoryId)) {
@@ -100,6 +105,7 @@ class MarketplaceController extends AbstractController
         }
 
         $service = new Service($user, $type, $description);
+        $service->setLocation($location);
         $service->setIsRemote($data['isRemote'] ?? false);
         $service->setIsSuspended($data['isSuspended'] ?? false);
         foreach ($categories as $category) {
