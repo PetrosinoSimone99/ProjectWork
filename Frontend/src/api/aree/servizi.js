@@ -95,28 +95,33 @@ function tipoContratto(tipo) {
 
 /**
  * La voce del form (forma interna, `{tipo, idCategoria, mansione, …}`) nel
- * corpo del contratto: `{type, description, categoryIds}`. Stesso criterio di
- * `aCorpoVoci` in `barattolo.js` per la registrazione, ma dell'area: qui la
- * categoria è una sola e il tipo viaggia nel corpo, non nelle sezioni.
+ * corpo del contratto: `{type, description, categoryIds, isRemote}`. Stesso
+ * criterio di `aCorpoVoci` in `barattolo.js` per la registrazione, ma
+ * dell'area: qui la categoria è una sola e il tipo viaggia nel corpo, non
+ * nelle sezioni.
  *
  * La conversione sta **qui e non nella schermata** (§3): il form non sa niente
- * del backend. `da_remoto` e `localita` non viaggiano: il contratto non li
- * modella (vedi il commento di `aCorpoVoci`).
+ * del backend. `daRemoto` viaggia come `isRemote` (il contratto lo modella dal
+ * 14/10/2026); `localita` **non** viaggia: il backend non la salva (problema
+ * 29). `isSuspended` non si manda: la creazione dal form è sempre pubblicata
+ * (il backend mette `false`).
  */
 function aCorpoCreazione(voce) {
   return {
     type: tipoContratto(voce?.tipo),
     description: String(voce?.mansione ?? '').trim(),
     categoryIds: voce?.idCategoria === null || voce?.idCategoria === undefined ? [] : [voce.idCategoria],
+    isRemote: voce?.daRemoto === true,
   };
 }
 
 /**
- * La voce del form nella **modifica**: solo le due cose che il contratto
- * ammette, `{description, categoryIds}`. `categoryIds` **sostituisce**
+ * La voce del form nella **modifica**: le cose che il contratto ammette,
+ * `{description, categoryIds, isRemote}`. `categoryIds` **sostituisce**
  * l'intera lista, per questo una voce porta la sua sola categoria; `id`,
  * `type` e `createdAt` non si mandano — non si cambiano, e un campo in più fa
- * `400`.
+ * `400`. `isSuspended` non si manda: il PATCH parziale lascia intatto ciò che
+ * non si manda.
  *
  * Una categoria mancante o non intera positiva è un errore di chi chiama, non
  * del server: la schermata valida prima di arrivare qui, quindi la si rifiuta
@@ -131,6 +136,7 @@ function aCorpoAggiornamento(voce) {
   return {
     description: String(voce?.mansione ?? '').trim(),
     categoryIds: [idCategoria],
+    isRemote: voce?.daRemoto === true,
   };
 }
 
@@ -155,9 +161,11 @@ function rottaVoce(tipo, id) {
 
 /**
  * La busta `{service: {...}}` del backend nella forma interna della voce
- * creata: `{id, tipo, descrizione, categorie, data}` — le chiavi che la UI
- * conosce già (`tipo` nelle due parole italiane, `categorie` come `{id, nome}`).
- * Una risposta senza `service` non si inventa: esce `null`.
+ * creata: `{id, tipo, descrizione, categorie, data, daRemoto}` — le chiavi che
+ * la UI conosce già (`tipo` nelle due parole italiane, `categorie` come
+ * `{id, nome}`). Una risposta senza `service` non si inventa: esce `null`.
+ * `toApiArray` non porta `createdAt`, quindi `data` resta `null`: è così, non
+ * si inventa una data.
  */
 export function normalizzaServizioCreato(risposta) {
   const servizio = risposta?.service;
@@ -179,6 +187,7 @@ export function normalizzaServizioCreato(risposta) {
       nome: typeof categoria?.description === 'string' ? categoria.description : '',
     })),
     data: typeof servizio.createdAt === 'string' ? servizio.createdAt : null,
+    daRemoto: servizio.isRemote === true,
   };
 }
 
@@ -195,10 +204,9 @@ const STATO_ELIMINATA = 'ELIMINATA';
  * `categories[0].id → idCategoria` (una voce porta una categoria sola); e
  * `chiave` segue lo stesso criterio (`${tipo}-${id}`) di
  * `normalizzaPubblicazione`. `createdAt` alla scheda non serve e non si
- * copia. `daRemoto` e `localita` restano vuoti: il contratto non li salva
- * (`POST` e `PATCH` ammettono solo
- * `type/description/categoryIds`) e alla modifica i selettori partono vuoti
- * (decisione del titolare, 14/10/2026; segnalazione ai colleghi al pezzo 05).
+ * copia. `daRemoto` arriva da `isRemote` (lo modella dal 14/10/2026);
+ * `localita` resta vuota: il backend non la salva (problema 29) e alla
+ * modifica i selettori partono vuoti.
  * Lo **stato** di pubblicazione non esiste nel contratto: resta «Pubblicata»
  * e la UI nasconderà chip e «Sospendi» nel ramo reale (pezzo 04).
  *
@@ -229,7 +237,7 @@ export function normalizzaVocePropria(riga) {
     id,
     idCategoria: numeroInteroONull(riga.categories?.[0]?.id),
     mansione: typeof riga.description === 'string' ? riga.description : '',
-    daRemoto: false,
+    daRemoto: riga.isRemote === true,
     localita: '',
     stato,
   };
