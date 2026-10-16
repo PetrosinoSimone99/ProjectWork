@@ -507,6 +507,10 @@ export function normalizzaPaginazione(paginazione) {
  * mappatura `{id, nome}` è una sola. La riga non porta tipo né stato, ma porta
  * `isRemote` (modalità «da remoto»/«in presenza»): qui diventa `daRemoto`, lo
  * stesso vocabolario di `VoceServizio`.
+ *
+ * `location` è la località **del servizio** (così come l'ha salvata chi l'ha
+ * pubblicato), cosa diversa da `offerente.localita` (che resta com'è): diventa
+ * `localita`. Le voci più vecchie non hanno il campo → `null`.
  */
 export function normalizzaOffertaCatalogo(riga, indice = 0) {
   if (!riga || typeof riga !== 'object') {
@@ -522,6 +526,7 @@ export function normalizzaOffertaCatalogo(riga, indice = 0) {
     id,
     descrizione,
     daRemoto: riga.isRemote === true,
+    localita: testoONull(riga.location),
     categorie: normalizzaCategorie(riga),
     offerente: normalizzaOfferente(riga),
     // `createdAt` è ISO 8601 (DATE_ATOM): qui non si parsano date, il formato

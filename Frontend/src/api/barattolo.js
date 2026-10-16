@@ -170,6 +170,9 @@ export async function login(username, password) {
  * viaggia come booleano `isRemote` nel corpo di ogni voce (il backend lo modella
  * dalla PR #34). `isSuspended` **non** si manda: la registrazione crea voci nuove
  * e pubblicate, il backend mette `false` da solo.
+ *
+ * Ogni voce porta anche `location`, la **località della persona**: il backend
+ * non la copia dal profilo, la mandiamo noi (decisione del 16/10/2026).
  */
 export async function register(input) {
   if (USA_DATI_FINTI) {
@@ -189,8 +192,8 @@ export async function register(input) {
         email,
         password,
         location: (localita ?? '').trim(),
-        offers: aCorpoVoci(offerte),
-        requests: aCorpoVoci(ricerche),
+        offers: aCorpoVoci(offerte, localita),
+        requests: aCorpoVoci(ricerche, localita),
       },
     }),
     'register',
@@ -213,14 +216,20 @@ export async function register(input) {
  * `isSuspended` **non** si manda: la registrazione crea voci nuove e pubblicate,
  * il backend mette `false` da solo.
  *
+ * `location` è la località della persona (`localita`, formato
+ * `Provincia (Regione)`): la stessa per ogni voce, perché la località della voce
+ * è quella di chi la pubblica. Stringa vuota o spazi → `null` esplicito, come
+ * in creazione.
+ *
  * `id_categoria` qui è **sempre** un id scelto dalla tendina (la validazione
  * della schermata rifiuta l'invio senza categoria), quindi non serve un ramo
  * `categories` per nome: gli id sono il contratto con il backend.
  */
-function aCorpoVoci(voci) {
+function aCorpoVoci(voci, localita) {
   return (voci ?? []).map((voce) => ({
     description: String(voce.mansione ?? '').trim(),
     isRemote: voce.da_remoto === true,
+    location: (localita ?? '').trim() || null,
     categoryIds: voce.id_categoria === null || voce.id_categoria === undefined ? [] : [voce.id_categoria],
   }));
 }
