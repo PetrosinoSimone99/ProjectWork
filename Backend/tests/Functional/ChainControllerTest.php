@@ -615,6 +615,8 @@ final class ChainControllerTest extends WebTestCase
         self::assertCount(1, $this->data()['tokens']);
         self::assertSame($manual['id'], $this->data()['tokens'][0]['id']);
         self::assertSame($manual['expiresAt'], $this->data()['tokens'][0]['expiresAt']);
+        // Automatic compensation is not an operation performed by staff.
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
     }
 
     public function testStaffTokenValidationRejectsInvalidBodiesAndImmutableFields(): void

@@ -54,8 +54,8 @@ final class OfferController extends AbstractController
         } catch (\JsonException|\Symfony\Component\HttpKernel\Exception\BadRequestHttpException) {
             return $this->error('The request body must contain valid JSON.', 400);
         }
-        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'isSuspended']) !== []) {
-            return $this->error('Provide a description, category IDs, isRemote, or isSuspended.', 400);
+        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'isSuspended', 'location']) !== []) {
+            return $this->error('Provide a description, category IDs, isRemote, isSuspended, or location.', 400);
         }
 
         if (array_key_exists('isRemote', $data) && !is_bool($data['isRemote'])) {
@@ -68,6 +68,13 @@ final class OfferController extends AbstractController
             return $this->error('isSuspended must be a boolean.', 400);
         }
         $isSuspended = $data['isSuspended'] ?? null;
+
+        // Keep presence separate from value: null explicitly clears the location.
+        $hasLocation = array_key_exists('location', $data);
+        $location = $data['location'] ?? null;
+        if ($location !== null && (!is_string($location) || mb_strlen(trim($location)) > 255)) {
+            return $this->error('Location must be text of at most 255 characters or null.', 400);
+        }
 
         $description = null;
         if (array_key_exists('description', $data)) {
@@ -102,7 +109,7 @@ final class OfferController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $offer, $description, $categories, $isRemote, $isSuspended, $entityManager, $services, $chains): void {
+            $entityManager->getConnection()->transactional(function () use ($id, $offer, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services, $chains): void {
                 // The same row lock is used by proposal and chain creation, so they cannot race this edit.
                 $chains->lockServices([$id]);
                 // Another request may have deleted this row while we waited for the lock.
@@ -114,6 +121,9 @@ final class OfferController extends AbstractController
                 }
                 // Reload after the lock so concurrent changes are reflected in this partial update.
                 $entityManager->refresh($offer);
+                if ($hasLocation) {
+                    $offer->setLocation($location);
+                }
                 if ($description !== null) {
                     $offer->setDescription($description);
                 }

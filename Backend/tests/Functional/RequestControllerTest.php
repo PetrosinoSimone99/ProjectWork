@@ -143,6 +143,9 @@ final class RequestControllerTest extends WebTestCase
         $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isRemote' => true]);
         self::assertResponseStatusCodeSame(409);
         self::assertFalse($request->isRemote());
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['location' => 'Rome']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertNull($request->getLocation());
         $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isSuspended' => true]);
         self::assertResponseStatusCodeSame(409);
         self::assertFalse($request->isSuspended());

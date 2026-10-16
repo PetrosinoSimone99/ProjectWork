@@ -4,7 +4,7 @@
 
 Use [barattolo_v2_16102026_soft_delete.sql](../barattolo_v2_16102026_soft_delete.sql) for new student installations. `../LAST_DB_TO_USE.txt` identifies this as the current dump. Older dumps are preserved as historical references.
 
-This dump contains the current student schema: 16 tables, 2 public categories and all 9 backend migration records. It includes `services.is_remote` and `services.is_suspended`, both `BOOLEAN NOT NULL DEFAULT FALSE`, and nullable `deleted_at` fields on `services` and `tokens`. Users, password hashes, published services, proposals, exchanges, messages, reports and tokens are excluded. There are no shared login credentials: register your own user through the API and create a staff account with the existing backend command when needed.
+This dump contains the current student schema: 17 tables, 2 public categories and all 11 backend migration records. It includes `services.is_remote` and `services.is_suspended`, both `BOOLEAN NOT NULL DEFAULT FALSE`, nullable `deleted_at` fields on `services` and `tokens`, optional `services.location VARCHAR(255) DEFAULT NULL`, and the empty `staff_operation_logs` table. Users, password hashes, published services, proposals, exchanges, messages, reports, tokens and operation history entries are excluded. There are no shared login credentials: register your own user through the API and create a staff account with the existing backend command when needed.
 
 ### Import for a fresh setup
 
@@ -25,24 +25,36 @@ php bin/console doctrine:migrations:status
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-All 8 migrations are already recorded in this dump, through `Version20261015000200`, so there should be no pending migrations for the current backend. Do not execute the two new migrations manually after importing this file. When upgrading an older installation, the migration command applies the missing migrations while preserving its existing data.
+All 11 migrations are already recorded in this dump, through `Version20261016000300`, so there should be no pending migrations for the current backend. Do not execute the included migrations manually after importing this file. When upgrading an older installation, the migration command applies the missing migrations while preserving its existing data.
 
-### Changes introduced in this chat
+### Current service fields
 
 | API field | SQL column | Default | Behavior |
 | --- | --- | --- | --- |
 | `isRemote` | `services.is_remote` | `false` | Marks an offer or request as remote; does not change geographic filters or category matching |
 | `isSuspended` | `services.is_suspended` | `false` | Hides an offer or request from the catalog and new direct/chain matches; the owner still sees it in personal lists |
+| `location` | `services.location` | `null` | Optional service location, independent of the profile; used by the homepage location filter |
 
-Both fields are optional in `POST /api/services` and in every `offers`/`requests` item in `POST /api/auth/register`. Change them with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`. For example:
+All three fields are optional in `POST /api/services` and in every `offers`/`requests` item in `POST /api/auth/register`. Change them with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`. For example:
 
 ```json
-{"isRemote":true,"isSuspended":false}
+{"isRemote":true,"isSuspended":false,"location":"Rome"}
 ```
 
-Only JSON booleans are accepted; other types, including `null`, return `400` without partial changes. Omitted PATCH fields retain their values. Suspension is manual: send `true` to suspend or `false` to reactivate. Only the active owner can update a service. Any update is blocked with `409` when the service is already connected to a proposal, exchange, chain or reservation, even if that record is finished, rejected or cancelled. New swipe decisions and chain starts using a suspended service also return `409`. All service representations include both fields. The detailed sections at the end of this guide describe each feature and its rollback.
+`isRemote` and `isSuspended` accept only JSON booleans; other types, including `null`, return `400` without partial changes. `location` accepts text of at most 255 characters after trimming, or `null`; empty text becomes `null`. Omitted PATCH fields retain their values. Suspension is manual: send `true` to suspend or `false` to reactivate. Only the active owner can update a service. Any update is blocked with `409` when the service is already connected to a proposal, exchange, chain or reservation, even if that record is finished, rejected or cancelled. New swipe decisions and chain starts using a suspended service also return `409`. All service representations include these three fields. The [location section](#optional-location-for-offers-and-requests) explains creation, clearing and filtering.
 
-The dump was reimported into an isolated MySQL database. Verification covered all table definitions, both new columns, the category and migration seed data, and the absence of application rows. The backend changes passed the complete suite: 87 tests and 1209 assertions, including concurrent suspension/proposal/chain checks.
+### Staff history added in this chat
+
+`GET /api/staff/operations` lists effective staff changes with pagination and optional `staffId`, `action`, `targetType` and `targetId` filters. `GET /api/staff/operations/{id}` reads one entry. Both require an active staff account. Entries contain the authenticated actor, action, target, before/after values and UTC date; they cannot be created, edited or deleted through the API. See [Staff operation history](#staff-operation-history) for actions, response examples and validation rules.
+
+The two migrations added in this chat are:
+
+| Migration | Database change |
+| --- | --- |
+| `Version20261016000200` | Adds nullable `services.location`; existing services receive `NULL` |
+| `Version20261016000300` | Adds the empty `staff_operation_logs` table and its indexes; existing operations are not backfilled |
+
+The updated dump was imported into an isolated MySQL database and compared with the history migration. Verification covered the 11 migration records, the empty history table, equivalent table definitions and preservation of existing data, including service locations, when applying the migration. Separate test runs passed 47 API/location regression tests (863 assertions), 12 staff tests (213 assertions), and a targeted automatic-compensation test (15 assertions). Staff tests include authorization, filters, snapshots, concurrent operations and rollback when saving history fails. The operational database was not modified.
 
 ## 1. Configure the database connection
 
@@ -101,7 +113,7 @@ curl -X POST http://localhost:8000/api/auth/register \
   -d '{"name":"Mario","surname":"Rossi","username":"mario.rossi","email":"mario@example.com","password":"my-safe-password","location":"Milan","offers":[{"description":"I can cook Italian meals.","categories":["Cooking"]}],"requests":[{"description":"I need help with gardening.","categories":["Gardening"]}]}'
 ```
 
-`location` must be non-empty and no longer than 255 characters. `offers` and `requests` must each be non-empty lists. Every service description must be non-empty and no longer than 255 characters. Each service must include at least one category using `categories`, `categoryIds`, or both. Category names are trimmed, must be non-empty and no longer than 255 characters, and match existing categories without case sensitivity. A new category is added to the shared catalog; a matching category is reused. Existing `categoryIds` remain supported and must refer to existing categories. Do not repeat the same category in one service.
+The top-level profile `location` must be non-empty and no longer than 255 characters. Each item in `offers` and `requests` may also include its own optional `location` (text up to 255 characters after trimming, or `null`); it is never copied from the profile. `offers` and `requests` must each be non-empty lists. Every service description must be non-empty and no longer than 255 characters. Each service must include at least one category using `categories`, `categoryIds`, or both. Category names are trimmed, must be non-empty and no longer than 255 characters, and match existing categories without case sensitivity. A new category is added to the shared catalog; a matching category is reused. Existing `categoryIds` remain supported and must refer to existing categories. Do not repeat the same category in one service.
 
 To combine category names and existing IDs in one service, include both fields:
 
@@ -231,7 +243,7 @@ Use `OFFER` for a service the user can provide and `REQUEST` for a service the u
 curl -X POST http://localhost:8000/api/services \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"type":"OFFER","description":"I can cook Italian meals.","categoryIds":[1]}'
+  -d '{"type":"OFFER","description":"I can cook Italian meals.","categoryIds":[1],"location":"Rome"}'
 ```
 
 The endpoint returns `201 Created` with the new service. Publish both an offer and a request before expecting reciprocal swipe candidates.
@@ -251,7 +263,7 @@ All query parameters are optional:
 | --- | --- | --- |
 | `q` | Case-insensitive partial search in the service description | Text up to 255 characters |
 | `categoryIds` | Comma-separated category IDs | Positive integers; matching any selected category |
-| `location` | Case-insensitive partial search in the owner's location | Text up to 255 characters |
+| `location` | Case-insensitive partial search in the service's location | Text up to 255 characters |
 | `sort` | Creation-date ordering | `newest` (default) or `oldest` |
 | `page` | Page to return | Positive integer, default `1` |
 | `limit` | Offers per page | Integer from `1` to `50`, default `20` |
@@ -265,6 +277,9 @@ Example response:
       "id": 12,
       "type": "OFFER",
       "description": "I can repair bicycles.",
+      "location": "Rome",
+      "isRemote": false,
+      "isSuspended": false,
       "createdAt": "2026-09-25T10:00:00+00:00",
       "categories": [{ "id": 3, "description": "Repairs" }],
       "owner": {
@@ -286,6 +301,8 @@ Example response:
 ```
 
 The owner object intentionally contains public profile data only. Email addresses, roles, passwords, and account status are never returned by this endpoint. Invalid query parameters return `400 Bad Request`; a page beyond the final page returns an empty `offers` array with correct pagination metadata.
+
+The `location` filter searches only the service's location, not `owner.location`. Offers with a null service location do not match a non-empty location filter. Service and profile locations may differ; no fallback or automatic copy is applied.
 
 ### Read the swipe feed
 
@@ -690,6 +707,9 @@ Returns `200 OK` with requests ordered by creation date and then ID, both newest
       "id": 2,
       "type": "REQUEST",
       "description": "I need help with gardening.",
+      "location": null,
+      "isRemote": false,
+      "isSuspended": false,
       "createdAt": "2026-10-13T10:30:00+00:00",
       "categories": [{ "id": 1, "description": "Gardening" }]
     }
@@ -708,7 +728,7 @@ curl -X PATCH http://localhost:8000/api/requests/2 \
   -d '{"description":"I need help pruning trees.","categoryIds":[1]}'
 ```
 
-Send `description`, `categoryIds`, or both. Omitted fields stay unchanged; `categoryIds` replaces all selected categories. Descriptions are trimmed and must contain 1 to 255 characters. Category IDs must be a non-empty list of unique positive integers referring to existing categories. Numeric strings are also accepted, as in the offers API. The owner, type, and creation time cannot be changed. Empty bodies, invalid JSON, and unknown fields are rejected. Invalid input never saves part of an update.
+Send any combination of `description`, `categoryIds`, `isRemote`, `isSuspended` and `location`. Omitted fields stay unchanged; `categoryIds` replaces all selected categories. Descriptions are trimmed and must contain 1 to 255 characters. Category IDs must be a non-empty list of unique positive integers referring to existing categories. Numeric strings are also accepted, as in the offers API. Boolean fields accept only JSON booleans. `location` accepts text up to 255 characters after trimming or `null`; null or empty text clears it. The owner, type, and creation time cannot be changed. Empty bodies, invalid JSON, and unknown fields are rejected. Invalid input never saves part of an update.
 
 Returns `200 OK` with the updated service in `{"request":{...}}`, using the same fields as the list response.
 
@@ -818,3 +838,166 @@ The three DELETE endpoints (`/api/offers/{id}`, `/api/requests/{id}`, and `/api/
 Services connected to proposals or exchanges still cannot be deleted (409), including historical connections. Categories, swipe decisions, and other related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided. The migration cannot be rolled back automatically because removing deletion markers would expose deleted records again.
 
 Deleted tokens retain the unique chain/user pair, so the same compensation cannot be issued again. Manual tokens without a chain follow the existing creation rules. Expired, non-deleted tokens remain visible as before. Internal deletion of chain reservation rows still releases resources normally.
+
+## Optional location for offers and requests
+
+Both `OFFER` and `REQUEST` services have their own optional `location`, independent
+of the owner's profile location. It is available for remote and in-person services
+and does not change direct or chain matching rules.
+
+`POST /api/services` accepts it alongside the existing fields:
+
+```json
+{"type":"OFFER","description":"I can repair bicycles.","categoryIds":[1],"location":"Rome"}
+```
+
+During `POST /api/auth/register`, each item in `offers` and `requests` also accepts
+`location`. The top-level registration location continues to describe the user:
+
+```json
+{
+  "name":"Mario","surname":"Rossi","username":"mario.rossi",
+  "email":"mario@example.test","password":"my-safe-password","location":"Milan",
+  "offers":[{"description":"I repair bicycles.","categories":["Repairs"],"location":"Rome"}],
+  "requests":[{"description":"I need tutoring.","categories":["Tutoring"]}]
+}
+```
+
+Use `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}` to change or clear it:
+
+```json
+{"location":"Milan"}
+```
+
+```json
+{"location":null}
+```
+
+The value must be a string of at most 255 characters after trimming, or `null`.
+Empty or whitespace-only strings become `null`. Omitted values default to `null`
+on creation; omitted PATCH fields retain the current value. Other JSON types and
+overlong text return `400` without saving changes. Existing ownership and linked
+proposal/exchange restrictions still apply.
+
+All service representations include `location` as a string or `null`, including
+registration, publishing, personal lists, homepage offers, swipe candidates and
+proposal participants. `owner.location` still describes the owner's profile.
+No profile location is copied automatically into a service.
+
+`GET /api/services?location=rome` now searches only service locations, using a
+case-insensitive partial match. Offers without a location do not match a non-empty
+location filter, even when the owner's profile location matches. Without this
+filter, offers without a location remain visible under the usual catalog rules.
+
+### Location migration
+
+Migration `Version20261016000200` adds only `services.location VARCHAR(255) DEFAULT NULL`.
+Existing services keep their data and receive `NULL`. The current
+`barattolo_v2_16102026_soft_delete.sql` dump includes the column and migration history;
+older snapshots remain unchanged.
+
+For an existing installation, apply pending migrations from `Backend` before
+running the updated backend, without reimporting the dump:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+When this is the latest applied migration, its rollback drops only the location
+column and therefore removes the saved service locations:
+
+```bash
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261016000200' --down --no-interaction
+```
+
+## Staff operation history
+
+History is recorded automatically for effective changes made through staff APIs.
+Only active staff accounts can read it, using `Authorization: Bearer YOUR_STAFF_JWT`.
+There are no API endpoints to create, edit or delete history entries.
+
+### Read operations
+
+```http
+GET /api/staff/operations?page=1&limit=20
+GET /api/staff/operations?staffId=4&action=USER_STATUS_CHANGED&targetType=USER&targetId=12
+GET /api/staff/operations/1
+```
+
+The list returns `operations` and the existing `pagination` object (`page`, `limit`,
+`totalItems`, `totalPages`). Default page is 1 and default limit is 20; maximum
+limit is 50. Results are ordered by `createdAt` descending, then ID descending.
+No matches or a page beyond the results returns an empty list.
+
+Optional filters combine using AND:
+
+| Filter | Accepted values |
+| --- | --- |
+| `staffId` | Positive staff user ID, including historical accounts |
+| `action` | One of the six actions listed below |
+| `targetType` | `USER`, `REPORT`, `TOKEN` |
+| `targetId` | Positive object ID; requires `targetType` |
+
+Unknown parameters, invalid actions/types, arrays, invalid IDs and pagination
+values return `400`. An unknown operation ID returns `404`. Missing credentials
+return `401`; regular users and inactive staff receive `403`. Unsupported write
+methods return `405` for authorized callers.
+
+Each list item has the same representation returned as `operation` by the detail API:
+
+```json
+{
+  "operation": {
+    "id": 1,
+    "actor": {"id": 4, "username": "staff_user"},
+    "action": "USER_STATUS_CHANGED",
+    "target": {"type": "USER", "id": 12},
+    "before": {"accountStatus": "ACTIVE"},
+    "after": {"accountStatus": "INACTIVE"},
+    "createdAt": "2026-10-16T12:00:00+00:00"
+  }
+}
+```
+
+### Recorded changes
+
+| Action | Target | Before and after fields |
+| --- | --- | --- |
+| `USER_STATUS_CHANGED` | `USER` | `accountStatus` |
+| `USER_PROMOTED` | `USER` | `roles` |
+| `REPORT_REVIEWED` | `REPORT` | `status`, `reviewNote`, `reviewedById`, `reviewedAt` |
+| `TOKEN_CREATED` | `TOKEN` | `before` is null; `after` contains `userId`, `chainId`, `issuedAt`, `expiresAt` |
+| `TOKEN_EXPIRATION_CHANGED` | `TOKEN` | `expiresAt`, for both PUT and PATCH |
+| `TOKEN_DELETED` | `TOKEN` | `deletedAt`, from null to the soft-deletion timestamp |
+
+Dates are stored and returned in UTC. Only the relevant fields are saved; passwords,
+JWTs, complete profiles, report reasons and calculated token expiry flags are excluded.
+The actor ID and username are snapshots taken from the authenticated staff account,
+not client-supplied values. Plain target IDs and actor snapshots keep history readable
+after a rename or deletion, including soft deletion of tokens.
+
+Reads, errors, unchanged values, automatic token compensation and staff creation via
+the console command produce no entries. Existing operations are not backfilled.
+Each history entry is saved inside the operation's transaction: if history cannot be
+saved, the operation also rolls back. Existing row locks and transaction retries remain
+in place, and a rolled-back attempt leaves no duplicate history entries.
+
+### History migration
+
+`Version20261016000300` adds only the empty `staff_operation_logs` table with indexes
+for dates, staff, action and target. It has no foreign keys to mutable application data.
+The migration intentionally cannot be rolled back automatically, to preserve history.
+The updated `barattolo_v2_16102026_soft_delete.sql` dump includes this table and all
+11 migration records, including service locations. Older dumps remain unchanged.
+
+For existing installations, run pending migrations from `Backend` before using the
+updated staff endpoints, without reimporting the dump:
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+Functional staff tests require a disposable `staff_check_*_test` MySQL database;
+set `STAFF_TEST_DATABASE_URL` to its base name without the `_test` suffix. Chain and
+token regression tests similarly use `CHAIN_TEST_DATABASE_URL` and `chain_check_*_test`.
+These test suites reject application database names before resetting any tables.

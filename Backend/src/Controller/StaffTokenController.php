@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\ChainRepository;
 use App\Service\ChainClock;
 use App\Service\ChainError;
+use App\Service\StaffOperationLogger;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -19,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/staff/tokens')]
 final class StaffTokenController extends AbstractController
 {
-    public function __construct(private ChainRepository $repository, private ChainClock $clock) {}
+    public function __construct(private ChainRepository $repository, private ChainClock $clock, private StaffOperationLogger $history) {}
 
     #[Route('', methods: ['POST'])]
     public function create(Request $request): JsonResponse
@@ -43,7 +44,12 @@ final class StaffTokenController extends AbstractController
                 // New tokens always start with a lifetime of exactly 30 days.
                 'expiration_date' => $now->modify('+30 days')->format('Y-m-d H:i:s'),
             ]);
-            return $this->repository->token($id);
+            $token = $this->repository->token($id);
+            $values = $this->toApiArray($token);
+            // Expired is calculated when reading, so it is not part of the snapshot.
+            unset($values['id'], $values['expired']);
+            $this->history->record($this->getUser(), 'TOKEN_CREATED', 'TOKEN', $id, null, $values);
+            return $token;
         }, 201);
     }
 
@@ -53,9 +59,11 @@ final class StaffTokenController extends AbstractController
         return $this->respond(function () use ($id, $request): array {
             $data = $this->body($request, ['expiresAt']);
             $expiration = $this->expiration($data['expiresAt'] ?? null);
-            $this->repository->token($id, true);
+            $before = $this->toApiArray($this->repository->token($id, true));
             // Expiration is the only editable field, so PUT and PATCH share this operation.
             $this->repository->updateTokenExpiration($id, $expiration);
+            $after = $this->toApiArray($this->repository->token($id));
+            $this->history->record($this->getUser(), 'TOKEN_EXPIRATION_CHANGED', 'TOKEN', $id, ['expiresAt' => $before['expiresAt']], ['expiresAt' => $after['expiresAt']]);
             return $this->repository->token($id);
         });
     }
@@ -65,7 +73,9 @@ final class StaffTokenController extends AbstractController
     {
         return $this->respond(function () use ($id): null {
             $this->repository->token($id, true);
-            $this->repository->deleteToken($id, $this->clock->now());
+            $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
+            $this->repository->deleteToken($id, $now);
+            $this->history->record($this->getUser(), 'TOKEN_DELETED', 'TOKEN', $id, ['deletedAt' => null], ['deletedAt' => $now->format(DATE_ATOM)]);
             return null;
         }, 204);
     }

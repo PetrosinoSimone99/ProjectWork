@@ -133,7 +133,7 @@ final class ServiceRepository extends ServiceEntityRepository
 
         if ($location !== null) {
             $queryBuilder
-                ->andWhere('LOWER(owner.location) LIKE :location')
+                ->andWhere('LOWER(service.location) LIKE :location')
                 ->setParameter('location', '%'.mb_strtolower($location).'%');
         }
 

@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Entity\UserReport;
 use App\Repository\UserRepository;
 use App\Repository\UserReportRepository;
+use App\Service\StaffOperationLogger;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +23,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/staff')]
 final class StaffController extends AbstractController
 {
+    public function __construct(private StaffOperationLogger $history) {}
+
     #[Route('/users', name: 'api_staff_users_list', methods: ['GET'])]
     public function users(Request $request, UserRepository $users): JsonResponse
     {
@@ -115,7 +118,9 @@ final class StaffController extends AbstractController
                 // Reload after obtaining the lock in case another request just closed this report.
                 $em->refresh($report);
                 if (!$report->isPending()) { return $this->error('This report has already been reviewed.', 409); }
+                $before = $this->reviewValues($report);
                 $report->review($data['status'], $note, $staff);
+                $this->history->record($staff, 'REPORT_REVIEWED', 'REPORT', $id, $before, $this->reviewValues($report));
                 return $this->json(['report' => $report->toStaffApiArray()]);
             });
         } catch (RetryableException) {
@@ -134,11 +139,15 @@ final class StaffController extends AbstractController
                 $isStaff = in_array(User::ROLE_STAFF, $user->getRoles(), true);
                 if ($status !== null) {
                     if ($isStaff) { return $this->error('Staff account status cannot be changed through this API.', 403); }
+                    $before = ['accountStatus' => $user->getAccountStatus()];
                     $user->setAccountStatus($status);
+                    $this->history->record($this->getUser(), 'USER_STATUS_CHANGED', 'USER', $id, $before, ['accountStatus' => $user->getAccountStatus()]);
                 } else {
                     if (!$user->isActive()) { return $this->error('Activate the user before promoting them to staff.', 409); }
                     if (!$isStaff) {
+                        $before = ['roles' => $user->getRoles()];
                         $user->setRoles(array_values(array_unique([...$user->getRoles(), User::ROLE_STAFF])));
+                        $this->history->record($this->getUser(), 'USER_PROMOTED', 'USER', $id, $before, ['roles' => $user->getRoles()]);
                     }
                 }
                 return $this->json(['user' => $user->toApiArray()]);
@@ -146,6 +155,18 @@ final class StaffController extends AbstractController
         } catch (RetryableException) {
             return $this->error('The user changed during this request. Please try again.', 409);
         }
+    }
+
+    /** Keep only review fields, not the reporter's original reason or profile. */
+    private function reviewValues(UserReport $report): array
+    {
+        $values = $report->toStaffApiArray();
+        return [
+            'status' => $values['status'],
+            'reviewNote' => $values['reviewNote'],
+            'reviewedById' => $values['reviewedBy']['id'] ?? null,
+            'reviewedAt' => $values['reviewedAt'] === null ? null : (new \DateTimeImmutable($values['reviewedAt']))->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM),
+        ];
     }
 
     private function body(Request $request, array $allowedFields): array|JsonResponse

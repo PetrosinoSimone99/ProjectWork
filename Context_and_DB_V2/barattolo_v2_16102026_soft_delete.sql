@@ -1,9 +1,9 @@
 -- Baratto-lo: student database dump, prepared on 2026-10-16.
--- Includes all 9 backend migrations, service suspension and soft deletion for services and tokens.
+-- Includes all 11 backend migrations, service suspension, optional service locations, soft deletion and staff history.
 -- Import into an empty database. Table replacement statements are included.
 -- Seed: public categories and migration history only. Register your own application users.
 -- User accounts, password hashes, services, personal data, connection credentials and JWT keys are excluded.
--- Based on barattolo_v2_15102026_services.sql, with the latest soft-delete migration included.
+-- Based on barattolo_v2_15102026_services.sql, with soft-delete, service-location and staff-history migrations included.
 
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -237,11 +237,29 @@ CREATE TABLE `services` (
   `is_remote` tinyint(1) NOT NULL DEFAULT '0',
   `is_suspended` tinyint(1) NOT NULL DEFAULT '0',
   `deleted_at` datetime DEFAULT NULL,
+  `location` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `services_user_type_index` (`user_id`,`type`),
   CONSTRAINT `FK_SERVICES_USER` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `staff_operation_logs`;
+CREATE TABLE `staff_operation_logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `staff_id` int NOT NULL,
+  `staff_username` varchar(30) NOT NULL,
+  `action` varchar(32) NOT NULL,
+  `target_type` varchar(10) NOT NULL,
+  `target_id` int NOT NULL,
+  `before_values` json DEFAULT NULL,
+  `after_values` json NOT NULL,
+  `created_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  PRIMARY KEY (`id`),
+  KEY `staff_log_date_index` (`created_at`,`id`),
+  KEY `staff_log_actor_index` (`staff_id`),
+  KEY `staff_log_action_index` (`action`),
+  KEY `staff_log_target_index` (`target_type`,`target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 DROP TABLE IF EXISTS `swipe_decisions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -357,3 +375,5 @@ INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_
 INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_time`) VALUES ('DoctrineMigrations\\Version20261015000100', '2026-10-15 12:07:16', '60');
 INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_time`) VALUES ('DoctrineMigrations\\Version20261015000200', '2026-10-15 12:07:17', '39');
 INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_time`) VALUES ('DoctrineMigrations\\Version20261016000100', UTC_TIMESTAMP(), '57');
+INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_time`) VALUES ('DoctrineMigrations\\Version20261016000200', UTC_TIMESTAMP(), '57');
+INSERT INTO `doctrine_migration_versions` (`version`, `executed_at`, `execution_time`) VALUES ('DoctrineMigrations\\Version20261016000300', UTC_TIMESTAMP(), '0');
