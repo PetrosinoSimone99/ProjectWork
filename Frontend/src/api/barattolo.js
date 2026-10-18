@@ -4,14 +4,12 @@ import {
   normalizzaAccordo,
   normalizzaCatalogo,
   normalizzaCategorie,
-  normalizzaElencoToken,
   normalizzaEsitoInvio,
   normalizzaEsitoUtenteStaff,
   normalizzaNotifiche,
   normalizzaRispostaAccesso,
   normalizzaSegnalazioneStaff,
   normalizzaSegnalazioniStaff,
-  normalizzaToken,
   normalizzaUtentiStaff,
   numeroInteroONull,
   queryDaFiltri,
@@ -22,12 +20,10 @@ import * as fintiChat from './finti/chat';
 import * as fintiNotifiche from './finti/notifiche';
 import * as fintiSegnalazioni from './finti/segnalazioni';
 import * as fintiStaff from './finti/staff';
-import * as fintiToken from './finti/token';
 import * as fintiUtenti from './finti/utenti';
 import { aPayloadLetta } from '@/servizi/notifiche';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
-import { aPayloadImpegno } from '@/servizi/token';
 import { registraMieVoci } from '@/servizi/mie-voci';
 
 // La superficie pubblica di prima resta quella: le funzioni spostate in
@@ -37,10 +33,8 @@ import { registraMieVoci } from '@/servizi/mie-voci';
 export {
   normalizzaCatalogo,
   normalizzaCategorie,
-  normalizzaElencoToken,
   normalizzaPubblicazioni,
   normalizzaStatoPubblicazione,
-  normalizzaToken,
 } from './normalizzazioni';
 
 // Le funzioni nuove non ingrossano questo file (P53): si smistano per area in
@@ -67,6 +61,17 @@ export {
   ottieniCatene,
   proponiCondizioni,
 } from './aree/catene';
+// Token — i buoni: il normalizzatore unico del buono vive in `aree/token.js` e
+// da lì passa anche a «Scambi» (via `aree/catene.js`). `confermaRicezioneBuono`
+// è la ricezione del buono; quella della prestazione di catena è già
+// `confermaRicezione` di `aree/catene.js` (stesso verbo, oggetto diverso).
+export {
+  annullaRiscatto,
+  confermaRicezioneBuono,
+  impegnaBuono,
+  ottieniBuoni,
+  ottieniRiscatti,
+} from './aree/token';
 
 /**
  * Dati finti o backend vero.
@@ -348,51 +353,14 @@ export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
 // ---------------------------------------------------------------------------
 // Token — i buoni (non il token di accesso)
 //
-// Endpoint proposto: `token.php`, per l'elenco dei **propri** buoni e per
-// l'unica azione dell'utente (`azione:'impegna'`). **Non esiste**: con i finti
-// spenti l'elenco risponde 404, ed è il motivo per cui ogni ramo porta il suo
-// `// TODO(backend)`.
-//
-// **Consumo e rilascio non hanno una funzione qui**: non sono azioni
-// dell'utente. Il sistema porta il buono a `SPENT` quando l'accordo è concluso e
-// lo riporta ad `AVAILABLE` se l'accordo salta; la schermata si limita a
-// **rileggere** e a mostrare lo stato che il backend manda. La sceneggiatura del
-// finto per quei due passaggi sta in `api/finti/token.js`.
-//
-// Nome da non confondere: `token` nei parametri è il **token di accesso**
-// (l'identità viaggia lì), il buono è `buono` nella forma normalizzata.
+// Dal 18 ottobre 2026 la area è quella del **contratto reale** (PR #38):
+// `GET /api/tokens`, `POST /api/tokens/{id}/reserve`,
+// `POST /api/token-redemptions/{id}/receipt` e `/cancel` — la guida è
+// `docs/20-contratti-api/catene.md` § «L'utilizzo di un buono su un servizio».
+// Le funzioni vivono in `aree/token.js` e qui si re-espongono (sezione sopra);
+// i vecchi `ottieniToken`/`impegnaToken` su `token.php` sono usciti con la
+// rotta mai nata, e il loro finto (`api/finti/token.js`) non è più importato.
 // ---------------------------------------------------------------------------
-
-/**
- * GET token.php — i **propri** buoni. `utenteId` serve solo al ramo finto: il
- * finto non decodifica il token di accesso (su native `atob` non è garantito),
- * come già fanno `ottieniAccordi` e le funzioni delle aree.
- */
-export async function ottieniToken(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET token.php → {success, message, data:{token:[…]}}.
-    return normalizzaElencoToken(await fintiToken.ottieniToken(utenteId));
-  }
-  return normalizzaElencoToken(await apiFetch('token.php', { token }));
-}
-
-/**
- * POST token.php `{azione:'impegna', id_token, id_servizio}` — lega un buono
- * disponibile a un servizio: da `AVAILABLE` a `RESERVED`. L'identità deve venire
- * **dal token di accesso**, mai dal corpo. Un `409` (buono già impegnato, usato o
- * scaduto) si mostra così com'è: la schermata lo lascia al `Banner`, senza
- * interpretarlo.
- */
-export async function impegnaToken(token, utenteId, idToken, idServizio) {
-  const corpo = aPayloadImpegno(idToken, idServizio);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST token.php con l'identità dal token di accesso.
-    const risposta = await fintiToken.impegnaToken(utenteId, idToken, idServizio);
-    return normalizzaToken(risposta?.data?.token);
-  }
-  const risposta = await apiFetch('token.php', { method: 'POST', token, body: corpo });
-  return normalizzaToken(risposta?.data?.token ?? risposta?.token);
-}
 
 // ---------------------------------------------------------------------------
 // Segnalazioni e notifiche in-app

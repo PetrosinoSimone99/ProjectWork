@@ -1,5 +1,6 @@
 import { ApiError, apiFetch } from '../client';
 import { numeroInteroONull, testoONull } from '../normalizzazioni';
+import { ottieniBuoni } from './token';
 import { TIPI_VOCE } from '@/servizi/offerta-ricerca';
 import { aggiungiMiaVoce } from '@/servizi/mie-voci';
 import { decisioneAlContratto, vistaCatena } from '@/servizi/catene';
@@ -392,39 +393,6 @@ export function normalizzaElencoCatene(risposta, utenteId) {
   return elenco.map((riga) => normalizzaCatena(riga, utenteId)).filter(Boolean);
 }
 
-/**
- * Un buono di compensazione (`GET /api/tokens`) nella forma della UI. Le date
- * restano stringhe del backend; `scaduto` è il booleano **calcolato dal
- * server** — il frontend non ricalcola scadenze. I buoni importati dal dump
- * possono avere `chainId` e `issuedAt` nulli: restano nulli, la UI lo sa.
- */
-export function normalizzaBuono(riga) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-  const id = numeroInteroONull(riga.id);
-  if (id === null) {
-    return null;
-  }
-  return {
-    chiave: `buono-${id}`,
-    id,
-    idCatena: numeroInteroONull(riga.chainId),
-    emessoIl: testoONull(riga.issuedAt),
-    scadeIl: testoONull(riga.expiresAt),
-    scaduto: riga.expired === true,
-  };
-}
-
-/** L'elenco dei buoni: `{"tokens": [...]}`. */
-export function normalizzaElencoBuoni(risposta) {
-  const elenco = risposta?.tokens;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map(normalizzaBuono).filter(Boolean);
-}
-
 // ---------------------------------------------------------------------------
 // Le nove funzioni del contratto
 // ---------------------------------------------------------------------------
@@ -585,10 +553,13 @@ export async function annullaCatena(token, utenteId, id, motivo) {
 
 /**
  * GET /api/tokens — i buoni di compensazione delle catene, in **sola lettura**
- * (vincolo 9 del piano): qui non c'è né spesa né contestazione.
+ * (vincolo 9 del piano): qui non c'è né spesa né contestazione. La funzione
+ * vera (e il normalizzatore unico del buono) vivono in `aree/token.js`, che
+ * del contratto dei buoni è l'area di casa; qui resta solo il nome storico che
+ * «Scambi» legge, per non far toccare la schermata a chi sposta l'area.
  */
 export async function ottieniBuoniCompensazione(token) {
-  return normalizzaElencoBuoni(await apiFetch('tokens', { token }));
+  return ottieniBuoni(token);
 }
 
 /**
