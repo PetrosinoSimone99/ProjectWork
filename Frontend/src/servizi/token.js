@@ -21,30 +21,34 @@
  * - un buono `SPENT` o `EXPIRED` non si usa.
  *
  * Tre cose che questo modulo **non** fa, di proposito:
- * - **non deduce uno stato dalla data**: lo stato è quello che manda il backend.
- *   L'unico calcolo è il residuo leggibile, che è un'informazione in più, non un
- *   esito (un `AVAILABLE` con la data passata resta `AVAILABLE` a schermo);
+ * - **non deduce uno stato dalla data**: lo stato è quello che manda il backend,
+ *   e `scaduto` è il booleano `expired` del server. L'unico calcolo è il residuo
+ *   leggibile, che è un'informazione in più, non un esito;
  * - **non traduce uno stato ignoto**: passa così com'è e la schermata lo mostra
  *   **grezzo**, come fanno le catene con gli stati del ciclo di vita;
  * - **non implementa il consumo e il rilascio**: sono del sistema. Qui ci sono
- *   solo le due domande che la schermata deve poter fare.
+ *   solo le domande che la schermata deve poter fare (sezioni, origine, azioni).
  *
- * Il formato delle date si **importa** da `@/accordi/stati` (`formattaData`) in sola lettura, come
- * già fa `servizi/catene.js` con `formattaDurata`: l'area 1:1 è in attesa di riscrittura e quel
- * prestito non la modifica — il giorno in cui si sposta, le due funzioni di formato finiscono in un
- * modulo condiviso.
+ * Il formato delle date si **importa** da `@/servizi/catene` (`formattaDataOra`):
+ * le date del contratto sono ISO (`DATE_ATOM`, es. `2026-10-18T10:12:00+00:00`)
+ * e `formattaData` di `@/accordi/stati` le spezzerebbe sullo spazio restituendo
+ * `null`. `formattaDataOra` è lo stesso formato che «Scambi» usa sullo stesso
+ * campo (`scadeIl`, `scambi.jsx:389`): un solo import, nessuna libreria di date,
+ * nessun rischio di import circolare (`catene.js` non importa questo modulo).
  *
  * Nessuna funzione muta i dati ricevuti: copia, trasforma, restituisce.
  */
 
-import { formattaData } from '@/accordi/stati';
+import { formattaDataOra } from '@/servizi/catene';
 
 /**
- * Gli stati del buono, quelli del **modello obiettivo**
- * (`Context_and_DB_V2/`, ripresi in `docs/10-architettura/database.md`).
+ * Gli stati del buono, quelli del **contratto reale** (`GET /api/tokens`).
  * La proposta della Parte 21 delle segnalazioni usava `DISPONIBILE`, `USATO`,
- * `SCADUTO`: i due insiemi **non coincidono** e la divergenza è segnalata ai
- * colleghi. Finché non decidono, valgono questi.
+ * `SCADUTO`: la divergenza è **chiusa** — il backend manda `AVAILABLE`,
+ * `RESERVED`, `SPENT` e, per i buoni scaduti, **`EXPIRED` come stato**
+ * (riscrive già un `AVAILABLE` scaduto: `Backend/src/Service/TokenRedemptionService.php:114`).
+ * Quindi `EXPIRED` è uno stato **noto**, con la sua etichetta, e non finisce mai
+ * in «Altri buoni».
  */
 export const STATI_TOKEN = {
   AVAILABLE: 'AVAILABLE',
@@ -61,17 +65,29 @@ export const ETICHETTE_STATO_TOKEN = {
   [STATI_TOKEN.EXPIRED]: 'Scaduto',
 };
 
+/** Le azioni ammesse su un buono, per la riga della card. Nomi, non stringhe sparse. */
+export const AZIONI_BUONO = {
+  USA: 'usa',
+  ANNULLA: 'annulla',
+  RICEVUTO: 'ricevuto',
+};
+
 /** Un giorno in millisecondi, per il residuo. */
 const MS_PER_GIORNO = 86_400_000;
 
+/** Uno stato in maiuscolo e ripulito, oppure `null` se manca o non è una stringa. */
+function statoInMaiuscolo(valore) {
+  const stato = typeof valore === 'string' ? valore.trim().toUpperCase() : '';
+  return stato || null;
+}
+
 /**
  * Lo stato di un buono, in maiuscolo. `null` quando manca: la normalizzazione in
- * `api/barattolo.js` fa già questo lavoro, ma la logica pura non si fida del
+ * `api/aree/token.js` fa già questo lavoro, ma la logica pura non si fida del
  * chiamante (e serve a `raggruppaPerStato`).
  */
 export function statoDelBuono(buono) {
-  const stato = typeof buono?.stato === 'string' ? buono.stato.trim().toUpperCase() : '';
-  return stato || null;
+  return statoInMaiuscolo(buono?.stato);
 }
 
 /**
@@ -80,11 +96,8 @@ export function statoDelBuono(buono) {
  * sarebbe un esito inventato per omissione. `null` solo quando lo stato manca.
  */
 export function etichettaStatoToken(stato) {
-  if (typeof stato !== 'string' || stato.trim() === '') {
-    return null;
-  }
-  const chiave = stato.trim().toUpperCase();
-  return ETICHETTE_STATO_TOKEN[chiave] ?? chiave;
+  const chiave = statoInMaiuscolo(stato);
+  return chiave === null ? null : (ETICHETTE_STATO_TOKEN[chiave] ?? chiave);
 }
 
 /**
@@ -110,19 +123,28 @@ export function tonoStatoToken(stato) {
 }
 
 /**
- * L'origine del buono: il perché lo ha assegnato la staff. È una stringa del
- * backend e si mostra **così com'è**; se manca, la riga non si inventa (e la
- * schermata non la disegna, invece di scrivere un motivo plausibile).
+ * L'origine del buono, **derivata** da `chainId` (il contratto reale non ha il
+ * motivo dell'assegnazione):
+ * - `idCatena` valorizzato → `'Compensazione di una catena'`;
+ * - `idCatena` nullo ma emesso → `'Assegnato dalla staff'`;
+ * - entrambi nulli (buoni importati dal dump) → `null`, la riga non si mostra:
+ *   non si inventa un motivo.
  */
 export function descriviOrigine(buono) {
-  const testo = typeof buono?.origine === 'string' ? buono.origine.trim() : '';
-  return testo || null;
+  if (buono?.idCatena !== null && buono?.idCatena !== undefined) {
+    return 'Compensazione di una catena';
+  }
+  if (typeof buono?.emessoIl === 'string' && buono.emessoIl.trim() !== '') {
+    return 'Assegnato dalla staff';
+  }
+  return null;
 }
 
 /**
  * Una data del backend in epoch (millisecondi), oppure `null` se assente o
- * illeggibile. Accetta le tre forme che il progetto incontra: `2026-10-18
- * 10:12:00` (lo spazio del backend), `2026-10-18` e l'ISO con la `T`.
+ * illeggibile. Le date del contratto sono ISO (`2026-10-18T10:12:00+00:00`);
+ * restano accettate anche le forme con lo spazio (`2026-10-18 10:12:00`) e solo
+ * data usate altrove nel progetto.
  */
 function aMs(valore) {
   if (typeof valore === 'number' && Number.isFinite(valore)) {
@@ -142,7 +164,7 @@ function aMs(valore) {
  * residuo leggibile, non una misura al secondo.
  */
 export function giorniAllaScadenza(buono, adessoMs = Date.now()) {
-  const scadenzaMs = aMs(buono?.scadenza);
+  const scadenzaMs = aMs(buono?.scadeIl);
   if (scadenzaMs === null) {
     return null;
   }
@@ -153,9 +175,13 @@ export function giorniAllaScadenza(buono, adessoMs = Date.now()) {
  * Il residuo come testo: «mancano 12 giorni», «manca 1 giorno», «scade oggi».
  * `null` quando la data manca, non è leggibile o è **già passata**: in quel caso
  * non si scrive «scaduto», perché lo stato lo dice il backend e questa funzione
- * non lo deduce (un `AVAILABLE` con la data passata resta `AVAILABLE`).
+ * non lo deduce. `null` anche quando il server dice già `scaduto: true`, per non
+ * mostrare un conto alla rovescia su un buono scaduto.
  */
 export function testoResiduoToken(buono, adessoMs = Date.now()) {
+  if (buono?.scaduto === true) {
+    return null;
+  }
   const giorni = giorniAllaScadenza(buono, adessoMs);
   if (giorni === null || giorni < 0) {
     return null;
@@ -168,67 +194,111 @@ export function testoResiduoToken(buono, adessoMs = Date.now()) {
 
 /** La data di scadenza formattata (o `null`): usa lo stesso formato delle altre schermate. */
 export function testoDataScadenza(buono) {
-  return typeof buono?.scadenza === 'string' ? formattaData(buono.scadenza) : null;
+  return formattaDataOra(buono?.scadeIl);
 }
 
 /** La data di emissione formattata (o `null`). */
 export function testoDataEmissione(buono) {
-  return typeof buono?.creatoIl === 'string' ? formattaData(buono.creatoIl) : null;
+  return formattaDataOra(buono?.emessoIl);
 }
 
 /** La data d'uso formattata (o `null`), per i buoni `SPENT`. */
 export function testoDataUso(buono) {
-  return typeof buono?.usatoIl === 'string' ? formattaData(buono.usatoIl) : null;
+  return formattaDataOra(buono?.spesoIl);
+}
+
+/** Nella sezione «Disponibili»: `AVAILABLE` e non scaduto (il `scaduto` è del server). */
+function eDisponibile(buono) {
+  return statoDelBuono(buono) === STATI_TOKEN.AVAILABLE && buono?.scaduto !== true;
 }
 
 /**
- * Se il buono si può **impegnare** su un servizio. Solo `AVAILABLE`: un buono
- * `SPENT` o `EXPIRED` non si usa, e un `RESERVED` è già legato a un accordo.
- * Uno stato ignoto non si impegna.
+ * Nella sezione «Scaduti»: stato `EXPIRED` **oppure** `AVAILABLE` scaduto — la
+ * stessa cosa letta senza la riscrittura del backend (che di un `AVAILABLE`
+ * scaduto fa già `EXPIRED`). Un `RESERVED` o `SPENT` scaduto **non** è qui:
+ * resta nella sua sezione, perché un buono riservato si può ancora spendere.
+ */
+function eScaduto(buono) {
+  const stato = statoDelBuono(buono);
+  return (
+    stato === STATI_TOKEN.EXPIRED ||
+    (stato === STATI_TOKEN.AVAILABLE && buono?.scaduto === true)
+  );
+}
+
+/**
+ * Se il buono si può **impegnare** su un servizio: è nella sezione «Disponibili»
+ * (solo `AVAILABLE` non scaduto). Uno stato ignoto non si impegna.
  */
 export function puoEssereImpegnato(buono) {
-  return statoDelBuono(buono) === STATI_TOKEN.AVAILABLE;
+  return eDisponibile(buono);
 }
 
-/**
- * Se il buono si può **spendere** su un servizio. Oggi è la stessa condizione
- * dell'impegno (l'impegno è il primo passo dell'uso), ma la schermata pone le due
- * domande in due punti diversi — l'azione sulla card e il filtro della sezione —
- * e una funzione sola decide, così non nascono due regole.
- */
-export function puoiEssereUsato(buono) {
-  return puoEssereImpegnato(buono);
-}
-
-/** Se il buono è legato a un accordo in corso (per mostrare la riga e nessuna azione). */
+/** Se il buono è legato a un accordo in corso (`RESERVED`). */
 export function eImpegnato(buono) {
   return statoDelBuono(buono) === STATI_TOKEN.RESERVED;
 }
 
 /**
- * Il corpo della richiesta di impegno, nella forma di rete. Le chiavi sono quelle
- * proposte per `token.php` e il `// TODO(backend)` sta nel bivio di
- * `api/barattolo.js`: qui si costruisce una volta sola, come fa
- * `aPayloadPubblicazione` per le voci.
+ * Copia dei buoni con lo **stato del riscatto** collegato: lo `status` del
+ * riscatto con `id` uguale a `idRiscatto`, in maiuscolo, `null` se il buono non
+ * ha un riscatto o non è nell'elenco. Serve a decidere l'azione per riga
+ * (`azioniDelBuono`). Gli array di ingresso **non** vengono mutati.
  */
-export function aPayloadImpegno(idToken, idServizio) {
-  return { azione: 'impegna', id_token: idToken, id_servizio: idServizio };
+export function conRiscatto(buoni, riscatti) {
+  const elenco = Array.isArray(buoni) ? buoni : [];
+  const perId = new Map(
+    (Array.isArray(riscatti) ? riscatti : [])
+      .filter((riscatto) => riscatto && riscatto.id !== null && riscatto.id !== undefined)
+      .map((riscatto) => [riscatto.id, riscatto]),
+  );
+  return elenco.map((buono) => {
+    const id = buono?.idRiscatto;
+    const riscatto = id === null || id === undefined ? null : perId.get(id);
+    return { ...buono, statoRiscatto: statoInMaiuscolo(riscatto?.stato) };
+  });
 }
 
 /**
- * I buoni divisi per stato, per le sezioni della schermata. `altri` raccoglie gli
- * stati **ignoti**: devono restare visibili (mostrati grezzi), non sparire in
- * silenzio perché non li conosciamo.
+ * Le azioni ammesse sulla riga di un buono, secondo lo stato del server:
+ * - «Disponibili» → `usa` (scegliere il servizio);
+ * - `RESERVED` con riscatto `PENDING` → `annulla` (solo in attesa: dopo
+ *   l'accettazione la UI non facilita l'annullamento, vedi `PLAN.md` decisione 6);
+ * - `RESERVED` con riscatto `ACCEPTED` → `ricevuto`;
+ * - `RESERVED` senza riscatto o con riscatto in stato ignoto → nessuna azione
+ *   (un pulsante che fallirebbe a caso non si mostra);
+ * - usati, scaduti e stati ignoti → nessuna azione.
+ */
+export function azioniDelBuono(buono) {
+  if (eDisponibile(buono)) {
+    return [AZIONI_BUONO.USA];
+  }
+  if (eImpegnato(buono)) {
+    const riscatto = statoInMaiuscolo(buono?.statoRiscatto);
+    if (riscatto === 'PENDING') {
+      return [AZIONI_BUONO.ANNULLA];
+    }
+    if (riscatto === 'ACCEPTED') {
+      return [AZIONI_BUONO.RICEVUTO];
+    }
+  }
+  return [];
+}
+
+/**
+ * I buoni divisi per stato, per le sezioni della schermata: `disponibili`,
+ * `impegnati`, `usati` e `scaduti`. `altri` raccoglie gli stati **ignoti**
+ * (veramente sconosciuti, non `EXPIRED`): devono restare visibili (mostrati
+ * grezzi), non sparire in silenzio perché non li conosciamo.
  */
 export function raggruppaPerStato(buoni) {
   const elenco = Array.isArray(buoni) ? buoni : [];
-  const perStato = (stato) => elenco.filter((buono) => statoDelBuono(buono) === stato);
   const noti = new Set(Object.values(STATI_TOKEN));
   return {
-    disponibili: perStato(STATI_TOKEN.AVAILABLE),
-    impegnati: perStato(STATI_TOKEN.RESERVED),
-    usati: perStato(STATI_TOKEN.SPENT),
-    scaduti: perStato(STATI_TOKEN.EXPIRED),
+    disponibili: elenco.filter(eDisponibile),
+    impegnati: elenco.filter(eImpegnato),
+    usati: elenco.filter((buono) => statoDelBuono(buono) === STATI_TOKEN.SPENT),
+    scaduti: elenco.filter(eScaduto),
     altri: elenco.filter((buono) => !noti.has(statoDelBuono(buono))),
   };
 }
