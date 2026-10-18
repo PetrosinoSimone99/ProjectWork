@@ -172,8 +172,8 @@ function nomeServizio(catalogo, idServizio) {
     return null;
   }
   const trovato = catalogo.find((servizio) => Number(servizio.id) === Number(idServizio));
-  const mansione = typeof trovato?.mansione === 'string' ? trovato.mansione.trim() : '';
-  return mansione || null;
+  const descrizione = typeof trovato?.descrizione === 'string' ? trovato.descrizione.trim() : '';
+  return descrizione || null;
 }
 
 /** Una riga icona + testo di un dato del buono. */

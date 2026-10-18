@@ -504,9 +504,11 @@ export function normalizzaPaginazione(paginazione) {
  * Le righe **senza descrizione si scartano** (per contratto non esistono) e le
  * categorie si normalizzano con `normalizzaCategorie`: le righe di `offers`
  * portano lo stesso formato della tendina (`[{id, description}]`), quindi la
- * mappatura `{id, nome}` è una sola. La riga non porta tipo né stato, ma porta
- * `isRemote` (modalità «da remoto»/«in presenza»): qui diventa `daRemoto`, lo
- * stesso vocabolario di `VoceServizio`.
+ * mappatura `{id, nome}` è una sola. `type` diventa `tipo` in **maiuscolo**
+ * (`OFFER`/`REQUEST`, i valori del contratto): serve a «I miei token» per
+ * mostrare solo le offerte, le uniche pagabili con un buono. La riga non porta
+ * stato, ma porta `isRemote` (modalità «da remoto»/«in presenza»): qui diventa
+ * `daRemoto`, lo stesso vocabolario di `VoceServizio`.
  *
  * `location` è la località **del servizio** (così come l'ha salvata chi l'ha
  * pubblicato), cosa diversa da `offerente.localita` (che resta com'è): diventa
@@ -524,6 +526,7 @@ export function normalizzaOffertaCatalogo(riga, indice = 0) {
   return {
     chiave: id === null ? `offerta-riga-${indice}` : `offerta-${id}`,
     id,
+    tipo: typeof riga.type === 'string' ? riga.type.trim().toUpperCase() : '',
     descrizione,
     daRemoto: riga.isRemote === true,
     localita: testoONull(riga.location),
