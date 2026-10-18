@@ -99,19 +99,19 @@ class ChatManager
         
     }
     
-    public function sendMessage(int $chatId,  User $user, string $message): void
+    public function sendMessage(int $chatId,  int $userId, string $message): void
     {
         $chat = $this->chatRepository->getChatById($chatId);
 
         $chatMessage = new ChatMessage();
         $chatMessage->setChat($chat);
-        $chatMessage->setUserId($user->getId());
+        $chatMessage->setUserId($userId);
         $chatMessage->setMessage($message);
 
         $errors = $this->validator->validate($chatMessage);
         
         if(count($errors) > 0){
-            throw new \InvalidArgumentExcepton((string)$errors);
+            throw new \InvalidArgumentException((string)$errors);
         }
 
         $this->entityManager->persist($chatMessage);
