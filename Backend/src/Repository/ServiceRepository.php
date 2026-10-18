@@ -76,6 +76,8 @@ final class ServiceRepository extends ServiceEntityRepository
             'service_provision' => ['service_id'],
             'chain_agreements' => ['service_id'],
             'chain_service_reservations' => ['service_id'],
+            // Finished token requests keep history but no longer block this offer.
+            'token_redemptions' => ['reserved_service_id'],
         ];
 
         foreach ($references as $table => $columns) {

@@ -211,7 +211,9 @@ exactly 30 days after issuance, and `(group_id, user_id)` is unique.
 `GET /api/tokens` returns `id`, `chainId`, `issuedAt`, `expiresAt` and `expired`,
 including expired tokens. Existing tokens imported from the dump can have a null
 chain origin and issuance date; the migration does not invent their history. Token
-spending and disputes are outside this API.
+spending is documented in [TOKEN_REDEMPTIONS_API.md](TOKEN_REDEMPTIONS_API.md).
+After migration `Version20261018000100`, this list also includes `status`,
+`serviceId`, `redemptionId` and `spentAt`. Disputes remain outside this API.
 
 ## Staff token management
 

@@ -95,11 +95,15 @@ final class ChainRepository
     }
     public function reserved(int $serviceId, bool $currentRead = false): bool
     {
-        // Old installations can still serve direct APIs before the chain migration is applied.
-        if (!$this->db->createSchemaManager()->tablesExist(['chain_service_reservations'])) {
-            return false;
+        // Older test schemas may not contain the newer reservation tables yet.
+        $tables = $this->db->createSchemaManager()->listTableNames();
+        $suffix = $currentRead ? ' FOR UPDATE' : '';
+        if (in_array('token_redemptions', $tables, true)
+            && $this->db->fetchOne('SELECT id FROM token_redemptions WHERE reserved_service_id = ?'.$suffix, [$serviceId]) !== false) {
+            return true;
         }
-        return $this->db->fetchOne('SELECT service_id FROM chain_service_reservations WHERE service_id = ?'.($currentRead ? ' FOR UPDATE' : ''), [$serviceId]) !== false;
+        return in_array('chain_service_reservations', $tables, true)
+            && $this->db->fetchOne('SELECT service_id FROM chain_service_reservations WHERE service_id = ?'.$suffix, [$serviceId]) !== false;
     }
     public function reserve(int $chainId, array $serviceIds): void
     {
@@ -178,6 +182,10 @@ final class ChainRepository
 
     public function deleteToken(int $id, \DateTimeImmutable $now): void
     {
+        $token = $this->token($id, true);
+        if ($token['status'] === 'RESERVED') {
+            throw new ChainError('A reserved token cannot be deleted. Cancel its redemption first.');
+        }
         // Keep the row and its unique chain/user key to prevent duplicate compensation.
         $this->db->update('tokens', ['deleted_at' => $now->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s')], ['id' => $id]);
     }
