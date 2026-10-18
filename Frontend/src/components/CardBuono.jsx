@@ -1,13 +1,16 @@
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import {
+  AZIONI_BUONO,
+  azioniDelBuono,
   descriviOrigine,
-  eImpegnato,
   etichettaStatoToken,
-  puoEssereImpegnato,
+  statoDelBuono,
+  STATI_TOKEN,
   testoDataEmissione,
   testoDataScadenza,
   testoDataUso,
@@ -17,23 +20,26 @@ import {
 import { space, useTokens } from '@/theme/tokens';
 
 /**
- * La card di **un buono** («token»): stato, origine, date e — solo se è
- * disponibile — l'azione per usarlo su un servizio.
+ * La card di **un buono** («token»): stato, origine, date e i pulsanti dei
+ * **suoi** attuali, secondo `azioniDelBuono` di `@/servizi/token` (la regola di
+ * quali azioni spettano su uno stato del server vive lì: qui si chiama e si
+ * disegna, nessuna logica duplicata).
  *
  * Perché un componente e non un pezzo della schermata: è la parte più lunga di
  * «I miei token» e non conosce né la rete né lo stato della schermata (riceve il
- * buono, il catalogo per il nome del servizio e una callback). È lo stesso schema
+ * buono, il catalogo per il nome del servizio e le callback). È lo stesso schema
  * di `CardServizioCatalogo` e `CardVoceServizio`.
  *
  * Tre regole dentro:
- * - **nessuna azione sugli stati non disponibili**: un `RESERVED` è già legato a
- *   un accordo, un `SPENT` o un `EXPIRED` non si usa, e uno stato **ignoto** non
- *   si tocca perché non sappiamo cosa significhi;
+ * - **il pulsante si disegna solo se la callback c'è**: una callback mancante
+ *   (propia a `undefined`) non disegna il pulsante, così la schermata può
+ *   collegare le azioni una alla volta senza pulsanti morti;
  * - **il nome del servizio non si inventa**: se il catalogo non lo conosce, resta
  *   il riferimento (`Servizio n. X`), non un nome plausibile;
  * - **il colore non è l'unico segnale**: la parola dello stato sta accanto.
  */
-export function CardBuono({ buono, catalogo, azioneInCorso, onUsa }) {
+export function CardBuono({ buono, catalogo, azioneInCorso, onUsa, onAnnulla, onRicevuto }) {
+  const router = useRouter();
   const t = useTokens();
   const colori = coloriTono(t, tonoStatoToken(buono.stato));
   const etichetta = etichettaStatoToken(buono.stato) ?? 'Stato non indicato';
@@ -42,7 +48,9 @@ export function CardBuono({ buono, catalogo, azioneInCorso, onUsa }) {
   const emissione = testoDataEmissione(buono);
   const scadenza = testoDataScadenza(buono);
   const uso = testoDataUso(buono);
-  const servizio = nomeServizio(catalogo, buono.idServizioUsato);
+  const servizio = nomeServizio(catalogo, buono.idServizio)
+  const azione = azioniDelBuono(buono);
+  const impegnato = statoDelBuono(buono) === STATI_TOKEN.RESERVED;
 
   return (
     <Card>
@@ -71,31 +79,67 @@ export function CardBuono({ buono, catalogo, azioneInCorso, onUsa }) {
         {uso ? <RigaDato icona="checkmark-done-outline" testo={`Usato il ${uso}`} /> : null}
         {servizio ? (
           <RigaDato icona="pricetag-outline" testo={`Servizio: ${servizio}`} />
-        ) : buono.idServizioUsato !== null ? (
-          <RigaDato icona="pricetag-outline" testo={`Servizio n. ${buono.idServizioUsato}`} />
+        ) : buono.idServizio !== null && buono.idServizio !== undefined ? (
+          <RigaDato icona="pricetag-outline" testo={`Servizio n. ${buono.idServizio}`} />
         ) : null}
       </View>
 
-      {eImpegnato(buono) ? (
+      {impegnato ? (
         <AppText variant="small" tone="secondary">
-          Il buono è legato a questo scambio: si consumerà quando lo scambio sarà concluso e tornerà
-          disponibile se salta. Lo aggiorna il sistema, non serve fare nulla qui.
+          {testoImpegnato(buono.statoRiscatto)}
         </AppText>
       ) : null}
 
-      {puoEssereImpegnato(buono) ? (
+      {azione.includes(AZIONI_BUONO.USA) && onUsa ? (
         <AppButton
           label="Usa su un servizio"
           icon="pricetag-outline"
           onPress={() => onUsa(buono)}
           disabled={azioneInCorso}
           accessibilityLabel={`Usa su un servizio il buono${origine ? `: ${origine}` : ''}`}
-          style={{ alignSelf: 'flex-start' }}
+          style={stile.pulsante}
         />
+      ) : null}
+
+      {azione.includes(AZIONI_BUONO.ANNULLA) && onAnnulla ? (
+        <AppButton
+          label="Annulla impegno"
+          variant="secondary"
+          icon="arrow-undo-outline"
+          onPress={() => onAnnulla(buono)}
+          disabled={azioneInCorso}
+          accessibilityLabel={`Annulla l'impegno del buono${origine ? `: ${origine}` : ''}`}
+          style={stile.pulsante}
+        />
+      ) : null}
+
+      {azione.includes(AZIONI_BUONO.RICEVUTO) ? (
+        <View style={{ gap: space.xs }}>
+          {onRicevuto ? (
+            <AppButton
+              label="Ho ricevuto il servizio"
+              icon="checkmark-done-outline"
+              onPress={() => onRicevuto(buono)}
+              disabled={azioneInCorso}
+              accessibilityLabel={`Conferma di aver ricevuto il servizio del buono${origine ? `: ${origine}` : ''}`}
+              style={stile.pulsante}
+            />
+          ) : null}
+          <AppButton
+            label="Segnala un problema"
+            variant="secondary"
+            onPress={() => router.push('/segnala')}
+            disabled={azioneInCorso}
+            accessibilityLabel="Vai alla schermata di segnalazione per questo servizio"
+            style={stile.pulsante}
+          />
+        </View>
       ) : null}
     </Card>
   );
 }
+
+const stile = StyleSheet.create({ pulsante: { alignSelf: 'flex-start' } });
 
 /** I colori del tono di uno stato, dai token del tema (mai un colore scritto a mano). */
 function coloriTono(t, tono) {
@@ -111,7 +155,18 @@ function coloriTono(t, tono) {
   return { bg: t.background, fg: t.textSecondary };
 }
 
-/** Il nome del servizio usato, se il catalogo lo conosce: `null` invece di un nome inventato. */
+/** Il testo che accompagna un buono impegnato, a seconda dello stato del riscatto. */
+function testoImpegnato(statoRiscatto) {
+  if (statoRiscatto === 'PENDING') {
+    return "Il proprietario del servizio deve ancora accettare. Se l'accordo salta puoi annullare l'impegno: il buono torna disponibile.";
+  }
+  if (statoRiscatto === 'ACCEPTED') {
+    return 'Il servizio è stato accettato. Quando lo avrai ricevuto, conferma qui: il buono diventerà Usato.';
+  }
+  return 'Il buono è legato a uno scambio: lo aggiorna il sistema, non serve fare nulla qui.';
+}
+
+/** Il nome del servizio scelto, se il catalogo lo conosce: `null` invece di un nome inventato. */
 function nomeServizio(catalogo, idServizio) {
   if (!Array.isArray(catalogo) || idServizio === null || idServizio === undefined) {
     return null;
