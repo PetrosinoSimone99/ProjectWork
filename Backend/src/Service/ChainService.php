@@ -12,7 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /** Coordinates state transitions. Every write is protected by the locked chain row. */
 final class ChainService
 {
-    public function __construct(private ChainRepository $repository, private ChainMatcher $matcher, private EntityManagerInterface $em, private ChainClock $clock) {}
+    public function __construct(private ChainRepository $repository, private ChainMatcher $matcher, private EntityManagerInterface $em, private ChainClock $clock, private TokenRedemptionService $redemptions) {}
 
     public function start(User $actor, int $offerId, int $requestId): array
     {
@@ -288,13 +288,8 @@ final class ChainService
 
     public function tokens(User $actor): array
     {
-        return array_map(fn (array $token) => [
-            'id' => (int) $token['id'],
-            'chainId' => $token['group_id'] === null ? null : (int) $token['group_id'],
-            'issuedAt' => $this->apiDate($token['issued_at']),
-            'expiresAt' => $this->apiDate($token['expiration_date']),
-            'expired' => $token['expiration_date'] <= $this->date($this->clock->now()),
-        ], $this->repository->tokens($actor->getId()));
+        // Read token state and its linked attempt from the same database snapshot.
+        return $this->repository->transaction(fn () => array_map($this->redemptions->serializeToken(...), $this->repository->tokens($actor->getId())));
     }
 
     private function ownedService(User $actor, int $id, string $type): Service
