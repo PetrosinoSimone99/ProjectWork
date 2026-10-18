@@ -226,14 +226,6 @@ function eScaduto(buono) {
   );
 }
 
-/**
- * Se il buono si può **impegnare** su un servizio: è nella sezione «Disponibili»
- * (solo `AVAILABLE` non scaduto). Uno stato ignoto non si impegna.
- */
-export function puoEssereImpegnato(buono) {
-  return eDisponibile(buono);
-}
-
 /** Se il buono è legato a un accordo in corso (`RESERVED`). */
 export function eImpegnato(buono) {
   return statoDelBuono(buono) === STATI_TOKEN.RESERVED;

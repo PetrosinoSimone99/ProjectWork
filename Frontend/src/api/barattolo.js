@@ -359,7 +359,9 @@ export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
 // `docs/20-contratti-api/catene.md` § «L'utilizzo di un buono su un servizio».
 // Le funzioni vivono in `aree/token.js` e qui si re-espongono (sezione sopra);
 // i vecchi `ottieniToken`/`impegnaToken` su `token.php` sono usciti con la
-// rotta mai nata, e il loro finto (`api/finti/token.js`) non è più importato.
+// rotta mai nata. Il deposito finto dei buoni (`api/finti/token.js`) resta
+// invece in vita per la sceneggiatura della demo (la staff assegna un buono e
+// parte la notifica) e si cancellerà con la pulizia finale dei residui demo.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
