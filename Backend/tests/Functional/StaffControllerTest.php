@@ -46,6 +46,7 @@ final class StaffControllerTest extends WebTestCase
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         foreach (ChainSchema::statements($db) as $sql) { $db->executeStatement($sql); }
         $db->executeStatement('ALTER TABLE tokens ADD deleted_at DATETIME DEFAULT NULL');
+        \App\Tests\Support\TokenRedemptionTestSchema::apply($db);
         $this->staff = $this->createUser('staff', [User::ROLE_STAFF]);
         $this->author = $this->createUser('author');
         $this->target = $this->createUser('target', [User::ROLE_USER, 'ROLE_HELPER']);

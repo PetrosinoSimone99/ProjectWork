@@ -48,6 +48,7 @@ final class ChainControllerTest extends WebTestCase
         foreach (ChainSchema::statements($db) as $sql) { $db->executeStatement($sql); }
         // ChainSchema represents the older migration; add the new token field for these tests.
         $db->executeStatement('ALTER TABLE tokens ADD deleted_at DATETIME DEFAULT NULL');
+        \App\Tests\Support\TokenRedemptionTestSchema::apply($db);
         $this->clock = new class extends ChainClock {
             public \DateTimeImmutable $time;
             public function __construct() { $this->time = new \DateTimeImmutable('2026-10-03T12:00:00Z'); }
