@@ -19,8 +19,8 @@ class ProposalManager
         return $this->proposalRepository->findMembersByProposalId($proposalId);
     }
 
-    public function getProposalParticipantsDetails(int $proposalId): array
+    public function getProposalParticipantDetails(int $proposalId, user $user): array
     {
-        return $this->proposalRepository->getProposalParticipants($proposalId);
+        return $this->proposalRepository->getProposalParticipantDetails($proposalId, $user);
     }
 }

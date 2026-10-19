@@ -17,9 +17,6 @@ class ExchangeMutual
 
     #[ORM\Column(name: 'proposal_id')]
     private ?int $proposalId = null;
-    
-    #[ORM\Column(name: 'location')]
-    private ?string $location = null;
 
     #[ORM\Column(name: 'status', type: 'string', enumType: ExchangeMutualStatus::class)]
     private ?ExchangeMutualStatus $status = null;
@@ -27,12 +24,21 @@ class ExchangeMutual
     #[ORM\Column(name:'creation_date', type: 'datetime')]
     private ?\DateTimeInterface $creationDate = null;
 
-    public function __construct(?int $proposalId, ?string $location, ?ExchangeMutualStatus $status, ?\DateTimeInterface $creationDate)
+    /** @var Collection<int, ExchangeParticipant> */
+    #[ORM\OneToMany(
+    targetEntity: ExchangeParticipant::class,
+    mappedBy: 'exchange',
+    cascade: ['persist'],
+    orphanRemoval: true,
+    )]
+    private Collection $exchangeParticipants;
+
+    public function __construct(?int $proposalId, ?ExchangeMutualStatus $status, ?\DateTimeInterface $creationDate)
     {
         $this->proposalId = $proposalId;
-        $this->location = $location;
         $this->status = $status;
         $this->creationDate = $creationDate;
+        $this->exchangeParticipants = new ArrayCollection();
     }
     
     public function getId(): ?int
@@ -47,17 +53,6 @@ class ExchangeMutual
     public function setProposalId(?int $proposalId): self
     {
         $this->proposalId = $proposalId;
-
-        return $this;
-    }
-
-    public function getLocation(): ?string
-    {
-        return $this->location;
-    }
-    public function setLocation(?string $location): self
-    {
-        $this->location = $location;
 
         return $this;
     }

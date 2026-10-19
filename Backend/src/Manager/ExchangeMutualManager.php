@@ -19,28 +19,35 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ExchangeMutualManager
 {
+    private ExchangeMutualRepository $exchangeMutualRepository;
     private ProposalManager $proposalManager;
     private EntityManagerInterface $entityManager;
     private ValidatorInterface $validator;
 
-    public function __construct(ProposalManager $proposalManager, EntityManagerInterface $entityManager, ValidatorInterface $validator) {
+    public function __construct(ExchangeMutualRepository $exchangeMutualRepository, ProposalManager $proposalManager, EntityManagerInterface $entityManager, ValidatorInterface $validator) {
+        $this->exchangeMutualRepository = $exchangeMutualRepository;
         $this->proposalManager = $proposalManager;
         $this->entityManager = $entityManager;
         $this->validator = $validator;
     }
 
-    public function createExchangeMutualService(int $proposalId, array $data): void
-    {
-        $exchangeMutual = createExchangeMutual($proposalId, $data);
+    public function createExchangeMutualService(int $proposalId, User $user, array $data): void
+    {//location is missing.
+        $exchangeMutual = $this->getExchangeMutualByProposalId($proposalId);
 
-        $participants = $this->proposalManager->getProposalParticipantsDetails($proposalId);
-        $this->addExchangeParticipants($exchangeMutual, $participants);
+        if($exchangeMutual == null) {
+            $exchangeMutual = $this->createExchangeMutual($proposalId);
+            
+        }
+        
     }
 
     //internal only
     private function createExchangeMutual(int $proposalId, array $data): ExchangeMutual
-    {
-        $exchangeMutual = new ExchangeMutual($proposalId, $data['location'], ExchangeMutualStatus::PENDING, new \DateTime());
+    {//Review logic for this part
+        $exchangeMutual = new ExchangeMutual($proposalId, ExchangeMutualStatus::IN_ATTESA,
+            new \DateTime()
+        );
 
         $errors = $this->validator->validate($exchangeMutual);
         if (count($errors) > 0) {
@@ -53,21 +60,18 @@ class ExchangeMutualManager
         return $exchangeMutual;
     }
 
-    private function addExchangeParticipants(ExchangeMutual $exchangeMutual, array $participants): void
-    {
-        foreach ($participants as $participant) {
-            $exchangeParticipant = new ExchangeParticipant(
-                $exchangeMutual->getId(),
-                $participant->getUser()->getId(),
-                $participant->getService()->getId(),
-                new \DateTime(),
-                new \DateTime(),
-                false
-            );
+    private function addExchangeParticipants(ExchangeMutual $exchangeMutual, ProposalParticipant $proposalParticipant): void
+    {//Most likely insert one member at a time with their respective response
+        $exchangeParticipant = new ExchangeParticipant(
+            $exchangeMutual,
+            $proposalParticipant->getUser()->getId(),
+            $proposalParticipant->getService()->getId(),
+            new \DateTime(),
+            new \DateTime(),
+            true
+        );
 
-            $this->entityManager->persist($exchangeParticipant);
-        }
-
+        $this->entityManager->persist($exchangeParticipant);
         $this->entityManager->flush();
     }
 }

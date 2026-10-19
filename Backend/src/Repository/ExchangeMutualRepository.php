@@ -2,20 +2,27 @@
 
 namespace App\Repository;
 
-use App\Entity\MutualExchange;
+use App\Entity\ExchangeMutual;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<MutualExchange>
+ * @extends ServiceEntityRepository<ExchangeMutual>
  */
-class MutualExchangeRepository extends ServiceEntityRepository
+class ExchangeMutualRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, MutualExchange::class);
+        parent::__construct($registry, ExchangeMutual::class);
     }
-
+    public function getExchangeMutualByProposalId(int $proposalId): ?ExchangeMutual
+    {
+        return $this->createQueryBuilder('em')
+            ->andWhere('em.proposal = :proposalId')
+            ->setParameter('proposalId', $proposalId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 //    /**
 //     * @return MutualExchange[] Returns an array of MutualExchange objects
 //     */

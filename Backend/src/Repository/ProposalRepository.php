@@ -37,15 +37,16 @@ final class ProposalRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
-
-    public function getProposalParticipants(int $proposalId): array
+    public function getProposalParticipantDetails(int $proposalId, User $user): array
     {
         return $this->getEntityManager()->createQueryBuilder()
             ->select('participant')
             ->from(ProposalParticipant::class, 'participant')
             ->innerJoin('participant.proposal', 'proposal')
             ->andWhere('proposal.id = :proposalId')
+            ->andWhere('participant.user = :user')
             ->setParameter('proposalId', $proposalId)
+            ->setParameter('user', $user)
             ->orderBy('participant.id', 'ASC')
             ->getQuery()
             ->getResult();
