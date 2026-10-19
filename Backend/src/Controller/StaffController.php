@@ -74,8 +74,8 @@ final class StaffController extends AbstractController
     {
         $filters = $this->filters($request, ['page', 'limit', 'status', 'reporterId', 'reportedUserId']);
         if ($filters instanceof JsonResponse) { return $filters; }
-        if (isset($filters['status']) && !in_array($filters['status'], [UserReport::STATUS_PENDING, UserReport::STATUS_CONFIRMED, UserReport::STATUS_REJECTED], true)) {
-            return $this->error('Report status must be PENDING, CONFIRMED or REJECTED.', 400);
+        if (isset($filters['status']) && !in_array($filters['status'], [UserReport::STATUS_PENDING, UserReport::STATUS_IN_REVIEW, UserReport::STATUS_CONFIRMED, UserReport::STATUS_REJECTED], true)) {
+            return $this->error('Report status must be PENDING, IN_REVIEW, CONFIRMED or REJECTED.', 400);
         }
         foreach (['reporterId', 'reportedUserId'] as $field) {
             if (array_key_exists($field, $filters)) {
@@ -93,6 +93,31 @@ final class StaffController extends AbstractController
     {
         $report = $reports->find($id);
         return $report === null ? $this->error('The report does not exist.', 404) : $this->json(['report' => $report->toStaffApiArray()]);
+    }
+
+    #[Route('/reports/{id}/claim', name: 'api_staff_reports_claim', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function claim(int $id, Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        if ($request->getContent() !== '') {
+            $data = $this->body($request, []);
+            if ($data instanceof JsonResponse) { return $data; }
+        }
+        $staff = $this->getUser();
+        try {
+            return $em->wrapInTransaction(function () use ($em, $id, $staff): JsonResponse {
+                $report = $em->find(UserReport::class, $id, LockMode::PESSIMISTIC_WRITE);
+                if ($report === null) { return $this->error('The report does not exist.', 404); }
+                // Check the current state after waiting for any other staff operation.
+                $em->refresh($report);
+                if (!$report->isPending()) { return $this->error('This report has already been claimed or reviewed.', 409); }
+                $before = $this->reviewValues($report);
+                $report->claim($staff);
+                $this->history->record($staff, 'REPORT_CLAIMED', 'REPORT', $id, $before, $this->reviewValues($report));
+                return $this->json(['report' => $report->toStaffApiArray()]);
+            });
+        } catch (RetryableException) {
+            return $this->error('The report changed during this request. Please try again.', 409);
+        }
     }
 
     #[Route('/reports/{id}/review', name: 'api_staff_reports_review', requirements: ['id' => '\d+'], methods: ['PATCH'])]
@@ -117,7 +142,8 @@ final class StaffController extends AbstractController
                 if ($report === null) { return $this->error('The report does not exist.', 404); }
                 // Reload after obtaining the lock in case another request just closed this report.
                 $em->refresh($report);
-                if (!$report->isPending()) { return $this->error('This report has already been reviewed.', 409); }
+                if ($report->isClosed()) { return $this->error('This report has already been reviewed.', 409); }
+                if (!$report->canBeReviewedBy($staff)) { return $this->error('Only the assigned staff member can review this report.', 403); }
                 $before = $this->reviewValues($report);
                 $report->review($data['status'], $note, $staff);
                 $this->history->record($staff, 'REPORT_REVIEWED', 'REPORT', $id, $before, $this->reviewValues($report));
@@ -163,6 +189,8 @@ final class StaffController extends AbstractController
         $values = $report->toStaffApiArray();
         return [
             'status' => $values['status'],
+            'assignedToId' => $values['assignedTo']['id'] ?? null,
+            'assignedAt' => $values['assignedAt'] === null ? null : (new \DateTimeImmutable($values['assignedAt']))->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM),
             'reviewNote' => $values['reviewNote'],
             'reviewedById' => $values['reviewedBy']['id'] ?? null,
             'reviewedAt' => $values['reviewedAt'] === null ? null : (new \DateTimeImmutable($values['reviewedAt']))->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM),

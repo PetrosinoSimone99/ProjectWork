@@ -313,9 +313,9 @@ authentication and role errors retain the existing security responses.
 
 ## Database upgrade and verification
 
-The authoritative input is `Context_and_DB_V2/barattolo_v2_27092026.sql`. It remains
-unchanged. Explicit migrations support an empty database, an existing migrated
-backend, or an imported dump. Existing service types and direct-proposal states are
+For a fresh installation, use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql), identified by `../LAST_DB_TO_USE.txt`. This MySQL 8.4.3 export includes all 13 migrations through `Version20261019000100`. Follow the [database import instructions](DATABASE_AND_API_GUIDE.md#import-for-a-fresh-setup); do not import it over an existing database whose data you need to keep. Use PHP 8.4 or newer for the current locked dependencies.
+
+The original chain migration baseline is `Context_and_DB_V2/barattolo_v2_27092026.sql`; it remains unchanged. Explicit migrations support an empty database, an existing migrated backend, or an imported dump. Existing service types and direct-proposal states are
 translated to the English API values while retaining IDs, creation dates and chat
 references. Old group records without the new lifecycle data remain historical and
 are not exposed as newly created chains.
@@ -386,3 +386,5 @@ on unexpected failures. Neither Task Scheduler nor cron is installed or configur
 automatically by this change.
 
 Soft deletion requires migration `Version20261016000100` before deploying the updated backend. Deleted tokens are omitted from `GET /api/tokens` and return 404 on updates or repeated deletion. Their unique chain/user pair is kept, preventing duplicate compensation even after deletion. See DATABASE_AND_API_GUIDE.md for migration instructions.
+
+The report-assignment update adds `IN_REVIEW`, an assignee and a claim date to staff reports; chain and compensation endpoints retain their behavior. See [Claim a report](DATABASE_AND_API_GUIDE.md#claim-a-report) for the new `POST /api/staff/reports/{id}/claim` endpoint and its authorization rules.

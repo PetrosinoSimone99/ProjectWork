@@ -23,6 +23,7 @@ class UserReportRepository extends ServiceEntityRepository
             ->join('report.reporter', 'reporter')->addSelect('reporter')
             ->join('report.reportedUser', 'target')->addSelect('target')
             ->leftJoin('report.reviewedBy', 'reviewer')->addSelect('reviewer')
+            ->leftJoin('report.assignedTo', 'assignee')->addSelect('assignee')
             ->orderBy('report.createdAt', 'DESC')->addOrderBy('report.id', 'DESC');
         if ($status !== null) {
             $query->andWhere('report.status = :status')->setParameter('status', $status);
