@@ -14,9 +14,11 @@ use App\Repository\UserReportRepository;
 #[ORM\Index(name: 'user_report_target_index', columns: ['reported_user_id'])]
 #[ORM\Index(name: 'user_report_status_index', columns: ['status'])]
 #[ORM\Index(name: 'user_report_reviewer_index', columns: ['reviewed_by_id'])]
+#[ORM\Index(name: 'user_report_assignee_index', columns: ['assigned_to_id'])]
 class UserReport
 {
     public const STATUS_PENDING = 'PENDING';
+    public const STATUS_IN_REVIEW = 'IN_REVIEW';
     public const STATUS_CONFIRMED = 'CONFIRMED';
     public const STATUS_REJECTED = 'REJECTED';
 
@@ -42,6 +44,13 @@ class UserReport
     #[ORM\Column(length: 10, options: ['default' => 'PENDING'])]
     private string $status = self::STATUS_PENDING;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'assigned_to_id', nullable: true)]
+    private ?User $assignedTo = null;
+
+    #[ORM\Column(name: 'assigned_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $assignedAt = null;
+
     #[ORM\Column(name: 'review_note', length: 2000, nullable: true)]
     private ?string $reviewNote = null;
 
@@ -63,11 +72,36 @@ class UserReport
     public function getReporter(): User { return $this->reporter; }
     public function isPending(): bool { return $this->status === self::STATUS_PENDING; }
 
+    public function isClosed(): bool
+    {
+        return in_array($this->status, [self::STATUS_CONFIRMED, self::STATUS_REJECTED], true);
+    }
+
+    public function canBeReviewedBy(User $staff): bool
+    {
+        return $this->isPending()
+            || ($this->status === self::STATUS_IN_REVIEW && $this->assignedTo?->getId() === $staff->getId());
+    }
+
+    /** The controller locks the report before assigning it. */
+    public function claim(User $staff): void
+    {
+        if (!$this->isPending()) {
+            throw new \LogicException('This report has already been claimed or reviewed.');
+        }
+        $this->status = self::STATUS_IN_REVIEW;
+        $this->assignedTo = $staff;
+        $this->assignedAt = new \DateTimeImmutable();
+    }
+
     /** The controller locks this report before checking and closing it. */
     public function review(string $status, string $note, User $staff): void
     {
-        if (!$this->isPending()) {
+        if ($this->isClosed()) {
             throw new \LogicException('This report has already been reviewed.');
+        }
+        if (!$this->canBeReviewedBy($staff)) {
+            throw new \LogicException('Only the assigned staff member can review this report.');
         }
         if (!in_array($status, [self::STATUS_CONFIRMED, self::STATUS_REJECTED], true)) {
             throw new \InvalidArgumentException('Invalid review outcome.');
@@ -85,6 +119,8 @@ class UserReport
             'reporter' => self::userSummary($this->reporter),
             'reportedUser' => self::userSummary($this->reportedUser),
             'status' => $this->status,
+            'assignedTo' => $this->assignedTo === null ? null : self::userSummary($this->assignedTo),
+            'assignedAt' => $this->assignedAt?->format(DATE_ATOM),
             'reviewNote' => $this->reviewNote,
             'reviewedBy' => $this->reviewedBy === null ? null : self::userSummary($this->reviewedBy),
             'reviewedAt' => $this->reviewedAt?->format(DATE_ATOM),

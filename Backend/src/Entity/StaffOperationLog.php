@@ -16,7 +16,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'staff_log_target_index', columns: ['target_type', 'target_id'])]
 class StaffOperationLog
 {
-    public const ACTIONS = ['USER_STATUS_CHANGED', 'USER_PROMOTED', 'REPORT_REVIEWED', 'TOKEN_CREATED', 'TOKEN_EXPIRATION_CHANGED', 'TOKEN_DELETED'];
+    public const ACTIONS = ['USER_STATUS_CHANGED', 'USER_PROMOTED', 'REPORT_CLAIMED', 'REPORT_REVIEWED', 'TOKEN_CREATED', 'TOKEN_EXPIRATION_CHANGED', 'TOKEN_DELETED'];
     public const TARGET_TYPES = ['USER', 'REPORT', 'TOKEN'];
 
     #[ORM\Id]

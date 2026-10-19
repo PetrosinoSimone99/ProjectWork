@@ -1,10 +1,10 @@
 # Database and API quick guide
 
-## Current student database (2026-10-16)
+## Current database (2026-10-19)
 
-Use [barattolo_v2_16102026_soft_delete.sql](../barattolo_v2_16102026_soft_delete.sql) for new student installations. `../LAST_DB_TO_USE.txt` identifies this as the current dump. Older dumps are preserved as historical references.
+Use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql) for a fresh setup. `../LAST_DB_TO_USE.txt` points to this dump. It was exported from the local `barattolo` database after applying `Version20261019000100`. It contains 23 tables and all 13 migration records, including report assignment. Earlier integrated snapshots remain unchanged.
 
-This dump contains the current student schema: 17 tables, 2 public categories and all 11 backend migration records. It includes `services.is_remote` and `services.is_suspended`, both `BOOLEAN NOT NULL DEFAULT FALSE`, nullable `deleted_at` fields on `services` and `tokens`, optional `services.location VARCHAR(255) DEFAULT NULL`, and the empty `staff_operation_logs` table. Users, password hashes, published services, proposals, exchanges, messages, reports, tokens and operation history entries are excluded. There are no shared login credentials: register your own user through the API and create a staff account with the existing backend command when needed.
+This integrated snapshot includes existing users, stored password values, services, proposals and chat history. Configure your own JWT keys and local database connection. For an existing database, apply the new migration instead of importing the dump.
 
 ### Import for a fresh setup
 
@@ -13,7 +13,7 @@ Open the MySQL client from the repository root (`mysql -u root -p`, adding your 
 ```sql
 CREATE DATABASE barattolo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE barattolo;
-SOURCE Context_and_DB_V2/barattolo_v2_16102026_soft_delete.sql;
+SOURCE Context_and_DB_V2/barattolo_v2_19102026_migrato.sql;
 ```
 
 If `barattolo` already exists and contains data you want to keep, choose a different new database name and point `Backend/.env.local` to it. This dump includes table replacement statements. For an existing application database, apply migrations instead of importing the full dump.
@@ -25,7 +25,7 @@ php bin/console doctrine:migrations:status
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-All 11 migrations are already recorded in this dump, through `Version20261016000300`, so there should be no pending migrations for the current backend. Do not execute the included migrations manually after importing this file. When upgrading an older installation, the migration command applies the missing migrations while preserving its existing data.
+All 13 migrations are already recorded in this dump, through `Version20261019000100`, so there should be no pending migrations for the current backend. Do not execute the included migrations manually after importing this file. When upgrading an older installation, the migration command applies the missing migrations while preserving its existing data.
 
 ### Current service fields
 
@@ -43,18 +43,22 @@ All three fields are optional in `POST /api/services` and in every `offers`/`req
 
 `isRemote` and `isSuspended` accept only JSON booleans; other types, including `null`, return `400` without partial changes. `location` accepts text of at most 255 characters after trimming, or `null`; empty text becomes `null`. Omitted PATCH fields retain their values. Suspension is manual: send `true` to suspend or `false` to reactivate. Only the active owner can update a service. Any update is blocked with `409` when the service is already connected to a proposal, exchange, chain or reservation, even if that record is finished, rejected or cancelled. New swipe decisions and chain starts using a suspended service also return `409`. All service representations include these three fields. The [location section](#optional-location-for-offers-and-requests) explains creation, clearing and filtering.
 
-### Staff history added in this chat
+### Staff history and report assignment
 
 `GET /api/staff/operations` lists effective staff changes with pagination and optional `staffId`, `action`, `targetType` and `targetId` filters. `GET /api/staff/operations/{id}` reads one entry. Both require an active staff account. Entries contain the authenticated actor, action, target, before/after values and UTC date; they cannot be created, edited or deleted through the API. See [Staff operation history](#staff-operation-history) for actions, response examples and validation rules.
 
-The two migrations added in this chat are:
+Recent migrations included in the current dump:
 
 | Migration | Database change |
 | --- | --- |
 | `Version20261016000200` | Adds nullable `services.location`; existing services receive `NULL` |
 | `Version20261016000300` | Adds the empty `staff_operation_logs` table and its indexes; existing operations are not backfilled |
+| `Version20261018000100` | Adds compensation token states and redemption history |
+| `Version20261019000100` | Adds nullable report assignee and claim date; existing report states remain unchanged |
 
-The updated dump was imported into an isolated MySQL database and compared with the history migration. Verification covered the 11 migration records, the empty history table, equivalent table definitions and preservation of existing data, including service locations, when applying the migration. Separate test runs passed 47 API/location regression tests (863 assertions), 12 staff tests (213 assertions), and a targeted automatic-compensation test (15 assertions). Staff tests include authorization, filters, snapshots, concurrent operations and rollback when saving history fails. The operational database was not modified.
+The report assignment migration was applied to the configured local `barattolo` database on 2026-10-19 after saving a backup under the ignored `Backend/var/backups/` directory. Doctrine reports 13 executed migrations and none pending. The exported dump was restored into an isolated MySQL 8.4.3 database: all 23 table definitions and all rows matched the application database, and the restored database needed no migrations. Comparing with the backup confirmed that the migration preserved existing application rows.
+
+Report verification passed 16 staff tests (305 assertions) and 6 report-creation regression tests (46 assertions), including assignment ownership, duplicate claims, concurrent claims/reviews and history rollback. Use PHP 8.4 or newer for the current locked dependencies. Claiming is optional: `PENDING -> CONFIRMED/REJECTED` remains available, alongside `PENDING -> IN_REVIEW -> CONFIRMED/REJECTED`. See [Claim a report](#claim-a-report) for the endpoint and responses.
 
 ## 1. Configure the database connection
 
@@ -503,7 +507,7 @@ This runs all pending backend migrations, including the reports migration. Do no
 
 ### Historical full dump with sample application data
 
-The 2026-10-15 file `Context_and_DB_V2/barattolo_v2_13102026.sql` is a historical full snapshot provided for the reports feature. For a clean student setup, use `Context_and_DB_V2/barattolo_v2_16102026_soft_delete.sql` as described above. The historical snapshot contains the sample application data and reports schema from its own date; it is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
+The 2026-10-15 file `Context_and_DB_V2/barattolo_v2_13102026.sql` is a historical full snapshot provided for the reports feature. For a clean student setup, use `Context_and_DB_V2/barattolo_v2_19102026_migrato.sql` as described above. The historical snapshot contains the sample application data and reports schema from its own date; it is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
 
 The snapshot contains 2 users, 2 services, 2 categories, 2 service-category links, and 5 recorded migrations. The remaining application tables, including `user_reports`, are empty. No verification users or reports were included. Connection passwords, MySQL server accounts and JWT keys are not part of the dump.
 
@@ -558,7 +562,8 @@ Once a staff account exists, it can promote existing active users through the AP
 | `PATCH` | `/api/staff/users/{id}/status` | Activate or deactivate a regular user |
 | `GET` | `/api/staff/reports` | List reports and their review information |
 | `GET` | `/api/staff/reports/{id}` | Read one report |
-| `PATCH` | `/api/staff/reports/{id}/review` | Confirm or reject a pending report permanently |
+| `POST` | `/api/staff/reports/{id}/claim` | Assign a pending report to the authenticated staff member |
+| `PATCH` | `/api/staff/reports/{id}/review` | Confirm or reject a pending report or your assigned report permanently |
 
 Send `Authorization: Bearer YOUR_STAFF_JWT` with every request. User responses include ID, name, surname, location, biography, profile image URL, username, email, roles and account status. They never include passwords or password hashes.
 
@@ -615,7 +620,7 @@ curl http://localhost:8000/api/staff/reports/1 \
   -H "Authorization: Bearer YOUR_STAFF_JWT"
 ```
 
-Optional filters are `status` (`PENDING`, `CONFIRMED` or `REJECTED`), `reporterId` and `reportedUserId` (positive integers). Without filters, all reports are listed. Pagination uses the same `page` and `limit` rules as the user list. Reports are ordered by creation time descending, then ID descending.
+Optional filters are `status` (`PENDING`, `IN_REVIEW`, `CONFIRMED` or `REJECTED`), `reporterId` and `reportedUserId` (positive integers). Without filters, all reports are listed. Pagination uses the same `page` and `limit` rules as the user list. Reports are ordered by creation time descending, then ID descending.
 
 List responses contain `reports` and `pagination`; detail and review responses contain `report`. A pending report has this shape:
 
@@ -629,6 +634,8 @@ List responses contain `reports` and `pagination`; detail and review responses c
     "reporter": {"id": 1, "username": "alice", "name": "Alice", "surname": "Bianchi"},
     "reportedUser": {"id": 2, "username": "mario", "name": "Mario", "surname": "Rossi"},
     "status": "PENDING",
+    "assignedTo": null,
+    "assignedAt": null,
     "reviewNote": null,
     "reviewedBy": null,
     "reviewedAt": null
@@ -636,7 +643,24 @@ List responses contain `reports` and `pagination`; detail and review responses c
 }
 ```
 
-Author, target and reviewer summaries contain only ID, username, name and surname. Report list filters matching no rows return an empty array, including when a filtered user ID does not exist.
+Author, target, assignee and reviewer summaries contain only ID, username, name and surname. Report list filters matching no rows return an empty array, including when a filtered user ID does not exist.
+
+### Claim a report
+
+```bash
+curl -X POST http://localhost:8000/api/staff/reports/1/claim \
+  -H "Authorization: Bearer YOUR_STAFF_JWT"
+```
+
+No request body is required; an empty JSON object is also accepted. Invalid JSON or any body fields return `400`. The assignee always comes from the JWT. A pending report becomes `IN_REVIEW`; the response is `200` with `{"report": ...}`, including `assignedTo` (ID, username, name and surname) and ISO 8601 `assignedAt`. `reviewNote`, `reviewedBy` and `reviewedAt` remain null until closure. Staff list and detail responses include both assignment fields.
+
+A missing report returns `404`. Claiming an assigned or closed report returns `409`, even for the same staff member. Only the assignee may close an `IN_REVIEW` report; another staff member receives `403`. Reassignment, release and reopening are not supported. Filter these reports with `GET /api/staff/reports?status=IN_REVIEW`.
+
+Both paths are supported: `PENDING -> CONFIRMED/REJECTED` and `PENDING -> IN_REVIEW -> CONFIRMED/REJECTED`. Direct closure leaves assignment fields null. Closure after a claim preserves the assignment and records the final reviewer separately. Claim and review lock the same report row, so concurrent operations cannot overwrite an assignment or a final outcome.
+
+Migration `Version20261019000100` adds only nullable `assigned_to_id INT` (foreign key to `users.id`, indexed) and `assigned_at DATETIME`. Existing states and data are preserved. `status VARCHAR(10)` already fits `IN_REVIEW`. The migration is irreversible because removing assignment data would leave reports in review without an assignee.
+
+To update an existing database, run `php bin/console doctrine:migrations:migrate --no-interaction` from `Backend`. Use PHP 8.4 or newer for the current locked development dependencies. Do not reimport the full dump over an existing database.
 
 ### Close a report with an outcome and note
 
@@ -649,7 +673,7 @@ curl -X PATCH http://localhost:8000/api/staff/reports/1/review \
 
 Use `CONFIRMED` or `REJECTED`. A `reviewNote` containing 1 to 2000 characters after trimming whitespace is mandatory. The reviewer comes from the authenticated staff account; the backend supplies the review time. A successful review returns `200` with the full report, its final status, note, reviewer summary and ISO 8601 review time.
 
-Closure is definitive. A second review, even an identical retry, returns `409` without changing the first review. The backend locks the report while checking its pending state and saving the outcome, preventing concurrent reviewers from overwriting each other. Confirmation does not automatically deactivate the target: use the separate status endpoint when appropriate. Closing a report does not allow its author to submit another report for the same user. The existing `POST /api/reports` request and response shapes remain unchanged.
+Closure is definitive. A second review, even an identical retry, returns `409` without changing the first review. The backend locks the report while checking its state and assignee and saving the outcome, preventing concurrent reviewers from overwriting each other. Confirmation does not automatically deactivate the target: use the separate status endpoint when appropriate. Closing a report does not allow its author to submit another report for the same user. The existing `POST /api/reports` request and response shapes remain unchanged.
 
 ### Errors and schema update
 
@@ -657,9 +681,9 @@ Closure is definitive. A second review, even an identical retry, returns `409` w
 | --- | --- |
 | `400` | Invalid JSON, unknown fields or query parameters, invalid filters, unsupported account/report status, or a missing/invalid review note |
 | `401` | Missing, invalid or expired JWT |
-| `403` | A regular user attempted staff access, the requester is inactive, or the target status belongs to a staff account |
+| `403` | A regular user attempted staff access, the requester is inactive, the target status belongs to a staff account, or another staff member owns the report in review |
 | `404` | The user or report identified in the path does not exist |
-| `409` | Promotion of an inactive account, an already reviewed report, or a retryable database concurrency conflict |
+| `409` | Promotion of an inactive account, an already claimed/reviewed report, or a retryable database concurrency conflict |
 
 Controller validation errors use `{"error":"An English explanation."}`. Firewall authentication and role-denial responses retain the existing Symfony/JWT behavior. All statuses and request field names are case-sensitive. Modification payloads reject unknown fields.
 
@@ -673,19 +697,21 @@ php bin/console doctrine:migrations:migrate --no-interaction
 
 ### Updated full dump for students
 
-Historical staff snapshot: `Context_and_DB_V2/barattolo_v2_13102026_staff.sql`. For a new setup, use `Context_and_DB_V2/barattolo_v2_16102026_soft_delete.sql`, described at the top of this guide. It contains the current student schema and migration history, including soft deletion. Older dumps are preserved as historical references. Test users, personal data, database connection credentials and JWT keys are excluded.
+Use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql), the current export after report assignment was migrated. It contains the existing application data, 23 tables and all 13 migration records. It does not contain database connection credentials or JWT keys. Earlier dumps remain available as historical snapshots.
 
 Open the MySQL client from the project root and import into a new empty database:
 
 ```sql
 CREATE DATABASE barattolo_staff_student CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE barattolo_staff_student;
-SOURCE Context_and_DB_V2/barattolo_v2_13102026_staff.sql;
+SOURCE Context_and_DB_V2/barattolo_v2_19102026_migrato.sql;
 ```
 
-Point your uncommitted `Backend/.env.local` database URL to that database, configure your local JWT keys, and run the migration command above. The included migration history matches the exported schema, so current migrations should already be applied. Create the first staff account with the server command and log in to obtain its JWT. Do not import a full dump over a database whose data you want to keep: it replaces tables.
+Point your uncommitted `Backend/.env.local` database URL to that database, configure your own JWT keys, and run `php bin/console doctrine:migrations:migrate --no-interaction` from `Backend`. All current migrations are included, so no migration should be pending. Create your own staff account with the existing server command and log in to obtain its JWT. Do not import the full dump over a database whose data you want to keep: it replaces tables. For an existing installation, run migrations instead.
 
-The staff dump was generated and reimported on isolated MySQL 8.4.3 databases. Verification covered preserved local data, schema, migration history, staff user operations and report review through the actual APIs. The original local database was not changed. Functional tests also cover existing JWTs after account changes and concurrent review/promotion operations. To run staff tests, set `STAFF_TEST_DATABASE_URL` to a disposable MySQL database URL named `staff_check_<your_name>`; test configuration appends `_test`. Create that suffixed database first. The tests reset tables only inside this explicitly checked namespace.
+The current export was restored into an isolated MySQL 8.4.3 database and compared with the migrated application database. Verification covered all table definitions, all rows and migration history. No report state or other application row was changed by the assignment migration.
+
+To run staff tests, set `STAFF_TEST_DATABASE_URL` to a disposable MySQL database URL named `staff_check_<your_name>`; test configuration appends `_test`. Create that suffixed database first. The tests reset tables only inside this explicitly checked namespace. See the verification summary at the top of this guide for the latest test results.
 
 ## Manage your own service requests
 
@@ -751,7 +777,7 @@ Soft deletes an unused request by setting its UTC deletion date and returns `204
 | `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
 | `409` | The request is connected to a proposal/exchange, or a concurrent database operation conflicts with the write |
 
-Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. The current `barattolo_v2_16102026_soft_delete.sql` dump includes migration `Version20261016000100` and is ready for a fresh setup.
+Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. The current `barattolo_v2_19102026_migrato.sql` dump includes migration `Version20261016000100` and is ready for a fresh setup.
 
 ## Optional remote availability for offers and requests
 
@@ -777,7 +803,7 @@ Service objects in creation and registration responses, the homepage, personal l
 
 ### Database update
 
-The current `barattolo_v2_16102026_soft_delete.sql` dump includes this migration. Keep older dumps as historical snapshots. When upgrading an existing installation or an older dump, run pending migrations from `Backend`:
+The current `barattolo_v2_19102026_migrato.sql` dump includes this migration. Keep older dumps as historical snapshots. When upgrading an existing installation or an older dump, run pending migrations from `Backend`:
 
 ```bash
 php bin/console doctrine:migrations:migrate --no-interaction
@@ -809,7 +835,7 @@ Suspension and reactivation use the existing ownership and reference checks. A s
 
 ### Suspension migration
 
-The current `barattolo_v2_16102026_soft_delete.sql` dump includes suspension. Older snapshots are unchanged. When upgrading an older dump or an existing installation, run pending migrations from `Backend`:
+The current `barattolo_v2_19102026_migrato.sql` dump includes suspension. Older snapshots are unchanged. When upgrading an older dump or an existing installation, run pending migrations from `Backend`:
 
 ```bash
 php bin/console doctrine:migrations:migrate --no-interaction
@@ -893,7 +919,7 @@ filter, offers without a location remain visible under the usual catalog rules.
 
 Migration `Version20261016000200` adds only `services.location VARCHAR(255) DEFAULT NULL`.
 Existing services keep their data and receive `NULL`. The current
-`barattolo_v2_16102026_soft_delete.sql` dump includes the column and migration history;
+`barattolo_v2_19102026_migrato.sql` dump includes the column and migration history;
 older snapshots remain unchanged.
 
 For an existing installation, apply pending migrations from `Backend` before
@@ -913,6 +939,7 @@ php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version202610160
 ## Staff operation history
 
 History is recorded automatically for effective changes made through staff APIs.
+Report claims record `REPORT_CLAIMED` in the existing staff history. Assignment and history are saved in one transaction; a history failure rolls back the claim. Older history entries remain unchanged and may omit assignment fields.
 Only active staff accounts can read it, using `Authorization: Bearer YOUR_STAFF_JWT`.
 There are no API endpoints to create, edit or delete history entries.
 
@@ -965,7 +992,7 @@ Each list item has the same representation returned as `operation` by the detail
 | --- | --- | --- |
 | `USER_STATUS_CHANGED` | `USER` | `accountStatus` |
 | `USER_PROMOTED` | `USER` | `roles` |
-| `REPORT_REVIEWED` | `REPORT` | `status`, `reviewNote`, `reviewedById`, `reviewedAt` |
+| `REPORT_CLAIMED`, `REPORT_REVIEWED` | `REPORT` | `status`, `assignedToId`, `assignedAt`, `reviewNote`, `reviewedById`, `reviewedAt` |
 | `TOKEN_CREATED` | `TOKEN` | `before` is null; `after` contains `userId`, `chainId`, `issuedAt`, `expiresAt` |
 | `TOKEN_EXPIRATION_CHANGED` | `TOKEN` | `expiresAt`, for both PUT and PATCH |
 | `TOKEN_DELETED` | `TOKEN` | `deletedAt`, from null to the soft-deletion timestamp |
@@ -987,8 +1014,8 @@ in place, and a rolled-back attempt leaves no duplicate history entries.
 `Version20261016000300` adds only the empty `staff_operation_logs` table with indexes
 for dates, staff, action and target. It has no foreign keys to mutable application data.
 The migration intentionally cannot be rolled back automatically, to preserve history.
-The updated `barattolo_v2_16102026_soft_delete.sql` dump includes this table and all
-11 migration records, including service locations. Older dumps remain unchanged.
+The updated `barattolo_v2_19102026_migrato.sql` dump includes this table and all
+13 migration records, including service locations and report assignment. Older dumps remain unchanged.
 
 For existing installations, run pending migrations from `Backend` before using the
 updated staff endpoints, without reimporting the dump:

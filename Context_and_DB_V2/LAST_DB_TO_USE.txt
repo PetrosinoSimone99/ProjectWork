@@ -1,1 +1,1 @@
-barattolo_v2_19102026_integrato.sql
+barattolo_v2_19102026_migrato.sql

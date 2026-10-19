@@ -6,17 +6,20 @@ It does not create an agreement or a chat. The frontend has not been changed.
 
 ## Installation
 
-Apply migration `Version20261018000100` after the migrations represented by
-`barattolo_v2_16102026_soft_delete.sql`:
+For a fresh installation, use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql), also identified by `../LAST_DB_TO_USE.txt`. It includes all 13 migrations through `Version20261019000100`; the redemption tables are already present. Follow the [database import instructions](DATABASE_AND_API_GUIDE.md#import-for-a-fresh-setup).
+
+For an existing installation or an older dump, apply all pending migrations from `Backend`:
 
 ```sh
-php bin/console doctrine:migrations:migrate
+php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-The migration adds `tokens.status` and `token_redemptions`. Existing tokens start
+Migration `Version20261018000100` adds `tokens.status` and `token_redemptions`. Existing tokens start
 as `AVAILABLE`; expired ones are presented as `EXPIRED`. Existing soft deletions,
 expiration dates and compensation uniqueness are preserved. The migration cannot
 be reversed because removing the history could make spent tokens usable again.
+
+The later report-assignment migration does not change token redemption behavior. Staff report claims and their `REPORT_CLAIMED` history entries are described in [Claim a report](DATABASE_AND_API_GUIDE.md#claim-a-report). Use PHP 8.4 or newer for the current locked dependencies.
 
 ## Lifecycle
 
