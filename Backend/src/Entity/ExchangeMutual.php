@@ -24,6 +24,7 @@ class ExchangeMutual
     #[ORM\Column(name:'creation_date', type: 'datetime')]
     private ?\DateTimeInterface $creationDate = null;
 
+    //This probably isn't needed. A separate entity is enough for a simple implementation.
     /** @var Collection<int, ExchangeParticipant> */
     #[ORM\OneToMany(
     targetEntity: ExchangeParticipant::class,

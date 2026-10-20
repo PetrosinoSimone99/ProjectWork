@@ -18,8 +18,8 @@ final class ExchangeMutualController extends AbstractController
         $this->exchangeMutualManager = $exchangeMutualManager;
     }
 
-    #[Route('/exchange-mutual/{proposalId}', name: 'create_exchange_mutual', methods: ['POST'])]
-    public function createExchangeMutualFromProposalId(Request $request, int $proposalId): JsonResponse
+    #[Route('/exchange-mutual-response/{proposalId}', name: 'insert_user_response_to_exchange_mutual', methods: ['POST'])]
+    public function insertUserResponseToExchangeMutual(Request $request, int $proposalId): JsonResponse
     {
         $user = $this->getUser();
         if(!$user instanceof User) {
@@ -32,9 +32,9 @@ final class ExchangeMutualController extends AbstractController
                 return $this->json(['error' => 'Invalid JSON'], 400);
             }
 
-            $this->exchangeMutualManager->createExchangeMutual($proposalId);
+            $this->exchangeMutualManager->insertUserResponseToExchangeMutual($proposalId, $user, $data);
 
-
+            return $this->json(['message' => 'User response inserted successfully'], 200);
         }
         catch(\JsonException) {
             return $this->json(['error' => 'Invalid JSON'], 400);
