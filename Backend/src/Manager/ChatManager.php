@@ -104,7 +104,7 @@ class ChatManager
         $chat = $this->chatRepository->getChatById($chatId);
 
         $chatMessage = new ChatMessage();
-        $chatMessage->setChat($chat);
+        $chatMessage->setChatId($chat->getId());
         $chatMessage->setUserId($userId);
         $chatMessage->setMessage($message);
 
