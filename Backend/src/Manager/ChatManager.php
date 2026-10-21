@@ -9,6 +9,8 @@ use App\Entity\ChatMessage;
 use App\Entity\ProposalParticipant;
 use App\Entity\ChatParticipant;
 
+use App\Exception\ChatNotFoundException;
+
 use App\DTO\ChatMessageDTO;
 use App\DTO\GroupParticipantDTO;
 
@@ -110,11 +112,16 @@ class ChatManager
     public function sendMessage(int $chatId,  int $userId, string $message): void
     {
         $chat = $this->chatRepository->getChatById($chatId);
+        
+        if ($chat === null) {
+           throw new ChatNotFoundException();
+        }
 
         $chatMessage = new ChatMessage();
         $chatMessage->setChatId($chat->getId());
         $chatMessage->setUserId($userId);
         $chatMessage->setMessage($message);
+        $chatMessage->setCreationDate(new \DateTimeImmutable('now'));
 
         $errors = $this->validator->validate($chatMessage);
         

@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\Request;
 use JsonException;
+use App\Exception\ChatNotFoundException;
 
 #[Route('/api')]
 class ChatController extends AbstractController
@@ -113,6 +114,9 @@ class ChatController extends AbstractController
         }
         catch (JsonException) {
             return $this->json(['error' => 'Invalid JSON'], 400);
+        }
+        catch (ChatNotFoundException) {
+            return $this->json(['error' => 'Invalid chat'], 400);
         }
         catch (\InvalidArgumentException) {
             return $this->json(['error' => 'Invalid message'], 400);
