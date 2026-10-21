@@ -121,8 +121,8 @@ class ChatManager
         $chatMessage->setChatId($chat->getId());
         $chatMessage->setUserId($userId);
         $chatMessage->setMessage($message);
-        $chatMessage->setCreationDate(new \DateTimeImmutable('now'));
-
+        $chatMessage->setCreationDate(new \DateTime('now'));
+        
         $errors = $this->validator->validate($chatMessage);
         
         if(count($errors) > 0){
