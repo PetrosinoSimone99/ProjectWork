@@ -1,10 +1,12 @@
 # Database and API quick guide
 
+This guide covers authentication, profiles, services, reports and staff administration. It does not describe every feature present in the backend or historical database dumps.
+
 ## Current database (2026-10-19)
 
 Use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql) for a fresh setup. `../LAST_DB_TO_USE.txt` points to this dump. It was exported from the local `barattolo` database after applying `Version20261019000100`. It contains 23 tables and all 13 migration records, including report assignment. Earlier integrated snapshots remain unchanged.
 
-This integrated snapshot includes existing users, stored password values, services, proposals and chat history. Configure your own JWT keys and local database connection. For an existing database, apply the new migration instead of importing the dump.
+This integrated snapshot includes existing users, stored password values, services and other application data. Configure your own JWT keys and local database connection. For an existing database, apply the new migration instead of importing the dump.
 
 ### Import for a fresh setup
 
@@ -31,8 +33,8 @@ All 13 migrations are already recorded in this dump, through `Version20261019000
 
 | API field | SQL column | Default | Behavior |
 | --- | --- | --- | --- |
-| `isRemote` | `services.is_remote` | `false` | Marks an offer or request as remote; does not change geographic filters or category matching |
-| `isSuspended` | `services.is_suspended` | `false` | Hides an offer or request from the catalog and new direct/chain matches; the owner still sees it in personal lists |
+| `isRemote` | `services.is_remote` | `false` | Marks an offer or request as remote; does not change geographic filters |
+| `isSuspended` | `services.is_suspended` | `false` | Hides an offer or request from the catalog; the owner still sees it in personal lists |
 | `location` | `services.location` | `null` | Optional service location, independent of the profile; used by the homepage location filter |
 
 All three fields are optional in `POST /api/services` and in every `offers`/`requests` item in `POST /api/auth/register`. Change them with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`. For example:
@@ -41,7 +43,7 @@ All three fields are optional in `POST /api/services` and in every `offers`/`req
 {"isRemote":true,"isSuspended":false,"location":"Rome"}
 ```
 
-`isRemote` and `isSuspended` accept only JSON booleans; other types, including `null`, return `400` without partial changes. `location` accepts text of at most 255 characters after trimming, or `null`; empty text becomes `null`. Omitted PATCH fields retain their values. Suspension is manual: send `true` to suspend or `false` to reactivate. Only the active owner can update a service. Any update is blocked with `409` when the service is already connected to a proposal, exchange, chain or reservation, even if that record is finished, rejected or cancelled. New swipe decisions and chain starts using a suspended service also return `409`. All service representations include these three fields. The [location section](#optional-location-for-offers-and-requests) explains creation, clearing and filtering.
+`isRemote` and `isSuspended` accept only JSON booleans; other types, including `null`, return `400` without partial changes. `location` accepts text of at most 255 characters after trimming, or `null`; empty text becomes `null`. Omitted PATCH fields retain their values. Suspension is manual: send `true` to suspend or `false` to reactivate. Only the active owner can update a service. Any update is blocked with `409` when existing links prevent changing the service, including historical links. All service representations include these three fields. The [location section](#optional-location-for-offers-and-requests) explains creation, clearing and filtering.
 
 ### Staff history and report assignment
 
@@ -53,7 +55,6 @@ Recent migrations included in the current dump:
 | --- | --- |
 | `Version20261016000200` | Adds nullable `services.location`; existing services receive `NULL` |
 | `Version20261016000300` | Adds the empty `staff_operation_logs` table and its indexes; existing operations are not backfilled |
-| `Version20261018000100` | Adds compensation token states and redemption history |
 | `Version20261019000100` | Adds nullable report assignee and claim date; existing report states remain unchanged |
 
 The report assignment migration was applied to the configured local `barattolo` database on 2026-10-19 after saving a backup under the ignored `Backend/var/backups/` directory. Doctrine reports 13 executed migrations and none pending. The exported dump was restored into an isolated MySQL 8.4.3 database: all 23 table definitions and all rows matched the application database, and the restored database needed no migrations. Comparing with the backup confirmed that the migration preserved existing application rows.
@@ -185,15 +186,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | `403` | The account is inactive. |
 | `409` | Username or email already exists. |
 
-## 6. Service publishing and direct swipe matching
-
-Run the latest migration before using these endpoints:
-
-```bash
-php bin/console doctrine:migrations:migrate
-```
-
-## 7. Read and update your profile
+## 6. Read and update your profile
 
 The profile endpoints require a JWT from an active account. `GET /api/profile` returns the signed-in user's profile, including account contact details. `PATCH /api/profile` changes only fields included in its JSON body.
 
@@ -211,7 +204,15 @@ curl -X PATCH http://localhost:8000/api/profile \
 
 Both endpoints return a `profile` object with `id`, `name`, `surname`, `location`, `username`, `email`, `bio`, and `profileImageUrl`. Send `null` for `location`, `bio`, or `profileImageUrl` to clear an existing value. The profile image is stored as an HTTPS URL; the server does not upload or host image files.
 
-The PATCH endpoint accepts `name` and `surname` up to 50 characters, `location` up to 255 characters, `bio` up to 1,000 characters, and `profileImageUrl` up to 2,048 characters. Names and locations must not be blank. Unknown fields and account fields such as username, email, password, roles, or account status are rejected with `400 Bad Request`. Public catalog and swipe responses include bio and profile image URL, but never email, roles, password data, or account status.
+The PATCH endpoint accepts `name` and `surname` up to 50 characters, `location` up to 255 characters, `bio` up to 1,000 characters, and `profileImageUrl` up to 2,048 characters. Names and locations must not be blank. Unknown fields and account fields such as username, email, password, roles, or account status are rejected with `400 Bad Request`. Public catalog responses include bio and profile image URL, but never email, roles, password data, or account status.
+
+## 7. Service publishing
+
+Run the latest migration before using these endpoints:
+
+```bash
+php bin/console doctrine:migrations:migrate
+```
 
 All endpoints in this section require an active account and this header:
 
@@ -250,7 +251,7 @@ curl -X POST http://localhost:8000/api/services \
   -d '{"type":"OFFER","description":"I can cook Italian meals.","categoryIds":[1],"location":"Rome"}'
 ```
 
-The endpoint returns `201 Created` with the new service. Publish both an offer and a request before expecting reciprocal swipe candidates.
+The endpoint returns `201 Created` with the new service.
 
 ### Browse homepage offers
 
@@ -307,47 +308,6 @@ Example response:
 The owner object intentionally contains public profile data only. Email addresses, roles, passwords, and account status are never returned by this endpoint. Invalid query parameters return `400 Bad Request`; a page beyond the final page returns an empty `offers` array with correct pagination metadata.
 
 The `location` filter searches only the service's location, not `owner.location`. Offers with a null service location do not match a non-empty location filter. Service and profile locations may differ; no fallback or automatic copy is applied.
-
-### Read the swipe feed
-
-```bash
-curl "http://localhost:8000/api/swipes?limit=20" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-The response places incoming `pendingProposals` before `candidates`. Each candidate contains four services: the current user's offer and request, plus the candidate's offer and request. Both offer/request directions must share a category.
-
-### Swipe left or right
-
-Copy the four service IDs from a candidate card. The server verifies the relationship again, so IDs cannot be used to create an unrelated proposal.
-
-```bash
-curl -X POST http://localhost:8000/api/swipes \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "actorOfferServiceId": 10,
-    "actorRequestServiceId": 11,
-    "candidateOfferServiceId": 20,
-    "candidateRequestServiceId": 21,
-    "direction": "RIGHT"
-  }'
-```
-
-Use `LEFT` to dismiss that exact four-service combination. A `RIGHT` swipe creates a `PENDING` proposal and returns its `proposalId`. Retrying the same direction is safe and returns the existing result. A contradictory decision, or an existing proposal for the same offered-service pair, returns `409 Conflict`.
-
-### Accept or reject an incoming proposal
-
-Only the participant who has not yet confirmed may decide.
-
-```bash
-curl -X POST http://localhost:8000/api/proposals/42/decision \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"decision":"ACCEPT"}'
-```
-
-`ACCEPT` changes the proposal to `ACCEPTED` and returns `"matched": true`. `REJECT` changes it to `REJECTED` and returns `"matched": false`. Only direct two-user proposals are covered by these endpoints; chat, formal exchanges, and group chains are separate future features.
 
 ## Quick guide: use the homepage offers API
 
@@ -435,13 +395,13 @@ curl -X DELETE http://localhost:8000/api/offers/12 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-Successful deletion returns `204 No Content`. Updating or deleting an offer returns `404` when it does not exist or belongs to another user, `400` for invalid update data, and `409` when the offer is already connected to a proposal or exchange. All these endpoints require an active account and a JWT.
+Successful deletion returns `204 No Content`. Updating or deleting an offer returns `404` when it does not exist or belongs to another user, `400` for invalid update data, and `409` when the offer is already connected to an exchange. All these endpoints require an active account and a JWT.
 
 ## User reports API and updated database dump (2026-10-13)
 
 ### Report another user
 
-`POST /api/reports` allows an active, authenticated user to report another existing user. No previous chat or exchange is required. The reported account may be inactive. The author is always taken from the JWT, so the frontend must not send an author ID.
+`POST /api/reports` allows an active, authenticated user to report another existing user. No previous interaction with the reported user is required. The reported account may be inactive. The author is always taken from the JWT, so the frontend must not send an author ID.
 
 ```bash
 curl -X POST http://localhost:8000/api/reports \
@@ -775,9 +735,9 @@ Soft deletes an unused request by setting its UTC deletion date and returns `204
 | `401` | Missing, invalid, or expired JWT |
 | `403` | The signed-in account is inactive |
 | `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
-| `409` | The request is connected to a proposal/exchange, or a concurrent database operation conflicts with the write |
+| `409` | The request is connected to an exchange, or a concurrent database operation conflicts with the write |
 
-Updating and deleting are blocked for services linked to proposals, direct exchanges, chains, agreements, provisions, or reservations, including rejected, cancelled, and completed records. The shared protection also checks `swipe_decisions` with a proposal: this preserves the requests selected for direct proposals, whose participant rows store only offers. A swipe without a proposal does not block either operation. Service row locks keep the reference check and write in the same transaction. The offers API retains its existing response format and uses the same protection. The current `barattolo_v2_19102026_migrato.sql` dump includes migration `Version20261016000100` and is ready for a fresh setup.
+Updating and deleting are blocked when existing links prevent changing a service, including historical links. Service row locks keep the reference check and write in the same transaction. The offers API uses the same protection and retains its existing response format. The current `barattolo_v2_19102026_migrato.sql` dump includes migration `Version20261016000100` and is ready for a fresh setup.
 
 ## Optional remote availability for offers and requests
 
@@ -797,9 +757,9 @@ Update either type with `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}`:
 {"isRemote":false}
 ```
 
-A PATCH can contain only `isRemote`, or combine it with `description` and `categoryIds`. Omitted fields keep their current values. Only JSON `true` and `false` are accepted; explicit `null`, strings, numbers, arrays and objects return `400` without saving changes. Existing ownership, authentication and proposal/exchange restrictions still apply.
+A PATCH can contain only `isRemote`, or combine it with `description` and `categoryIds`. Omitted fields keep their current values. Only JSON `true` and `false` are accepted; explicit `null`, strings, numbers, arrays and objects return `400` without saving changes. Existing ownership, authentication and linked-service restrictions still apply.
 
-Service objects in creation and registration responses, the homepage, personal lists, swipe candidates and proposals include `isRemote` as a boolean. The field does not change geographic filters or matching rules.
+Service objects in creation and registration responses, the homepage and personal lists include `isRemote` as a boolean. The field does not change geographic filters.
 
 ### Database update
 
@@ -829,9 +789,9 @@ The active owner can suspend a service with `PATCH /api/offers/{id}` or `PATCH /
 
 Send `{"isSuspended":false}` to reactivate it. The same optional field is accepted by `POST /api/services` and by each item in `offers` and `requests` during registration. Only JSON booleans are valid; `null`, strings, numbers, arrays and objects return `400`. Omitted PATCH fields retain their current values. You can combine `isSuspended` with `description`, `categoryIds` and `isRemote`; invalid payloads save no changes.
 
-Service responses include `isSuspended`. Suspended services stay in the owner's personal list and can still be edited or deleted under the existing rules. They are excluded from the homepage catalog, swipe candidates and direct/chain matching, on both sides of a match. New swipe decisions and chain starts using a suspended service return `409`, including requests made from an older feed. Existing repeated swipe decisions retain their retry behavior.
+Service responses include `isSuspended`. Suspended services stay in the owner's personal list and can still be edited or deleted under the existing rules. They are excluded from the homepage catalog.
 
-Suspension and reactivation use the existing ownership and reference checks. A service connected to a proposal, exchange, chain or reservation cannot be changed (`409`), including when the referenced record is rejected, cancelled or completed. Existing proposals and exchanges are not cancelled by this feature. Database row locks serialize suspension with proposal creation and chain reservations.
+Suspension and reactivation use the existing ownership and reference checks. A service whose existing links prevent changes returns `409`, including historical links. Existing exchanges are not cancelled by this feature. Service row locks protect the reference check and update within the same transaction.
 
 ### Suspension migration
 
@@ -849,9 +809,9 @@ php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version202610150
 
 Rollback removes suspension values and preserves all other columns and data.
 
-## Soft deletion of offers, requests, and tokens
+## Soft deletion of offers and requests
 
-Migration `Version20261016000100` adds only `deleted_at DATETIME NULL DEFAULT NULL` to `services` and `tokens`. This dump includes the new nullable columns and records the migration as already applied. Older dumps, including `barattolo_v2_15102026_services.sql`, remain unchanged.
+Migration `Version20261016000100` provides `services.deleted_at DATETIME NULL DEFAULT NULL`. This dump includes the nullable column and records the migration as already applied. Older dumps, including `barattolo_v2_15102026_services.sql`, remain unchanged.
 
 Before running the updated backend, back up the database and apply pending migrations from `Backend`:
 
@@ -859,17 +819,14 @@ Before running the updated backend, back up the database and apply pending migra
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-The three DELETE endpoints (`/api/offers/{id}`, `/api/requests/{id}`, and `/api/staff/tokens/{id}`) now save a UTC deletion date instead of removing rows. Success still returns 204 with an empty body. Deleted records return 404 on later updates or DELETE requests and disappear from personal lists, the catalog, swipe candidates, chain matching, and token lists. New swipes or chain starts with a deleted service ID return 404; availability is checked again after row locks.
+The DELETE endpoints `/api/offers/{id}` and `/api/requests/{id}` save a UTC deletion date instead of removing rows. Success returns `204` with an empty body. Deleted services return `404` on later updates or DELETE requests and disappear from personal lists and the catalog. Availability is checked again after row locks.
 
-Services connected to proposals or exchanges still cannot be deleted (409), including historical connections. Categories, swipe decisions, and other related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided. The migration cannot be rolled back automatically because removing deletion markers would expose deleted records again.
-
-Deleted tokens retain the unique chain/user pair, so the same compensation cannot be issued again. Manual tokens without a chain follow the existing creation rules. Expired, non-deleted tokens remain visible as before. Internal deletion of chain reservation rows still releases resources normally.
+Services whose existing links prevent deletion return `409`, including historical links. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided. The migration cannot be rolled back automatically because removing deletion markers would expose deleted records again.
 
 ## Optional location for offers and requests
 
 Both `OFFER` and `REQUEST` services have their own optional `location`, independent
-of the owner's profile location. It is available for remote and in-person services
-and does not change direct or chain matching rules.
+of the owner's profile location. It is available for remote and in-person services.
 
 `POST /api/services` accepts it alongside the existing fields:
 
@@ -902,12 +859,11 @@ Use `PATCH /api/offers/{id}` or `PATCH /api/requests/{id}` to change or clear it
 The value must be a string of at most 255 characters after trimming, or `null`.
 Empty or whitespace-only strings become `null`. Omitted values default to `null`
 on creation; omitted PATCH fields retain the current value. Other JSON types and
-overlong text return `400` without saving changes. Existing ownership and linked
-proposal/exchange restrictions still apply.
+overlong text return `400` without saving changes. Existing ownership and
+linked-service restrictions still apply.
 
 All service representations include `location` as a string or `null`, including
-registration, publishing, personal lists, homepage offers, swipe candidates and
-proposal participants. `owner.location` still describes the owner's profile.
+registration, publishing, personal lists and homepage offers. `owner.location` still describes the owner's profile.
 No profile location is copied automatically into a service.
 
 `GET /api/services?location=rome` now searches only service locations, using a
@@ -961,8 +917,8 @@ Optional filters combine using AND:
 | Filter | Accepted values |
 | --- | --- |
 | `staffId` | Positive staff user ID, including historical accounts |
-| `action` | One of the six actions listed below |
-| `targetType` | `USER`, `REPORT`, `TOKEN` |
+| `action` | One of the four actions documented below |
+| `targetType` | `USER`, `REPORT` |
 | `targetId` | Positive object ID; requires `targetType` |
 
 Unknown parameters, invalid actions/types, arrays, invalid IDs and pagination
@@ -993,17 +949,14 @@ Each list item has the same representation returned as `operation` by the detail
 | `USER_STATUS_CHANGED` | `USER` | `accountStatus` |
 | `USER_PROMOTED` | `USER` | `roles` |
 | `REPORT_CLAIMED`, `REPORT_REVIEWED` | `REPORT` | `status`, `assignedToId`, `assignedAt`, `reviewNote`, `reviewedById`, `reviewedAt` |
-| `TOKEN_CREATED` | `TOKEN` | `before` is null; `after` contains `userId`, `chainId`, `issuedAt`, `expiresAt` |
-| `TOKEN_EXPIRATION_CHANGED` | `TOKEN` | `expiresAt`, for both PUT and PATCH |
-| `TOKEN_DELETED` | `TOKEN` | `deletedAt`, from null to the soft-deletion timestamp |
 
 Dates are stored and returned in UTC. Only the relevant fields are saved; passwords,
-JWTs, complete profiles, report reasons and calculated token expiry flags are excluded.
+JWTs, complete profiles and report reasons are excluded.
 The actor ID and username are snapshots taken from the authenticated staff account,
 not client-supplied values. Plain target IDs and actor snapshots keep history readable
-after a rename or deletion, including soft deletion of tokens.
+after a rename or deletion.
 
-Reads, errors, unchanged values, automatic token compensation and staff creation via
+Reads, errors, unchanged values and staff creation via
 the console command produce no entries. Existing operations are not backfilled.
 Each history entry is saved inside the operation's transaction: if history cannot be
 saved, the operation also rolls back. Existing row locks and transaction retries remain
@@ -1025,6 +978,5 @@ php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
 Functional staff tests require a disposable `staff_check_*_test` MySQL database;
-set `STAFF_TEST_DATABASE_URL` to its base name without the `_test` suffix. Chain and
-token regression tests similarly use `CHAIN_TEST_DATABASE_URL` and `chain_check_*_test`.
-These test suites reject application database names before resetting any tables.
+set `STAFF_TEST_DATABASE_URL` to its base name without the `_test` suffix.
+The staff test suite rejects application database names before resetting any tables.
