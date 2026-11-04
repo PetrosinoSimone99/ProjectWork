@@ -1,7 +1,5 @@
-
-services:
-###> doctrine/doctrine-bundle ###
-  database:
-    ports:
-      - "5432"
-###< doctrine/doctrine-bundle ###
+# Intentionally empty: the base compose.yaml exposes everything local
+# development needs (database on 3306, backend on fixed 8000 so the frontend
+# config can rely on it). The former Postgres port override is obsolete since
+# the switch to MySQL 8.0. See docs/setup.md and AGENTS.md for ownership.
+services: {}

@@ -1,25 +1,70 @@
+# Local development stack for the Baratto-lo backend, run with Docker Desktop.
+#
+# Owner: Andrea Cestelli. Any edit to this file or compose.override.yaml is ad
+#missible under the file-scope exception in AGENTS.md and MUST be reported in
+# /docs/changelog.md so the backend maintainer is notified.
+#
+# The database engine is MySQL 8.0 on purpose: the backend config examples
+# (.env.mamp.example, .env.windows.example), Backend/README.md and every schema
+# dump in ../Context_and_DB_V2 target MySQL 8.0 / utf8mb4. Do not swap engines.
 
 services:
-###> doctrine/doctrine-bundle ###
   database:
-    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    image: mysql:8.0
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
-      POSTGRES_USER: ${POSTGRES_USER:-app}
-    healthcheck:
-      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
-      timeout: 5s
-      retries: 5
-      start_period: 60s
+      MYSQL_DATABASE: barattolo
+      # Dev-only credentials, matching the team's local conventions
+      # (root/root in the reference dumps). Never reuse in production.
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
     volumes:
-      - database_data:/var/lib/postgresql/data:rw
-      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
-      # - ./docker/db/data:/var/lib/postgresql/data:rw
-###< doctrine/doctrine-bundle ###
+      - database_data:/var/lib/mysql
+      # First boot on an empty data volume imports the reference dump
+      # (LAST_DB_TO_USE in ../Context_and_DB_V2): full v2 schema, categories
+      # seed and doctrine_migration_versions, so `migrations:migrate` is not
+      # needed afterwards. Users are registered at runtime.
+      - ../Context_and_DB_V2/barattolo_v2_18102026_token_redemptions.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  backend:
+    build: ./docker
+    working_dir: /app
+    environment:
+      APP_ENV: dev
+      # Inside the compose network the database service is host "database".
+      # The URL matches the team's dev credentials and the dump's schema.
+      DATABASE_URL: "mysql://root:root@database:3306/barattolo?serverVersion=8.0&charset=utf8mb4"
+      # Passphrase used when generate-keypair creates the local JWT keys.
+      JWT_PASSPHRASE: dev-only
+    volumes:
+      - .:/app
+      # Integration tests resolve the reference dumps at dirname(tests) i.e.
+      # the repo root (TokenRedemptionMigrationTest), so the container needs
+      # Context_and_DB_V2 at the path those tests compute.
+      - ../Context_and_DB_V2:/Context_and_DB_V2:ro
+    ports:
+      # Fixed on purpose: Frontend/src/api/config.js resolves the API port
+      # via EXPO_PUBLIC_API_PORT=8000, so keep 8000 on the host.
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        if [ -f composer.lock ]; then
+          composer install --no-interaction --no-progress
+        else
+          composer update --no-interaction --no-progress
+        fi
+        php bin/console lexik:jwt:generate-keypair --skip-if-exists
+        php -S 0.0.0.0:8000 -t public
 
 volumes:
-###> doctrine/doctrine-bundle ###
   database_data:
-###< doctrine/doctrine-bundle ###
