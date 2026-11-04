@@ -22,7 +22,6 @@ Cestelli Andrea.
 | [`frontend.md`](frontend.md) | Frontend conventions: stack, state, API layer, code style decisions |
 | [`ux.md`](ux.md) | Screens, navigation maps, UX rules and constraints |
 | [`decisions.md`](decisions.md) | Decision log (ADR-light): what was decided, by whom, why |
-| [`workflow.md`](workflow.md) | Copy-paste git commands (the rules live in `AGENTS.md`) |
 | [`changelog.md`](changelog.md) | Session-by-session history of what changed and why |
 
 ## Reading order
