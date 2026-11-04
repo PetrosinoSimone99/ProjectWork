@@ -9,6 +9,8 @@ use App\Entity\ChatMessage;
 use App\Entity\ProposalParticipant;
 use App\Entity\ChatParticipant;
 
+use App\Exception\ChatNotFoundException;
+
 use App\DTO\ChatMessageDTO;
 use App\DTO\GroupParticipantDTO;
 
@@ -60,6 +62,10 @@ class ChatManager
     public function getOrCreateGroupProposalChatBeneficiary(int $groupProposalId, int $beneficiaryId): Chat
     {   
         $groupParticipantInfo = $this->groupParticipantInfoQuery->getServiceProviderForUser($groupProposalId, $beneficiaryId);
+
+        if ($groupParticipantInfo === null) {
+           throw new \InvalidArgumentException('Invalid chat');
+        }
         
         $chat = $this->chatRepository->getChatByParticipants($groupParticipantInfo->getBeneficiaryId(), $groupParticipantInfo->getProviderId(), $groupProposalId);
         
@@ -74,6 +80,10 @@ class ChatManager
     public function getOrCreateGroupProposalChatProvider(int $groupProposalId, int $providerId): Chat
     {
         $groupParticipantInfo = $this->groupParticipantInfoQuery->getBeneficiaryForUserService($groupProposalId, $providerId);
+
+        if ($groupParticipantInfo === null) {
+           throw new \InvalidArgumentException('Invalid chat');
+        }
         
         $chat = $this->chatRepository->getChatByParticipants($groupParticipantInfo->getBeneficiaryId(), $groupParticipantInfo->getProviderId(), $groupProposalId);
         
@@ -102,12 +112,17 @@ class ChatManager
     public function sendMessage(int $chatId,  int $userId, string $message): void
     {
         $chat = $this->chatRepository->getChatById($chatId);
+        
+        if ($chat === null) {
+           throw new ChatNotFoundException();
+        }
 
         $chatMessage = new ChatMessage();
-        $chatMessage->setChat($chat);
+        $chatMessage->setChatId($chat->getId());
         $chatMessage->setUserId($userId);
         $chatMessage->setMessage($message);
-
+        $chatMessage->setCreationDate(new \DateTime('now'));
+        
         $errors = $this->validator->validate($chatMessage);
         
         if(count($errors) > 0){

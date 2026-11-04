@@ -1,0 +1,262 @@
+Project Barattolo_API_essenziali {
+  database_type: 'MySQL'
+  Note: 'Senza swipe, chat e catene. I token richiedono il futuro adeguamento dei controlli di disponibilita. SQL destinato a un database vuoto.'
+}
+
+Enum agreements_status {
+  PENDING
+  ACCEPTED
+  REFUSED
+  CONTESTED
+  VOID
+}
+
+Enum agreement_proposal_role {
+  Provider
+  Beneficiary
+}
+
+Enum agreement_details_status {
+  COMPILED
+  UNCOMPILED
+}
+
+Enum service_queues_type {
+  OFFER
+  REQUEST
+}
+
+Enum service_queues_status {
+  OPEN
+  CLOSED
+}
+
+Table users {
+  id int [increment, not null]
+  name varchar(50) [not null]
+  surname varchar(50) [not null]
+  location varchar(255) [default: null]
+  username varchar(30) [not null]
+  email varchar(180) [not null]
+  password_hash varchar(255) [not null]
+  roles json [not null]
+  account_status varchar(10) [not null]
+  credits int [not null, default: 0]
+  creation_date datetime [not null]
+  bio longtext
+  profile_image_url varchar(2048) [default: null]
+
+  Indexes {
+    (id) [pk]
+    (username) [unique, name: 'unique_users_username']
+    (email) [unique, name: 'unique_users_email']
+  }
+}
+
+Table categories {
+  id int [increment, not null]
+  description varchar(255) [not null]
+
+  Indexes {
+    (id) [pk]
+    (description) [unique, name: 'UNIQ_3AF346687E3C61F9']
+  }
+}
+
+Table services {
+  id int [increment, not null]
+  user_id int [not null]
+  type varchar(10) [not null]
+  description varchar(255) [not null]
+  is_used bool [default: 1]
+  creation_date datetime [not null]
+  is_remote tinyint(1) [not null, default: '0']
+  is_suspended tinyint(1) [not null, default: '0']
+  deleted_at datetime [default: null]
+  location varchar(255) [default: null]
+
+  Indexes {
+    (id) [pk]
+    (user_id, type) [name: 'services_user_type_index']
+  }
+}
+
+Table service_categories {
+  service_id int [not null]
+  category_id int [not null]
+
+  Indexes {
+    (service_id, category_id) [pk]
+    (service_id) [name: 'IDX_46551F71ED5CA9E6']
+    (category_id) [name: 'IDX_46551F7112469DE2']
+  }
+}
+
+Table user_reports {
+  id int [increment, not null]
+  reporter_id int [not null]
+  reported_user_id int [not null]
+  reason varchar(2000) [not null]
+  creation_date datetime [not null]
+  status varchar(10) [not null, default: 'PENDING']
+  review_note varchar(2000) [default: null]
+  reviewed_at datetime [default: null]
+  reviewed_by_id int [default: null]
+  assigned_to_id int [default: null]
+  assigned_at datetime [default: null]
+
+  Indexes {
+    (id) [pk]
+    (reporter_id, reported_user_id) [unique, name: 'user_report_pair_unique']
+    (reported_user_id) [name: 'user_report_target_index']
+    (reviewed_by_id) [name: 'user_report_reviewer_index']
+    (status) [name: 'user_report_status_index']
+    (assigned_to_id) [name: 'user_report_assignee_index']
+  }
+}
+
+Table staff_operation_logs {
+  id int [increment, not null]
+  staff_id int [not null]
+  staff_username varchar(30) [not null]
+  action varchar(32) [not null]
+  target_type varchar(10) [not null]
+  target_id int [not null]
+  before_values json [default: null]
+  after_values json [not null]
+  created_at datetime [not null]
+
+  Note: 'ID storici senza FK, conservati anche dopo la cancellazione dei soggetti.'
+
+  Indexes {
+    (id) [pk]
+    (created_at, id) [name: 'staff_log_date_index']
+    (staff_id) [name: 'staff_log_actor_index']
+    (action) [name: 'staff_log_action_index']
+    (target_type, target_id) [name: 'staff_log_target_index']
+  }
+}
+
+Table tokens {
+  id int [increment, not null]
+  user_id int [default: null]
+  expiration_date datetime [not null]
+  group_id int [default: null, note: 'NULL per token manuali; nessuna FK alle catene']
+  issued_at datetime [default: null]
+  deleted_at datetime [default: null]
+  status varchar(10) [not null, default: 'AVAILABLE']
+
+  Indexes {
+    (id) [pk]
+    (group_id, user_id) [unique, name: 'chain_token_unique']
+    (user_id) [name: 'fk_chain_tokens_user_id']
+  }
+}
+
+Table token_redemptions {
+  id int [increment, not null]
+  token_id int [not null]
+  service_id int [not null]
+  recipient_id int [not null]
+  provider_id int [not null]
+  status varchar(10) [not null]
+  reserved_service_id int [default: null]
+  created_at datetime [not null]
+  accepted_at datetime [default: null]
+  closed_at datetime [default: null]
+
+  Indexes {
+    (id) [pk]
+    (reserved_service_id) [unique, name: 'token_reserved_service_unique']
+    (token_id, id) [name: 'token_redemption_token_index']
+    (recipient_id) [name: 'token_redemption_recipient_index']
+    (provider_id) [name: 'token_redemption_provider_index']
+    (service_id) [name: 'FK_TOKEN_REDEMPTION_SERVICE']
+  }
+}
+
+Table agreements {
+  id int [pk, increment]
+  status agreements_status [not null, default: 'PENDING']
+  creation_date timestamp [not null, default: `now()`]
+  from_queue bool [not null, default: 0]
+}
+
+Table agreement_proposal {
+  agreement_id int [not null]
+  user_id int [not null]
+  role agreement_proposal_role
+  response bool
+  response_date timestamp
+
+  Indexes {
+    (agreement_id, user_id) [pk]
+  }
+}
+
+Table agreement_details {
+  agreement_id int [not null]
+  provider_id int [not null]
+  service_provided int [not null]
+  beneficiary_id int [not null]
+  from_remote bool [not null, default: 0]
+  start_date timestamp
+  end_date timestamp
+  beneficiary_accepted bool
+  status agreement_details_status [default: 'UNCOMPILED']
+
+  Indexes {
+    (agreement_id, provider_id) [pk]
+  }
+}
+
+Table service_queues {
+  id int [pk, increment]
+  user_id int [not null]
+  type service_queues_type [not null]
+  service_id int [not null]
+  location varchar(100)
+  agreement_created int
+  status service_queues_status [not null, default: 'OPEN']
+}
+
+Table match_candidates {
+  offer_queue_id int [not null]
+  request_queue_id int [not null]
+
+  Indexes {
+    (offer_queue_id, request_queue_id) [pk]
+  }
+}
+
+Table queue_associated_agreements {
+  queue_id int [not null]
+  agreement_id int [not null]
+}
+
+Ref: services.user_id > users.id [delete: cascade]
+Ref: service_categories.category_id > categories.id [delete: cascade]
+Ref: service_categories.service_id > services.id [delete: cascade]
+Ref: user_reports.assigned_to_id > users.id
+Ref: user_reports.reporter_id > users.id
+Ref: user_reports.reviewed_by_id > users.id
+Ref: user_reports.reported_user_id > users.id
+Ref: tokens.user_id > users.id
+Ref: token_redemptions.provider_id > users.id
+Ref: token_redemptions.recipient_id > users.id
+Ref: token_redemptions.reserved_service_id > services.id
+Ref: token_redemptions.service_id > services.id
+Ref: token_redemptions.token_id > tokens.id
+Ref: agreement_details.agreement_id > agreements.id
+Ref: agreement_details.provider_id > users.id
+Ref: agreement_details.beneficiary_id > users.id
+Ref: agreement_details.service_provided > services.id
+Ref: service_queues.user_id > users.id
+Ref: service_queues.service_id > services.id
+Ref: match_candidates.offer_queue_id > service_queues.id
+Ref: match_candidates.request_queue_id > service_queues.id
+Ref: queue_associated_agreements.queue_id > service_queues.id
+Ref: service_queues.agreement_created > agreements.id
+Ref: agreement_proposal.agreement_id > agreements.id
+Ref: agreement_proposal.user_id > users.id
+Ref: queue_associated_agreements.agreement_id > agreements.id

@@ -69,6 +69,7 @@ final class StaffControllerTest extends WebTestCase
             ['GET', '/api/staff/users', null], ['GET', '/api/staff/users/1', null],
             ['POST', '/api/staff/users/1/promote', null], ['PATCH', '/api/staff/users/1/status', ['accountStatus' => 'INACTIVE']],
             ['GET', '/api/staff/reports', null], ['GET', '/api/staff/reports/1', null],
+            ['POST', '/api/staff/reports/1/claim', null],
             ['GET', '/api/staff/operations', null], ['GET', '/api/staff/operations/1', null],
             ['PATCH', '/api/staff/reports/1/review', ['status' => 'CONFIRMED', 'reviewNote' => 'Explanation']],
         ];
@@ -166,6 +167,8 @@ final class StaffControllerTest extends WebTestCase
         self::assertSame($reverseId, $this->data()['reports'][0]['id']);
         self::assertSame('PENDING', $this->data()['reports'][0]['status']);
         self::assertNull($this->data()['reports'][0]['reviewedBy']);
+        self::assertNull($this->data()['reports'][0]['assignedTo']);
+        self::assertNull($this->data()['reports'][0]['assignedAt']);
         $this->send('GET', '/api/staff/reports?reporterId='.$this->author->getId().'&reportedUserId='.$this->target->getId());
         self::assertSame([$reportId], array_column($this->data()['reports'], 'id'));
         $this->send('PATCH', '/api/staff/reports/'.$reportId.'/review', ['status' => 'CONFIRMED', 'reviewNote' => '  Evidence checked.  ']);
@@ -176,6 +179,8 @@ final class StaffControllerTest extends WebTestCase
         self::assertSame($this->staff->getId(), $closed['reviewedBy']['id']);
         self::assertSame(['id', 'username', 'name', 'surname'], array_keys($closed['reporter']));
         self::assertNotNull($closed['reviewedAt']);
+        self::assertNull($closed['assignedTo']);
+        self::assertNull($closed['assignedAt']);
         $this->send('PATCH', '/api/staff/reports/'.$reportId.'/review', ['status' => 'REJECTED', 'reviewNote' => 'Replace']);
         self::assertResponseStatusCodeSame(409);
         $this->send('GET', '/api/staff/reports/'.$reportId);
@@ -287,7 +292,7 @@ final class StaffControllerTest extends WebTestCase
         $logs = $this->data()['operations'];
         self::assertSame(4, $this->data()['pagination']['totalItems']);
         self::assertSame(['REPORT_REVIEWED', 'USER_PROMOTED', 'USER_STATUS_CHANGED', 'USER_STATUS_CHANGED'], array_column($logs, 'action'));
-        self::assertEquals(['status' => 'PENDING', 'reviewNote' => null, 'reviewedById' => null, 'reviewedAt' => null], $logs[0]['before']);
+        self::assertEquals(['status' => 'PENDING', 'assignedToId' => null, 'assignedAt' => null, 'reviewNote' => null, 'reviewedById' => null, 'reviewedAt' => null], $logs[0]['before']);
         self::assertSame('CONFIRMED', $logs[0]['after']['status']);
         self::assertSame('Checked.', $logs[0]['after']['reviewNote']);
         self::assertSame($this->staff->getId(), $logs[0]['after']['reviewedById']);
@@ -390,6 +395,9 @@ final class StaffControllerTest extends WebTestCase
             $this->send('PATCH', '/api/staff/reports/'.$reportId.'/review', ['status' => 'CONFIRMED', 'reviewNote' => 'Checked']);
             self::assertResponseStatusCodeSame(500);
             self::assertSame('PENDING', $db->fetchOne('SELECT status FROM user_reports WHERE id = ?', [$reportId]));
+            $this->send('POST', '/api/staff/reports/'.$reportId.'/claim');
+            self::assertResponseStatusCodeSame(500);
+            self::assertSame(['status' => 'PENDING', 'assigned_to_id' => null, 'assigned_at' => null], $db->fetchAssociative('SELECT status, assigned_to_id, assigned_at FROM user_reports WHERE id = ?', [$reportId]));
             $this->send('POST', '/api/staff/tokens', ['userId' => $this->target->getId()]);
             self::assertResponseStatusCodeSame(500);
             self::assertSame(1, (int) $db->fetchOne('SELECT COUNT(*) FROM tokens'));
@@ -406,6 +414,129 @@ final class StaffControllerTest extends WebTestCase
         $this->send('PATCH', '/api/staff/users/'.$this->target->getId().'/status', ['accountStatus' => 'INACTIVE']);
         self::assertResponseIsSuccessful();
         self::assertSame(1, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+    }
+
+    public function testClaimAssignsTheReportAndOnlyTheAssigneeCanCloseIt(): void
+    {
+        $otherStaff = $this->createUser('other_staff', [User::ROLE_STAFF]);
+        $reports = [
+            'CONFIRMED' => new UserReport($this->author, $this->target, 'Reason'),
+            'REJECTED' => new UserReport($this->target, $this->author, 'Reverse reason'),
+        ];
+        foreach ($reports as $report) { $this->em->persist($report); }
+        $this->em->flush();
+        foreach ($reports as $outcome => $report) {
+            $id = $report->toApiArray()['id'];
+            $path = '/api/staff/reports/'.$id;
+            $this->authenticate($this->staff);
+            $this->send('POST', $path.'/claim');
+            self::assertResponseIsSuccessful();
+            $claimed = $this->data()['report'];
+            self::assertSame('IN_REVIEW', $claimed['status']);
+            self::assertSame($this->staff->getId(), $claimed['assignedTo']['id']);
+            self::assertSame(['id', 'username', 'name', 'surname'], array_keys($claimed['assignedTo']));
+            self::assertNotNull($claimed['assignedAt']);
+            self::assertNull($claimed['reviewedBy']);
+            self::assertNull($claimed['reviewedAt']);
+            self::assertNull($claimed['reviewNote']);
+            $this->send('GET', $path);
+            self::assertSame($claimed, $this->data()['report']);
+            $this->send('GET', '/api/staff/reports?status=IN_REVIEW');
+            self::assertSame([$claimed], $this->data()['reports']);
+            $this->send('POST', $path.'/claim');
+            self::assertResponseStatusCodeSame(409);
+            $this->authenticate($otherStaff);
+            $this->send('POST', $path.'/claim');
+            self::assertResponseStatusCodeSame(409);
+            $this->send('PATCH', $path.'/review', ['status' => $outcome, 'reviewNote' => 'Checked']);
+            self::assertResponseStatusCodeSame(403);
+            $this->send('GET', $path);
+            self::assertSame($claimed, $this->data()['report']);
+            $this->authenticate($this->staff);
+            $this->send('PATCH', $path.'/review', ['status' => $outcome, 'reviewNote' => 'Checked']);
+            self::assertResponseIsSuccessful();
+            $closed = $this->data()['report'];
+            self::assertSame($outcome, $closed['status']);
+            self::assertSame($claimed['assignedTo'], $closed['assignedTo']);
+            self::assertSame($claimed['assignedAt'], $closed['assignedAt']);
+            self::assertSame($this->staff->getId(), $closed['reviewedBy']['id']);
+            self::assertNotNull($closed['reviewedAt']);
+            $this->send('POST', $path.'/claim');
+            self::assertResponseStatusCodeSame(409);
+            $this->send('PATCH', $path.'/review', ['status' => $outcome, 'reviewNote' => 'Again']);
+            self::assertResponseStatusCodeSame(409);
+            $this->send('GET', '/api/staff/operations?targetType=REPORT&targetId='.$id);
+            $logs = $this->data()['operations'];
+            self::assertSame(['REPORT_REVIEWED', 'REPORT_CLAIMED'], array_column($logs, 'action'));
+            self::assertSame('PENDING', $logs[1]['before']['status']);
+            self::assertNull($logs[1]['before']['assignedToId']);
+            self::assertSame('IN_REVIEW', $logs[1]['after']['status']);
+            self::assertSame($this->staff->getId(), $logs[1]['after']['assignedToId']);
+            self::assertSame($claimed['assignedAt'], $logs[1]['after']['assignedAt']);
+            self::assertSame($logs[1]['after'], $logs[0]['before']);
+        }
+        $this->send('GET', '/api/staff/operations?action=REPORT_CLAIMED');
+        self::assertResponseIsSuccessful();
+        self::assertCount(2, $this->data()['operations']);
+    }
+
+    public function testClaimRejectsUnknownFieldsAndInvalidJson(): void
+    {
+        $path = '/api/staff/reports/2147483647/claim';
+        $this->send('POST', $path);
+        self::assertResponseStatusCodeSame(404);
+        $this->send('POST', $path, []);
+        self::assertResponseStatusCodeSame(404);
+        foreach (['{"assignedTo":1}', '{"status":"IN_REVIEW"}', '{invalid', 'null', '"text"'] as $body) {
+            $this->client->request('POST', $path, [], [], ['CONTENT_TYPE' => 'application/json'], $body);
+            self::assertResponseStatusCodeSame(400);
+        }
+        $this->send('PATCH', '/api/staff/reports/1/review', ['status' => 'IN_REVIEW', 'reviewNote' => 'Note']);
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testConcurrentClaimsAssignTheReportOnlyOnce(): void
+    {
+        $otherStaff = $this->createUser('other_staff', [User::ROLE_STAFF]);
+        $report = new UserReport($this->author, $this->target, 'Reason');
+        $this->em->persist($report);
+        $this->em->flush();
+        $id = $report->toApiArray()['id'];
+        $results = $this->race('user_reports', $id, [
+            ['method' => 'POST', 'path' => '/api/staff/reports/'.$id.'/claim'],
+            ['method' => 'POST', 'path' => '/api/staff/reports/'.$id.'/claim', 'token' => $this->token($otherStaff)],
+        ]);
+        $statuses = array_column($results, 'status');
+        sort($statuses);
+        self::assertSame([200, 409], $statuses);
+        $winner = $results[0]['status'] === 200 ? $results[0] : $results[1];
+        $this->em->clear();
+        self::assertSame($winner['data']['report'], $this->em->find(UserReport::class, $id)->toStaffApiArray());
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM staff_operation_logs WHERE action = 'REPORT_CLAIMED'"));
+    }
+
+    public function testConcurrentClaimAndDirectReviewPreserveTheWinningOperation(): void
+    {
+        $otherStaff = $this->createUser('other_staff', [User::ROLE_STAFF]);
+        $report = new UserReport($this->author, $this->target, 'Reason');
+        $this->em->persist($report);
+        $this->em->flush();
+        $id = $report->toApiArray()['id'];
+        $results = $this->race('user_reports', $id, [
+            ['method' => 'POST', 'path' => '/api/staff/reports/'.$id.'/claim'],
+            ['method' => 'PATCH', 'path' => '/api/staff/reports/'.$id.'/review', 'body' => ['status' => 'CONFIRMED', 'reviewNote' => 'Checked'], 'token' => $this->token($otherStaff)],
+        ]);
+        if ($results[0]['status'] === 200) {
+            self::assertSame(403, $results[1]['status']);
+            $winner = $results[0];
+        } else {
+            self::assertSame(409, $results[0]['status']);
+            self::assertSame(200, $results[1]['status']);
+            $winner = $results[1];
+        }
+        $this->em->clear();
+        self::assertSame($winner['data']['report'], $this->em->find(UserReport::class, $id)->toStaffApiArray());
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
     }
 
     /** Hold the target row until both independent requests are ready to contend for it. */
