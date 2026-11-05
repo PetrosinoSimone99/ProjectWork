@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Entity\Category;
-use App\Entity\Proposal;
 use App\Entity\Service;
-use App\Entity\SwipeDecision;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -128,37 +126,10 @@ final class RequestControllerTest extends WebTestCase
         }
     }
 
-    public function testProposalReferencesBlockRequestsEvenAfterRejection(): void
+    public function testUnusedRequestCanBeUpdatedAndDeleted(): void
     {
-        [$alice, $request, $decision] = $this->swipe(SwipeDecision::DIRECTION_RIGHT);
-        $proposal = new Proposal('test-pair');
-        $proposal->setStatus(Proposal::STATUS_REJECTED);
-        $this->em->persist($proposal);
-        $decision->setProposal($proposal);
-        $this->em->flush();
-        $this->as($alice);
-
-        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['description' => 'Changed']);
-        self::assertResponseStatusCodeSame(409);
-        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isRemote' => true]);
-        self::assertResponseStatusCodeSame(409);
-        self::assertFalse($request->isRemote());
-        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['location' => 'Rome']);
-        self::assertResponseStatusCodeSame(409);
-        self::assertNull($request->getLocation());
-        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isSuspended' => true]);
-        self::assertResponseStatusCodeSame(409);
-        self::assertFalse($request->isSuspended());
-        $this->client->request('DELETE', '/api/requests/'.$request->getId());
-        self::assertResponseStatusCodeSame(409);
-        self::assertSame('Original description.', $request->getDescription());
-        self::assertNull($this->em->getConnection()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$request->getId()]));
-        self::assertNotNull($this->em->find(Proposal::class, $proposal->getId()));
-    }
-
-    public function testSwipeWithoutProposalAllowsUpdatingAndDeletingRequest(): void
-    {
-        [$alice, $request] = $this->swipe(SwipeDecision::DIRECTION_LEFT);
+        $alice = $this->user('alice');
+        $request = $this->service($alice, Service::TYPE_REQUEST);
         $this->as($alice);
         $id = $request->getId();
         $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['description' => 'New description']);
@@ -170,24 +141,12 @@ final class RequestControllerTest extends WebTestCase
         $saved = $this->em->find(Service::class, $id);
         self::assertTrue($saved->isDeleted());
         self::assertCount(1, $saved->getCategories());
-        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM swipe_decisions WHERE actor_request_id = ?', [$id]));
         $this->client->request('GET', '/api/requests/mine');
         self::assertSame([], $this->data()['requests']);
         $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['description' => 'Changed']);
         self::assertResponseStatusCodeSame(404);
         $this->client->request('DELETE', '/api/requests/'.$id);
         self::assertResponseStatusCodeSame(404);
-    }
-
-    private function swipe(string $direction): array
-    {
-        $alice = $this->user('alice');
-        $bob = $this->user('bob');
-        $request = $this->service($alice, Service::TYPE_REQUEST);
-        $decision = new SwipeDecision($alice, $bob, $this->service($alice, Service::TYPE_OFFER), $request, $this->service($bob, Service::TYPE_OFFER), $this->service($bob, Service::TYPE_REQUEST), $direction);
-        $this->em->persist($decision);
-        $this->em->flush();
-        return [$alice, $request, $decision];
     }
 
     private function user(string $username): User

@@ -1,3 +1,5 @@
+> **Documento storico v2.** Queste descrizioni non rappresentano le funzionalità correnti. Per lo schema usare esclusivamente il dump indicato in `LAST_DB_TO_USE.txt`; per le API correnti consultare `API docs/DATABASE_AND_API_GUIDE.md`. Swipe, decisioni sulle proposte, catene e token di compensazione non hanno più API o elaborazione applicativa. JWT resta disponibile. Il codice chat è conservato, ma le sue tabelle non sono presenti nel dump di riferimento.
+
 # Baratto-lo — contesto del progetto e database v2
 
 ## Scopo e fonti
