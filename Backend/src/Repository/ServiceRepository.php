@@ -55,7 +55,28 @@ final class ServiceRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /** Must be called inside the transaction that edits or deletes this service. */
+    /** Returns only deleted services, optionally limited to one owner or type. */
+    public function paginateDeleted(int $page, int $limit, ?int $ownerId, ?string $type): Paginator
+    {
+        $query = $this->createQueryBuilder('service')
+            ->select('service, owner, category')
+            ->innerJoin('service.user', 'owner')
+            ->leftJoin('service.categories', 'category')
+            ->andWhere('service.deletedAt IS NOT NULL')
+            ->orderBy('service.deletedAt', 'DESC')
+            ->addOrderBy('service.id', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
+        if ($ownerId !== null) {
+            $query->andWhere('owner.id = :ownerId')->setParameter('ownerId', $ownerId);
+        }
+        if ($type !== null) {
+            $query->andWhere('service.type = :type')->setParameter('type', $type);
+        }
+        return new Paginator($query, true);
+    }
+
+    /** Must be called inside the transaction that edits, deletes or restores this service. */
     public function lockForUpdate(int $id): void
     {
         $suffix = $this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform ? '' : ' FOR UPDATE';

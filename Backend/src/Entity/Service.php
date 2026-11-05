@@ -70,6 +70,8 @@ class Service
 
     public function getId(): ?int { return $this->id; }
     public function isDeleted(): bool { return $this->deletedAt !== null; }
+    public function getDeletedAt(): ?\DateTimeImmutable { return $this->deletedAt; }
+    public function restore(): void { $this->deletedAt = null; }
     public function markDeleted(): void
     {
         $this->deletedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));

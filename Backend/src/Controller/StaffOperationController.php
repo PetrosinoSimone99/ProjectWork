@@ -39,7 +39,7 @@ final class StaffOperationController extends AbstractController
             return $this->error('Unknown operation action.', 400);
         }
         if (isset($filters['targetType']) && !in_array($filters['targetType'], StaffOperationLog::TARGET_TYPES, true)) {
-            return $this->error('Target type must be USER, REPORT or TOKEN.', 400);
+            return $this->error('Target type must be USER, REPORT, TOKEN or SERVICE.', 400);
         }
         if (isset($filters['targetId']) && !isset($filters['targetType'])) {
             return $this->error('targetType is required when filtering by targetId.', 400);

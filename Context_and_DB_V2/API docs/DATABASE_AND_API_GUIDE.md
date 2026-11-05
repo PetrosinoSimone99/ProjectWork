@@ -693,7 +693,60 @@ The selected dump defines nullable services.deleted_at; no historical migration 
 
 The DELETE endpoints `/api/offers/{id}` and `/api/requests/{id}` save a UTC deletion date instead of removing rows. Success returns `204` with an empty body. Deleted services return `404` on later updates or DELETE requests and disappear from personal lists and the catalog. Availability is checked again after row locks.
 
-Services referenced by `agreement_details.service_provided`, `service_queues.service_id` or `token_redemptions.reserved_service_id` return `409` on update or deletion. Closed token redemptions without a reservation do not block edits or soft deletion. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided.
+Services referenced by `agreement_details.service_provided`, `service_queues.service_id` or `token_redemptions.reserved_service_id` return `409` on update or deletion. Closed token redemptions without a reservation do not block edits or soft deletion. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. Restore APIs are described below; no permanent-delete API is provided.
+
+### List and restore deleted services
+
+These APIs reuse `services.deleted_at` without a database migration. All require
+a JWT and an active account. Staff routes also require `ROLE_STAFF`.
+
+| Method and path | Access | Response key |
+| --- | --- | --- |
+| `GET /api/offers/deleted` | Own deleted offers | `offers` |
+| `GET /api/requests/deleted` | Own deleted requests | `requests` |
+| `POST /api/offers/{id}/restore` | Own offer | `offer` |
+| `POST /api/requests/{id}/restore` | Own request | `request` |
+| `GET /api/staff/services/deleted` | Deleted services of all users | `services` |
+| `POST /api/staff/services/{id}/restore` | Any user's service | `service` |
+
+Lists accept `page` (default `1`) and `limit` (default `20`, maximum `50`).
+Both must be positive integers. Unknown or invalid query parameters return `400`.
+Staff lists also accept optional positive `userId` and `type=OFFER` or `type=REQUEST`.
+Items are ordered by deletion date descending, then ID descending. Only deleted
+services are returned, including suspended services and services of inactive owners.
+
+Each item has the same fields as a personal service response, plus `deletedAt`
+as an ISO 8601 UTC string. Staff responses also include `owner` using the public
+profile representation, without private email or role fields. Every list includes
+`pagination` with `page`, `limit`, `totalItems` and `totalPages`.
+
+```http
+GET /api/offers/deleted?page=1&limit=20
+GET /api/staff/services/deleted?userId=12&type=OFFER
+POST /api/offers/42/restore
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+Restore requests accept an absent body or an empty JSON object (`{}`). Other
+bodies return `400`. Success returns `200` with the service under the response
+key above, using the personal service representation (plus `owner` for staff).
+An already restored service also returns `200`. Missing services, another user's
+services on personal routes, and a wrong service type return `404`.
+Missing authentication returns `401`; inactive callers and non-staff callers on
+staff routes receive `403`. Transient database conflicts return `409`.
+
+Restoring sets only `deleted_at` to `NULL`. The ID, content, categories, suspension
+and existing links are preserved. Existing links do not block a restore. The
+service returns to personal lists and follows the usual catalog visibility rules:
+offers must be unsuspended and their owner active. Staff can restore services of
+inactive owners without activating those owners. Restores use the same row lock
+as edits and deletion.
+
+Effective restores through staff routes record `SERVICE_RESTORED` with target
+type `SERVICE` and before/after `deletedAt` values in the same transaction.
+If history cannot be saved, the restore is rolled back. Repeated restores of an
+active service create no new entry. Restores through personal routes do not
+create staff history entries, even when the caller has a staff role.
 
 ## Optional location for offers and requests
 
@@ -772,8 +825,8 @@ Optional filters combine using AND:
 | Filter | Accepted values |
 | --- | --- |
 | `staffId` | Positive staff user ID, including historical accounts |
-| `action` | One of the four actions documented below |
-| `targetType` | `USER`, `REPORT` |
+| `action` | An action documented below; historical `TOKEN_CREATED`, `TOKEN_EXPIRATION_CHANGED` and `TOKEN_DELETED` are also accepted |
+| `targetType` | `USER`, `REPORT`, `TOKEN`, `SERVICE` |
 | `targetId` | Positive object ID; requires `targetType` |
 
 Unknown parameters, invalid actions/types, arrays, invalid IDs and pagination
@@ -804,6 +857,7 @@ Each list item has the same representation returned as `operation` by the detail
 | `USER_STATUS_CHANGED` | `USER` | `accountStatus` |
 | `USER_PROMOTED` | `USER` | `roles` |
 | `REPORT_CLAIMED`, `REPORT_REVIEWED` | `REPORT` | `status`, `assignedToId`, `assignedAt`, `reviewNote`, `reviewedById`, `reviewedAt` |
+| `SERVICE_RESTORED` | `SERVICE` | `deletedAt` (UTC deletion date before, `null` after) |
 
 Dates are stored and returned in UTC. Only the relevant fields are saved; passwords,
 JWTs, complete profiles and report reasons are excluded.
