@@ -6,7 +6,6 @@ namespace App\Tests\Functional;
 
 use App\Entity\User;
 use App\Entity\UserReport;
-use App\Repository\ChainSchema;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -44,9 +43,6 @@ final class StaffControllerTest extends WebTestCase
         foreach ($db->createSchemaManager()->listTableNames() as $table) { $db->executeStatement('DROP TABLE '.$db->quoteSingleIdentifier($table)); }
         $db->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
-        foreach (ChainSchema::statements($db) as $sql) { $db->executeStatement($sql); }
-        $db->executeStatement('ALTER TABLE tokens ADD deleted_at DATETIME DEFAULT NULL');
-        \App\Tests\Support\TokenRedemptionTestSchema::apply($db);
         $this->staff = $this->createUser('staff', [User::ROLE_STAFF]);
         $this->author = $this->createUser('author');
         $this->target = $this->createUser('target', [User::ROLE_USER, 'ROLE_HELPER']);
@@ -311,35 +307,6 @@ final class StaffControllerTest extends WebTestCase
         self::assertSame($logs[0], $this->data()['operation']);
     }
 
-    public function testTokenHistorySurvivesSoftDeletionAndSkipsUnchangedExpiration(): void
-    {
-        $this->send('POST', '/api/staff/tokens', ['userId' => $this->target->getId()]);
-        self::assertResponseStatusCodeSame(201);
-        $token = $this->data()['token'];
-        $path = '/api/staff/tokens/'.$token['id'];
-        $this->send('PATCH', $path, ['expiresAt' => $token['expiresAt']]);
-        self::assertResponseIsSuccessful();
-        $this->send('PUT', $path, ['expiresAt' => '2030-01-01T01:00:00+01:00']);
-        self::assertResponseIsSuccessful();
-        $this->send('DELETE', $path);
-        self::assertResponseStatusCodeSame(204);
-        $this->send('DELETE', $path);
-        self::assertResponseStatusCodeSame(404);
-        $this->send('GET', '/api/staff/operations?targetType=TOKEN&targetId='.$token['id']);
-        self::assertResponseIsSuccessful();
-        $logs = $this->data()['operations'];
-        self::assertCount(3, $logs);
-        self::assertSame(['TOKEN_DELETED', 'TOKEN_EXPIRATION_CHANGED', 'TOKEN_CREATED'], array_column($logs, 'action'));
-        self::assertSame(['deletedAt' => null], $logs[0]['before']);
-        self::assertStringEndsWith('+00:00', $logs[0]['after']['deletedAt']);
-        self::assertSame(['expiresAt' => $token['expiresAt']], $logs[1]['before']);
-        self::assertSame(['expiresAt' => '2030-01-01T00:00:00+00:00'], $logs[1]['after']);
-        self::assertNull($logs[2]['before']);
-        self::assertEquals(['userId' => $token['userId'], 'chainId' => null, 'issuedAt' => $token['issuedAt'], 'expiresAt' => $token['expiresAt']], $logs[2]['after']);
-        $this->send('GET', '/api/staff/operations/'.$logs[2]['id']);
-        self::assertSame($logs[2], $this->data()['operation']);
-    }
-
     public function testHistoryFiltersPaginationSnapshotsAndReadOnlyRoutes(): void
     {
         $this->send('POST', '/api/staff/users/'.$this->target->getId().'/promote');
@@ -377,15 +344,13 @@ final class StaffControllerTest extends WebTestCase
         self::assertSame(2, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
     }
 
-    public function testHistoryFailureRollsBackUserReportAndTokenChanges(): void
+    public function testHistoryFailureRollsBackUserAndReportChanges(): void
     {
         $report = new UserReport($this->author, $this->target, 'Reason');
         $this->em->persist($report);
         $this->em->flush();
         $reportId = $report->toApiArray()['id'];
         $db = $this->em->getConnection();
-        $db->insert('tokens', ['user_id' => $this->target->getId(), 'expiration_date' => '2030-01-01 00:00:00']);
-        $tokenId = $db->lastInsertId();
         // A real database failure verifies atomicity without changing production code.
         $db->executeStatement("CREATE TRIGGER reject_staff_log BEFORE INSERT ON staff_operation_logs FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Test history failure'");
         try {
@@ -398,15 +363,6 @@ final class StaffControllerTest extends WebTestCase
             $this->send('POST', '/api/staff/reports/'.$reportId.'/claim');
             self::assertResponseStatusCodeSame(500);
             self::assertSame(['status' => 'PENDING', 'assigned_to_id' => null, 'assigned_at' => null], $db->fetchAssociative('SELECT status, assigned_to_id, assigned_at FROM user_reports WHERE id = ?', [$reportId]));
-            $this->send('POST', '/api/staff/tokens', ['userId' => $this->target->getId()]);
-            self::assertResponseStatusCodeSame(500);
-            self::assertSame(1, (int) $db->fetchOne('SELECT COUNT(*) FROM tokens'));
-            $this->send('PATCH', '/api/staff/tokens/'.$tokenId, ['expiresAt' => '2031-01-01T00:00:00Z']);
-            self::assertResponseStatusCodeSame(500);
-            self::assertSame('2030-01-01 00:00:00', $db->fetchOne('SELECT expiration_date FROM tokens WHERE id = ?', [$tokenId]));
-            $this->send('DELETE', '/api/staff/tokens/'.$tokenId);
-            self::assertResponseStatusCodeSame(500);
-            self::assertNull($db->fetchOne('SELECT deleted_at FROM tokens WHERE id = ?', [$tokenId]));
             self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
         } finally {
             $db->executeStatement('DROP TRIGGER reject_staff_log');

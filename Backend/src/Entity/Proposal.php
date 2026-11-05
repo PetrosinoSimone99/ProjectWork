@@ -28,7 +28,7 @@ class Proposal
     #[ORM\Column(length: 10)]
     private string $status = self::STATUS_PENDING;
 
-    // A canonical pair of offered-service IDs prevents a reversed simultaneous swipe from creating a second proposal.
+    // Retained historical proposal key used by the chat model.
     #[ORM\Column(name: 'offer_pair_key', length: 50, unique: true)]
     private string $offerPairKey;
 

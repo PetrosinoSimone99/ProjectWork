@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-/** Injecting a clock makes deadline tests independent of the computer's clock. */
-class ChainClock
+/** Supplies UTC timestamps for staff history. */
+class Clock
 {
     public function now(): \DateTimeImmutable
     {

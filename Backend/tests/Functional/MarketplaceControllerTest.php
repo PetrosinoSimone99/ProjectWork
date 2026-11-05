@@ -151,57 +151,6 @@ class MarketplaceControllerTest extends WebTestCase
         $tool->createSchema($metadata);
     }
 
-    public function testSuspensionHidesEachSideOfAMatchAndRejectsStaleSwipes(): void
-    {
-        [$alice, $bob, $ids] = $this->createReciprocalCombination();
-        foreach ($ids as $name => $id) {
-            $owner = str_starts_with($name, 'actor') ? $alice : $bob;
-            $resource = str_contains($name, 'Offer') ? 'offers' : 'requests';
-            $path = '/api/'.$resource.'/'.$id;
-            $this->authenticate($owner === $alice ? $bob : $alice);
-            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
-            self::assertResponseStatusCodeSame(404);
-            $this->authenticate($owner);
-            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
-            self::assertResponseIsSuccessful();
-
-            $this->authenticate($alice);
-            $this->client->request('GET', '/api/swipes');
-            self::assertSame([], $this->data()['candidates']);
-            foreach (['LEFT', 'RIGHT'] as $direction) {
-                $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => $direction]);
-                self::assertResponseStatusCodeSame(409);
-            }
-            self::assertSame(0, $this->entityManager->getRepository(Proposal::class)->count([]));
-            self::assertSame(0, $this->entityManager->getRepository(\App\Entity\SwipeDecision::class)->count([]));
-            if ($name === 'candidateOfferServiceId') {
-                $this->client->request('GET', '/api/services');
-                self::assertSame(0, $this->data()['pagination']['totalItems']);
-            }
-
-            $this->authenticate($owner);
-            $this->client->jsonRequest('PATCH', $path, ['isSuspended' => false]);
-            self::assertResponseIsSuccessful();
-            $this->authenticate($alice);
-            $this->client->request('GET', '/api/swipes');
-            self::assertCount(1, $this->data()['candidates']);
-            self::assertFalse($this->data()['candidates'][0]['actorOfferService']['isSuspended']);
-            $this->client->request('GET', '/api/services');
-            self::assertSame(1, $this->data()['pagination']['totalItems']);
-            self::assertFalse($this->data()['offers'][0]['isSuspended']);
-        }
-
-        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
-        self::assertResponseStatusCodeSame(201);
-        foreach ($ids as $name => $id) {
-            $this->authenticate(str_starts_with($name, 'actor') ? $alice : $bob);
-            $resource = str_contains($name, 'Offer') ? 'offers' : 'requests';
-            $this->client->jsonRequest('PATCH', '/api/'.$resource.'/'.$id, ['isSuspended' => true]);
-            self::assertResponseStatusCodeSame(409);
-            self::assertFalse($this->entityManager->find(Service::class, $id)->isSuspended());
-        }
-    }
-
     public function testCategoriesAndServicePublishingRequireValidAuthenticatedInput(): void
     {
         $alice = $this->createUser('alice');
@@ -279,50 +228,6 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
-    public function testOfferCannotBeChangedOrDeletedAfterItIsAddedToAProposal(): void
-    {
-        $alice = $this->createUser('alice');
-        $category = $this->createCategory('Cooking');
-        $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $category);
-        $proposal = new Proposal('1:2');
-        $proposal->addParticipant(new ProposalParticipant($proposal, $alice, $offer));
-        $this->entityManager->persist($proposal);
-        $this->entityManager->flush();
-        $this->authenticate($alice);
-
-        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['description' => 'Changed']);
-        self::assertResponseStatusCodeSame(409);
-        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['isRemote' => true]);
-        self::assertResponseStatusCodeSame(409);
-        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['location' => 'Rome']);
-        self::assertResponseStatusCodeSame(409);
-        self::assertNull($this->entityManager->find(Service::class, $offer->getId())->getLocation());
-        self::assertFalse($this->entityManager->find(Service::class, $offer->getId())->isRemote());
-        $this->client->jsonRequest('PATCH', '/api/offers/'.$offer->getId(), ['isSuspended' => true]);
-        self::assertResponseStatusCodeSame(409);
-        self::assertFalse($this->entityManager->find(Service::class, $offer->getId())->isSuspended());
-        $this->client->request('DELETE', '/api/offers/'.$offer->getId());
-        self::assertResponseStatusCodeSame(409);
-        self::assertSame('I cook.', $this->entityManager->find(Service::class, $offer->getId())->getDescription());
-    }
-
-    public function testOfferReservedByAChainCannotBeDeleted(): void
-    {
-        $alice = $this->createUser('alice');
-        $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $this->createCategory('Cooking'));
-        $connection = $this->entityManager->getConnection();
-        $connection->executeStatement('CREATE TABLE chain_service_reservations (service_id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL)');
-        $connection->insert('chain_service_reservations', ['service_id' => $offer->getId(), 'group_id' => 1]);
-        $this->authenticate($alice);
-        try {
-            $this->client->request('DELETE', '/api/offers/'.$offer->getId());
-            self::assertResponseStatusCodeSame(409);
-        } finally {
-            // This extra table is not mapped by Doctrine, so SchemaTool will not remove it.
-            $connection->executeStatement('DROP TABLE chain_service_reservations');
-        }
-    }
-
     public function testUserCanDeleteAnUnusedOffer(): void
     {
         $alice = $this->createUser('alice');
@@ -345,7 +250,7 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testDeletedServicesDisappearFromCatalogAndSwipeAndCannotBeReused(): void
+    public function testDeletedServicesDisappearFromCatalog(): void
     {
         [$alice, $bob, $ids] = $this->createReciprocalCombination();
         $this->authenticate($bob);
@@ -354,85 +259,9 @@ class MarketplaceControllerTest extends WebTestCase
         $this->authenticate($alice);
         $this->client->request('GET', '/api/services');
         self::assertSame([], $this->data()['offers']);
-        $this->client->request('GET', '/api/swipes');
-        self::assertSame([], $this->data()['candidates']);
-        $this->client->jsonRequest('POST', '/api/swipes', ['direction' => 'RIGHT'] + $ids);
-        self::assertResponseStatusCodeSame(404);
-        self::assertSame(0, (int) $this->entityManager->getConnection()->fetchOne('SELECT COUNT(*) FROM proposals'));
     }
 
-    public function testRightSwipeCreatesPendingProposalAndRecipientCanAccept(): void
-    {
-        [$alice, $bob, $ids] = $this->createReciprocalCombination();
-        $this->entityManager->find(Service::class, $ids['actorOfferServiceId'])->setIsRemote(true);
-        $this->entityManager->find(Service::class, $ids['actorOfferServiceId'])->setLocation('Rome');
-        $this->entityManager->find(Service::class, $ids['candidateRequestServiceId'])->setLocation('Milan');
-        $this->entityManager->find(Service::class, $ids['candidateRequestServiceId'])->setIsRemote(true);
-        $bob->setBio('I enjoy gardening.');
-        $bob->setProfileImageUrl('https://example.test/bob.jpg');
-        $this->entityManager->flush();
-        $this->authenticate($alice);
-
-        $this->client->request('GET', '/api/swipes');
-        self::assertResponseIsSuccessful();
-        self::assertCount(0, $this->data()['pendingProposals']);
-        self::assertCount(1, $this->data()['candidates']);
-        self::assertTrue($this->data()['candidates'][0]['actorOfferService']['isRemote']);
-        self::assertSame('Rome', $this->data()['candidates'][0]['actorOfferService']['location']);
-        self::assertSame('Milan', $this->data()['candidates'][0]['candidateRequestService']['location']);
-        self::assertNull($this->data()['candidates'][0]['actorRequestService']['location']);
-        self::assertTrue($this->data()['candidates'][0]['candidateRequestService']['isRemote']);
-        self::assertFalse($this->data()['candidates'][0]['actorRequestService']['isRemote']);
-        self::assertSame('I enjoy gardening.', $this->data()['candidates'][0]['candidate']['bio']);
-        self::assertSame('https://example.test/bob.jpg', $this->data()['candidates'][0]['candidate']['profileImageUrl']);
-        self::assertArrayNotHasKey('email', $this->data()['candidates'][0]['candidate']);
-        self::assertArrayNotHasKey('roles', $this->data()['candidates'][0]['candidate']);
-
-        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
-        self::assertResponseStatusCodeSame(201);
-        $proposalId = $this->data()['proposalId'];
-        self::assertIsInt($proposalId);
-
-        // Retrying the same client request is safe and returns the original proposal.
-        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame($proposalId, $this->data()['proposalId']);
-
-        $this->authenticate($bob);
-        $this->client->request('GET', '/api/swipes');
-        self::assertCount(1, $this->data()['pendingProposals']);
-        self::assertSame($proposalId, $this->data()['pendingProposals'][0]['id']);
-        self::assertTrue($this->data()['pendingProposals'][0]['participants'][0]['service']['isRemote']);
-        self::assertSame('Rome', $this->data()['pendingProposals'][0]['participants'][0]['service']['location']);
-        self::assertSame('I enjoy gardening.', $this->data()['pendingProposals'][0]['participants'][1]['user']['bio']);
-        self::assertArrayNotHasKey('email', $this->data()['pendingProposals'][0]['participants'][1]['user']);
-
-        $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'ACCEPT']);
-        self::assertResponseIsSuccessful();
-        self::assertTrue($this->data()['matched']);
-        self::assertSame('ACCEPTED', $this->data()['proposal']['status']);
-        self::assertTrue($this->data()['proposal']['participants'][0]['service']['isRemote']);
-        self::assertSame('Rome', $this->data()['proposal']['participants'][0]['service']['location']);
-    }
-
-    public function testLeftSwipeHidesExactCombinationAndInvalidOwnershipIsRejected(): void
-    {
-        [$alice, $bob, $ids] = $this->createReciprocalCombination();
-        $this->authenticate($alice);
-
-        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'LEFT']);
-        self::assertResponseStatusCodeSame(201);
-        self::assertNull($this->data()['proposalId']);
-
-        $this->client->request('GET', '/api/swipes');
-        self::assertCount(0, $this->data()['candidates']);
-
-        $ids['actorOfferServiceId'] = $ids['candidateOfferServiceId'];
-        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
-        self::assertResponseStatusCodeSame(400);
-    }
-
-    public function testInactiveUsersCannotPublishAndRecipientCanRejectOnce(): void
+    public function testInactiveUsersCannotPublish(): void
     {
         $inactive = $this->createUser('inactive');
         $inactive->setAccountStatus(User::STATUS_INACTIVE);
@@ -441,19 +270,6 @@ class MarketplaceControllerTest extends WebTestCase
         $this->authenticate($inactive);
         $this->client->jsonRequest('POST', '/api/services', ['type' => 'OFFER', 'description' => 'I repair bikes.', 'categoryIds' => [$category->getId()]]);
         self::assertResponseStatusCodeSame(403);
-
-        [$alice, $bob, $ids] = $this->createReciprocalCombination();
-        $this->authenticate($alice);
-        $this->client->jsonRequest('POST', '/api/swipes', [...$ids, 'direction' => 'RIGHT']);
-        $proposalId = $this->data()['proposalId'];
-        $this->authenticate($bob);
-        $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'REJECT']);
-        self::assertResponseIsSuccessful();
-        self::assertFalse($this->data()['matched']);
-        self::assertSame('REJECTED', $this->data()['proposal']['status']);
-
-        $this->client->jsonRequest('POST', '/api/proposals/'.$proposalId.'/decision', ['decision' => 'ACCEPT']);
-        self::assertResponseStatusCodeSame(409);
     }
 
     public function testHomepageCatalogShowsOnlyOtherActiveOffersWithSafeOwnerData(): void

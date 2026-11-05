@@ -2,32 +2,27 @@
 
 This guide covers authentication, profiles, services, reports and staff administration. It does not describe every feature present in the backend or historical database dumps.
 
-## Current database (2026-10-19)
+## Current database
 
-Use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql) for a fresh setup. `../LAST_DB_TO_USE.txt` points to this dump. It was exported from the local `barattolo` database after applying `Version20261019000100`. It contains 23 tables and all 13 migration records, including report assignment. Earlier integrated snapshots remain unchanged.
+The schema reference is the dump selected by [LAST_DB_TO_USE.txt](../LAST_DB_TO_USE.txt), currently [barattolo_v3_1_senza_swipe_chat_catene.sql](../barattolo_v3_1_senza_swipe_chat_catene.sql). The local database is not the reference. Older dumps and migrations describe historical versions, not the selected schema.
 
-This integrated snapshot includes existing users, stored password values, services and other application data. Configure your own JWT keys and local database connection. For an existing database, apply the new migration instead of importing the dump.
+For a fresh installation only, import the selected file into a new empty database and configure your own connection and JWT keys. This maintenance change does not import anything. Do not run the historical migrations or Doctrine schema-update commands over this schema: they can recreate removed structures or alter tables that remain intentionally unmapped.
+
+The dump retains `tokens` and `token_redemptions`. Their HTTP APIs, including staff assignment and redemption, and their lifecycle processing have been removed. These tables are not JWT storage. JWT login and authorization are unchanged. Existing staff history, including token events, remains readable.
+
+All six chat endpoints and their code are retained. Their chat and proposal tables are absent from the selected dump, so these endpoints cannot operate with that dump alone. No replacement chat schema or new chat workflow is provided. See [chat documentation](../mini_doc_chat_endpoint.md).
 
 ### Import for a fresh setup
 
-Open the MySQL client from the repository root (`mysql -u root -p`, adding your local host/port options if needed), then import into a new empty database:
+Read `LAST_DB_TO_USE.txt` before selecting a file. For the currently selected dump, the MySQL commands from the repository root are:
 
 ```sql
 CREATE DATABASE barattolo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE barattolo;
-SOURCE Context_and_DB_V2/barattolo_v2_19102026_migrato.sql;
+SOURCE Context_and_DB_V2/barattolo_v3_1_senza_swipe_chat_catene.sql;
 ```
 
-If `barattolo` already exists and contains data you want to keep, choose a different new database name and point `Backend/.env.local` to it. This dump includes table replacement statements. For an existing application database, apply migrations instead of importing the full dump.
-
-Configure the database connection and your own JWT keys as described below. From `Backend`, check and apply pending migrations:
-
-```bash
-php bin/console doctrine:migrations:status
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-All 13 migrations are already recorded in this dump, through `Version20261019000100`, so there should be no pending migrations for the current backend. Do not execute the included migrations manually after importing this file. When upgrading an older installation, the migration command applies the missing migrations while preserving its existing data.
+Do not import over an existing database whose data must be retained. These instructions are not a verification that the dump has been imported locally.
 
 ### Current service fields
 
@@ -49,17 +44,7 @@ All three fields are optional in `POST /api/services` and in every `offers`/`req
 
 `GET /api/staff/operations` lists effective staff changes with pagination and optional `staffId`, `action`, `targetType` and `targetId` filters. `GET /api/staff/operations/{id}` reads one entry. Both require an active staff account. Entries contain the authenticated actor, action, target, before/after values and UTC date; they cannot be created, edited or deleted through the API. See [Staff operation history](#staff-operation-history) for actions, response examples and validation rules.
 
-Recent migrations included in the current dump:
-
-| Migration | Database change |
-| --- | --- |
-| `Version20261016000200` | Adds nullable `services.location`; existing services receive `NULL` |
-| `Version20261016000300` | Adds the empty `staff_operation_logs` table and its indexes; existing operations are not backfilled |
-| `Version20261019000100` | Adds nullable report assignee and claim date; existing report states remain unchanged |
-
-The report assignment migration was applied to the configured local `barattolo` database on 2026-10-19 after saving a backup under the ignored `Backend/var/backups/` directory. Doctrine reports 13 executed migrations and none pending. The exported dump was restored into an isolated MySQL 8.4.3 database: all 23 table definitions and all rows matched the application database, and the restored database needed no migrations. Comparing with the backup confirmed that the migration preserved existing application rows.
-
-Report verification passed 16 staff tests (305 assertions) and 6 report-creation regression tests (46 assertions), including assignment ownership, duplicate claims, concurrent claims/reviews and history rollback. Use PHP 8.4 or newer for the current locked dependencies. Claiming is optional: `PENDING -> CONFIRMED/REJECTED` remains available, alongside `PENDING -> IN_REVIEW -> CONFIRMED/REJECTED`. See [Claim a report](#claim-a-report) for the endpoint and responses.
+The selected dump already defines service locations, staff operation history and report assignment. Use it directly as the schema reference; historical migration execution is outside this setup.
 
 ## 1. Configure the database connection
 
@@ -83,11 +68,8 @@ DATABASE_URL="mysql://root:@127.0.0.1:3306/barattolo?serverVersion=8.0&charset=u
 
 If the local database uses a different password, port, or MariaDB version, replace those values. For MariaDB, use its actual version, for example `serverVersion=mariadb-10.11.2`.
 
-After importing the current student dump, check for pending migrations from the backend directory. To create an empty installation without the category seed, run migrations instead of importing a dump:
+Use the dump selected by `LAST_DB_TO_USE.txt` for a fresh installation. Historical migrations are not an alternative setup for this schema.
 
-```bash
-php bin/console doctrine:migrations:migrate
-```
 
 Generate local JWT keys once before using registration or login:
 
@@ -208,11 +190,8 @@ The PATCH endpoint accepts `name` and `surname` up to 50 characters, `location` 
 
 ## 7. Service publishing
 
-Run the latest migration before using these endpoints:
+Use the selected dump for the database schema.
 
-```bash
-php bin/console doctrine:migrations:migrate
-```
 
 All endpoints in this section require an active account and this header:
 
@@ -441,60 +420,7 @@ The response contains only the report data and the target ID, without private us
 
 Application validation errors use `{"error":"An English explanation."}`. Authentication errors continue to use the existing JWT security responses. This endpoint records the report only; it does not notify anyone, disable accounts, or provide staff review endpoints.
 
-### Database addition
-
-The new Doctrine migration `Version20261013000100` creates `user_reports` without changing existing users:
-
-| Column | Type | Purpose |
-| --- | --- | --- |
-| `id` | Auto-increment integer, primary key | Report identifier |
-| `reporter_id` | Required integer, foreign key to `users.id` | Authenticated author |
-| `reported_user_id` | Required integer, foreign key to `users.id` | Reported user |
-| `reason` | Required `VARCHAR(2000)` | Trimmed report text |
-| `creation_date` | Required `DATETIME` | Creation time assigned by the backend |
-
-The pair `(reporter_id, reported_user_id)` is unique. Both foreign keys prevent deletion of referenced users rather than automatically deleting reports. There is no review status in this version.
-
-### Update an existing database
-
-Keep your existing database and its data. From `Backend`, run:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-This runs all pending backend migrations, including the reports migration. Do not import the new full dump over a database you want to keep: the dump contains table replacement statements. The reports migration skips table creation if `user_reports` already exists in an imported updated dump.
-
-### Historical full dump with sample application data
-
-The 2026-10-15 file `Context_and_DB_V2/barattolo_v2_13102026.sql` is a historical full snapshot provided for the reports feature. For a clean student setup, use `Context_and_DB_V2/barattolo_v2_19102026_migrato.sql` as described above. The historical snapshot contains the sample application data and reports schema from its own date; it is not a merge with `barattolo_v2_27092026.sql`, which remains unchanged.
-
-The snapshot contains 2 users, 2 services, 2 categories, 2 service-category links, and 5 recorded migrations. The remaining application tables, including `user_reports`, are empty. No verification users or reports were included. Connection passwords, MySQL server accounts and JWT keys are not part of the dump.
-
-From the project root, open the MySQL client (use Laragon's full executable path if `mysql` is not in PATH):
-
-```bash
-mysql -u root -p
-```
-
-Adjust the username and enter your local MySQL password; press Enter if your local root account has no password. In the MySQL client, create an empty database and import the dump:
-
-```sql
-CREATE DATABASE barattolo_student CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE barattolo_student;
-SOURCE Context_and_DB_V2/barattolo_v2_13102026.sql;
-EXIT;
-```
-
-Set `DATABASE_URL` in your uncommitted `Backend/.env.local` to use `barattolo_student`, your local credentials and your actual server version. Follow the existing backend setup instructions for Composer dependencies and local JWT keys. Then, from `Backend`, run:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-The dump includes migration history matching its schema, so this command should report that the current migrations are already applied. Future migrations can still be applied normally. Existing password hashes are preserved; if you do not know an existing account's password, register a new account through `/api/auth/register` and use its JWT to try the reports API.
-
-The full dump was reimported and checked on MySQL 8.4.3. Verification covered preserved application data, equivalent schema, migration history, report creation through JWT authentication, duplicate rejection and foreign-key enforcement. The original local database was not migrated or modified to generate this dump.
+The selected dump defines report authors, targets, review and assignment fields. Historical v2 dumps remain unchanged and are not setup references.
 
 ## Staff administration and report review API (2026-10-13)
 
@@ -618,9 +544,9 @@ A missing report returns `404`. Claiming an assigned or closed report returns `4
 
 Both paths are supported: `PENDING -> CONFIRMED/REJECTED` and `PENDING -> IN_REVIEW -> CONFIRMED/REJECTED`. Direct closure leaves assignment fields null. Closure after a claim preserves the assignment and records the final reviewer separately. Claim and review lock the same report row, so concurrent operations cannot overwrite an assignment or a final outcome.
 
-Migration `Version20261019000100` adds only nullable `assigned_to_id INT` (foreign key to `users.id`, indexed) and `assigned_at DATETIME`. Existing states and data are preserved. `status VARCHAR(10)` already fits `IN_REVIEW`. The migration is irreversible because removing assignment data would leave reports in review without an assignee.
+The historical migration `Version20261019000100` added only nullable `assigned_to_id INT` (foreign key to `users.id`, indexed) and `assigned_at DATETIME`. Existing states and data are preserved. `status VARCHAR(10)` already fits `IN_REVIEW`. The migration is irreversible because removing assignment data would leave reports in review without an assignee.
 
-To update an existing database, run `php bin/console doctrine:migrations:migrate --no-interaction` from `Backend`. Use PHP 8.4 or newer for the current locked development dependencies. Do not reimport the full dump over an existing database.
+The selected dump already contains the assignment fields. Historical migration execution is not part of this setup.
 
 ### Close a report with an outcome and note
 
@@ -647,31 +573,7 @@ Closure is definitive. A second review, even an identical retry, returns `409` w
 
 Controller validation errors use `{"error":"An English explanation."}`. Firewall authentication and role-denial responses retain the existing Symfony/JWT behavior. All statuses and request field names are case-sensitive. Modification payloads reject unknown fields.
 
-Migration `Version20261013000200` adds four fields to `user_reports`: `status VARCHAR(10) NOT NULL DEFAULT 'PENDING'`, nullable `review_note VARCHAR(2000)`, nullable `reviewed_by_id INT` referencing `users.id`, and nullable `reviewed_at DATETIME`. It also adds status and reviewer indexes. Existing reports become pending and retain their original author, target, reason and date. Referenced reviewers cannot be deleted automatically. No user table changes are needed.
-
-To update an existing database, run from `Backend`:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-### Updated full dump for students
-
-Use [barattolo_v2_19102026_migrato.sql](../barattolo_v2_19102026_migrato.sql), the current export after report assignment was migrated. It contains the existing application data, 23 tables and all 13 migration records. It does not contain database connection credentials or JWT keys. Earlier dumps remain available as historical snapshots.
-
-Open the MySQL client from the project root and import into a new empty database:
-
-```sql
-CREATE DATABASE barattolo_staff_student CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE barattolo_staff_student;
-SOURCE Context_and_DB_V2/barattolo_v2_19102026_migrato.sql;
-```
-
-Point your uncommitted `Backend/.env.local` database URL to that database, configure your own JWT keys, and run `php bin/console doctrine:migrations:migrate --no-interaction` from `Backend`. All current migrations are included, so no migration should be pending. Create your own staff account with the existing server command and log in to obtain its JWT. Do not import the full dump over a database whose data you want to keep: it replaces tables. For an existing installation, run migrations instead.
-
-The current export was restored into an isolated MySQL 8.4.3 database and compared with the migrated application database. Verification covered all table definitions, all rows and migration history. No report state or other application row was changed by the assignment migration.
-
-To run staff tests, set `STAFF_TEST_DATABASE_URL` to a disposable MySQL database URL named `staff_check_<your_name>`; test configuration appends `_test`. Create that suffixed database first. The tests reset tables only inside this explicitly checked namespace. See the verification summary at the top of this guide for the latest test results.
+The selected dump includes report review and assignment fields. Use the database setup above; no historical migration execution is required by these instructions.
 
 ## Manage your own service requests
 
@@ -737,7 +639,7 @@ Soft deletes an unused request by setting its UTC deletion date and returns `204
 | `404` | The service does not exist, belongs to another user, is an offer, or a supplied category does not exist |
 | `409` | The request is connected to an exchange, or a concurrent database operation conflicts with the write |
 
-Updating and deleting are blocked when existing links prevent changing a service, including historical links. Service row locks keep the reference check and write in the same transaction. The offers API uses the same protection and retains its existing response format. The current `barattolo_v2_19102026_migrato.sql` dump includes migration `Version20261016000100` and is ready for a fresh setup.
+Updating and deleting are blocked when existing links prevent changing a service, including historical links. Service row locks keep the reference check and write in the same transaction. The offers API uses the same protection and retains its existing response format. The selected dump includes `services.deleted_at`.
 
 ## Optional remote availability for offers and requests
 
@@ -763,19 +665,7 @@ Service objects in creation and registration responses, the homepage and persona
 
 ### Database update
 
-The current `barattolo_v2_19102026_migrato.sql` dump includes this migration. Keep older dumps as historical snapshots. When upgrading an existing installation or an older dump, run pending migrations from `Backend`:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-For an existing installation, run the same command without reimporting the dump. Migration `Version20261015000100` adds only `services.is_remote BOOLEAN NOT NULL DEFAULT FALSE` and preserves other data. To reverse this migration when it is the latest applied migration:
-
-```bash
-php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261015000100' --down --no-interaction
-```
-
-Rollback removes the column and its remote values.
+The selected dump includes these fields. Historical migrations remain in the repository for earlier schemas; do not apply them over this dump.
 
 ## Suspend or reactivate an offer or request
 
@@ -795,33 +685,15 @@ Suspension and reactivation use the existing ownership and reference checks. A s
 
 ### Suspension migration
 
-The current `barattolo_v2_19102026_migrato.sql` dump includes suspension. Older snapshots are unchanged. When upgrading an older dump or an existing installation, run pending migrations from `Backend`:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-`Version20261015000200` follows the `isRemote` migration and adds only `services.is_suspended BOOLEAN NOT NULL DEFAULT FALSE`. To roll it back when it is the latest applied migration:
-
-```bash
-php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261015000200' --down --no-interaction
-```
-
-Rollback removes suspension values and preserves all other columns and data.
+The selected dump includes these fields. Historical migrations remain in the repository for earlier schemas; do not apply them over this dump.
 
 ## Soft deletion of offers and requests
 
-Migration `Version20261016000100` provides `services.deleted_at DATETIME NULL DEFAULT NULL`. This dump includes the nullable column and records the migration as already applied. Older dumps, including `barattolo_v2_15102026_services.sql`, remain unchanged.
-
-Before running the updated backend, back up the database and apply pending migrations from `Backend`:
-
-```sh
-php bin/console doctrine:migrations:migrate --no-interaction
-```
+The selected dump defines nullable services.deleted_at; no historical migration is needed for this column.
 
 The DELETE endpoints `/api/offers/{id}` and `/api/requests/{id}` save a UTC deletion date instead of removing rows. Success returns `204` with an empty body. Deleted services return `404` on later updates or DELETE requests and disappear from personal lists and the catalog. Availability is checked again after row locks.
 
-Services whose existing links prevent deletion return `409`, including historical links. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided. The migration cannot be rolled back automatically because removing deletion markers would expose deleted records again.
+Services referenced by `agreement_details.service_provided`, `service_queues.service_id` or `token_redemptions.reserved_service_id` return `409` on update or deletion. Closed token redemptions without a reservation do not block edits or soft deletion. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. No restore or permanent-delete API is provided.
 
 ## Optional location for offers and requests
 
@@ -873,24 +745,7 @@ filter, offers without a location remain visible under the usual catalog rules.
 
 ### Location migration
 
-Migration `Version20261016000200` adds only `services.location VARCHAR(255) DEFAULT NULL`.
-Existing services keep their data and receive `NULL`. The current
-`barattolo_v2_19102026_migrato.sql` dump includes the column and migration history;
-older snapshots remain unchanged.
-
-For an existing installation, apply pending migrations from `Backend` before
-running the updated backend, without reimporting the dump:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-When this is the latest applied migration, its rollback drops only the location
-column and therefore removes the saved service locations:
-
-```bash
-php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261016000200' --down --no-interaction
-```
+The selected dump includes these fields. Historical migrations remain in the repository for earlier schemas; do not apply them over this dump.
 
 ## Staff operation history
 
@@ -964,19 +819,4 @@ in place, and a rolled-back attempt leaves no duplicate history entries.
 
 ### History migration
 
-`Version20261016000300` adds only the empty `staff_operation_logs` table with indexes
-for dates, staff, action and target. It has no foreign keys to mutable application data.
-The migration intentionally cannot be rolled back automatically, to preserve history.
-The updated `barattolo_v2_19102026_migrato.sql` dump includes this table and all
-13 migration records, including service locations and report assignment. Older dumps remain unchanged.
-
-For existing installations, run pending migrations from `Backend` before using the
-updated staff endpoints, without reimporting the dump:
-
-```bash
-php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-Functional staff tests require a disposable `staff_check_*_test` MySQL database;
-set `STAFF_TEST_DATABASE_URL` to its base name without the `_test` suffix.
-The staff test suite rejects application database names before resetting any tables.
+The selected dump includes these fields. Historical migrations remain in the repository for earlier schemas; do not apply them over this dump.

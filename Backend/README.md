@@ -1,7 +1,6 @@
 # Baratto-lo backend
 
-Service-chain endpoints, reservations, compensation, migration checks and scheduler setup
-are documented in [CHAINS_API.md](CHAINS_API.md).
+The current API covers JWT authentication, profiles, categories, services, reports, staff administration and retained chat endpoints. See [the API guide](../Context_and_DB_V2/API%20docs/DATABASE_AND_API_GUIDE.md).
 
 This directory contains the first Symfony backend for Baratto-lo: public registration and login for regular users and staff.
 
@@ -32,11 +31,7 @@ This directory contains the first Symfony backend for Baratto-lo: public registr
    chmod 600 config/jwt/private.pem
    ```
 
-4. Create the authentication table with the migration:
-
-   ```bash
-   php bin/console doctrine:migrations:migrate
-   ```
+4. Use the SQL dump selected by `../Context_and_DB_V2/LAST_DB_TO_USE.txt` for a fresh database. Currently this is `barattolo_v3_1_senza_swipe_chat_catene.sql`. Historical migrations target earlier schemas; do not run them or Doctrine schema-update commands over the selected dump.
 
 5. Configure the web server. In MAMP, XAMPP, and Laragon, create a local virtual host whose document root is the `Backend/public` directory. Do not point Apache to the `Backend` directory itself. Enable Apache `mod_rewrite` and allow `.htaccess` overrides; `public/.htaccess` forwards `/api/...` routes to Symfony.
 
@@ -57,7 +52,7 @@ This directory contains the first Symfony backend for Baratto-lo: public registr
    php -S localhost:8000 -t public
    ```
 
-The v2 SQL reference is in `../Context_and_DB_V2/barattolo_v2.sql`. The first migration creates the `users` table; later features will add the remaining v2 tables through their own migrations.
+The selected dump is the schema reference, regardless of the local database state. It retains `tokens` and `token_redemptions`, but their API and lifecycle code have been removed. JWT authentication is unchanged. Chat endpoints and their code are retained; their chat/proposal tables are absent from this dump, so chat operations cannot work with the dump alone. No chat schema is added automatically.
 
 ## API
 
@@ -69,7 +64,10 @@ The v2 SQL reference is in `../Context_and_DB_V2/barattolo_v2.sql`. The first mi
   "surname": "Rossi",
   "username": "mario.rossi",
   "email": "mario@example.com",
-  "password": "at-least-8-characters"
+  "password": "at-least-8-characters",
+  "location": "Rome",
+  "offers": [{"description":"Bicycle repairs","categories":["Repairs"]}],
+  "requests": [{"description":"Language lessons","categories":["Languages"]}]
 }
 ```
 

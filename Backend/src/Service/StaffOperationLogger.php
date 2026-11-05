@@ -10,7 +10,7 @@ use Doctrine\DBAL\Connection;
 /** Call inside the operation's transaction: both changes must succeed together. */
 final class StaffOperationLogger
 {
-    public function __construct(private Connection $db, private ChainClock $clock) {}
+    public function __construct(private Connection $db, private Clock $clock) {}
 
     public function record(User $staff, string $action, string $targetType, int $targetId, ?array $before, array $after): void
     {
