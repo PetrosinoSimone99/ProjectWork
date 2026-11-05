@@ -156,4 +156,16 @@ final class ServiceRepository extends ServiceEntityRepository
 
         return new Paginator($queryBuilder, true);
     }
+
+    public function findUserOfferedService(User $user): ?Service
+    {
+        return $this->createQueryBuilder('service')
+            ->andWhere('service.user = :user')
+            ->andWhere('service.type = :offerType')
+            ->andWhere('service.deletedAt IS NULL')
+            ->setParameter('user', $user)
+            ->setParameter('offerType', Service::TYPE_OFFER)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }
