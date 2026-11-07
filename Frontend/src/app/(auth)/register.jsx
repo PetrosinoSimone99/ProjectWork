@@ -4,7 +4,7 @@ import { Link, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
-import { ottieniCategorie } from '@/api/barattolo';
+import { ottieniCategorie } from '@/api';
 import {
   LIMITE_VOCI,
   TIPI_VOCE,
@@ -16,16 +16,16 @@ import {
   senzaChiave,
   senzaPrefisso,
   validaVoce,
-} from '@/servizi/offerta-ricerca';
+} from '@/services/offer-request';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
-import { SezioneVociServizio } from '@/components/SezioneVociServizio';
-import { SelettoreElenco } from '@/components/SelettoreElenco';
-import { REGIONI, formattaLocalita, provincePerRegione } from '@/servizi/aree-italiane';
+import { EntriesSection } from '@/components/EntriesSection';
+import { ListSelector } from '@/components/ListSelector';
+import { REGIONI, formattaLocalita, provincePerRegione } from '@/services/italian-regions';
 import { space } from '@/theme/tokens';
 
 /**
@@ -38,7 +38,7 @@ import { space } from '@/theme/tokens';
  * stringa `Provincia (Regione)` nel campo `location` del backend (`users.location`
  * è `varchar(255)` e non ha campi separati).
  *
- * Le regole delle voci stanno in `src/servizi/offerta-ricerca.js`; qui restano
+ * Le regole delle voci stanno in `src/services/offer-request.js`; qui restano
  * solo le regole anagrafiche, la chiamata e i messaggi da disegnare.
  */
 
@@ -275,7 +275,7 @@ export default function RegisterScreen() {
         password: form.password,
         // `localita`, `offerte` e `ricerche` partono nel payload: la forma inglese
         // del contratto ({description, categoryIds}, {location} ecc.) la costruisce
-        // `api/barattolo.js`, che è l'unico posto che conosce il backend.
+        // `api/index.js`, che è l'unico posto che conosce il backend.
         localita: formattaLocalita(form.provincia, form.regione),
         offerte: aPayloadApi(offerte),
         ricerche: aPayloadApi(ricerche),
@@ -353,7 +353,7 @@ export default function RegisterScreen() {
           secureTextEntry
           error={fieldErrors.password ?? null}
         />
-        <SelettoreElenco
+        <ListSelector
           label="Regione"
           placeholder="Scegli la regione"
           valore={form.regione}
@@ -361,7 +361,7 @@ export default function RegisterScreen() {
           onChange={cambiaRegione}
           errore={fieldErrors.regione ?? null}
         />
-        <SelettoreElenco
+        <ListSelector
           label="Provincia"
           placeholder={form.regione ? 'Scegli la provincia' : 'Scegli prima la regione'}
           valore={form.provincia}
@@ -387,7 +387,7 @@ export default function RegisterScreen() {
       )}
 
       {SEZIONI.map((sezione) => (
-        <SezioneVociServizio
+        <EntriesSection
           key={sezione.chiave}
           sezione={sezione}
           voci={sezione.chiave === 'offerte' ? offerte : ricerche}

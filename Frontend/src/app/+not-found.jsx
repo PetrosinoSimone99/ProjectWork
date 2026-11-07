@@ -20,7 +20,7 @@ import { useAuth } from '@/auth/auth-context';
  * - con sessione attiva si torna tra le tab (la home dei servizi);
  * - senza sessione si torna al login.
  */
-export default function RottaInesistente() {
+export default function NotFound() {
   const { utente } = useAuth();
   const router = useRouter();
 

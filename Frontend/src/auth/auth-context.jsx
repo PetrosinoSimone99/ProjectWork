@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import * as api from '@/api/barattolo';
+import * as api from '@/api';
 import { setSessionExpiredHandler } from '@/api/client';
 import { clearSession, isTokenValid, loadSession, saveSession } from './token-store';
 
@@ -15,9 +15,9 @@ const AuthContext = createContext(null);
 /**
  * L'utente della sessione a partire dalla risposta di accesso.
  *
- * `api/barattolo.js` restituisce già la forma interna (`{token, utente}`, con
+ * `api/index.js` restituisce già la forma interna (`{token, utente}`, con
  * `ruolo` derivato dai `roles` del backend e `stato` grezzo), normalizzata in
- * `api/normalizzazioni.js`: qui si prende e basta, con difesa per una risposta
+ * `api/normalizers.js`: qui si prende e basta, con difesa per una risposta
  * senza `utente`. Nessuna logica di permesso vive qui: questo codice si limita
  * a portare il dato.
  */

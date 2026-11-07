@@ -3,13 +3,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
-import { AnelloFocus } from '@/components/AnelloFocus';
-import { AvvisoNotifica } from '@/components/AvvisoNotifica';
-import { AvvisoScadenza } from '@/components/AvvisoScadenza';
+import { FocusRing } from '@/components/FocusRing';
+import { NotificationBanner } from '@/components/NotificationBanner';
+import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { MenuNavigazioneWeb } from '@/components/MenuNavigazioneWeb';
-import { useNotifiche } from '@/hooks/useNotifiche';
-import { useScadenzaSessione } from '@/hooks/useScadenzaSessione';
+import { WebNavMenu } from '@/components/WebNavMenu';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useSessionExpiry } from '@/hooks/useSessionExpiry';
 import { fasciaPallinoMenuWeb, space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
 
@@ -27,7 +27,7 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * il tema scelto e non c'è un cambio di colore a schermata caricata.
  *
  * Qui stanno anche i **due avvisi in alto**: la scadenza della sessione
- * (`AvvisoScadenza`) e l'esito di una segnalazione (`AvvisoNotifica`). È l'unico
+ * (`SessionExpiryBanner`) e l'esito di una segnalazione (`NotificationBanner`). È l'unico
  * punto in cui una shell è visibile in tutte le schermate che hanno una sessione
  * attiva. I due componenti sono distinti e **una sola** `View` li contiene: così
  * condividono la safe area e l'allineamento, e la navigazione non cambia — senza
@@ -36,8 +36,8 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
 function RootNavigator() {
   const { utente, token, booting } = useAuth();
   const { ready } = useThemePreference();
-  const { inScadenza, scadenzaMs } = useScadenzaSessione(token);
-  const { notifica, inChiusura, chiudi } = useNotifiche({ token, utenteId: utente?.id });
+  const { inScadenza, scadenzaMs } = useSessionExpiry(token);
+  const { notifica, inChiusura, chiudi } = useNotifications({ token, utenteId: utente?.id });
   const insets = useSafeAreaInsets();
   // Solo con una sessione: nel ramo (auth) non c'è nessuna scadenza da dire e
   // nessuna notifica da leggere.
@@ -51,11 +51,11 @@ function RootNavigator() {
     <View style={{ flex: 1 }}>
       {/* L'anello di focus da token vive in tutte le schermate: è una regola
           globale su `:focus-visible` (P59) e non disegna nulla. */}
-      <AnelloFocus />
+      <FocusRing />
       {/* Il menu di navigazione del web: pallino fisso + tendina, su ogni
           schermata con sessione (anche le rotte secondarie). Da nativo non
           disegna nulla. */}
-      {utente ? <MenuNavigazioneWeb /> : null}
+      {utente ? <WebNavMenu /> : null}
       {/* La safe area la aggiunge il contenitore degli avvisi, non lo `Stack`:
           senza avvisi lo `Stack` resta a filo schermo e ogni schermata mette il
           suo margine. Sul web il bordo destro si tiene fuori dalla fascia del
@@ -71,9 +71,9 @@ function RootNavigator() {
             gap: space.sm,
           }}
         >
-          {inScadenza ? <AvvisoScadenza scadenzaMs={scadenzaMs} /> : null}
+          {inScadenza ? <SessionExpiryBanner scadenzaMs={scadenzaMs} /> : null}
           {notifica !== null ? (
-            <AvvisoNotifica
+            <NotificationBanner
               notifica={notifica}
               inChiusura={inChiusura}
               onChiudi={chiudi}
@@ -83,10 +83,10 @@ function RootNavigator() {
       ) : null}
       <Stack screenOptions={{ headerShown: false }}>
         {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
-        {utente ? <Stack.Screen name="modifica-profilo" /> : null}
-        {utente ? <Stack.Screen name="segnala" /> : null}
+        {utente ? <Stack.Screen name="edit-profile" /> : null}
+        {utente ? <Stack.Screen name="report" /> : null}
         {utente ? <Stack.Screen name="staff" /> : null}
-        {utente ? <Stack.Screen name="staff-utenti" /> : null}
+        {utente ? <Stack.Screen name="staff-users" /> : null}
       </Stack>
     </View>
   );

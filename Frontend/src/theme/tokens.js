@@ -86,12 +86,12 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 export const ombra = '#000000';
 
 /**
- * Fascia che il pallino del menu **web** (`MenuNavigazioneWeb`) occupa in alto a
+ * Fascia che il pallino del menu **web** (`WebNavMenu`) occupa in alto a
  * destra: il lato del pallino (48) più il suo margine dal bordo (`space.lg`), 64.
  * Il pallino è `position: fixed` sopra il contenuto, quindi chi sta in alto a
  * destra — il contenuto di `Screen` e gli avvisi in cima di `app/_layout.jsx` —
  * deve tenersi fuori da questa fascia, altrimenti resta coperto. È la stessa
- * misura di `DIMENSIONE_PALLINO` in `MenuNavigazioneWeb`: se cambia là, cambia
+ * misura di `DIMENSIONE_PALLINO` in `WebNavMenu`: se cambia là, cambia
  * anche qui.
  */
 export const fasciaPallinoMenuWeb = 48 + space.lg;

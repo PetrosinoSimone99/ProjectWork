@@ -10,27 +10,6 @@ import Constants from 'expo-constants';
  */
 const API_PATH = '/api';
 
-/**
- * Dati finti al posto del backend vero.
- *
- * Si accende con `EXPO_PUBLIC_DATI_FINTI=1` in `.env.local` e un riavvio senza
- * cache (`npx expo start -c`): le variabili `EXPO_PUBLIC_*` finiscono dentro il
- * bundle al momento della compilazione. Spento, i finti non esistono da nessuna
- * parte (§4 di `AGENTS.md`, e le regole della demo frontend).
- *
- * Questo è l'**unico** interruttore: il bivio tra finto e vero sta sempre in
- * `api/barattolo.js`, mai nei componenti.
- */
-export const USA_DATI_FINTI = process.env.EXPO_PUBLIC_DATI_FINTI === '1';
-
-/**
- * Avviso mostrato sopra i contenuti quando la demo gira con i dati finti.
- *
- * Volutamente corto e **senza dettagli tecnici** (flag, endpoint, backend): a
- * schermo serve solo far sapere che quello che si vede non è un dato reale. La
- * spiegazione per chi sviluppa sta nel commento di `USA_DATI_FINTI`.
- */
-export const AVVISO_DEMO = 'Versione demo: i contenuti sono di esempio.';
 
 /** Radice del server locale (XAMPP/Laragon o `php -S`): vale solo quando non è configurato nulla. */
 const XAMPP_ORIGIN =

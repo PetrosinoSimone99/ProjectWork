@@ -3,25 +3,24 @@ import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
-import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import {
   chiudiSegnalazione,
   ottieniSegnalazioniStaff,
   prendiInCaricoSegnalazione,
-} from '@/api/barattolo';
+} from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
-import { BarraStatoStaff } from '@/components/BarraStatoStaff';
-import { CardSegnalazioneStaff } from '@/components/CardSegnalazioneStaff';
+import { StaffStatusBar } from '@/components/StaffStatusBar';
+import { StaffReportCard } from '@/components/StaffReportCard';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { ModalConferma } from '@/components/ModalConferma';
-import { SchedaChiusuraSegnalazione } from '@/components/SchedaChiusuraSegnalazione';
-import { BottoneIndietro } from '@/components/BottoneIndietro';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { ReportClosureSheet } from '@/components/ReportClosureSheet';
+import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
-import { STATI_SEGNALAZIONE } from '@/servizi/segnalazioni';
-import { conEsito, descriviEsiti, richiedeToken, validaChiusura } from '@/servizi/staff';
+import { STATI_SEGNALAZIONE } from '@/services/reports';
+import { conEsito, descriviEsiti, richiedeToken, validaChiusura } from '@/services/staff';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -39,9 +38,9 @@ import { space, useTokens } from '@/theme/tokens';
  *   si mostra il messaggio del backend e si **ricarica**, perché lo stato a
  *   schermo può essere vecchio;
  * - **la conferma è obbligatoria**: l'esito cambia la vita di due persone, quindi
- *   `ModalConferma` riassume cosa sta per succedere prima di chiamare l'API;
+ *   `ConfirmModal` riassume cosa sta per succedere prima di chiamare l'API;
  * - **la regola dell'esclusività è visibile**: «nessun provvedimento» disabilita
- *   le altre caselle e la scheda lo dice (vedi `servizi/staff.js`).
+ *   le altre caselle e la scheda lo dice (vedi `services/staff.js`).
  */
 
 /** Il vuoto si dice diverso per ogni filtro: «nessuna aperta» non è «nessuna». */
@@ -243,7 +242,7 @@ export default function StaffScreen() {
   return (
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <BottoneIndietro />
+        <BackButton />
         <AppText variant="title">Area staff</AppText>
       </View>
 
@@ -254,7 +253,7 @@ export default function StaffScreen() {
         variant="ghost"
         icon="people-outline"
         accessibilityLabel="Apri gli utenti dell'area staff"
-        onPress={() => router.push('/staff-utenti')}
+        onPress={() => router.push('/staff-users')}
         style={{ alignSelf: 'flex-start' }}
       />
 
@@ -264,12 +263,11 @@ export default function StaffScreen() {
         riletto il riepilogo.
       </AppText>
 
-      {USA_DATI_FINTI ? <Banner kind="info" message={AVVISO_DEMO} /> : null}
 
       {/* Nascondere non è proteggere: la protezione è del backend. Se un'azione non è permessa,
           l'utente lo scopre dall'esito dell'azione, non da una nota a schermo. */}
 
-      <BarraStatoStaff filtro={filtro} onChange={setFiltro} disabled={caricamento} />
+      <StaffStatusBar filtro={filtro} onChange={setFiltro} disabled={caricamento} />
 
       {errore ? (
         <Banner
@@ -296,7 +294,7 @@ export default function StaffScreen() {
       ) : null}
 
       {(segnalazioni ?? []).map((segnalazione) => (
-        <CardSegnalazioneStaff
+        <StaffReportCard
           key={segnalazione.id}
           segnalazione={segnalazione}
           azioneInCorso={azioneInCorso}
@@ -323,7 +321,7 @@ export default function StaffScreen() {
           />
           <ScrollView style={{ maxHeight: '85%' }}>
             {chiusura ? (
-              <SchedaChiusuraSegnalazione
+              <ReportClosureSheet
                 segnalazione={chiusura.segnalazione}
                 esiti={chiusura.esiti}
                 nota={chiusura.nota}
@@ -341,7 +339,7 @@ export default function StaffScreen() {
         </View>
       </Modal>
 
-      <ModalConferma
+      <ConfirmModal
         visible={conferma !== null}
         titolo="Chiudere la segnalazione?"
         messaggio={

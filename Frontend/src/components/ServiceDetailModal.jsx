@@ -1,0 +1,155 @@
+import { Modal, Pressable, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { AppButton } from './AppButton';
+import { AppText } from './AppText';
+import { Card, Chip } from './Card';
+import { formattaDataIso } from '@/agreements/states';
+import { etichettaModalita, nomePersona } from '@/services/offer-request';
+import { localitaPerDisplay } from '@/services/italian-regions';
+import { radius, space, useTokens } from '@/theme/tokens';
+
+/**
+ * Dettaglio di un servizio del catalogo: descrizione per esteso, categorie,
+ * località della persona che lo offre, data di pubblicazione e autore con
+ * username, più le due azioni possibili — contattare l'autore o proporgli un
+ * accordo.
+ *
+ * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
+ * come nella card, la località è dell'**annuncio** (`servizio.localita`), con
+ * ripiego su quella della persona, e la modalità («da remoto» / «in presenza»)
+ * arriva dalla riga normalizzata (`servizio.daRemoto`).
+ *
+ * Non esiste il ramo «è il tuo annuncio»: nel catalogo arrivano solo i servizi
+ * degli altri (le proprie voci non entrano, per decisione del titolare), quindi
+ * non c'è nessun pulsante nascosto da gestire.
+ *
+ * Il modulo della proposta non esiste ancora: il pulsante resta visibile e
+ * disabilitato, così l'utente vede che l'azione è prevista senza poterla
+ * avviare a vuoto (brief, decisione 8).
+ */
+export function ServiceDetailModal({ servizio, onChiudi }) {
+  const t = useTokens();
+  const offerente = servizio?.offerente ?? {};
+  const localita = servizio?.localita ?? offerente.localita;
+  const nome = nomePersona(offerente);
+  const categorie = servizio?.categorie?.length ? servizio.categorie : null;
+  const descrizione = servizio?.descrizione ?? '';
+  const pubblicatoIl = formattaDataIso(servizio?.pubblicatoIl);
+
+  return (
+    <Modal visible={servizio !== null} transparent animationType="fade" onRequestClose={onChiudi}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: t.overlay,
+          justifyContent: 'center',
+          padding: space.lg,
+        }}
+      >
+        {/* Sfondo chiudibile: su web `Alert` non esiste e il tocco fuori dal
+            pannello è l'unico modo per annullare. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Chiudi dettaglio"
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
+          onPress={onChiudi}
+        />
+        {servizio ? (
+          <Card style={{ gap: space.md, position: 'relative', zIndex: 1 }}>
+            <View
+              style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', alignItems: 'center' }}
+            >
+              {categorie ? (
+                categorie.map((categoria) => (
+                  <Chip key={categoria.id} background={t.serviceBg}>
+                    <AppText variant="caption" style={{ color: t.serviceText }}>
+                      {categoria.nome}
+                    </AppText>
+                  </Chip>
+                ))
+              ) : (
+                <Chip background={t.serviceBg}>
+                  <AppText variant="caption" style={{ color: t.serviceText }}>
+                    Categoria non disponibile
+                  </AppText>
+                </Chip>
+              )}
+            </View>
+
+            <AppText variant="heading">{descrizione}</AppText>
+
+            <View style={{ gap: space.xs }}>
+              <AppText variant="small" tone="secondary">
+                Pubblicato da
+              </AppText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Ionicons name="person-circle-outline" size={18} color={t.textSecondary} />
+                <AppText>{nome}</AppText>
+                {offerente.username ? (
+                  <AppText variant="small" tone="secondary">
+                    @{offerente.username}
+                  </AppText>
+                ) : null}
+              </View>
+              {/* La località è del servizio (ripiego: quella della persona) ed è
+                  facoltativa: se manca, la riga non compare. */}
+              {localita ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <Ionicons name="location-outline" size={16} color={t.textSecondary} />
+                  <AppText variant="small" tone="secondary">
+                    Si svolge a {localitaPerDisplay(localita)}
+                  </AppText>
+                </View>
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Ionicons
+                  name={servizio?.daRemoto ? 'videocam-outline' : 'people-outline'}
+                  size={16}
+                  color={t.textSecondary}
+                />
+                <AppText variant="small" tone="secondary">
+                  Si svolge {etichettaModalita(servizio?.daRemoto)}
+                </AppText>
+              </View>
+              {pubblicatoIl ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
+                  <AppText variant="small" tone="secondary">
+                    Pubblicato il {pubblicatoIl}
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={{ gap: space.sm }}>
+              <AppButton
+                label="Invia proposta"
+                variant="secondary"
+                icon="swap-horizontal-outline"
+                disabled
+              />
+              <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                Le proposte saranno disponibili a breve.
+              </AppText>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Chiudi dettaglio servizio"
+              onPress={onChiudi}
+              style={({ pressed }) => ({
+                alignSelf: 'flex-end',
+                backgroundColor: pressed ? t.primaryPressed : t.primary,
+                borderRadius: radius.pill,
+                paddingHorizontal: space.lg,
+                paddingVertical: space.sm,
+              })}
+            >
+              <AppText style={{ color: t.onPrimary, fontWeight: '700' }}>Chiudi</AppText>
+            </Pressable>
+          </Card>
+        ) : null}
+      </View>
+    </Modal>
+  );
+}

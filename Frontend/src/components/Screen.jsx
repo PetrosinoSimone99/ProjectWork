@@ -26,7 +26,7 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * (1024) per la sola schermata con il catalogo dei servizi. `alignSelf: center`
  * centra il blocco — senza, resterebbe attaccato a sinistra.
  *
- * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useAggiornamento`)
+ * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useRefresh`)
  * per il pull-to-refresh, attivo solo su mobile.
  *
  * `bottomSpacing` è lo spazio sotto il contenuto, misurato dentro la safe area:
@@ -34,7 +34,7 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * sopra l'home indicator resta un vuoto troppo alto.
  *
  * Sul web, quando la finestra è così stretta che la colonna del contenuto entra
- * nella fascia del pallino di `MenuNavigazioneWeb` (`fasciaPallinoMenuWeb`, in
+ * nella fascia del pallino di `WebNavMenu` (`fasciaPallinoMenuWeb`, in
  * alto a destra), quella fascia viene riservata con un padding in più: il titolo
  * non finisce sotto il pallino. Da nativo non cambia niente.
  */

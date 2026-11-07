@@ -4,19 +4,19 @@ import { useAuth } from '@/auth/auth-context';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
-import { BarraFiltri } from '@/components/BarraFiltri';
+import { FilterBar } from '@/components/FilterBar';
 import { EmptyState } from '@/components/EmptyState';
-import { ModalDettaglioServizio } from '@/components/ModalDettaglioServizio';
-import { SezioneServizi } from '@/components/SezioneServizi';
+import { ServiceDetailModal } from '@/components/ServiceDetailModal';
+import { ServicesSection } from '@/components/ServicesSection';
 import { Screen } from '@/components/Screen';
-import { useCategorie } from '@/hooks/useCategorie';
-import { useCatalogoServizi } from '@/hooks/useCatalogoServizi';
+import { useCategories } from '@/hooks/useCategories';
+import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import {
   contaFiltri,
   descriviFiltri,
   rigaFiltroModalita,
   VALORI_MODALITA,
-} from '@/servizi/offerta-ricerca';
+} from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -37,7 +37,7 @@ const NOTA_FILTRO_AREA =
  * caricate e la riga sopra la lista lo dice, con la via d'uscita onesta («Carica
  * altri» se c'è, altrimenti azzera).
  *
- * Tutta la logica di rete e dei filtri sta in `useCatalogoServizi`; qui restano
+ * Tutta la logica di rete e dei filtri sta in `useServiceCatalog`; qui restano
  * il disegno, gli stati e il dettaglio. Le voci proprie non entrano nel catalogo
  * (la normalizzazione le scarta): si vedono e si gestiscono in «Offro e cerco».
  *
@@ -60,7 +60,7 @@ export default function HomeScreen() {
     stato: statoCategorie,
     errore: erroreCategorie,
     ricarica: ricaricaCategorie,
-  } = useCategorie(token);
+  } = useCategories(token);
 
   const {
     servizi,
@@ -82,7 +82,7 @@ export default function HomeScreen() {
     refreshing,
     onRefresh,
     nascondeModalita,
-  } = useCatalogoServizi({ token, utenteId: utente?.id });
+  } = useServiceCatalog({ token, utenteId: utente?.id });
 
   const numeroFiltri = contaFiltri(filtriApplicati);
   const haFiltri = numeroFiltri > 0;
@@ -180,7 +180,7 @@ export default function HomeScreen() {
             {testoModalita}
           </AppText>
         ) : null}
-        <SezioneServizi titolo="Servizi" voci={servizi} onSelect={setDettaglio} />
+        <ServicesSection titolo="Servizi" voci={servizi} onSelect={setDettaglio} />
         {ciSonoAltri ? (
           <View style={{ alignItems: 'center', gap: space.sm }}>
             {erroreAltri ? <Banner kind="error" message={erroreAltri} /> : null}
@@ -204,7 +204,7 @@ export default function HomeScreen() {
     // L'unica schermata larga: le card del catalogo guadagnano spazio su
     // desktop, tutte le altre restano su `layout.maxContent`.
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh} larga>
-      <ModalDettaglioServizio servizio={dettaglio} onChiudi={() => setDettaglio(null)} />
+      <ServiceDetailModal servizio={dettaglio} onChiudi={() => setDettaglio(null)} />
 
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Servizi</AppText>
@@ -214,7 +214,7 @@ export default function HomeScreen() {
         </AppText>
       </View>
 
-      <BarraFiltri
+      <FilterBar
         filtri={filtri}
         filtriApplicati={filtriApplicati}
         categorie={categorie}
