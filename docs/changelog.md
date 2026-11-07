@@ -6,6 +6,65 @@ documents/code touched.
 
 ---
 
+## 2026-11-07c — Frontend aligned with the cleaned repository
+
+### What changed
+
+1. **Sync with the cleaned main.** `origin/main` merged: swipe, chains and
+   tokens are gone from the backend, the old dumps moved to
+   `Archive/DB_pre_November/`, and the deleted-service APIs (soft delete plus
+   restore) arrived.
+2. **Dead domain removed from the frontend** (`refactor: drop dead domain`):
+   23 unreachable screens, cards, hooks and helpers, `api/finti/` in full, the
+   automatic tour, the unused Expo template assets, and the fake-data branches
+   inside the API layer. A reachability resolver measured the graph before and
+   after: 75 files reachable, 0 orphaned. Three dead links found and closed
+   (token card, chat and proposal buttons in the popup, agreement detail
+   navigation); the popup now shows a disabled "Invia proposta".
+3. **Rename to English** (`refactor: rename to English`): directories, file
+   names, route paths and exported symbols. The five tabs are now `/`,
+   `/match`, `/offer-and-request`, `/agreements`, `/profile`; the business
+   routes are `/edit-profile`, `/report`, `/staff`, `/staff-users`.
+4. **Documentation rewritten** for the five-tab model, the v3.1 schema and the
+   JavaScript-only stack; `project-structure.md` and `ux.md` absorbed into
+   `architecture.md` and `frontend.md`; new `backend-gaps.md` holding the eight
+   endpoints the frontend needs and the backend does not have.
+5. **Docker seed fixed** (`fix: seed the stack from the v3.1 dump`): the stack
+   pointed at `barattolo_v2_18102026_token_redemptions.sql`, which the backend
+   cleanup moved to `Archive/DB_pre_November/`. It now imports the dump named
+   by `LAST_DB_TO_USE.txt`, so a fresh volume initializes again.
+
+### Why
+
+The frontend was a mature app built on a product the team had just retired:
+swipe feeding, chain exchanges and compensation tokens. Half of it could not
+work against the cleaned backend and none of it matched the schema the team
+kept. This session brings the code, the routes and the documentation in line
+with the five tabs the team agreed on, and states plainly what the backend
+still owes.
+
+### Touched
+
+`Frontend/src/**` (deletions, renames, dead-link removal), `docs/**`
+(rewritten set plus `backend-gaps.md`), `Backend/compose.yaml` (Docker
+exception).
+
+### Attention (backend maintainer)
+
+1. `Backend/compose.yaml` changed under the documented Docker exception: the
+   seed dump path now points at the v3.1 dump. No backend source, config or
+   test file was touched.
+2. **The v3.1 dump carries no seed rows**: a fresh database has an empty
+   `categories` table, so publishing a service is impossible until reference
+   categories are loaded. Please decide whether the dump or a migration should
+   provide them.
+3. The frontend requests eight endpoints, listed with payloads in
+   `docs/backend-gaps.md`: relevance ordering, remote-only filter, public
+   profile, proposals (send, list, accept, refuse), agreements (list, detail),
+   the agreement sheet confirmation, and the chat attached to an agreement.
+
+---
+
 ## 2026-11-04 — Registration failed: API latency above the client timeout
 
 ### Symptom

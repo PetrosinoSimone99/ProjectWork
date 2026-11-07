@@ -1,43 +1,52 @@
 # Baratto-lo documentation
 
-Non-profit platform for exchanging services between users: catalog and
-filters, per-user offer/request queues, pairwise directional agreements
-(receive first, provide later, paths of any length), chat and swipe matching
-still in development, credits/tokens as the reliability layer, staff
-moderation.
+Baratto-lo is a non-profit platform where people exchange services. One account
+publishes what it offers and what it looks for, browses the services other
+people offer, sends a proposal, and once both sides accept, an agreement is
+created and a chat opens to settle the details.
 
-**Team:** Petrosino Simone, Martinez Anthony, Marinelli Alessio,
-Cestelli Andrea.
+**Team:** Petrosino Simone, Martinez Anthony, Marinelli Alessio, Cestelli Andrea.
 
 ## File map
 
 | File | What it covers |
 | --- | --- |
-| [`overview.md`](overview.md) | Product, actors, features, domain glossary |
-| [`architecture.md`](architecture.md) | System design: frontend/backend/data layer, auth, mock-data switch |
-| [`project-structure.md`](project-structure.md) | Repository tree and what every directory owns |
-| [`setup.md`](setup.md) | Local environment: Docker Desktop stack, env vars, how to start and verify |
-| [`api.md`](api.md) | Endpoints consumed by the frontend, with canonical sources |
-| [`database.md`](database.md) | MySQL schema v3.1: tables, flows they encode, known gaps |
-| [`frontend.md`](frontend.md) | Frontend conventions: stack, state, API layer, code style decisions |
-| [`ux.md`](ux.md) | Screens, navigation maps, UX rules and constraints |
-| [`decisions.md`](decisions.md) | Decision log (ADR-light): what was decided, by whom, why |
-| [`changelog.md`](changelog.md) | Session-by-session history of what changed and why |
+| [`overview.md`](overview.md) | Product, actors, the five tabs, the proposal to agreement to chat lifecycle, glossary |
+| [`architecture.md`](architecture.md) | System shape, repository tree, data flow, auth, cross-cutting rules |
+| [`frontend.md`](frontend.md) | Frontend conventions and UX rules: stack, naming, states, hooks, theme |
+| [`api.md`](api.md) | Endpoints that exist today, with request and response shapes |
+| [`backend-gaps.md`](backend-gaps.md) | The endpoints the frontend needs and the backend does not have yet |
+| [`database.md`](database.md) | MySQL schema v3.1: tables, what they encode, known gaps |
+| [`setup.md`](setup.md) | Local environment: Docker Desktop stack, Expo, environment variables |
+| [`decisions.md`](decisions.md) | Decision log (ADR-light) |
+| [`changelog.md`](changelog.md) | Session-by-session history, newest first |
 
 ## Reading order
 
-- New to the project: `overview.md` → `project-structure.md` → `setup.md`.
-- Working on a feature: `api.md` + `database.md` for the data, `frontend.md`
-  for conventions, `decisions.md` to avoid re-litigating settled calls.
-- Onboarding on the backend side: `architecture.md` + `database.md`, then the
-  canonical backend sources listed in `api.md`.
+- New to the project: `overview.md` then `architecture.md` then `setup.md`.
+- Building a screen: `frontend.md` for conventions, `api.md` for the data,
+  `backend-gaps.md` to know what cannot be built yet.
+- Backend topics: `database.md`, then the canonical sources in
+  `Context_and_DB_V2/` (`LAST_DB_TO_USE.txt`, `API docs/`).
+
+## Sources of truth
+
+| Topic | Canonical source |
+| --- | --- |
+| Schema | the dump named in `Context_and_DB_V2/LAST_DB_TO_USE.txt` |
+| Backend behaviour | `Backend/src/Controller/**` and `Backend/tests/**` |
+| Functional requirements | `Context_and_DB_V2/new_user_stories_v2.md` |
+| Previous chain/token material | `Archive/` — rollback only, never a reference |
+
+`Archive/` holds decisions that were reversed (swipe feed, chain exchanges,
+compensation tokens). It exists so the team can go back if needed; nothing in
+it describes the current product.
 
 ## Ownership and updates
 
-The `docs/` is maintained by the frontend side (Andrea Cestelli and the AI
-agents he works with), but they must be written with the precision of someone
-who also owns the backend topics: they serve every developer and every AI
-agent in the repository. Rules in force for all agents are in the root
-[`AGENTS.md`](../AGENTS.md). Every session that changes code or configuration
-updates the relevant docs and appends a `changelog.md` entry, in the same
-commit.
+`docs/` is maintained by the frontend side (Andrea Cestelli and the AI agents
+he works with) but must be written with the precision of someone who also owns
+the backend topics. The workflow rules binding humans and agents are in the
+root [`AGENTS.md`](../AGENTS.md). Every session that changes code or
+configuration updates the affected documents and prepends a `changelog.md`
+entry, in the same commit as the change.

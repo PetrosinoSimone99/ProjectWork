@@ -1,97 +1,75 @@
 # Overview
 
-Baratto-lo is a non-profit platform for exchanging services between people,
-with features designed around **reliability of the interaction** rather than
-payment. People register, publish what they offer and what they look for,
-find compatible users through a swipe feed, talk in chat, and formalize
-exchanges.
+Baratto-lo lets people exchange services without money. An account publishes
+what it **offers** and what it **looks for**; the home shows what other people
+offer; a proposal starts the conversation and, once both sides accept, the
+exchange becomes an agreement with a chat to settle the practical details.
 
-The exchange model is **pairwise and directional**: one agreement means "user
-P provides service S to user B". Receiving comes first, providing comes
-later, and longer paths emerge on their own — A receives from B, then B
-receives from C, then C from D, and so on. There is no closed loop to finish
-and no minimum group size. The product goal is that a requested service is
-obtained as early as possible, with the provider's own service delivered
-later.
-
-Credits and tokens are the reliability layer that makes "receive first" safe.
-Their current state is **partial**: `users.credits` exists in the schema but
-no API manages it, and token reservation is incompatible with the current
-schema until the backend availability check is reworked (see
-[`database.md`](database.md)).
+The exchange is **pairwise and directional**: one agreement means "this user
+provides this service to that user". There is no closed loop to complete and no
+minimum group size. Longer paths (A receives from B, B receives from C) are
+just independent agreements that happen to line up.
 
 ## Actors
 
 | Actor | What they do |
 | --- | --- |
-| **User** | Registers and logins; creates and customizes a profile; publishes offered and requested services; browses the home catalog with filters; uses the swipe feed (proposals to confirm first, then compatible people); chats; formalizes direct or chain exchanges via agreements in chat; receives and spends tokens when the rules allow it; invites a friend; reports another user |
-| **Staff** | Logins; activates/deactivates users; changes user roles; examines and closes reports; manages tokens (create, update expiration, delete) |
+| **User** | Registers, logs in, publishes and manages their own services, browses the home, opens a service detail, sends a proposal, accepts or refuses the proposals they receive, chats inside an accepted agreement, edits their profile, reports another user |
+| **Staff** | Logs in, activates or deactivates accounts, changes roles, examines and closes reports, reads the audit trail of their own actions |
 
-## Core flows
+## The five tabs (after login)
 
-**Queues and matching.** A user enqueues a service as an offer (`OFFER`) or as
-a request (`REQUEST`) in `service_queues`. `match_candidates` pairs an offer
-queue with a request queue. Two open queues of opposite type are a candidate
-match; nothing is reserved until an agreement exists.
+| # | Tab | What it does | State today |
+| --- | --- | --- | --- |
+| 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is requested (see `backend-gaps.md` G1) and the app currently sorts the loaded page locally |
+| 2 | **Match** | Automatic matching of requests against offers | Placeholder: the backend has no matching engine yet |
+| 3 | **Offro e cerco** | The user's own services: create, edit, suspend and reactivate, delete, and restore from a "Deleted" section | Working |
+| 4 | **Accordi** | Three sections (sent, accepted, concluded) plus a bell with the proposals waiting for an answer | Placeholder: the proposals and agreements endpoints do not exist yet |
+| 5 | **Profilo** | Name, surname, location, bio, profile photo URL, theme, logout, staff entry when the role allows it | Working |
 
-**Agreement (the only exchange unit).** An `agreement` starts as `PENDING`
-with a proposal row per participant (`Provider` / `Beneficiary`) and their
-response. Once both sides accept, `agreement_details` records the provider,
-the service provided, the beneficiary, remote/local delivery, start and end
-dates, `beneficiary_accepted` and `COMPILED`/`UNCOMPILED`. Statuses are
-`PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`, `VOID`.
+Outside the tab bar: the report screen and the staff area (reports list, user
+list), reachable from the profile.
 
-**Open paths, not chains.** Because every agreement is directional and pairs
-two users, a path of any length is just a series of independent agreements.
-The earlier design (a closed chain of three or four participants, three-hour
-search window, compensation token on withdrawal) has been dropped: it is
-archived in `Archive/` as a fallback plan, not current scope.
+## The lifecycle: proposal, agreement, chat
 
-**Swipe and chat — in development.** Both remain product intent and both tabs
-are planned, but the current schema v3.1 deliberately contains **no** tables
-for swipe decisions, proposals or chat. The old backend code (chat entities,
-chain and proposal controllers) still exists and is not authoritative. Treat
-these two areas as under construction and never assume persisted state.
+1. **Proposal.** From a service detail popup the user presses "Invia proposta".
+   Nothing is filled in: the proposal is deliberately blind, meaning "I want
+   this service". The recipient decides by looking at what the proposer offers
+   and looks for.
+2. **Notification.** The bell in the agreements tab shows the proposals waiting
+   for an answer, with a count. It is the only place where received proposals
+   appear. Proposals the user sent stay visible to the sender with an explicit
+   refused state.
+3. **Agreement.** Both sides accepting creates the agreement, and only then can
+   the chat be opened: it is the only way to reach a chat with someone.
+4. **Details inside the chat.** Either participant fills the agreement sheet
+   (place, service, start and end datetime) and the other one reviews and
+   confirms it. Until confirmed the agreement stays "details to be defined".
+5. **Conclusion.** When the agreed end datetime passes, the agreement is
+   concluded: the card keeps the day and the time, and the chat can no longer be
+   opened. A service that is not delivered is a contested agreement, which is
+   staff territory.
 
-**Credits and tokens.** `users.credits` is the balance that would make
-"receive before providing" safe, but no endpoint manages it. Tokens
-(`tokens`, `token_redemptions`) still exist: staff can issue them manually and
-a token can be spent to obtain a service. The withdrawal-compensation
-rationale no longer applies, and token reservation needs the backend
-availability check reworked first.
+Steps 1 to 4 need endpoints that do not exist yet; see `backend-gaps.md`.
 
-## Where the truth lives
+## What is deliberately not in the product
 
-| Topic | Canonical source |
-| --- | --- |
-| Functional requirements, user stories | `Context_and_DB_V2/new_user_stories_v2.md` |
-| Schema design intent and gaps | `Context_and_DB_V2/baratto-context.md`, `database_doc_spiegazione.md` |
-| Database structure | `Context_and_DB_V2/barattolo_v3_1_senza_swipe_chat_catene.sql` (see `LAST_DB_TO_USE.txt`) + [`database.md`](database.md) |
-| Backend API | Backend README and `Context_and_DB_V2/API docs/DATABASE_AND_API_GUIDE.md` (see [`api.md`](api.md)) |
-| Previous chain/token API docs | `Archive/API_docs_Prima_della_verifica_stronati/` — archived as a fallback, not current |
-| Team rules for agents | Root [`AGENTS.md`](../AGENTS.md) |
-| Frontend conventions and decisions | [`frontend.md`](frontend.md), [`decisions.md`](decisions.md) |
+- **No swipe feed, no chain exchanges, no compensation tokens.** These were
+  earlier designs, now archived: the code was removed from the backend and the
+  frontend, and the schema has no tables for them.
+- **No payments.** Nothing in the app has a monetary value.
+- **No automatic arbitration.** Staff examine reports; the rules for a
+  non-delivered service are a product gap, not something to invent in code.
 
 ## Glossary
 
 | Term | Meaning |
 | --- | --- |
-| **Offer / Request** | The two types of a `service`: `OFFERTA` is what a user provides, `RICHIESTA` is what a user looks for |
-| **Loop** | The swipe feed screen: proposals pending confirmation first, then new compatibility candidates |
-| **Queue** | A user's service waiting for a counterpart: type `OFFER` or `REQUEST`, with location and state `OPEN`/`CLOSED` |
-| **Match candidate** | Pairing of one offer queue with one request queue; the potential match, not yet an agreement |
-| **Agreement (accordo)** | The formalized exchange unit: one provider, one beneficiary, one service, directional |
-| **Path** | Emergent series of pairwise agreements (A gets from B, B from C, ...) — replaces the old closed chain |
-| **Credits** | Per-user balance in `users.credits`, intended to make "receive before providing" safe; not managed by any API yet |
-| **Token** | Staff-issued credit with monthly expiration, spent through a redemption; withdrawal compensation is no longer the rationale |
-| **Redemption** | The act of spending a token to obtain a service |
+| **Offer / Request** | The two types of a service: what the user provides, what the user looks for. On the wire the values are `OFFER` and `REQUEST` |
+| **Service** | One row in `services`: owner, type, description, categories, optional location, remote flag, suspended flag, soft delete |
+| **Proposal** | A blind request for someone else's service; accepted or refused by the recipient |
+| **Agreement** | The exchange unit created when both sides accept: one provider, one beneficiary, one service |
+| **Agreement sheet** | The details compiled inside the chat (place, service, start and end) and confirmed by the other participant |
+| **Queue** | A service waiting for a counterpart in the schema (`service_queues`), used by the future matching engine |
 | **Report** | A user-submitted complaint about another user, processed by staff |
-| **Staff operation log** | Audit trail of staff actions (role changes, activations, report closures, token management) |
-
-## Explicit non-goals
-
-- No money and no payment rails. Credits and tokens are internal reliability
-  instruments, not a currency with real-world value.
-- No automatic arbitration: staff review reports; open questions about
-  non-compliance are tracked as gaps, not fabricated rules (see
-  [`database.md`](database.md) — "Known gaps").
+| **Staff operation log** | Audit trail of staff actions, kept after the subjects are deleted |
