@@ -105,24 +105,24 @@ final class AgreementController extends AbstractController
         catch(\JsonException $e){
             return $this->json(['error' => [
                 'code' => 400,
-                'message' => $e->getMessage()
+                'message' => 'Bad Request'
             ]], 400);
         }
-        catch(\ResourceNotFound $e){
+        catch(\ResourceNotFound){
             return $this->json(['error' => [
                 'code' => 404,
-                'message' => $e->getMessage()
+                'message' => 'Resource not found'
             ]], 404);
         }
          catch(\Exception $e){
             return $this->json(['error' => [
                 'code' => 500,
-                'message' => 'Internal Server Error'.$e->getMessage()
+                'message' => 'Internal Server Error'
             ]], 500);
         } 
     }
 
-    #[Route('/send-agreement-details', name: 'send-agreement-details', methods: ['GET'])]
+    #[Route('/send-agreement-details', name: 'send-agreement-details', methods: ['POST'])]
     public function sendAgreementDetails(): JsonResponse
     {
         $user = $this->getUser();
@@ -156,13 +156,45 @@ final class AgreementController extends AbstractController
         }catch(\JsonException $e){
             return $this->json(['error' => [
                 'code' => 400,
-                'message' => $e->getMessage()
+                'message' => 'Bad Request'
             ]], 400);
         }
         catch(\Exception $e){
             return $this->json(['error' => [
                 'code' => 500,
-                'message' => 'Internal Server Error'.$e->getMessage()
+                'message' => 'Internal Server Error'
+            ]], 500);
+        }
+    }
+
+    #[Route('/cancel-agreement/{agreementId}', name: 'cancel-agreement', methods: ['POST'])]
+    public function cancelAgreement(int $agreementId): JsonResponse
+    {
+        $user = $this->getUser();
+        if(!$user instanceof User){
+            return $this->json(['error' => [
+                'code' => 401,
+                'message' => 'Unauthorized'
+            ]], 401);
+        }
+        try{
+            $this->agreementManager->cancelAgreement($user, (int)$data['agreementId']);
+            return $this->json([
+                'success' => [
+                    'code' => 200,
+                    'message' => 'Agreement cancelled successfully'
+                ],
+            ], 200);
+        }catch(\ResourceNotFound $e){
+            return $this->json(['error' => [
+                'code' => 404,
+                'message' => 'Resource not found'
+            ]], 404);
+        }
+        catch(\Exception $e){
+            return $this->json(['error' => [
+                'code' => 500,
+                'message' => 'Internal Server Error'
             ]], 500);
         }
     }

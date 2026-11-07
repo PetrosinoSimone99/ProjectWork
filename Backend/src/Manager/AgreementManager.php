@@ -89,6 +89,18 @@ class AgreementManager{
         $this->entityManager->persist($agreementDetails);
         $this->entityManager->flush();
     }
+
+    public function cancelAgreement(User $user, int $agreementId){
+        $agreement = $this->agreementRepository->findAgreement($agreementId);
+
+        if(!$agreement){
+            throw new ResourceNotFound('Agreement not found');
+        }
+
+        $agreement->setAgreementStatus(AgreementStatus::CANCELLED);
+        $this->entityManager->persist($agreement);
+        $this->entityManager->flush();
+    }
     //Internal only
     private function addAgreementParticipants(Agreement $agreement, array $participants, string $type){
         if($type === 'exchange'){
