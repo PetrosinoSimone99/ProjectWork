@@ -47,11 +47,10 @@ import { space } from '@/theme/tokens';
  *   persona, quindi `ModalConferma` dice cosa cambia e per chi prima di chiamare
  *   l'API.
  * - **la ricerca è locale e dichiarata**: nome, cognome e username si filtrano
- *   nell'elenco già caricato; l'endpoint proposto accetterebbe i filtri in query
- *   string, ma la demo non li usa (l'elenco è piccolo).
- * - **il ruolo è finto e dichiarato**: senza il ruolo vero dal backend (P24) la
- *   demo non potrebbe decidere cosa mostrare; il `Banner` in cima e il
- *   `// TODO(backend)` in `api/finti/utenti.js` lo dicono.
+ *   nell'elenco già caricato; l'endpoint accetterebbe i filtri in query
+ *   string, ma l'elenco è piccolo e i filtri locali bastano.
+ * - **il ruolo non si inventa**: senza il ruolo vero dal backend la schermata non
+ *   potrebbe decidere cosa mostrare, quindi la voce compare solo per chi lo ha.
  */
 
 /** I filtri per ruolo: `null` è «tutti», e i valori sono quelli del backend. */

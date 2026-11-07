@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Animated, Platform, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
@@ -18,9 +17,9 @@ import { space, useTokens } from '@/theme/tokens';
  * titolare del 18 settembre 2026). Chiuderla è una sola azione, quindi «Ho capito»
  * basta.
  *
- * Se la notifica porta un **token**, la scheda lo dice e offre la scorciatoia per
- * l'area dei buoni (`/token`), che è dove il buono si vede davvero: il token non
- * si mostra qui, perché qui non ci sono l'origine, la scadenza né le azioni.
+ * Se la notifica riguarda un buono la scheda non promette collegamenti: l'area
+ * dei buoni è uscita dal prodotto (brief, decisione 3), quindi il testo resta
+ * descrittivo e l'unica azione è «Ho capito».
  *
  * L'animazione è una comparsa breve (opacità e scivolamento) e usa il driver
  * nativo solo dove esiste: sul web `react-native-web` non lo supporta e
@@ -34,9 +33,8 @@ import { space, useTokens } from '@/theme/tokens';
  * quando l'app se ne accorge, quindi va annunciata una volta sola. Il pulsante ha
  * `aria-*` accanto ad `accessibilityState`, come gli altri componenti.
  */
-export function AvvisoNotifica({ notifica, inChiusura = false, onChiudi, onApriToken }) {
+export function AvvisoNotifica({ notifica, inChiusura = false, onChiudi }) {
   const t = useTokens();
-  const router = useRouter();
   // `useState` e non `useRef(...).current`: il valore animato serve **durante il
   // render** (sta nello `style`), e le regole dei hook di questa versione di
   // eslint vietano di leggere un ref nel render. È lo stesso motivo per cui
@@ -68,7 +66,6 @@ export function AvvisoNotifica({ notifica, inChiusura = false, onChiudi, onApriT
   }
 
   const etichetta = etichettaTipoNotifica(notifica?.tipo);
-  const portaToken = notifica?.idToken !== null && notifica?.idToken !== undefined;
 
   return (
     <Animated.View
@@ -105,18 +102,6 @@ export function AvvisoNotifica({ notifica, inChiusura = false, onChiudi, onApriT
             onPress={() => void onChiudi(notifica)}
             accessibilityLabel="Ho capito: chiudi l'avviso"
           />
-          {portaToken && onApriToken ? (
-            <AppButton
-              label="Vedi i miei token"
-              variant="ghost"
-              icon="ticket-outline"
-              onPress={() => {
-                router.push('/token');
-                onApriToken();
-              }}
-              accessibilityLabel="Apri i tuoi token"
-            />
-          ) : null}
         </View>
       </Card>
     </Animated.View>

@@ -242,29 +242,8 @@ export default function ProfiloScreen() {
         </View>
       </Card>
 
-      {/* I buoni hanno una schermata a sé: il Profilo si limita ad aprirla. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Apri la schermata I miei token"
-        onPress={() => router.push('/token')}
-        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-      >
-        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <Ionicons name="pricetag-outline" size={20} color={t.primary} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <AppText variant="heading" style={{ fontSize: 16 }}>
-              I miei token
-            </AppText>
-            <AppText variant="small" tone="secondary">
-              I buoni che la staff ti ha assegnato: usali su un servizio.
-            </AppText>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
-        </Card>
-      </Pressable>
-
       {/* L'area staff non è una sesta tab: compare qui **solo** per chi ha il
-          ruolo (nella demo è finto e dichiarato, vedi `api/finti/accesso.js`). */}
+          ruolo. La UI nasconde, il backend protegge. */}
       {isStaff ? (
         <Pressable
           accessibilityRole="button"

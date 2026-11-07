@@ -1,5 +1,4 @@
 import { ApiError, apiFetch } from './client';
-import { USA_DATI_FINTI } from './config';
 import {
   normalizzaAccordo,
   normalizzaCatalogo,
@@ -14,13 +13,6 @@ import {
   numeroInteroONull,
   queryDaFiltri,
 } from './normalizzazioni';
-import * as fintiAccesso from './finti/accesso';
-import * as fintiCategorie from './finti/categorie';
-import * as fintiChat from './finti/chat';
-import * as fintiNotifiche from './finti/notifiche';
-import * as fintiSegnalazioni from './finti/segnalazioni';
-import * as fintiStaff from './finti/staff';
-import * as fintiUtenti from './finti/utenti';
 import { aPayloadLetta } from '@/servizi/notifiche';
 import { aPayloadChiusura, aPayloadPresaInCarico } from '@/servizi/staff';
 import { aPayloadRuolo, aPayloadStato } from '@/servizi/staff-utenti';
@@ -28,8 +20,6 @@ import { registraMieVoci } from '@/servizi/mie-voci';
 
 // La superficie pubblica di prima resta quella: le funzioni spostate in
 // `normalizzazioni.js` si riesportano da qui, così chi le importava non cambia.
-// Le normalizzazioni della coda sono **uscite** con la coda: le catene parlano
-// col contratto reale e i loro normalizzatori vivono in `aree/catene.js`.
 export {
   normalizzaCatalogo,
   normalizzaCategorie,
@@ -49,39 +39,9 @@ export {
   eliminaPubblicazione,
   ottieniPubblicazioni,
 } from './aree/servizi';
-export { ottieniFeedSwipes, registraScelta, decidiProposta } from './aree/loop';
-export {
-  annullaCatena,
-  avviaRicercaCatena,
-  confermaRicezione,
-  decidiCatena,
-  decidiCondizioni,
-  ottieniBuoniCompensazione,
-  ottieniCatena,
-  ottieniCatene,
-  proponiCondizioni,
-} from './aree/catene';
-// Token — i buoni: il normalizzatore unico del buono vive in `aree/token.js` e
-// da lì passa anche a «Scambi» (via `aree/catene.js`). `confermaRicezioneBuono`
-// è la ricezione del buono; quella della prestazione di catena è già
-// `confermaRicezione` di `aree/catene.js` (stesso verbo, oggetto diverso).
-export {
-  annullaRiscatto,
-  confermaRicezioneBuono,
-  impegnaBuono,
-  ottieniBuoni,
-  ottieniRiscatti,
-} from './aree/token';
 
-/**
- * Dati finti o backend vero.
- *
- * Il bivio sta **qui e solo qui** (`USA_DATI_FINTI` in `config.js`), visibile e
- * grep-abile: le schermate non sanno niente dei finti, tranne al massimo un
- * `Banner` che avvisa che i dati non sono reali. Ogni ramo finto porta il suo
- * `// TODO(backend)` con l'endpoint che si aspetta.
- */
-
+// I finti sono usciti dal codice (decisione del brief): il layer parla solo col
+// backend vero e ogni endpoint assente diventa uno stato dichiarato in UI.
 // ---------------------------------------------------------------------------
 // Accesso — login e registrazione
 //
@@ -142,10 +102,6 @@ async function conMessaggioGenerico(chiamata, endpoint) {
  * non valide.» per tutti.
  */
 export async function login(username, password) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): il token finto serve solo alla demo.
-    return conMessaggioGenerico(fintiAccesso.login(username, password), 'login');
-  }
   return normalizzaRispostaAccesso(
     await conMessaggioGenerico(
       apiFetch('auth/login', {
@@ -180,12 +136,6 @@ export async function login(username, password) {
  * non la copia dal profilo, la mandiamo noi (decisione del 16/10/2026).
  */
 export async function register(input) {
-  if (USA_DATI_FINTI) {
-    // I finti restano sulla forma interna (`offerte`/`ricerche` con
-    // `id_categoria`/`mansione`/`da_remoto`): la traduzione verso il contratto
-    // vero sta solo qui, mai nei componenti.
-    return conMessaggioGenerico(fintiAccesso.register(input), 'register');
-  }
   const { nome, cognome, username, email, password, localita, offerte, ricerche } = input ?? {};
   const risposta = await conMessaggioGenerico(
     apiFetch('auth/register', {
@@ -250,51 +200,9 @@ function aCorpoVoci(voci, localita) {
  * token che hanno già e il backend lo ignora.
  */
 export async function ottieniCategorie(token) {
-  if (USA_DATI_FINTI) {
-    return normalizzaCategorie(await fintiCategorie.ottieniCategorie());
-  }
   return normalizzaCategorie(await apiFetch('categories', { token }));
 }
 
-/** POST Chat/cercaOCreaChat.php — trova o crea una chat 1:1. */
-export async function cercaOCreaChat(token, utenteAttuale, membroChat) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST Chat/cercaOCreaChat.php; il finto copia la forma vera
-    // (solo `{id_chat}`, niente busta) e il seme dei due messaggi.
-    const dati = await fintiChat.cercaOCreaChat(utenteAttuale, membroChat);
-    return Number(dati.id_chat);
-  }
-  const data = await apiFetch('Chat/cercaOCreaChat.php', {
-    method: 'POST',
-    body: { utenteAttuale, membroChat },
-    token,
-  });
-  return Number(data.id_chat);
-}
-
-/** GET Chat/ottieniStoricoChat.php?chat=... — restituisce lo storico della chat. */
-export function ottieniStoricoChat(token, chatId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET Chat/ottieniStoricoChat.php?chat=…, che risponde con
-    // l'array nudo dei messaggi (nessuna busta).
-    return fintiChat.ottieniStoricoChat(chatId);
-  }
-  return apiFetch(`Chat/ottieniStoricoChat.php?chat=${chatId}`, { token });
-}
-
-/** POST Chat/inviaMessaggio.php — invia un messaggio nella chat. */
-export function inviaMessaggio(token, chatId, utenteId, messaggio) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST Chat/inviaMessaggio.php con {chat, utente, messaggio};
-    // la risposta non contiene la riga creata, quindi la si rilegge dallo storico.
-    return fintiChat.inviaMessaggio(chatId, utenteId, messaggio);
-  }
-  return apiFetch('Chat/inviaMessaggio.php', {
-    method: 'POST',
-    body: { chat: chatId, utente: utenteId, messaggio },
-    token,
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Offro e cerco — le proprie offerte e ricerche
@@ -340,31 +248,6 @@ export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
 }
 
 // ---------------------------------------------------------------------------
-// Loop — feed, scelte e proposte vivono in `aree/loop.js` (re-espote sopra con
-// le altre funzioni di area, P53).
-//
-// I finti dello swipe e dei candidati sono **stati rimossi** con il passaggio al
-// contratto reale (`GET|POST /api/swipes` + `POST /api/proposals/{id}/decision`):
-// il match non si deduce più dal «like ricambiato» finto, nasce solo dal
-// `matched` della decisione. Con i dati finti attivi «Loop» dice che la sezione
-// non è disponibile (guardia di `client.js`) invece di mostrare schede false.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Token — i buoni (non il token di accesso)
-//
-// Dal 18 ottobre 2026 la area è quella del **contratto reale** (PR #38):
-// `GET /api/tokens`, `POST /api/tokens/{id}/reserve`,
-// `POST /api/token-redemptions/{id}/receipt` e `/cancel` — la guida è
-// `docs/20-contratti-api/catene.md` § «L'utilizzo di un buono su un servizio».
-// Le funzioni vivono in `aree/token.js` e qui si re-espongono (sezione sopra);
-// i vecchi `ottieniToken`/`impegnaToken` su `token.php` sono usciti con la
-// rotta mai nata. Il deposito finto dei buoni (`api/finti/token.js`) resta
-// invece in vita per la sceneggiatura della demo (la staff assegna un buono e
-// parte la notifica) e si cancellerà con la pulizia finale dei residui demo.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Segnalazioni e notifiche in-app
 //
 // Endpoint proposto: `segnalazioni.php` (crea, elenco per la staff, chiusura) e
@@ -386,13 +269,7 @@ export async function ottieniCatalogo(token, utenteId, filtri, pagina = 1) {
  * `aPayloadSegnalazione` (motivo, descrizione, riferimento e persona segnalata);
  * **chi segnala viene dal token**, mai dal corpo.
  */
-export async function creaSegnalazione(token, utenteId, payload) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST segnalazioni.php `{utente_segnalato_id, motivo,
-    // descrizione?, id_gruppo?, id_accordo?}`; l'autore dal token, `403` se chi
-    // segnala non partecipa al fatto, `404` utente inesistente, `409` duplicato.
-    return normalizzaEsitoInvio(await fintiSegnalazioni.creaSegnalazione(utenteId, payload));
-  }
+export async function creaSegnalazione(token, _utenteId, payload) {
   return normalizzaEsitoInvio(
     await apiFetch('segnalazioni.php', { method: 'POST', token, body: payload }),
   );
@@ -402,11 +279,7 @@ export async function creaSegnalazione(token, utenteId, payload) {
  * GET notifiche.php — le **proprie** notifiche. `utenteId` serve solo al ramo
  * finto, che non decodifica il token di accesso (come `ottieniToken`).
  */
-export async function ottieniNotifiche(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET notifiche.php → {success, message, data:{notifiche:[…]}}.
-    return normalizzaNotifiche(await fintiNotifiche.ottieniNotifiche(utenteId));
-  }
+export async function ottieniNotifiche(token, _utenteId) {
   return normalizzaNotifiche(await apiFetch('notifiche.php', { token }));
 }
 
@@ -415,13 +288,8 @@ export async function ottieniNotifiche(token, utenteId) {
  * e il `404` si mostrano così com'è; l'avviso si chiude comunque, perché è un
  * avviso, non una pratica. `utenteId` serve al ramo finto, come sopra.
  */
-export async function segnaNotificaLetta(token, utenteId, id) {
+export async function segnaNotificaLetta(token, _utenteId, id) {
   const corpo = aPayloadLetta(id);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST notifiche.php con l'identità dal token di accesso.
-    await fintiNotifiche.segnaNotificaLetta(utenteId, id);
-    return;
-  }
   await apiFetch('notifiche.php', { method: 'POST', token, body: corpo });
 }
 
@@ -431,12 +299,7 @@ export async function segnaNotificaLetta(token, utenteId, id) {
  * facoltativo: senza, il backend decide (presumibilmente tutte). `utenteId` serve
  * al ramo finto, che non decodifica il token di accesso.
  */
-export async function ottieniSegnalazioniStaff(token, utenteId, stato) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET segnalazioni.php?stato=OPEN|IN_REVIEW|CLOSED con
-    // l'identità dal token di accesso e `403` se chi chiama non è staff.
-    return normalizzaSegnalazioniStaff(await fintiStaff.ottieniSegnalazioniStaff(utenteId, stato));
-  }
+export async function ottieniSegnalazioniStaff(token, _utenteId, stato) {
   const query =
     typeof stato === 'string' && stato.trim() !== ''
       ? `?stato=${encodeURIComponent(stato.trim())}`
@@ -450,13 +313,8 @@ export async function ottieniSegnalazioniStaff(token, utenteId, stato) {
  * è staff) si mostrano così come sono: la schermata ricarica e lascia parlare il
  * backend. L'identità viaggia **nel token**, mai nel corpo.
  */
-export async function prendiInCaricoSegnalazione(token, utenteId, id) {
+export async function prendiInCaricoSegnalazione(token, _utenteId, id) {
   const corpo = aPayloadPresaInCarico(id);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST segnalazioni.php {azione:'prendi_in_carico', id}.
-    const risposta = await fintiStaff.prendiInCarico(utenteId, id);
-    return normalizzaSegnalazioneStaff(risposta?.data?.segnalazione);
-  }
   const risposta = await apiFetch('segnalazioni.php', { method: 'POST', token, body: corpo });
   return normalizzaSegnalazioneStaff(risposta?.data?.segnalazione);
 }
@@ -468,17 +326,8 @@ export async function prendiInCaricoSegnalazione(token, utenteId, id) {
  * `TOKEN_ASSEGNATO`. La risposta porta la pratica chiusa e, quando il buono è
  * stato creato, il suo `id_token` (per il `Banner` che rimanda a «I miei token»).
  */
-export async function chiudiSegnalazione(token, utenteId, id, esiti, nota, idBeneficiario = null) {
+export async function chiudiSegnalazione(token, _utenteId, id, esiti, nota, idBeneficiario = null) {
   const corpo = aPayloadChiusura(id, esiti, nota, idBeneficiario);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST segnalazioni.php {azione:'chiudi', id, esiti,
-    // id_beneficiario?, nota} con l'identità dal token.
-    const risposta = await fintiStaff.chiudi(utenteId, id, esiti, nota, idBeneficiario);
-    return {
-      segnalazione: normalizzaSegnalazioneStaff(risposta?.data?.segnalazione),
-      idToken: numeroInteroONull(risposta?.data?.id_token),
-    };
-  }
   const risposta = await apiFetch('segnalazioni.php', { method: 'POST', token, body: corpo });
   return {
     segnalazione: normalizzaSegnalazioneStaff(risposta?.data?.segnalazione),
@@ -505,13 +354,7 @@ export async function chiudiSegnalazione(token, utenteId, id, esiti, nota, idBen
  * mostra come errore di caricamento, con «Riprova». `utenteId` serve solo al
  * ramo finto, che non decodifica il token di accesso.
  */
-export async function ottieniUtentiStaff(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET utenti.php?ruolo=&stato=&q= con l'identità dal token e
-    // `403` se chi chiama non è STAFF/ADMIN; la risposta è
-    // {success, message, data:{utenti:[{id, username, nome, cognome, ruolo, stato, creato_il}]}}.
-    return normalizzaUtentiStaff(await fintiUtenti.ottieniUtentiStaff(utenteId));
-  }
+export async function ottieniUtentiStaff(token, _utenteId) {
   return normalizzaUtentiStaff(await apiFetch('utenti.php', { token }));
 }
 
@@ -522,13 +365,8 @@ export async function ottieniUtentiStaff(token, utenteId) {
  * dell'operatore viaggia **nel token**, mai nel corpo. `utenteId` serve al ramo
  * finto.
  */
-export async function cambiaRuoloUtente(token, utenteId, id, ruolo) {
+export async function cambiaRuoloUtente(token, _utenteId, id, ruolo) {
   const corpo = aPayloadRuolo(id, ruolo);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): niente, l'endpoint c'è; resta da aggiornare il finto quando
-    // la busta vera cambierà.
-    return normalizzaEsitoUtenteStaff(await fintiUtenti.cambiaRuolo(utenteId, id, ruolo));
-  }
   const risposta = await apiFetch('userRoleManager.php', { method: 'POST', token, body: corpo });
   return normalizzaEsitoUtenteStaff(risposta);
 }
@@ -539,13 +377,8 @@ export async function cambiaRuoloUtente(token, utenteId, id, ruolo) {
  * bersaglio `ADMIN` è vietato anche a un altro `ADMIN` (asimmetria dichiarata tra
  * i due manager).
  */
-export async function cambiaStatoUtente(token, utenteId, id, stato) {
+export async function cambiaStatoUtente(token, _utenteId, id, stato) {
   const corpo = aPayloadStato(id, stato);
-  if (USA_DATI_FINTI) {
-    // TODO(backend): niente, l'endpoint c'è; resta da aggiornare il finto quando
-    // la busta vera cambierà.
-    return normalizzaEsitoUtenteStaff(await fintiUtenti.cambiaStato(utenteId, id, stato));
-  }
   const risposta = await apiFetch('userStatoManager.php', { method: 'POST', token, body: corpo });
   return normalizzaEsitoUtenteStaff(risposta);
 }

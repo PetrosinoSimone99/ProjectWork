@@ -14,10 +14,6 @@ import { RIFERIMENTI, idRiferimento } from '@/servizi/segnalazioni';
  * settembre 2026: `barattolo.js` 799 righe, questo 796). `barattolo.js` le importa e continua a esporre quelle che erano
  * pubbliche.
  *
- * Le normalizzazioni di «Loop» (candidati, proposte, esiti) non stanno più qui:
- * sono nel loro file di area, `api/aree/loop.js`, insieme agli endpoint che
- * servono (P53).
- *
  * La regola vale per tutte: **copia, trasforma, restituisci**. Niente chiamate
  * di rete, niente import da `barattolo.js` (niente cicli), e ogni funzione
  * scarta le righe che la UI non può mostrare invece di disegnare dati inventati.
@@ -60,8 +56,8 @@ function ruoloDaRoles(ruoli) {
 }
 
 /**
- * L'utente della risposta di accesso nella forma interna di `api/finti/accesso.js`
- * e dei consumatori (`profilo.jsx`, `staff-utenti.jsx`, `servizi/staff-utenti.js`).
+ * L'utente della risposta di accesso nella forma interna dei consumatori
+ * (`profilo.jsx`, `staff-utenti.jsx`, `servizi/staff-utenti.js`).
  *
  * Contratto (`AuthController.php`, `User::toApiArray()`): `{id, name, surname,
  * location, username, email, roles, accountStatus}`. `stato` resta **grezzo**

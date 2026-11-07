@@ -1,6 +1,5 @@
 import { Modal, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
@@ -24,12 +23,11 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * degli altri (le proprie voci non entrano, per decisione del titolare), quindi
  * non c'è nessun pulsante nascosto da gestire.
  *
- * Il modulo della proposta vive in `/nuovo-accordo`: qui si passa solo l'id già
- * noto della persona, perché il backend non espone un elenco di utenti da cui
- * cercarla. Il modale è estratto da `(tabs)/index.jsx` (era `DetailModal`).
+ * Il modulo della proposta non esiste ancora: il pulsante resta visibile e
+ * disabilitato, così l'utente vede che l'azione è prevista senza poterla
+ * avviare a vuoto (brief, decisione 8).
  */
 export function ModalDettaglioServizio({ servizio, onChiudi }) {
-  const router = useRouter();
   const t = useTokens();
   const offerente = servizio?.offerente ?? {};
   const localita = servizio?.localita ?? offerente.localita;
@@ -37,9 +35,6 @@ export function ModalDettaglioServizio({ servizio, onChiudi }) {
   const categorie = servizio?.categorie?.length ? servizio.categorie : null;
   const descrizione = servizio?.descrizione ?? '';
   const pubblicatoIl = formattaDataIso(servizio?.pubblicatoIl);
-  // Senza un id valido non si può contattare né proporre: i due pulsanti restano
-  // disabilitati invece di mandare un `utenteId` inesistente.
-  const azioniPossibili = Number.isInteger(offerente.id);
 
   return (
     <Modal visible={servizio !== null} transparent animationType="fade" onRequestClose={onChiudi}>
@@ -128,40 +123,14 @@ export function ModalDettaglioServizio({ servizio, onChiudi }) {
 
             <View style={{ gap: space.sm }}>
               <AppButton
-                label={`Contatta ${nome}`}
-                icon="chatbubble-ellipses-outline"
-                disabled={!azioniPossibili}
-                onPress={() => {
-                  onChiudi();
-                  router.push({
-                    pathname: '/chat',
-                    params: {
-                      utenteId: String(offerente.id),
-                      nome: offerente.nome ?? '',
-                      cognome: offerente.cognome ?? '',
-                      username: offerente.username ?? '',
-                      titolo: descrizione,
-                    },
-                  });
-                }}
-              />
-              <AppButton
-                label="Proponi accordo"
+                label="Invia proposta"
                 variant="secondary"
                 icon="swap-horizontal-outline"
-                disabled={!azioniPossibili}
-                onPress={() => {
-                  onChiudi();
-                  router.push({
-                    pathname: '/nuovo-accordo',
-                    params: {
-                      id: String(offerente.id),
-                      nome,
-                      username: offerente.username ?? '',
-                    },
-                  });
-                }}
+                disabled
               />
+              <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                Le proposte saranno disponibili a breve.
+              </AppText>
             </View>
 
             <Pressable

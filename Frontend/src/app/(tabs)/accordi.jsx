@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, isEndpointNonDisponibile } from '@/api/client';
 import { ottieniAccordi } from '@/api/barattolo';
@@ -103,7 +103,6 @@ function Sezione({ titolo, accordi, utenteId, onSelect }) {
 }
 
 export default function AccordiScreen() {
-  const router = useRouter();
   const { token, utente } = useAuth();
   const t = useTokens();
   const [accordi, setAccordi] = useState(null);
@@ -114,11 +113,9 @@ export default function AccordiScreen() {
 
   // L'id dell'accordo viaggia come stringa nei parametri di rotta: il dettaglio
   // lo riconverte e lo valida prima di usarlo.
-  const vaiAlDettaglio = useCallback(
-    (accordo) =>
-      router.push({ pathname: '/accordo', params: { id: String(accordo.id) } }),
-    [router],
-  );
+  // Il dettaglio dell'accordo arriva col contratto nuovo (vedi docs/backend-gaps.md):
+  // fino ad allora la card non naviga da nessuna parte.
+  const vaiAlDettaglio = null;
 
   const carica = useCallback(async () => {
     if (!token || !utente) {

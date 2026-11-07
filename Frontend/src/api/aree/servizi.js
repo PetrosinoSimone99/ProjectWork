@@ -1,17 +1,6 @@
 import { ApiError, apiFetch } from '../client';
-import { USA_DATI_FINTI } from '../config';
-import {
-  normalizzaPubblicazioni,
-  normalizzaServizio,
-  numeroInteroONull,
-} from '../normalizzazioni';
-import * as fintiServizi from '../finti/servizi';
-import {
-  aPayloadAggiornamento,
-  aPayloadPubblicazione,
-  STATI_PUBBLICAZIONE,
-  TIPI_VOCE,
-} from '@/servizi/offerta-ricerca';
+import { numeroInteroONull } from '../normalizzazioni';
+import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/servizi/offerta-ricerca';
 import { aggiungiMiaVoce } from '@/servizi/mie-voci';
 import { formattaLocalita } from '@/servizi/aree-italiane';
 
@@ -29,7 +18,7 @@ import { formattaLocalita } from '@/servizi/aree-italiane';
  * Per §3 di `AGENTS.md`: questo file traduce forma interna ↔ contratto, le
  * schermate non vedono mai i nomi del backend. `normalizzazioni.js` resta la
  * casa della **forma vecchia** (quella del finto `servizi.php`, la usano i
- * rami finti): la forma **vera** dell'elenco si normalizza qui sotto, accanto
+ * rami veri): la forma dell'elenco si normalizza qui sotto, accanto
  * a `normalizzaServizioCreato` che già tratta questa forma.
  */
 
@@ -283,16 +272,10 @@ export function normalizzaVociProprie(rispostaOfferte, rispostaRichieste) {
  * è un errore**: `{offers: []}` e `{requests: []}` diventano liste vuote della
  * stessa forma — mai la variante «non disponibile» della schermata.
  *
- * `utenteId` serve **solo** al ramo finto, come nella creazione: il finto non
- * decodifica il token di accesso. Con i finti spenti nessun ramo tocca un
- * `servizi.php` (rotta che non esiste: il vecchio ramo vero del deposito va
- * tolto; la sottrazione dal codice segue nel pezzo 02).
+ * `utenteId` resta nella firma per i chiamanti ma il backend prende
+ * l'identità dal token di accesso: nessun id viaggia nel corpo.
  */
 export async function ottieniPubblicazioni(token, utenteId) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): GET servizi.php → {success, message, data:{servizi:[…]}}.
-    return normalizzaPubblicazioni(fintiServizi.ottieniServizi(utenteId));
-  }
   const [rispostaOfferte, rispostaRichieste] = await Promise.all([
     apiFetch('offers/mine', { token }),
     apiFetch('requests/mine', { token }),
@@ -311,17 +294,6 @@ export async function ottieniPubblicazioni(token, utenteId) {
  * al ramo finto, che non decodifica il token.
  */
 export async function aggiornaPubblicazione(token, utenteId, voce) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php {azione:'aggiorna', id, …}.
-    return normalizzaServizio(
-      fintiServizi.aggiornaServizio(
-        utenteId,
-        voce.id,
-        voce.tipo,
-        aPayloadAggiornamento(voce),
-      ),
-    );
-  }
   const rotta = rottaVoce(voce?.tipo, voce?.id);
   const corpo = aCorpoAggiornamento(voce);
   if (!rotta || !corpo || !corpo.description) {
@@ -341,14 +313,9 @@ export async function aggiornaPubblicazione(token, utenteId, voce) {
  * si manda. La risposta `{offer}`/`{request}` torna normalizzata con
  * `normalizzaVocePropria`, la stessa forma dell'elenco: alla schermata serve la
  * riga aggiornata, non la busta. Il `409` («voce usata in una proposta o in uno
- * scambio») ha il suo testo in `MESSAGGIO_409_STATO`. `utenteId` serve solo al
- * ramo finto, che non decodifica il token.
+ * scambio») ha il suo testo in `MESSAGGIO_409_STATO`.
  */
 export async function cambiaStatoPubblicazione(token, utenteId, id, tipo, stato) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php {azione:'stato', id, tipo, stato}.
-    return normalizzaServizio(fintiServizi.cambiaStatoServizio(utenteId, id, tipo, stato));
-  }
   const rotta = rottaVoce(tipo, id);
   if (!rotta) {
     throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
@@ -371,11 +338,6 @@ export async function cambiaStatoPubblicazione(token, utenteId, id, tipo, stato)
  * in una proposta o in uno scambio») ha il suo testo in `MESSAGGIO_409_ELIMINA`.
  */
 export async function eliminaPubblicazione(token, utenteId, id, tipo) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php {azione:'elimina', id, tipo}.
-    fintiServizi.eliminaServizio(utenteId, id, tipo);
-    return;
-  }
   const rotta = rottaVoce(tipo, id);
   if (!rotta) {
     throw new ApiError(400, MESSAGGIO_INPUT_NON_VALIDO);
@@ -389,22 +351,14 @@ export async function eliminaPubblicazione(token, utenteId, id, tipo) {
 /**
  * POST /api/services — pubblica una **nuova** voce.
  *
- * Con i finti accesi la creazione resta fintata (comportamento demo invariato,
- * vincolo 5 del piano): il corpo passa da `aPayloadPubblicazione`, la forma del
- * deposito finto; `utenteId` serve **solo** a quel ramo, perché il finto non
- * decodifica il token di accesso. Con i finti spenti l'identità viaggia nel
- * token e la risposta `201 {service:{…}}` esce normalizzata.
+ * L'identità viaggia nel token di accesso e la risposta `201 {service:{…}}`
+ * esce normalizzata sulla forma della schermata.
  *
  * La guardia sul corpo è difensiva: la schermata valida già (`validaVoce`) e
  * disabilita l'invio senza categoria, quindi nessun flusso reale arriva qui
  * senza `type` o `description`.
  */
 export async function creaPubblicazione(token, utenteId, voce) {
-  if (USA_DATI_FINTI) {
-    // TODO(backend): POST servizi.php con la riga creata e il suo id nella risposta.
-    return normalizzaServizio(fintiServizi.creaServizio(utenteId, aPayloadPubblicazione(voce)));
-  }
-
   const corpo = aCorpoCreazione(voce);
   if (!corpo.type || !corpo.description || corpo.categoryIds.length === 0) {
     // 400 come lo manderebbe il backend per un corpo incompleto, con il
@@ -418,7 +372,7 @@ export async function creaPubblicazione(token, utenteId, voce) {
   );
   // La risposta porta la voce **con il suo id** (`service` del contratto): è
   // una sorgente reale del registro delle mie voci (vincolo 14 del piano
-  // 05-catene). Con i finti attivi non si alimenta: niente id veri.
+  // 05-catene).
   if (voceCreata?.id !== null && voceCreata?.id !== undefined) {
     aggiungiMiaVoce(utenteId, {
       id: voceCreata.id,

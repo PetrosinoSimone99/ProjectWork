@@ -33,9 +33,8 @@ import { space, useTokens } from '@/theme/tokens';
  * filtra per stato, prende in carico una pratica e la chiude con uno o più esiti.
  *
  * Quattro decisioni che stanno qui e non altrove:
- * - **il ruolo è finto e dichiarato**: il `Banner` in cima e il `// TODO(backend)`
- *   in `api/finti/accesso.js` lo dicono. Questa schermata non finge di proteggere
- *   niente: ogni azione gestisce il `403` come un caso normale;
+ * - **il ruolo non si inventa**: la voce compare solo se la sessione porta un
+ *   ruolo staff, e ogni azione gestisce il `403` come un caso normale;
  * - **il `409` è un caso previsto**: se la pratica è già stata chiusa da un altro,
  *   si mostra il messaggio del backend e si **ricarica**, perché lo stato a
  *   schermo può essere vecchio;
@@ -43,8 +42,6 @@ import { space, useTokens } from '@/theme/tokens';
  *   `ModalConferma` riassume cosa sta per succedere prima di chiamare l'API;
  * - **la regola dell'esclusività è visibile**: «nessun provvedimento» disabilita
  *   le altre caselle e la scheda lo dice (vedi `servizi/staff.js`).
- *
- * Il bivio dei finti sta in `api/barattolo.js` (`USA_DATI_FINTI`), non qui.
  */
 
 /** Il vuoto si dice diverso per ogni filtro: «nessuna aperta» non è «nessuna». */

@@ -12,7 +12,6 @@ import { useNotifiche } from '@/hooks/useNotifiche';
 import { useScadenzaSessione } from '@/hooks/useScadenzaSessione';
 import { fasciaPallinoMenuWeb, space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
-import { TourAutomatico } from '@/dev/tour-automatico';
 
 /**
  * La navigazione dipende dallo stato di autenticazione:
@@ -78,26 +77,17 @@ function RootNavigator() {
               notifica={notifica}
               inChiusura={inChiusura}
               onChiudi={chiudi}
-              onApriToken={() => void chiudi(notifica)}
             />
           ) : null}
         </View>
       ) : null}
       <Stack screenOptions={{ headerShown: false }}>
         {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
-        {utente ? <Stack.Screen name="chat" /> : null}
-        {utente ? <Stack.Screen name="scambi" /> : null}
-        {utente ? <Stack.Screen name="accordo" /> : null}
-        {utente ? <Stack.Screen name="nuovo-accordo" /> : null}
-        {utente ? <Stack.Screen name="token" /> : null}
         {utente ? <Stack.Screen name="modifica-profilo" /> : null}
         {utente ? <Stack.Screen name="segnala" /> : null}
         {utente ? <Stack.Screen name="staff" /> : null}
         {utente ? <Stack.Screen name="staff-utenti" /> : null}
       </Stack>
-      {/* Il tour va dopo: i componenti successivi nella stessa View disegnano
-          sopra, e prima sarebbe stato coperto dalla schermata. */}
-      <TourAutomatico />
     </View>
   );
 }

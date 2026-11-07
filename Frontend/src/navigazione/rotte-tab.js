@@ -12,7 +12,7 @@
  */
 export const ROTTE_TAB = [
   { name: 'index', path: '/', title: 'Servizi', icona: 'home-outline' },
-  { name: 'loop', path: '/loop', title: 'Loop', icona: 'sync-outline' },
+  { name: 'match', path: '/match', title: 'Match', icona: 'git-compare-outline' },
   {
     name: 'offro-e-cerco',
     path: '/offro-e-cerco',
