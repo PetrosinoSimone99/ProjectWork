@@ -6,7 +6,7 @@ namespace App\Repository;
 
 use Doctrine\DBAL\Connection;
 
-/** Explicit, additive DDL: unrelated tables (especially chat) are never touched. */
+/** Historical migration support only; not the schema selected by LAST_DB_TO_USE.txt. */
 final class ChainSchema
 {
     /** @return list<string> */

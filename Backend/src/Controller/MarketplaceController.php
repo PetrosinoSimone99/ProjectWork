@@ -5,15 +5,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Category;
-use App\Entity\Proposal;
-use App\Entity\ProposalParticipant;
 use App\Entity\Service;
-use App\Entity\SwipeDecision;
 use App\Entity\User;
 use App\Repository\ServiceRepository;
-use App\Repository\ChainRepository;
-use App\Service\ChainError;
-use App\Service\ServiceCompatibility;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,12 +15,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** Endpoints for publishing services and completing the direct swipe flow. */
+/** Endpoints for categories, the catalog and service publishing. */
 #[Route('/api')]
 class MarketplaceController extends AbstractController
 {
-    public function __construct(private ServiceCompatibility $compatibility, private ChainRepository $chains) {}
-
     #[Route('/categories', name: 'api_categories_list', methods: ['GET'])]
     public function listCategories(EntityManagerInterface $entityManager): JsonResponse
     {
@@ -115,188 +107,6 @@ class MarketplaceController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['service' => $service->toApiArray()], 201);
-    }
-
-    #[Route('/swipes', name: 'api_swipes_feed', methods: ['GET'])]
-    public function swipeFeed(Request $request, EntityManagerInterface $entityManager): JsonResponse
-    {
-        $user = $this->activeUser();
-        if ($user instanceof JsonResponse) {
-            return $user;
-        }
-        $limit = filter_var($request->query->get('limit', 20), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 50]]) ?: 20;
-
-        $pending = [];
-        foreach ($entityManager->getRepository(ProposalParticipant::class)->findBy(['user' => $user]) as $participant) {
-            $proposal = $participant->getProposal();
-            if ($proposal->getStatus() === Proposal::STATUS_PENDING && !$participant->isConfirmed()) {
-                $pending[] = $this->proposalToApiArray($proposal);
-            }
-        }
-        usort($pending, static fn (array $left, array $right) => $left['createdAt'] <=> $right['createdAt']);
-
-        $candidates = [];
-        $ownServices = $entityManager->getRepository(Service::class)->findBy(['user' => $user, 'isSuspended' => false, 'deletedAt' => null]);
-        $otherServices = $entityManager->getRepository(Service::class)->findBy(['isSuspended' => false, 'deletedAt' => null], ['id' => 'ASC']);
-        foreach ($ownServices as $ownOffer) {
-            if ($ownOffer->getType() !== Service::TYPE_OFFER) {
-                continue;
-            }
-            foreach ($ownServices as $ownRequest) {
-                if ($ownRequest->getType() !== Service::TYPE_REQUEST) {
-                    continue;
-                }
-                foreach ($otherServices as $candidateOffer) {
-                    $candidate = $candidateOffer->getUser();
-                    if ($candidate === $user || !$candidate->isActive() || $candidateOffer->getType() !== Service::TYPE_OFFER) {
-                        continue;
-                    }
-                    foreach ($otherServices as $candidateRequest) {
-                        if ($candidateRequest->getUser() !== $candidate || $candidateRequest->getType() !== Service::TYPE_REQUEST
-                            || !$this->sharesCategory($ownOffer, $candidateRequest) || !$this->sharesCategory($candidateOffer, $ownRequest)
-                            || $this->chains->reserved($ownOffer->getId()) || $this->chains->reserved($ownRequest->getId())
-                            || $this->chains->reserved($candidateOffer->getId()) || $this->chains->reserved($candidateRequest->getId())
-                            || $this->decisionExists($entityManager, $user, $candidate, $ownOffer, $ownRequest, $candidateOffer, $candidateRequest)
-                            || $this->proposalExistsForOfferPair($entityManager, $ownOffer, $candidateOffer)) {
-                            continue;
-                        }
-                        $candidates[] = $this->candidateToApiArray($candidate, $ownOffer, $ownRequest, $candidateOffer, $candidateRequest);
-                        if (count($candidates) >= $limit) {
-                            break 4;
-                        }
-                    }
-                }
-            }
-        }
-
-        return $this->json(['pendingProposals' => $pending, 'candidates' => $candidates]);
-    }
-
-    #[Route('/swipes', name: 'api_swipes_decide', methods: ['POST'])]
-    public function decideSwipe(Request $request, EntityManagerInterface $entityManager): JsonResponse
-    {
-        $actor = $this->activeUser();
-        if ($actor instanceof JsonResponse) {
-            return $actor;
-        }
-        $data = $this->readJsonBody($request);
-        if (!is_array($data) || !in_array($data['direction'] ?? null, [SwipeDecision::DIRECTION_LEFT, SwipeDecision::DIRECTION_RIGHT], true)) {
-            return $this->error('A swipe direction of LEFT or RIGHT is required.', 400);
-        }
-        $ids = ['actorOfferServiceId', 'actorRequestServiceId', 'candidateOfferServiceId', 'candidateRequestServiceId'];
-        foreach ($ids as $id) {
-            if (!isset($data[$id]) || (!is_int($data[$id]) && !ctype_digit((string) $data[$id]))) {
-                return $this->error('All four service IDs are required.', 400);
-            }
-        }
-        $actorOffer = $entityManager->find(Service::class, (int) $data['actorOfferServiceId']);
-        $actorRequest = $entityManager->find(Service::class, (int) $data['actorRequestServiceId']);
-        $candidateOffer = $entityManager->find(Service::class, (int) $data['candidateOfferServiceId']);
-        $candidateRequest = $entityManager->find(Service::class, (int) $data['candidateRequestServiceId']);
-        if (!$actorOffer || !$actorRequest || !$candidateOffer || !$candidateRequest
-            || $actorOffer->isDeleted() || $actorRequest->isDeleted() || $candidateOffer->isDeleted() || $candidateRequest->isDeleted()) {
-            return $this->error('One or more services do not exist.', 404);
-        }
-        $candidate = $candidateOffer->getUser();
-        if ($actorOffer->getUser() !== $actor || $actorRequest->getUser() !== $actor || $candidateRequest->getUser() !== $candidate
-            || $candidate === $actor || !$candidate->isActive() || $actorOffer->getType() !== Service::TYPE_OFFER
-            || $actorRequest->getType() !== Service::TYPE_REQUEST || $candidateOffer->getType() !== Service::TYPE_OFFER
-            || $candidateRequest->getType() !== Service::TYPE_REQUEST || !$this->sharesCategory($actorOffer, $candidateRequest)
-            || !$this->sharesCategory($candidateOffer, $actorRequest)) {
-            return $this->error('The services do not form a valid reciprocal candidate.', 400);
-        }
-
-        $existing = $entityManager->getRepository(SwipeDecision::class)->findOneBy([
-            'actor' => $actor, 'candidate' => $candidate, 'actorOffer' => $actorOffer, 'actorRequest' => $actorRequest,
-            'candidateOffer' => $candidateOffer, 'candidateRequest' => $candidateRequest,
-        ]);
-        if ($existing !== null) {
-            if ($existing->getDirection() !== $data['direction']) {
-                return $this->error('This candidate combination already has a different decision.', 409);
-            }
-            return $this->swipeResponse($existing, 200);
-        }
-        if ($data['direction'] === SwipeDecision::DIRECTION_RIGHT && $entityManager->getRepository(Proposal::class)->findOneBy(['offerPairKey' => $this->offerPairKey($actorOffer, $candidateOffer)]) !== null) {
-            return $this->error('A proposal already exists for these offered services.', 409);
-        }
-
-        // The decision and proposal are written together so a failed request cannot leave a partial match behind.
-        $decision = new SwipeDecision($actor, $candidate, $actorOffer, $actorRequest, $candidateOffer, $candidateRequest, $data['direction']);
-        try {
-            $entityManager->wrapInTransaction(function () use ($entityManager, $decision, $data, $actor, $candidate, $actorOffer, $actorRequest, $candidateOffer, $candidateRequest): void {
-                $ids = [$actorOffer->getId(), $actorRequest->getId(), $candidateOffer->getId(), $candidateRequest->getId()];
-                $this->chains->lockServices($ids);
-                // Check again after locking; the owner may have suspended a service since the feed was read.
-                foreach ($ids as $serviceId) {
-                    if (!$this->chains->serviceNotDeleted($serviceId, true)) {
-                        throw new ChainError('One or more services do not exist.', 404);
-                    }
-                    if (!$this->chains->serviceNotSuspended($serviceId, true)) {
-                        throw new ChainError('Suspended services cannot receive new swipe decisions.');
-                    }
-                }
-                if ($data['direction'] === SwipeDecision::DIRECTION_RIGHT) {
-                    foreach ($ids as $serviceId) {
-                        if ($this->chains->reserved($serviceId, true)) {
-                            throw new ChainError('One of these services is reserved by a chain.');
-                        }
-                    }
-                    $proposal = new Proposal($this->offerPairKey($actorOffer, $candidateOffer));
-                    $proposal->addParticipant(new ProposalParticipant($proposal, $actor, $actorOffer, true));
-                    $proposal->addParticipant(new ProposalParticipant($proposal, $candidate, $candidateOffer));
-                    $decision->setProposal($proposal);
-                    $entityManager->persist($proposal);
-                }
-                $entityManager->persist($decision);
-                $entityManager->flush();
-            });
-        } catch (ChainError $error) {
-            return $this->error($error->getMessage(), $error->status);
-        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException|\Doctrine\DBAL\Exception\RetryableException) {
-            return $this->error('A concurrent operation changed this candidate. Retry the request.', 409);
-        }
-
-        return $this->swipeResponse($decision, 201);
-    }
-
-    #[Route('/proposals/{id}/decision', name: 'api_proposals_decide', methods: ['POST'])]
-    public function decideProposal(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
-    {
-        $user = $this->activeUser();
-        if ($user instanceof JsonResponse) {
-            return $user;
-        }
-        $proposal = $entityManager->find(Proposal::class, $id);
-        if ($proposal === null) {
-            return $this->error('The proposal does not exist.', 404);
-        }
-        $data = $this->readJsonBody($request);
-        if (!is_array($data) || !in_array($data['decision'] ?? null, ['ACCEPT', 'REJECT'], true)) {
-            return $this->error('A decision of ACCEPT or REJECT is required.', 400);
-        }
-        if ($proposal->getStatus() !== Proposal::STATUS_PENDING) {
-            return $this->error('This proposal already has a final decision.', 409);
-        }
-        $participant = null;
-        foreach ($proposal->getParticipants() as $item) {
-            if ($item->getUser() === $user) {
-                $participant = $item;
-                break;
-            }
-        }
-        if ($participant === null || $participant->isConfirmed()) {
-            return $this->error('Only the participant awaiting confirmation may decide.', 403);
-        }
-
-        if ($data['decision'] === 'ACCEPT') {
-            $participant->confirm();
-            $proposal->setStatus(Proposal::STATUS_ACCEPTED);
-        } else {
-            $proposal->setStatus(Proposal::STATUS_REJECTED);
-        }
-        $entityManager->flush();
-
-        return $this->json(['proposal' => $this->proposalToApiArray($proposal), 'matched' => $proposal->getStatus() === Proposal::STATUS_ACCEPTED]);
     }
 
     private function activeUser(): User|JsonResponse
@@ -431,52 +241,6 @@ class MarketplaceController extends AbstractController
                 'totalPages' => $totalItems === 0 ? 0 : (int) ceil($totalItems / $limit),
             ],
         ]);
-    }
-
-    private function sharesCategory(Service $first, Service $second): bool
-    {
-        return $this->compatibility->sharesCategory($first, $second);
-    }
-
-    private function decisionExists(EntityManagerInterface $entityManager, User $actor, User $candidate, Service $actorOffer, Service $actorRequest, Service $candidateOffer, Service $candidateRequest): bool
-    {
-        return $entityManager->getRepository(SwipeDecision::class)->findOneBy([
-            'actor' => $actor, 'candidate' => $candidate, 'actorOffer' => $actorOffer, 'actorRequest' => $actorRequest,
-            'candidateOffer' => $candidateOffer, 'candidateRequest' => $candidateRequest,
-        ]) !== null;
-    }
-
-    private function proposalExistsForOfferPair(EntityManagerInterface $entityManager, Service $first, Service $second): bool
-    {
-        return $entityManager->getRepository(Proposal::class)->findOneBy(['offerPairKey' => $this->offerPairKey($first, $second)]) !== null;
-    }
-
-    private function offerPairKey(Service $first, Service $second): string
-    {
-        $ids = [$first->getId(), $second->getId()];
-        sort($ids, SORT_NUMERIC);
-        return $ids[0].':'.$ids[1];
-    }
-
-    /** @return array<string, mixed> */
-    private function candidateToApiArray(User $candidate, Service $actorOffer, Service $actorRequest, Service $candidateOffer, Service $candidateRequest): array
-    {
-        return ['candidate' => $candidate->toPublicApiArray(), 'actorOfferService' => $actorOffer->toApiArray(), 'actorRequestService' => $actorRequest->toApiArray(), 'candidateOfferService' => $candidateOffer->toApiArray(), 'candidateRequestService' => $candidateRequest->toApiArray()];
-    }
-
-    /** @return array<string, mixed> */
-    private function proposalToApiArray(Proposal $proposal): array
-    {
-        $participants = [];
-        foreach ($proposal->getParticipants() as $participant) {
-            $participants[] = ['user' => $participant->getUser()->toPublicApiArray(), 'service' => $participant->getService()->toApiArray(), 'confirmed' => $participant->isConfirmed()];
-        }
-        return ['id' => $proposal->getId(), 'status' => $proposal->getStatus(), 'createdAt' => $proposal->getCreatedAt()->format(DATE_ATOM), 'participants' => $participants];
-    }
-
-    private function swipeResponse(SwipeDecision $decision, int $status): JsonResponse
-    {
-        return $this->json(['direction' => $decision->getDirection(), 'proposalId' => $decision->getProposal()?->getId()], $status);
     }
 
     private function error(string $message, int $status): JsonResponse { return $this->json(['error' => $message], $status); }

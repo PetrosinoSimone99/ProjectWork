@@ -7,9 +7,8 @@ namespace App\Controller;
 use App\Entity\Category;
 use App\Entity\Service;
 use App\Entity\User;
-use App\Repository\ChainRepository;
 use App\Repository\ServiceRepository;
-use App\Service\ChainError;
+use App\Exception\ServiceNotFoundException;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,7 +36,7 @@ final class RequestController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_requests_update', requirements: ['id' => '\\d+'], methods: ['PATCH'])]
-    public function update(int $id, Request $request, EntityManagerInterface $entityManager, ServiceRepository $services, ChainRepository $chains): JsonResponse
+    public function update(int $id, Request $request, EntityManagerInterface $entityManager, ServiceRepository $services): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
@@ -109,12 +108,12 @@ final class RequestController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services, $chains): void {
-                // The same row lock is used by proposal and chain creation, so they cannot race this edit.
-                $chains->lockServices([$id]);
+            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services): void {
+                // Serialize edits and deletion of the same service.
+                $services->lockForUpdate($id);
                 // Another request may have deleted this row while we waited for the lock.
-                if (!$chains->serviceNotDeleted($id, true)) {
-                    throw new ChainError('The request does not exist.', 404);
+                if (!$services->existsNotDeleted($id)) {
+                    throw new ServiceNotFoundException('The request does not exist.');
                 }
                 if ($services->isInUse($id)) {
                     throw new RequestInUseException();
@@ -141,8 +140,8 @@ final class RequestController extends AbstractController
                 }
                 $entityManager->flush();
             });
-        } catch (ChainError $error) {
-            return $this->error($error->getMessage(), $error->status);
+        } catch (ServiceNotFoundException $error) {
+            return $this->error($error->getMessage(), 404);
         } catch (RequestInUseException) {
             return $this->error('This request is already connected to a proposal or exchange.', 409);
         } catch (RetryableException|ForeignKeyConstraintViolationException) {
@@ -153,7 +152,7 @@ final class RequestController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_requests_delete', requirements: ['id' => '\\d+'], methods: ['DELETE'])]
-    public function delete(int $id, EntityManagerInterface $entityManager, ServiceRepository $services, ChainRepository $chains): JsonResponse
+    public function delete(int $id, EntityManagerInterface $entityManager, ServiceRepository $services): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
@@ -165,12 +164,12 @@ final class RequestController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $entityManager, $services, $chains): void {
+            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $entityManager, $services): void {
                 // Lock the service before checking references or removing it.
-                $chains->lockServices([$id]);
+                $services->lockForUpdate($id);
                 // Another request may have deleted this row while we waited for the lock.
-                if (!$chains->serviceNotDeleted($id, true)) {
-                    throw new ChainError('The request does not exist.', 404);
+                if (!$services->existsNotDeleted($id)) {
+                    throw new ServiceNotFoundException('The request does not exist.');
                 }
                 if ($services->isInUse($id)) {
                     throw new RequestInUseException();
@@ -179,8 +178,8 @@ final class RequestController extends AbstractController
                 $serviceRequest->markDeleted();
                 $entityManager->flush();
             });
-        } catch (ChainError $error) {
-            return $this->error($error->getMessage(), $error->status);
+        } catch (ServiceNotFoundException $error) {
+            return $this->error($error->getMessage(), 404);
         } catch (RequestInUseException) {
             return $this->error('This request is already connected to a proposal or exchange.', 409);
         } catch (RetryableException|ForeignKeyConstraintViolationException) {

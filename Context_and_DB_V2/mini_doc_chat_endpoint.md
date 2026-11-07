@@ -1,3 +1,5 @@
+> **Compatibilità con lo schema corrente:** tutte le API chat descritte qui sono conservate. Il dump indicato da `LAST_DB_TO_USE.txt` non contiene le tabelle chat e proposte necessarie: le chat non funzionano con il solo dump. Le denominazioni di proposta e gruppo negli URL restano per compatibilità del codice; non implicano la disponibilità delle API di swipe o catene. Nessuno schema chat viene aggiunto automaticamente. Il Bearer token è un JWT di autenticazione.
+
 /api/chats/mutual-proposal/{proposalId}
 
 Endpoint che recupera la chat e lo storico di messaggi partendo dall'id della proposta di scambio 1 a 1.

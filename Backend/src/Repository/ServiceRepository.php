@@ -55,28 +55,50 @@ final class ServiceRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /** Checks whether a service is tied to any proposal or exchange, including finished ones. */
+    /** Returns only deleted services, optionally limited to one owner or type. */
+    public function paginateDeleted(int $page, int $limit, ?int $ownerId, ?string $type): Paginator
+    {
+        $query = $this->createQueryBuilder('service')
+            ->select('service, owner, category')
+            ->innerJoin('service.user', 'owner')
+            ->leftJoin('service.categories', 'category')
+            ->andWhere('service.deletedAt IS NOT NULL')
+            ->orderBy('service.deletedAt', 'DESC')
+            ->addOrderBy('service.id', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
+        if ($ownerId !== null) {
+            $query->andWhere('owner.id = :ownerId')->setParameter('ownerId', $ownerId);
+        }
+        if ($type !== null) {
+            $query->andWhere('service.type = :type')->setParameter('type', $type);
+        }
+        return new Paginator($query, true);
+    }
+
+    /** Must be called inside the transaction that edits, deletes or restores this service. */
+    public function lockForUpdate(int $id): void
+    {
+        $suffix = $this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform ? '' : ' FOR UPDATE';
+        $this->db->fetchOne('SELECT id FROM services WHERE id = ?'.$suffix, [$id]);
+    }
+
+    public function existsNotDeleted(int $id): bool
+    {
+        $suffix = $this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform ? '' : ' FOR UPDATE';
+        return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND deleted_at IS NULL'.$suffix, [$id]) !== false;
+    }
+
+    /** Protect agreement history, queues and existing token reservations from service mutations. */
     public function isInUse(int $serviceId): bool
     {
         $tables = $this->db->createSchemaManager()->listTableNames();
         $suffix = $this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform ? '' : ' FOR UPDATE';
-        // Direct proposals store offers as participants, but their requests are recorded in the swipe.
-        if (in_array('swipe_decisions', $tables, true)
-            && $this->db->fetchOne(
-                'SELECT id FROM swipe_decisions WHERE proposal_id IS NOT NULL AND (actor_offer_id = ? OR actor_request_id = ? OR candidate_offer_id = ? OR candidate_request_id = ?) LIMIT 1'.$suffix,
-                array_fill(0, 4, $serviceId),
-            ) !== false) {
-            return true;
-        }
+        // These are the service references in the dump selected by LAST_DB_TO_USE.txt.
         $references = [
-            'proposal_participants' => ['service_id'],
-            'exchange_participants' => ['service_id'],
-            'proposal_groups' => ['current_offered_service', 'last_requested_service', 'offered_service_id', 'requested_service_id'],
-            'group_participants' => ['received_service', 'offered_service_id', 'requested_service_id'],
-            'service_provision' => ['service_id'],
-            'chain_agreements' => ['service_id'],
-            'chain_service_reservations' => ['service_id'],
-            // Finished token requests keep history but no longer block this offer.
+            'agreement_details' => ['service_provided'],
+            'service_queues' => ['service_id'],
+            // Existing reservations must remain protected after their APIs are removed.
             'token_redemptions' => ['reserved_service_id'],
         ];
 
