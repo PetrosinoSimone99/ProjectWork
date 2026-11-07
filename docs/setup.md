@@ -23,7 +23,7 @@ What this creates:
 | Service | Image | Port | Notes |
 | --- | --- | --- | --- |
 | `database` | `mysql:8.0` | 3306 | db `barattolo`, dev credentials `root`/`root` |
-| `backend` | PHP 8.3 (built from `docker/`) | **8000** | Symfony served at `http://localhost:8000` |
+| `backend` | PHP 8.4 (built from `docker/`) | **8000** | Symfony served at `http://localhost:8000` |
 
 First boot behavior:
 
@@ -32,14 +32,20 @@ First boot behavior:
    named in `LAST_DB_TO_USE.txt`): full v2 schema + categories seed +
    migration history table. No manual `migrations:migrate` needed.
 2. The backend container runs `composer install`, generates local JWT keys
-   (`config/jwt/*.pem`, skipped if present) and starts
-   `php -S 0.0.0.0:8000 -t public`.
+   (`config/jwt/*.pem`, skipped if present) and starts the PHP built-in server
+   on `0.0.0.0:8000 -t public` with two dev-only settings from `compose.yaml`:
+   `PHP_CLI_SERVER_WORKERS=4` (the built-in server is single-threaded by
+   default, so every request would queue behind the previous one) and opcache
+   enabled for the CLI SAPI (`-d opcache.enable_cli=1`, with
+   `opcache.revalidate_freq=60`). Without them a single API call takes 4-20 s
+   over the Windows bind mount and the app's 10 s client timeout
+   (`Frontend/src/api/client.js`) fires.
 
 Wait for the healthy state:
 
 ```bash
 docker compose ps
-curl http://localhost:8000/api/categories   # 401 without a token is CORRECT: route is alive and protected
+curl http://localhost:8000/api/categories   # 200 + {"categories":[...]} — GET is public
 ```
 
 To reset the database from scratch: `docker compose down -v` then up again
@@ -114,3 +120,6 @@ php bin/phpunit
 | `Unknown database barattolo` | volume initialized before the dump existed | `docker compose down -v` and re-up |
 | Web works, phone gets network error | phone not on the same Wi-Fi / hotspot blocked | same network, or set `EXPO_PUBLIC_API_URL` with the PC LAN IP |
 | JWT errors after key regen | stale token in secure store | logout/login to mint a fresh token |
+| Registration says it cannot load the categories (`Non riesco a caricare le categorie`) | API slower than the frontend's 10 s timeout — either the stack is not up to date or the container is still cold | `docker compose up -d backend` (workers + opcache in `compose.yaml`), then retry; first request after a start is the slowest |
+| A PHP edit does not show up for a while | `opcache.revalidate_freq=60` in `compose.yaml` | wait up to a minute, or `docker compose restart backend` |
+| One API call blocks the next one | `PHP_CLI_SERVER_WORKERS` lost (old container) | `docker compose up -d backend` and check `docker logs backend` for several `Development Server started` lines |

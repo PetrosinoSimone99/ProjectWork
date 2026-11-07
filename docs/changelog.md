@@ -6,6 +6,63 @@ documents/code touched.
 
 ---
 
+## 2026-11-04 — Registration failed: API latency above the client timeout
+
+### Symptom
+
+`/register` opened on the message *«Non riesco a caricare le categorie: senza,
+non posso completare la registrazione»* and the «Crea account» button stayed
+disabled. The categories request never completed, so the screen had no
+catalogue to choose from.
+
+### Root cause (measured, not guessed)
+
+`GET /api/categories` took **4–23 s** against the Docker stack, far above the
+frontend's 10 s `TIMEOUT_RICHIESTA_MS` (`Frontend/src/api/client.js`), so the
+`AbortController` fired and the screen showed the error state. Two causes on
+the backend container, both in `Backend/compose.yaml`:
+
+1. `php -S` is **single-threaded**: parallel requests queue. Four concurrent
+   calls measured 4.1 / 7.7 / 11.9 / 16.8 s — plain serialization.
+2. opcache is **off in the CLI SAPI** (the SAPI `php -S` uses), and
+   `opcache.validate_timestamps` was re-statting every file over the Windows
+   bind mount: ~2 s of pure `stat` per request, ~4 s of recompilation without
+   opcache.
+
+### What changed
+
+- `Backend/compose.yaml` (Docker exception, runtime only):
+  `PHP_CLI_SERVER_WORKERS=4`, and the server now starts with
+  `-d opcache.enable_cli=1 -d opcache.memory_consumption=256
+  -d opcache.interned_strings_buffer=32 -d opcache.max_accelerated_files=20000
+  -d opcache.validate_timestamps=1 -d opcache.revalidate_freq=60`.
+- `docs/setup.md`: the backend row said PHP 8.3 (it is 8.4 since
+  2026-11-03c), the “first boot” step described a bare `php -S`, the
+  `curl /api/categories` check claimed `401` was correct (**it is public and
+  returns `200`**), and three troubleshooting rows were added (this
+  symptom, the 60 s opcache revalidation, the lost workers).
+
+### After
+
+`GET /api/categories`: 1.5 s warm, 1.4 s with four in parallel (was 4–23 s).
+`POST /api/auth/register`: 3.2 s end to end, `201`. First request after a
+container start is still the slowest (~7.7 s) because each worker warms its
+own opcache — under the timeout, but the stack has to be up before the
+screen is opened.
+
+No frontend code changed: the 10 s budget was correct, the server was not.
+
+### Attention (backend maintainer)
+
+- Only the Docker exception files were edited (runtime, no source/config/test).
+- `opcache.revalidate_freq=60` means a PHP file edited on the host can take up
+to a minute to be served; `docker compose restart backend` forces it. If a
+shorter window is preferred, lower the value — it costs ~2 s per request.
+- The real fix for the remaining 1.5 s is the volume strategy (`.:/app` on a
+  Windows bind mount); that is a backend/Docker decision, not a frontend one.
+
+---
+
 ## 2026-11-03c — Docker stack fixes: PHP 8.4 image, test DBs, dump mount
 
 ### What changed

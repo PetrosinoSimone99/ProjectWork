@@ -41,6 +41,11 @@ services:
       DATABASE_URL: "mysql://root:root@database:3306/barattolo?serverVersion=8.0&charset=utf8mb4"
       # Passphrase used when generate-keypair creates the local JWT keys.
       JWT_PASSPHRASE: dev-only
+      # The built-in PHP server is single-threaded by default: every request
+      # queues behind the previous one. Expo screens poll in the background
+      # (chat, notifications), so without workers a login/registration screen
+      # can wait 15-20 s and hit the frontend's 10 s timeout.
+      PHP_CLI_SERVER_WORKERS: "4"
     volumes:
       - .:/app
       # Integration tests resolve the reference dumps at dirname(tests) i.e.
@@ -64,7 +69,20 @@ services:
           composer update --no-interaction --no-progress
         fi
         php bin/console lexik:jwt:generate-keypair --skip-if-exists
-        php -S 0.0.0.0:8000 -t public
+        # opcache is off in the CLI SAPI by default, which is what `php -S`
+        # uses: without these flags every request recompiles the whole
+        # framework from a Windows bind mount (3-5 s per request).
+        # `revalidate_freq=60` keeps the mtime stat off the hot path: with the
+        # default (2 s) every request re-stats every file over the mount, which
+        # costs ~2 s. The cost of the choice is that a PHP file edited on the
+        # host can take up to a minute to be picked up by the server.
+        php -d opcache.enable_cli=1 \
+            -d opcache.memory_consumption=256 \
+            -d opcache.interned_strings_buffer=32 \
+            -d opcache.max_accelerated_files=20000 \
+            -d opcache.validate_timestamps=1 \
+            -d opcache.revalidate_freq=60 \
+            -S 0.0.0.0:8000 -t public
 
 volumes:
   database_data:
