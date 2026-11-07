@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Chat;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -26,69 +27,22 @@ class ChatRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
     
-    public function getChatByMutualProposalId(int $proposalId): ?Chat
+    public function getChatByAgreementId(int $agreementId): ?Chat
     {
         return $this->createQueryBuilder('c')
-            ->andWhere('c.proposalMutualId = :proposalId')
-            ->setParameter('proposalId', $proposalId)
+            ->andWhere('c.agreementId = :agreementId')
+            ->setParameter('agreementId', $agreementId)
             ->getQuery()
             ->getOneOrNullResult();
     }
 
-    public function getChatByGroupProposalId(int $proposalId): ?Chat
-    {
-        return $this->createQueryBuilder('c')
-            ->andWhere('c.proposalGroupId = :proposalId')
-            ->setParameter('proposalId', $proposalId)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-    //May need to add a condition where a chat is open
-    public function getChatByParticipants(int $participant1, int $participant2, int $proposalGroupId): ?Chat
+    public function getUserChats(User $user): ?array
     {
         return $this->createQueryBuilder('c')
             ->join('c.chatParticipants', 'cp')
-            ->where('cp.userId IN (:participant1, :participant2) AND c.proposalGroupId = :proposalGroupId')
-            ->setParameter('participant1', $participant1)
-            ->setParameter('participant2', $participant2)
-            ->setParameter('proposalGroupId', $proposalGroupId)
-            ->groupBy('c.id')
-            ->having('COUNT(DISTINCT cp.userId) = 2')
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    public function getUserChats(int $userId): ?array
-    {
-        return $this->createQueryBuilder('c')
-            ->join('c.chatParticipants', 'cp')
-            ->where('cp.userId = :userId')
-            ->setParameter(':userId', $userId)
+            ->where('cp.user = :user')
+            ->setParameter('user', $user)
             ->getQuery()
             ->getResult();
     }
-//    /**
-//     * @return Chat[] Returns an array of Chat objects
-//     */
-//    public function findByExampleField($value): array
-//    {
-//        return $this->createQueryBuilder('c')
-//            ->andWhere('c.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->orderBy('c.id', 'ASC')
-//            ->setMaxResults(10)
-//            ->getQuery()
-//            ->getResult()
-//        ;
-//    }
-
-//    public function findOneBySomeField($value): ?Chat
-//    {
-//        return $this->createQueryBuilder('c')
-//            ->andWhere('c.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->getQuery()
-//            ->getOneOrNullResult()
-//        ;
-//    }
 }

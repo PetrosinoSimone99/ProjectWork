@@ -45,6 +45,10 @@ class AgreementManager{
         $this->agreementProposalRepository = $agreementProposalRepository;
         $this->agreementDetailsRepository = $agreementDetailsRepository;
     }
+
+    public function getAgreementById(int $agreementId): ?Agreement{
+        return $this->agreementRepository->findAgreement($agreementId);
+    }
     public function getAgreements(User $user): array{
         $dtos = [];
         $agreements = $this->agreementRepository->findAgreementsByUser($user);
