@@ -82,7 +82,6 @@ class Agreement
         }
         return $this;
     }
-    
     public function getAgreementDetails(): Collection
     {
         return $this->agreementDetails;

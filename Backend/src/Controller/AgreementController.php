@@ -20,8 +20,35 @@ final class AgreementController extends AbstractController
         $this->agreementManager = $agreementManager;
         $this->userManager = $userManager;
     }
+    #[Route('/get-agreements', name: 'get-agreements', methods: ['GET'])]
+    public function getAgreements(): JsonResponse
+    {
+        $user = $this->getUser();
+        if(!$user instanceof User){
+            return $this->json(['error' => [
+                'code' => 401,
+                'message' => 'Unauthorized'
+            ]], 401);
+        }
 
-    #[Route('/create-exchange-agreement', name: 'create-exchange-agreement', methods: ['GET'])]
+        try{
+            $agreementsDTO = $this->agreementManager->getAgreements($user);
+            return $this->json([
+                'success' => [
+                    'code' => 200,
+                    'message' => 'Agreements retrieved successfully',
+                    'agreements' => $agreementsDTO
+                ],
+            ], 200);
+        }catch(\Exception $e){
+            return $this->json(['error' => [
+                'code' => 500,
+                'message' => 'Internal Server Error'
+            ]], 500);
+        }
+
+    }
+    #[Route('/create-exchange-agreement', name: 'create-exchange-agreement', methods: ['POST'])]
     public function createExchangeAgreement(): JsonResponse
     {
 
@@ -122,11 +149,10 @@ final class AgreementController extends AbstractController
         } 
     }
 
-    #[Route('/send-agreement-details', name: 'send-agreement-details', methods: ['POST'])]
+    #[Route('/send-agreement-details', name: 'send-agreement-details', methods: ['GET'])]
     public function sendAgreementDetails(): JsonResponse
     {
         $user = $this->getUser();
-
         if(!$user instanceof User){
             return $this->json(['error' => [
                 'code' => 401,
@@ -178,7 +204,7 @@ final class AgreementController extends AbstractController
             ]], 401);
         }
         try{
-            $this->agreementManager->cancelAgreement($user, (int)$data['agreementId']);
+            $this->agreementManager->cancelAgreement($user, $agreementId);
             return $this->json([
                 'success' => [
                     'code' => 200,

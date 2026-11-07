@@ -20,4 +20,14 @@ class AgreementRepository extends ServiceEntityRepository
     {
         return $this->find($agreementId);
     }
+
+    public function findAgreementsByUser($user): array
+    {
+        return $this->createQueryBuilder('a')
+            ->innerJoin('a.agreementProposals', 'ap')
+            ->where('ap.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+    }
 }

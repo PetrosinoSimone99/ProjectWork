@@ -28,4 +28,13 @@ class AgreementProposalRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findProposalsByUser(User $user): array
+    {
+        return $this->createQueryBuilder('ap')
+            ->where('ap.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+    }
+
 }
