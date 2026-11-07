@@ -18,11 +18,8 @@ class Chat
     #[ORM\Column(name: "id")]
     private ?int $id = null;
     
-    #[ORM\Column(name: "proposal_mutual_id")]
-    private ?int $proposalMutualId = null;
-
-    #[ORM\Column(name: "proposal_group_id")]
-    private ?int $proposalGroupId = null;
+    #[ORM\Column(name: "agreement_id")]
+    private ?int $agreementId = null;
 
     /** @var Collection<int, ChatParticipant> */
     #[ORM\OneToMany(
@@ -33,8 +30,9 @@ class Chat
     )]
     private Collection $chatParticipants;
 
-    public function __construct()
+    public function __construct(int $agreementId)
     {
+        $this->agreementId = $agreementId;
         $this->chatParticipants = new ArrayCollection();
     }
 
@@ -50,24 +48,29 @@ class Chat
         return $this;
     }
 
-    public function getProposalMutualId(): ?int
+    public function getAgreementId(): ?int
     {
-        return $this->proposalMutualId;
+        return $this->agreementId;
     }
-    public function setProposalMutualId(?int $proposalMutualId): self
+    
+    public function setAgreementId(?int $agreementId): self
     {
-        $this->proposalMutualId = $proposalMutualId;
+        $this->agreementId = $agreementId;
 
         return $this;
     }
 
-    public function getProposalGroupId(): ?int
+    public function getChatParticipants(): Collection
     {
-        return $this->proposalGroupId;
+        return $this->chatParticipants;
     }
-    public function setProposalGroupId(?int $proposalGroupId): self
+
+    public function addChatParticipant(ChatParticipant $chatParticipant): self
     {
-        $this->proposalGroupId = $proposalGroupId;
+        if (!$this->chatParticipants->contains($chatParticipant)) {
+            $this->chatParticipants[] = $chatParticipant;
+            $chatParticipant->setChat($this);
+        }
 
         return $this;
     }

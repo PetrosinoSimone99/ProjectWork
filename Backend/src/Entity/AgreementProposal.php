@@ -39,35 +39,40 @@ class AgreementProposal
         $this->responseDate = $responseDate;
     }
 
-    public function getAgreement(){
+    public function getAgreement(): ?Agreement
+    {
         return $this->agreement;
     }
     public function setAgreement(Agreement $agreement){
         $this->agreement = $agreement;
     }
 
-    public function getUser(){
+    public function getUser(): ?User
+    {
         return $this->user;
     }
     public function setUser(User $user){
         $this->user = $user;
     }
 
-    public function getRole(){
+    public function getRole(): ?AgreementParticipantRole
+    {
         return $this->role;
     }
     public function setRole(AgreementParticipantRole $role){
         $this->role = $role;
     }
 
-    public function getResponse(){
+    public function getResponse(): ?bool
+    {
         return $this->response;
     }
     public function setResponse(bool $response){
         $this->response = $response;
     }
 
-    public function getResponseDate(){
+    public function getResponseDate(): ?DateTimeImmutable
+    {
         return $this->responseDate;
     }
 

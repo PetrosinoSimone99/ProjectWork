@@ -6,21 +6,18 @@ namespace App\Manager;
 use App\Entity\User;
 use App\Entity\Chat;
 use App\Entity\ChatMessage;
-use App\Entity\ProposalParticipant;
 use App\Entity\ChatParticipant;
+use App\Entity\AgreementProposal;
 
 use App\Exception\ChatNotFoundException;
 
-use App\DTO\ChatMessageDTO;
-use App\DTO\GroupParticipantDTO;
+use App\Manager\AgreementManager;
 
-use App\Manager\UserManager;
+use App\DTO\ChatMessageDTO;
 
 use App\Repository\ChatRepository;
 use App\Repository\ChatMessageRepository;
-use App\Repository\ProposalRepository;
 
-use App\Query\GroupParticipantInfoQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -30,74 +27,40 @@ class ChatManager
     private ChatRepository $chatRepository;
     private ChatMessageRepository $chatMessageRepository;
     private ValidatorInterface $validator;
-    private ProposalRepository $proposalRepository;
     private UserManager $userManager;
-    private GroupParticipantInfoQuery $groupParticipantInfoQuery;
+    private AgreementManager $agreementManager;
 
     public function __construct(EntityManagerInterface $entityManager, ChatRepository $chatRepository, 
-    ChatMessageRepository $chatMessageRepository, ProposalRepository $proposalRepository, 
-    ValidatorInterface $validator, UserManager $userManager, GroupParticipantInfoQuery $groupParticipantInfoQuery) {
+    ChatMessageRepository $chatMessageRepository, ValidatorInterface $validator, UserManager $userManager, AgreementManager $agreementManager) {
         $this->entityManager = $entityManager;
         $this->chatRepository = $chatRepository;
         $this->chatMessageRepository = $chatMessageRepository;
-        $this->proposalRepository = $proposalRepository;
         $this->validator = $validator;
         $this->userManager = $userManager;
-        $this->groupParticipantInfoQuery = $groupParticipantInfoQuery;
+        $this->agreementManager = $agreementManager;
     }
 
-    public function getOrCreateMutualProposalChat(int $proposalId): Chat
+    public function getOrCreateChat(int $agreementId): Chat
     {
-        $chat = $this->chatRepository->getChatByMutualProposalId($proposalId);
+        $chat = $this->chatRepository->getChatByAgreementId($agreementId);
         
         if($chat == null){
-            $chat = $this->createChatMutual($proposalId);
-            $proposalParticipants = $this->proposalRepository->findMembersByProposalId($proposalId);
-            $this->insertChatMembers($chat, $proposalParticipants);
+            $agreement = $this->agreementManager->getAgreementById($agreementId);
+            $agreementProposals = $agreement->getAgreementProposals();
+            $participants = [];
+            foreach($agreementProposals as $agreementProposal){
+                $participants[] = $agreementProposal->getUser();
+            }
+            $chat = $this->createChat($agreementId);
+            $this->insertChatMembers($chat, $participants);
         }
 
         return $chat;
     }
 
-    public function getOrCreateGroupProposalChatBeneficiary(int $groupProposalId, int $beneficiaryId): Chat
+    public function getChatHistory(Chat $chat): ?array
     {   
-        $groupParticipantInfo = $this->groupParticipantInfoQuery->getServiceProviderForUser($groupProposalId, $beneficiaryId);
-
-        if ($groupParticipantInfo === null) {
-           throw new \InvalidArgumentException('Invalid chat');
-        }
-        
-        $chat = $this->chatRepository->getChatByParticipants($groupParticipantInfo->getBeneficiaryId(), $groupParticipantInfo->getProviderId(), $groupProposalId);
-        
-        if($chat == null){
-            $chat = $this->createChatGroup($groupProposalId);
-            $this->insertChatMembersGroup($chat, [$groupParticipantInfo->getBeneficiaryId(), $groupParticipantInfo->getProviderId()]);
-        }
-
-        return $chat;
-    }
-
-    public function getOrCreateGroupProposalChatProvider(int $groupProposalId, int $providerId): Chat
-    {
-        $groupParticipantInfo = $this->groupParticipantInfoQuery->getBeneficiaryForUserService($groupProposalId, $providerId);
-
-        if ($groupParticipantInfo === null) {
-           throw new \InvalidArgumentException('Invalid chat');
-        }
-        
-        $chat = $this->chatRepository->getChatByParticipants($groupParticipantInfo->getBeneficiaryId(), $groupParticipantInfo->getProviderId(), $groupProposalId);
-        
-        if($chat == null){
-            $chat = $this->createChatGroup($groupProposalId);
-            $this->insertChatMembersGroup($chat, [$groupParticipantInfo->getBeneficiaryId(), $groupParticipantInfo->getProviderId()]);
-        }
-
-        return $chat;
-    }
-
-    public function getChatHistory(int $chatId): ?array
-    {   
-        $chatMessages = $this->chatMessageRepository->getChatHistory($chatId);
+        $chatMessages = $this->chatMessageRepository->getChatHistory($chat);
 
         if($chatMessages === null){
             return [];
@@ -109,7 +72,7 @@ class ChatManager
         
     }
     
-    public function sendMessage(int $chatId,  int $userId, string $message): void
+    public function sendMessage(int $chatId,  User $user, string $message): void
     {
         $chat = $this->chatRepository->getChatById($chatId);
         
@@ -117,12 +80,7 @@ class ChatManager
            throw new ChatNotFoundException();
         }
 
-        $chatMessage = new ChatMessage();
-        $chatMessage->setChatId($chat->getId());
-        $chatMessage->setUserId($userId);
-        $chatMessage->setMessage($message);
-        $chatMessage->setCreationDate(new \DateTime('now'));
-        
+        $chatMessage = new ChatMessage($chat, $user, $message);
         $errors = $this->validator->validate($chatMessage);
         
         if(count($errors) > 0){
@@ -134,39 +92,32 @@ class ChatManager
     }
 
 
-    public function getUserMostRecentReceivedMessage(int $userId): ?ChatMessage
+
+    public function getUserMostRecentReceivedMessage(User $user): ?ChatMessage
     {   
         $chatIds = [];
-        $userChats = $this->chatRepository->getUserChats($userId);
+        $userChats = $this->chatRepository->getUserChats($user);
         
         foreach($userChats as $chat)
         {
             $chatIds[] = $chat->getId();
         }
-        $mostRecentMessage = $this->chatMessageRepository->getUserMostRecentReceivedMessage($userId, $chatIds);
+        $mostRecentMessage = $this->chatMessageRepository->getUserMostRecentReceivedMessage($user, $chatIds);
 
         return $mostRecentMessage;
     }
 
-    public function checkNewMessagesForUser(int $userId, int $recentMessageId): array
+    public function checkNewMessagesForUser(User $user, int $recentMessageId): array
     {
-        $chatIds = [];
-        $userChats = $this->chatRepository->getUserChats($userId);
-
-        foreach($userChats as $chat){
-            $chatIds[] = $chat->getId();
-        }
-
-        $newMessages = $this->chatMessageRepository->getNewMessagesForUser($userId, $chatIds, $recentMessageId);
+        $userChats = $this->chatRepository->getUserChats($user);
+        $newMessages = $this->chatMessageRepository->getNewMessagesForUser($user, $userChats, $recentMessageId);
         $chatMessageDTOs = $this->prepareChatMessageDTO($newMessages);
         return $chatMessageDTOs;
     }
     //Internal Only
-    private function createChatMutual(int $proposalId): Chat
+    private function createChat(int $agreementId): Chat
     {
-        $chat = new Chat();
-        $chat->setProposalMutualId($proposalId);
-
+        $chat = new Chat($agreementId);
         $errors = $this->validator->validate($chat);
         if(count($errors) > 0){
             throw new \InvalidArgumentException((string)$errors);
@@ -177,35 +128,14 @@ class ChatManager
         return $chat;
     }
 
-    private function createChatGroup(int $groupProposalId): Chat
+    private function insertChatMembers(Chat $chat, array $participants): void
     {
-        $chat = new Chat();
-        $chat->setProposalGroupId($groupProposalId);
-
-        $errors = $this->validator->validate($chat);
-        if(count($errors) > 0){
-            throw new \InvalidArgumentException((string)$errors);
-        }
-
-        $this->entityManager->persist($chat);
-        $this->entityManager->flush();
-
-        return $chat;
-    }
-
-    //proposalParticipants is an array of User objects, so for the mutual proposal chat, the users need to be inserted this way
-    private function insertChatMembers(Chat $chat, $proposalParticipants): void
-    {
-        foreach($proposalParticipants as $user){
-            $chatParticipant = new ChatParticipant();
-            $chatParticipant->setChat($chat);
-            $chatParticipant->setUserId($user->getId());
-
+        foreach($participants as $user){
+            $chatParticipant = new ChatParticipant($chat, $user);
             $errors = $this->validator->validate($chatParticipant);
             if(count($errors) > 0){
                 throw new \InvalidArgumentException((string)$errors);
             }
-
             $this->entityManager->persist($chatParticipant);
         }
         
@@ -232,7 +162,7 @@ class ChatManager
 
     private function prepareChatMessageDTO(array $chatMessages): array
     {
-        $userIds = array_unique(array_map(fn ($chatMessages) => $chatMessages->getUserId(), $chatMessages));
+        $userIds = array_unique(array_map(fn ($chatMessages) => $chatMessages->getUser()->getId(), $chatMessages));
         $users = [];
         foreach ($userIds as $userId) {
             $users[$userId] = $this->userManager->getUserById($userId);
@@ -240,8 +170,8 @@ class ChatManager
         $dtos = array_map(
             fn($chatMessages) => new ChatMessageDTO(
                 $chatMessages->getId(),
-                $chatMessages->getChatId(),
-                $users[$chatMessages->getUserId()]->getUsername(),
+                $chatMessages->getChat()->getId(),
+                $users[$chatMessages->getUser()->getId()]->getUsername(),
                 $chatMessages->getMessage(),
                 $chatMessages->getCreationDate()
             ),

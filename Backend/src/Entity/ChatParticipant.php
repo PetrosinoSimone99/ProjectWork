@@ -17,17 +17,19 @@ class ChatParticipant
     private ?Chat $chat = null;
 
     #[ORM\Id]
-    #[ORM\Column(name: "user_id")]
-    private ?int $userId = null;
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id")]
+    private ?User $user = null;
 
     #[ORM\Column(name: "last_message_read")]
     private ?int $lastMessageRead = null;
 
-    public function getId(): ?int
+    public function __construct(Chat $chat, User $user)
     {
-        return $this->id;
+        $this->chat = $chat;
+        $this->user = $user;
+        $this->lastMessageRead = 0; // Initialize to 0 or any other default value
     }
-
     public function getChat(): ?Chat
     {
         return $this->chat;
@@ -39,13 +41,13 @@ class ChatParticipant
         return $this;
     }
 
-    public function getUserId(): ?int
+    public function getUser(): ?User
     {
-        return $this->userId;
+        return $this->user;
     }
-    public function setUserId(int $userId): self
+    public function setUser(User $user): self
     {
-        $this->userId = $userId;
+        $this->user = $user;
 
         return $this;
     }

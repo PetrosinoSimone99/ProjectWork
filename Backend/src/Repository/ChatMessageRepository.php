@@ -3,6 +3,8 @@
 namespace App\Repository;
 
 use App\Entity\ChatMessage;
+use App\Entity\Chat;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,38 +18,38 @@ class ChatMessageRepository extends ServiceEntityRepository
         parent::__construct($registry, ChatMessage::class);
     }
 
-    public function getChatHistory(int $chatId): array
+    public function getChatHistory(Chat $chat): array
     {
         return $this->createQueryBuilder('cm')
-            ->where('cm.chatId = :chatId')
-            ->setParameter('chatId', $chatId)
+            ->where('cm.chat = :chat')
+            ->setParameter('chat', $chat)
             ->orderBy('cm.creationDate', 'ASC')
             ->getQuery()
             ->getResult();
     }
 
-    public function getUserMostRecentReceivedMessage(int $userId, array $userChatIds): ?ChatMessage
+    public function getUserMostRecentReceivedMessage(User $user, array $userChats): ?ChatMessage
     {
         return $this->createQueryBuilder('cm')
-            ->where('cm.chatId IN (:userChatIds)')
-            ->andWhere('cm.userId != :userId')
-            ->setParameter('userId', $userId)
-            ->setParameter('userChatIds', $userChatIds)
+            ->where('cm.chat IN (:userChats)')
+            ->andWhere('cm.user != :user')
+            ->setParameter('user', $user)
+            ->setParameter('userChats', $userChats)
             ->orderBy('cm.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }
 
-    public function getNewMessagesForUser(int $userId, array $chatIds, int $recentMessageId): ?array
+    public function getNewMessagesForUser(User $user, array $chats, int $recentMessageId): ?array
     {
         return $this->createQueryBuilder('cm')
-            ->where('cm.chatId IN (:chatIds)')
-            ->andWhere('cm.userId != :userId')
+            ->where('cm.chat IN (:chats)')
+            ->andWhere('cm.user != :user')
             ->andWhere('cm.id > :recentMessageId')
             ->setParameter('recentMessageId', $recentMessageId)
-            ->setParameter('userId', $userId)
-            ->setParameter('chatIds', $chatIds)
+            ->setParameter('user', $user)
+            ->setParameter('chats', $chats)
             ->orderBy('cm.creationDate', 'ASC')
             ->getQuery()
             ->getResult();
