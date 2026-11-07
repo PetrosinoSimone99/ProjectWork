@@ -20,11 +20,10 @@ services:
       - "3306:3306"
     volumes:
       - database_data:/var/lib/mysql
-      # First boot on an empty data volume imports the reference dump
-      # (LAST_DB_TO_USE in ../Context_and_DB_V2): full v2 schema, categories
-      # seed and doctrine_migration_versions, so `migrations:migrate` is not
-      # needed afterwards. Users are registered at runtime.
-      - ../Context_and_DB_V2/barattolo_v2_18102026_token_redemptions.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      # First boot on an empty data volume imports the reference dump named by
+      # ../Context_and_DB_V2/LAST_DB_TO_USE.txt: the v3.1 schema (14 tables).
+      # It carries no seed rows: categories and users are created at runtime.
+      - ../Context_and_DB_V2/barattolo_v3_1_senza_swipe_chat_catene.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 5s
