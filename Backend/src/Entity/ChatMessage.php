@@ -6,6 +6,7 @@ use App\Entity\Chat;
 use App\Entity\User;
 use App\Repository\ChatMessageRepository;
 use Doctrine\ORM\Mapping as ORM;
+use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: ChatMessageRepository::class)]
 #[ORM\Table(name: "chat_messages")]
