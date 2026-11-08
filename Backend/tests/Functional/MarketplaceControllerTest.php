@@ -359,12 +359,165 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertNotSame($second->getId(), $third->getId());
     }
 
+    public function testHomepagePrioritizesDesiredCategoriesAcrossPagesWithoutDuplicates(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $owner = $this->createUser('owner');
+        $desired = $this->createCategory('Languages');
+        $other = $this->createCategory('Repairs');
+        $this->createService($viewer, Service::TYPE_REQUEST, 'I need lessons.', $desired);
+        $this->createService($viewer, Service::TYPE_REQUEST, 'More lessons.', $desired);
+
+        $first = $this->createService($owner, Service::TYPE_OFFER, 'First preferred.', $desired);
+        $first->addCategory($other);
+        $second = $this->createService($owner, Service::TYPE_OFFER, 'Second preferred.', $desired);
+        $third = $this->createService($owner, Service::TYPE_OFFER, 'First remaining.', $other);
+        $fourth = $this->createService($owner, Service::TYPE_OFFER, 'Second remaining.', $other);
+        // Give each group equal timestamps to check the ID tie-breaker too.
+        foreach ([$first, $second, $third, $fourth] as $index => $service) {
+            $this->entityManager->getConnection()->executeStatement(
+                'UPDATE services SET creation_date = ? WHERE id = ?',
+                [$index < 2 ? '2026-01-01 10:00:00' : '2026-02-01 10:00:00', $service->getId()],
+            );
+        }
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+        $this->authenticate($viewer);
+
+        $allIds = [];
+        foreach ([1 => [$second->getId(), $first->getId(), $fourth->getId()], 2 => [$third->getId()], 3 => []] as $page => $expected) {
+            $this->client->request('GET', '/api/services?limit=3&page='.$page);
+            self::assertResponseIsSuccessful();
+            $data = $this->data();
+            self::assertSame($expected, array_column($data['offers'], 'id'));
+            self::assertSame(['page' => $page, 'limit' => 3, 'totalItems' => 4, 'totalPages' => 2], $data['pagination']);
+            if ($page === 1) {
+                self::assertCount(2, $data['offers'][1]['categories']);
+            }
+            $allIds = [...$allIds, ...array_column($data['offers'], 'id')];
+        }
+        self::assertCount(4, array_unique($allIds));
+
+        foreach ([$second, $first, $fourth, $third] as $index => $offer) {
+            $this->client->request('GET', '/api/services?limit=1&page='.($index + 1));
+            self::assertResponseIsSuccessful();
+            self::assertSame([$offer->getId()], array_column($this->data()['offers'], 'id'));
+        }
+
+        $this->client->request('GET', '/api/services?sort=oldest');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$first->getId(), $second->getId(), $third->getId(), $fourth->getId()], array_column($this->data()['offers'], 'id'));
+
+        // A category filter restricts both groups without replacing the viewer's preferences.
+        $this->client->request('GET', '/api/services?categoryIds='.$other->getId());
+        self::assertResponseIsSuccessful();
+        self::assertSame([$first->getId(), $fourth->getId(), $third->getId()], array_column($this->data()['offers'], 'id'));
+        self::assertCount(2, $this->data()['offers'][0]['categories']);
+    }
+
+    public function testHomepagePreferencesFollowChangesToOwnActiveRequests(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $owner = $this->createUser('owner');
+        $firstCategory = $this->createCategory('Languages');
+        $secondCategory = $this->createCategory('Repairs');
+        $request = $this->createService($viewer, Service::TYPE_REQUEST, 'I need lessons.', $firstCategory);
+        $first = $this->createService($owner, Service::TYPE_OFFER, 'Lessons.', $firstCategory);
+        $second = $this->createService($owner, Service::TYPE_OFFER, 'Repairs.', $secondCategory);
+        // Offers and another user's requests must not define the viewer's preferences.
+        $this->createService($viewer, Service::TYPE_OFFER, 'My repairs.', $secondCategory);
+        $this->createService($owner, Service::TYPE_REQUEST, 'Other request.', $secondCategory);
+        $this->authenticate($viewer);
+        $this->client->request('GET', '/api/services');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$first->getId(), $second->getId()], array_column($this->data()['offers'], 'id'));
+
+        foreach ([
+            ['categoryIds' => [$secondCategory->getId()]],
+            ['categoryIds' => [$firstCategory->getId()]],
+            ['isSuspended' => true],
+            ['isSuspended' => false],
+        ] as $index => $update) {
+            $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), $update);
+            self::assertResponseIsSuccessful();
+            $this->client->request('GET', '/api/services');
+            self::assertResponseIsSuccessful();
+            $expected = in_array($index, [0, 2], true) ? [$second->getId(), $first->getId()] : [$first->getId(), $second->getId()];
+            self::assertSame($expected, array_column($this->data()['offers'], 'id'));
+        }
+        $this->client->request('DELETE', '/api/requests/'.$request->getId());
+        self::assertResponseStatusCodeSame(204);
+        $this->client->request('GET', '/api/services');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$second->getId(), $first->getId()], array_column($this->data()['offers'], 'id'));
+        $this->client->request('POST', '/api/requests/'.$request->getId().'/restore');
+        self::assertResponseIsSuccessful();
+        $this->client->request('GET', '/api/services');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$first->getId(), $second->getId()], array_column($this->data()['offers'], 'id'));
+    }
+
+    public function testRegistrationRequestsImmediatelyPersonalizeTheHomepage(): void
+    {
+        $owner = $this->createUser('owner');
+        $desired = $this->createCategory('Languages');
+        $other = $this->createCategory('Repairs');
+        $preferred = $this->createService($owner, Service::TYPE_OFFER, 'Lessons.', $desired);
+        $remaining = $this->createService($owner, Service::TYPE_OFFER, 'Repairs.', $other);
+
+        $this->client->jsonRequest('POST', '/api/auth/register', [
+            'name' => 'New', 'surname' => 'User', 'username' => 'new-user',
+            'email' => 'new-user@example.test', 'password' => 'correct-password', 'location' => 'Rome',
+            'offers' => [['description' => 'I offer repairs.', 'categoryIds' => [$other->getId()]]],
+            'requests' => [['description' => 'I want lessons.', 'categoryIds' => [$desired->getId()]]],
+        ]);
+        self::assertResponseStatusCodeSame(201);
+        $this->client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$this->data()['token']);
+        $this->client->request('GET', '/api/services');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$preferred->getId(), $remaining->getId()], array_column($this->data()['offers'], 'id'));
+    }
+
+    public function testHomepageRemoteFilterCombinesWithPreferencesAndOtherFilters(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $owner = $this->createUser('owner');
+        $desired = $this->createCategory('Languages');
+        $other = $this->createCategory('Repairs');
+        $this->createService($viewer, Service::TYPE_REQUEST, 'Lessons wanted.', $desired);
+        $preferred = $this->createService($owner, Service::TYPE_OFFER, 'Remote help.', $desired);
+        $inPerson = $this->createService($owner, Service::TYPE_OFFER, 'In-person help.', $desired);
+        $remaining = $this->createService($owner, Service::TYPE_OFFER, 'Remote help.', $other);
+        foreach ([$preferred, $remaining] as $service) {
+            $service->setIsRemote(true);
+            $service->setLocation('Rome');
+        }
+        $uncategorized = new Service($owner, Service::TYPE_OFFER, 'Existing uncategorized offer.');
+        $this->entityManager->persist($uncategorized);
+        $this->entityManager->flush();
+        $this->authenticate($viewer);
+
+        foreach ([
+            '' => [$inPerson->getId(), $preferred->getId(), $uncategorized->getId(), $remaining->getId()],
+            '?isRemote=true' => [$preferred->getId(), $remaining->getId()],
+            '?isRemote=false' => [$inPerson->getId(), $uncategorized->getId()],
+            '?isRemote=true&q=HELP&location=rome' => [$preferred->getId(), $remaining->getId()],
+            '?isRemote=true&categoryIds='.$other->getId() => [$remaining->getId()],
+            '?isRemote=false&location=Rome' => [],
+        ] as $query => $expected) {
+            $this->client->request('GET', '/api/services'.$query);
+            self::assertResponseIsSuccessful();
+            self::assertSame($expected, array_column($this->data()['offers'], 'id'));
+            self::assertSame(count($expected), $this->data()['pagination']['totalItems']);
+        }
+    }
+
     public function testHomepageCatalogRejectsInvalidFilters(): void
     {
         $viewer = $this->createUser('viewer');
         $this->authenticate($viewer);
 
-        foreach (['?page=0', '?limit=51', '?sort=popular', '?categoryIds=1,nope', '?categoryIds='] as $query) {
+        foreach (['?page=0', '?limit=51', '?sort=popular', '?categoryIds=1,nope', '?categoryIds=', '?isRemote=', '?isRemote=1', '?isRemote=0', '?isRemote=TRUE', '?isRemote=null', '?isRemote[]=true'] as $query) {
             $this->client->request('GET', '/api/services'.$query);
             self::assertResponseStatusCodeSame(400);
             self::assertArrayHasKey('error', $this->data());
