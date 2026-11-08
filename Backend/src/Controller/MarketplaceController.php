@@ -49,6 +49,7 @@ class MarketplaceController extends AbstractController
             $filters['sort'],
             $filters['page'],
             $filters['limit'],
+            $filters['isRemote'],
         );
 
         return $this->homepageResponse($offers, $filters['page'], $filters['limit']);
@@ -132,7 +133,7 @@ class MarketplaceController extends AbstractController
      * Query parameters arrive as strings, so validating them here prevents an
      * invalid value from silently changing the meaning of a catalog request.
      *
-     * @return array{searchText: string|null, categoryIds: list<int>, location: string|null, sort: 'newest'|'oldest', page: int, limit: int}|JsonResponse
+     * @return array{searchText: string|null, categoryIds: list<int>, location: string|null, isRemote: bool|null, sort: 'newest'|'oldest', page: int, limit: int}|JsonResponse
      */
     private function readHomepageFilters(Request $request): array|JsonResponse
     {
@@ -144,6 +145,15 @@ class MarketplaceController extends AbstractController
         $location = $this->readOptionalTextFilter($parameters, 'location');
         if ($location instanceof JsonResponse) {
             return $location;
+        }
+
+        // An omitted filter includes both remote and in-person services.
+        $isRemote = null;
+        if (array_key_exists('isRemote', $parameters)) {
+            if (!in_array($parameters['isRemote'], ['true', 'false'], true)) {
+                return $this->error('isRemote must be either true or false.', 400);
+            }
+            $isRemote = $parameters['isRemote'] === 'true';
         }
 
         $sort = $parameters['sort'] ?? 'newest';
@@ -168,6 +178,7 @@ class MarketplaceController extends AbstractController
             'searchText' => $searchText,
             'categoryIds' => $categoryIds,
             'location' => $location,
+            'isRemote' => $isRemote,
             'sort' => $sort,
             'page' => $page,
             'limit' => $limit,
