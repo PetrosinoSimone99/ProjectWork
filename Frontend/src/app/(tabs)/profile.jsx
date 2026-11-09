@@ -110,12 +110,14 @@ export default function ProfileScreen() {
     return null;
   }
 
-  // La sessione salvata può avere utente incompleto (storage vecchio o payload
-  // backend cambiato): nome/cognome mancanti non devono far crashare la schermata.
-  const iniziali =
-    `${utente.nome?.charAt(0) ?? ''}${utente.cognome?.charAt(0) ?? ''}`.toUpperCase() || '?';
-  const displayName =
-    [utente.nome, utente.cognome].filter(Boolean).join(' ') || utente.username || 'Utente';
+  // Name and surname come from the profile endpoint when it has answered, and
+  // from the session before that: the session is a frozen snapshot of the login
+  // response, so editing the name would otherwise show the old one until the
+  // next sign-in. Missing values never crash the screen.
+  const nome = profilo?.nome ?? utente.nome;
+  const cognome = profilo?.cognome ?? utente.cognome;
+  const iniziali = `${nome?.charAt(0) ?? ''}${cognome?.charAt(0) ?? ''}`.toUpperCase() || '?';
+  const displayName = [nome, cognome].filter(Boolean).join(' ') || utente.username || 'Utente';
   const expiresAt = token ? tokenExpiresAt(token) : null;
   // Il ruolo non arriva dal profilo (P24): continua a venire dalla sessione.
   // La UI nasconde, il backend protegge — e la schermata gestisce il 403.
@@ -246,7 +248,8 @@ export default function ProfileScreen() {
               Modifica profilo
             </AppText>
             <AppText variant="small" tone="secondary">
-              Cambia la località o la bio che gli altri vedranno su di te.
+              Cambia nome, cognome, località, bio e immagine: sono i dati che gli altri
+              vedono quando ti contattano.
             </AppText>
           </View>
           <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />

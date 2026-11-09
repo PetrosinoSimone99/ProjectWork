@@ -6,6 +6,114 @@ documents/code touched.
 
 ---
 
+## 2026-11-09 — First code block: the five tabs against the real backend
+
+### What changed
+
+1. **API layer rewritten against the endpoints that exist today**
+   (`feat: wire session and shared ui`). `api/index.js` now exposes login,
+   registration, categories, catalog, reports and re-exports the three areas:
+   profile, own services (list/create/update/suspend/delete/deleted/restore)
+   and staff (users, promote, status, reports, claim, review, operations). The
+   legacy routes are gone: `segnalazioni.php`, `notifiche.php`, `utenti.php`,
+   `userRoleManager.php`, `userStatoManager.php`, `Accordi1_a_1/*`, with the
+   fake-data branches that called them.
+2. **In-app notifications removed.** `NotificationBanner`, `useNotifications`
+   and `services/notifications.js` are deleted with the global banner: the
+   backend exposes no notification endpoint, so there is nothing real to show.
+   The session-expiry banner stays.
+3. **Login and registration** (`feat: login and registration`): shared
+   validators, generic failure copy (never says which datum is wrong), the dev
+   tour hook removed, e-mail/password/field limits centralised. A section can be
+   emptied; the screen stops before the request and says the backend requires one
+   entry per section (`backend-gaps.md` G9).
+4. **Home catalog** (`feat: home catalog with relevance-aware ordering`): the
+   viewer's requests are loaded to rank the loaded page — services sharing a
+   category first, then the rest, newest first inside each group. The screen and
+   the module state the limit (the backend has no `sort=relevance`, G1).
+5. **Service detail** (`feat: service detail modal`): publisher, location or
+   “Da remoto”, date, categories, a declared-unavailable “what they offer and
+   look for” block (G3), a working report action (`POST /reports`) and the
+   proposal button visible-but-disabled with “disponibile a breve” (G4).
+6. **Own services** (`feat: manage own services`): list, create, edit,
+   suspend/reactivate, soft delete and the “Eliminati” section with restore; the
+   “+” is the primary action of the screen; every write reloads both lists.
+7. **Profile editing** (`feat: profile editing`): name, surname, location, bio
+   and the pasted photo URL, validated in shape and by actually loading the
+   image (a URL that does not load blocks the save). The profile screen shows the
+   image, or the initials with a declared error, and takes name/surname from the
+   profile endpoint instead of the frozen login snapshot.
+8. **Agreements tab** (`feat: placeholder sections`): the three sections
+   (sent, accepted, concluded) and the bell of received proposals, each in a
+   declared-unavailable state; the bell shows no count (G4–G6). The legacy
+   agreement state module and chip are deleted.
+9. **Tests** (`test: cover ordering and validation`): jest with the `jest-expo`
+   preset covers `services/relevance.js` and `src/validation/` (33 tests, 99%
+   statements / 80% branches). The suite found a real defect and it is fixed: a
+   missing category id became category `0` through `Number(null)`, which made
+   every service look relevant.
+
+### Why
+
+The plan's last step turns the cleaned skeleton into a working first block: the
+screens now talk only to routes that exist, every surface without a backend says
+so instead of pretending, and the pure logic of ordering and validation is
+covered by tests.
+
+### Verified on web (Docker stack, Chromium via Playwright)
+
+- Login with a real account; wrong credentials show the generic message.
+- Registration: empty submit reports every missing field, region/province
+  cascade works, categories load, account created (one offer and one request).
+- Home: catalog renders (6 rows), relevance note visible, detail panel opens with
+  publisher, location or “Da remoto”, G3 block, disabled proposal, and the report
+  action navigates to `/report`.
+- Report: `POST /api/reports` `201`, success card; a second attempt is described
+  as “Hai già segnalato questa persona.” (`409`).
+- Own services: list with both rows, suspend -> “SOSPESA” + “Ripubblica”,
+  delete -> confirm -> “Ricerca eliminata.” + row in “Eliminati” with its date,
+  restore -> “Ricerca ripristinata.” and the row back in “Cosa cerco”, create ->
+  new request listed first.
+- Profile: edit surname saved and shown by the profile screen; a photo URL that
+  does not load shows the explicit error and blocks the save; theme selector and
+  logout work; the staff entry appears for a staff account.
+- Staff: reports list with status filters, claim (`IN ESAME`), review with
+  outcome + note + confirmation -> `CONFERMATA` and read-only; operations log
+  shows `REPORT_CLAIMED`/`REPORT_REVIEWED`; users list with translated
+  role/status, promote/status commands hidden on staff and self; deactivate and
+  reactivate a user.
+- Agreements: three sections and the bell, all declared unavailable, no invented
+  count.
+
+### Touched
+
+`Frontend/src/**` (API layer, screens, components, services, validation, tests),
+`Frontend/package.json`, `Frontend/eslint.config.js`, `docs/{api,backend-gaps,frontend,decisions,changelog}.md`.
+
+### Attention (backend maintainer)
+
+1. **Registration cannot accept empty service lists today**:
+   `AuthController::validateServices` rejects `[]` with a `400`, so the frontend
+   states that one offer and one request are required. Requested as G9 in
+   `docs/backend-gaps.md`.
+2. **`onlyRemote` is silently ignored** by `GET /services`: unknown query
+   parameters are not rejected, so the request returns `200` with the parameter
+   unused. The frontend filters the loaded page and says so (G2).
+3. **This Windows/Docker stack is slower than the 2026-11-04 measurement**, and
+   the 10 s client budget is marginal: `GET /api/categories` measured 3–6 s warm
+   and 20–24 s for the first call in a worker; every browser GET also pays a
+   CORS preflight (~1–4 s). A screen that loads five endpoints can exceed 10 s on
+   a cold stack, so a first load can show “Il servizio sta impiegando troppo
+   tempo”. The budget was **not** changed (the recorded decision is that the
+   server, not the client, is wrong); verification used a temporarily longer
+   timeout, reverted before the commit. The real fix remains the volume strategy
+   for `.:/app` on a Windows bind mount.
+4. Jest adds dev-only dependencies (`jest`, `jest-expo`, `@react-native/jest-preset`,
+   `react-test-renderer`) and makes `typescript` explicit: the gate calls
+   `npx tsc`, and without the package npm fetched an unrelated `tsc` package.
+
+---
+
 ## 2026-11-07c — Frontend aligned with the cleaned repository
 
 ### What changed

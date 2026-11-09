@@ -301,14 +301,16 @@ export default function OfferAndRequestScreen() {
     try {
       await azione();
       setEsito(messaggio);
-      await carica();
+      // A delete moves the row into "Eliminati" and a restore moves it back:
+      // both lists are reloaded after every write so neither can go stale.
+      await Promise.all([carica(), caricaEliminate()]);
     } catch (err) {
       // Voce sparita (404: eliminata altrove o sessione successiva): l'elenco si
       // rilegge comunque, così non resta in carta una riga morta. Si rilegge
       // prima di mostrare l'errore, perché `carica()` ripulisce il messaggio a
       // inizio lettura; con un 409 la voce c'è ancora, e il reload non serve.
       if (err instanceof ApiError && err.status === 404) {
-        await carica();
+        await Promise.all([carica(), caricaEliminate()]);
       }
       setErroreElenco(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {

@@ -127,3 +127,24 @@ chat) are kept in this documentation, not in dead code.
 `frontend.md`; `backend-gaps.md` is new and holds the requests to the backend.
 *Consequences:* one file per job; the gap list is the artefact handed to the
 backend maintainer.
+
+**D019 — 2026-11-09 — Jest (jest-expo) covers the pure modules, outside the gate.**
+`jest` + `jest-expo` (and the peer packages they need: `@react-native/jest-preset`,
+`react-test-renderer`, plus an explicit `typescript` because the gate calls it)
+are dev dependencies. Tests cover `src/services/relevance.js` and
+`src/validation/` only; `npm test` runs them.
+*Context:* the first code block introduced pure logic worth pinning, and the
+brief allowed jest as the only new dependency. `typescript` was already required
+by the documented gate but was not declared, so `npx tsc` could fetch an
+unrelated package.
+*Consequences:* tests are non-blocking for now; coverage is limited to those two
+modules; component tests and a test runner for screens remain out of scope.
+
+**D020 — 2026-11-09 — API layer returns the UI shape, in Italian keys, until the consumer is rewritten.**
+The rewritten `src/api/**` modules and their functions are English (names,
+parameters, comments), but the normalised objects keep the keys the surviving
+components already read (`descrizione`, `categorie`, `offerente`, `mansione`,
+`stato`). Renaming happens with the component that consumes the shape, not
+before (same rule as D001 for opportunistic renames).
+*Consequences:* one shape at a time in the app; `docs/frontend.md` documents the
+Italian UI-shape keys; a rename that lands on one side only is a defect.

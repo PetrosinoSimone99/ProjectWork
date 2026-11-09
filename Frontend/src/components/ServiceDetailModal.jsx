@@ -13,7 +13,7 @@ import { radius, space, useTokens } from '@/theme/tokens';
  *
  * Shows what the product decided a person needs to judge an offer before
  * writing anything: who publishes it (name and username), where it happens
- * (the service location, or "da remoto" when the service has none and is
+ * (the service location, or "Da remoto" when the service has none and is
  * remote), and the categories with the full description.
  *
  * Two actions, both honest:
@@ -33,7 +33,10 @@ export function ServiceDetailModal({ servizio, onClose, onReport }) {
   const categories = servizio?.categorie?.length ? servizio.categorie : null;
   const description = servizio?.descrizione ?? '';
   const publishedAt = formatIsoDate(servizio?.pubblicatoIl);
-  const location = servizio?.localita ?? owner.localita ?? null;
+  // Only the service's own location: falling back to the owner's city would
+  // claim a place for a service that has none (a remote-only offer), which is
+  // exactly the datum the product cares about here.
+  const location = servizio?.localita ?? null;
   const remote = servizio?.daRemoto === true;
   // One place line: the location when there is one, otherwise the mode, and
   // "not indicated" when neither says anything.

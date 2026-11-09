@@ -22,6 +22,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
+import { formatIsoDate } from '@/services/dates';
 import { REVIEW_LABELS, emptyReview, validateReview } from '@/services/staff';
 import { statusLabel } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
@@ -260,7 +261,7 @@ export default function StaffScreen() {
                 {`${operation.azione ?? 'Azione'} · ${operation.bersaglio ?? ''} ${
                   operation.bersaglioId ?? ''
                 } · ${operation.staff?.username ?? 'staff'} · ${
-                  operation.creataIl ?? 'data non disponibile'
+                  formatIsoDate(operation.creataIl) ?? 'data non disponibile'
                 }`}
               </AppText>
             </View>

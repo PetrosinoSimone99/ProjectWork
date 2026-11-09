@@ -180,18 +180,33 @@ export async function getHomeCatalog(token, viewerId, filters, page = 1) {
   );
 }
 
+/** Italian copy for the four answers `POST /reports` can give. */
+const REPORT_MESSAGES = {
+  400: 'Controlla i dati inseriti: il motivo è obbligatorio e non puoi segnalare te stesso.',
+  404: 'Non trovo questa persona: potrebbe avere cancellato l’account.',
+  409: 'Hai già segnalato questa persona: non puoi segnalarla due volte.',
+};
+
 /**
  * POST /reports — reports another user. The author always comes from the JWT;
  * `reason` is 1–2000 characters and is the only free text the endpoint accepts.
  * `409` means the pair already reported each other, `400` a self-report or an
- * invalid reason, `404` a missing user.
+ * invalid reason, `404` a missing user: each becomes its own Italian message
+ * instead of the backend English text.
  */
 export async function createUserReport(token, { reportedUserId, reason }) {
-  return normalizeUserReport(
-    await apiFetch('reports', {
-      method: 'POST',
-      token,
-      body: { reportedUserId: Number(reportedUserId), reason: String(reason ?? '').trim() },
-    }),
-  );
+  try {
+    return normalizeUserReport(
+      await apiFetch('reports', {
+        method: 'POST',
+        token,
+        body: { reportedUserId: Number(reportedUserId), reason: String(reason ?? '').trim() },
+      }),
+    );
+  } catch (err) {
+    if (err instanceof ApiError && REPORT_MESSAGES[err.status]) {
+      throw new ApiError(err.status, REPORT_MESSAGES[err.status]);
+    }
+    throw err;
+  }
 }

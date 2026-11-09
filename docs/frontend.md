@@ -53,7 +53,11 @@ empty state, never fake content.
   sequence number and only the latest applies.
 - "Load more" appends a copy (`[...current, ...page]`); nothing is mutated.
 - The API layer is the only place that knows backend field names; screens read
-  the normalised shape.
+  the normalised shape. The API modules and their functions are English; the
+  normalised objects still use the UI-shape keys the surviving components read
+  (`descrizione`, `categorie`, `offerente`, `mansione`, `stato`, `idCategoria`).
+  Each key is renamed together with the component that consumes it
+  (`docs/decisions.md` D020).
 - Home ordering lives in `src/services/relevance.js`: the loaded page puts first
   the services sharing a category with the viewer's requests, then the rest,
   keeping the backend's newest-first order inside each group. It is a declared

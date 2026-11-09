@@ -4,6 +4,7 @@ import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { ToneChip } from './ToneChip';
+import { formatIsoDate } from '@/services/dates';
 import { nomePersona } from '@/services/offer-request';
 import { statusLabel, statusTone } from '@/services/reports';
 import { canClaim, canReview, isClosed } from '@/services/staff';
@@ -33,7 +34,7 @@ export function StaffReportCard({ report, staffId, busy = false, onClaim, onRevi
           {statusLabel(report.stato) ?? 'Stato sconosciuto'}
         </ToneChip>
         <AppText variant="small" tone="secondary">
-          {report.creataIl ?? 'Data non disponibile'}
+          {formatIsoDate(report.creataIl) ?? 'Data non disponibile'}
         </AppText>
       </View>
 
