@@ -91,6 +91,55 @@ in the owner's list but disappears from the home.
 Known conflict: `409` when the service is already used by a proposal or an
 exchange; the message is shown as it is.
 
+## Agreements
+
+An agreement is the exchange unit. A `PENDING` agreement is one participant's
+proposal; the other participant answers once and it becomes `ACCEPTED` or
+`REFUSED`.
+
+| Call | Body | Notes |
+| --- | --- | --- |
+| `GET /get-agreements` | — | `{success: {code, message, agreements: [...]}}`, every agreement the viewer participates in |
+| `POST /create-exchange-agreement` | `{otherParticipant}` | `201`. Creates a `PENDING` exchange: the caller answers `true` (they proposed), the other participant has `response: null` (has not answered yet). `400` for yourself, `404` for an unknown user |
+| `POST /send-agreement-response` | `{agreementId, response: true\|false}` | The answer, once. `true` → `ACCEPTED`, `false` → `REFUSED`. `409` when the agreement is no longer `PENDING` or this participant already answered |
+| `POST /send-agreement-details` | `{agreementId, serviceId, beneficiaryId, fromRemote, startDate, endDate}` | The delivery sheet, writable by either participant of an `ACCEPTED` agreement. `serviceId` must be an offer owned by the caller; `400` when the end date does not come after the start date. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` |
+| `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `VOID`. `404` when the caller is not a participant |
+
+The details route used to be a `GET` that read a JSON body, which a browser
+cannot send: the sheet was unreachable from the app. It is a `POST` now.
+
+One agreement:
+
+```json
+{
+  "id": 3,
+  "agreementStatus": "PENDING",
+  "creationDate": "2026-11-09T17:27:40+00:00",
+  "agreementProposal": [
+    {"username": "mario.rossi", "role": "Provider", "response": true,
+     "responseDate": "2026-11-09T17:27:41+00:00"},
+    {"username": "luca.ferrari", "role": "Beneficiary", "response": null,
+     "responseDate": null}
+  ],
+  "agreementDetails": [
+    {"providerUsername": "mario.rossi", "serviceDescription": "Bicycle repairs",
+     "beneficiaryUsername": "luca.ferrari", "fromRemote": false,
+     "startDate": "2026-12-01T09:00:00+00:00",
+     "endDate": "2026-12-05T18:00:00+00:00",
+     "beneficiaryAccepted": null, "status": "UNCOMPILED"}
+  ]
+}
+```
+
+`agreementStatus` is `PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED` or `VOID`:
+the reference schema has no `CANCELLED`, so calling off an accepted exchange
+produces `VOID`. `response: null` means "has not answered yet" and is not a
+refusal. `agreementDetails` is empty until someone writes the sheet, and its
+`status` stays `UNCOMPILED` because no endpoint confirms it yet
+(`backend-gaps.md` G7). Rows carry no user ids: the viewer is identified by
+username, and no row names the exchanged service until the sheet does
+(`backend-gaps.md` G4).
+
 ## Reports
 
 `POST /reports` with `{reportedUserId, reason}`. The author always comes from the

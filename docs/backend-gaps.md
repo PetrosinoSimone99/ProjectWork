@@ -48,66 +48,51 @@ No email, no roles, no account status. `404` for an unknown or inactive user.
 The service detail popup needs it in the "what they offer and look for" block,
 and the recipient of a proposal needs the same data about the proposer.
 
-## G4 — Proposals: send and list
+## G4 — A proposal that names the service
 
-`POST /proposals` with `{serviceId}` — the blind proposal described in
-`overview.md`: the sender asks for that service and fills in nothing else. The
-sender comes from the JWT. `409` if the same pair already has a pending proposal
-for that service; `400` for one's own service; `404` for a missing service.
+`POST /create-exchange-agreement` takes only `{otherParticipant}`: the exchange
+is created without the service it is about, and the delivery sheet names it
+later. The product asks for the opposite (`overview.md`): the sender proposes one
+specific service and the recipient reads which one before answering.
+Requested: `serviceId` in the creation body, `400` for one's own service, `409`
+when the same pair already has a pending exchange for that service.
 
-Response: `201 {proposal: {id, serviceId, sender, recipient, status, createdAt}}`
-with `status` in `PENDING|ACCEPTED|REFUSED`.
+Also requested: a list split into `sent` and `received` with the counterpart
+summary, so the bell and the "sent" section do not have to derive their state
+from the agreement list.
 
-`GET /proposals` → `{sent: [...], received: [...]}`, newest first, with the
-counterpart summary so the app can render the bell and the "sent" section
-without extra calls.
+## G5 — Per-participant answers
 
-## G5 — Accept or refuse a proposal
+`POST /send-agreement-response` now refuses a second answer and an agreement
+that is no longer pending (`409`), but the model is still whole-agreement: one
+refusal sets `REFUSED`, whatever the other participant answered. Requested:
+keep the two answers independent and derive the agreement state from them.
 
-`POST /proposals/{id}/accept` and `POST /proposals/{id}/refuse`, no body.
+## G6 — Agreement rows with ids and a concluded state
 
-- `accept` on a `PENDING` proposal creates the agreement and returns
-  `{proposal, agreementId}`; the agreement starts with no details compiled.
-- `refuse` marks the proposal `REFUSED`; the sender keeps seeing it with that
-  state.
-- `409` when the proposal is no longer pending, `403` when the caller is not the
-  recipient.
+`GET /get-agreements` returns the counterpart's username only: no user ids, no
+`serviceId`, and nothing marks an accepted exchange whose end date has passed
+as concluded. Requested: `serviceId` and the counterpart `id` in each row, plus
+either a concluded status or a documented rule the client applies (today the
+client compares `agreementDetails.endDate` with the current time).
 
-## G6 — Agreements: list and detail
+## G7 — Confirmation of the delivery sheet
 
-`GET /agreements` → `{sent: [...], accepted: [...], concluded: [...]}`, split as
-the agreements tab needs. Each row:
-`{id, serviceId, serviceDescription, counterpart: {id, username, name}, role,
-status, startDate, endDate, detailsStatus, createdAt}` with `status` in
-`PENDING|ACCEPTED|REFUSED|CONTESTED|VOID` and `detailsStatus` in
-`COMPILED|UNCOMPILED`.
-
-`GET /agreements/{id}` → the same row plus the full sheet and both participants'
-confirmation state. Access limited to the two participants (`403` otherwise).
-
-## G7 — Agreement sheet inside the chat
-
-`PUT /agreements/{id}/details` with `{providerId, serviceId, location, isRemote,
-startDate, endDate}` — either participant may write it; every write resets the
-other participant's confirmation and sets `detailsStatus` to `UNCOMPILED`.
-
-`POST /agreements/{id}/details/confirm` — the other participant confirms;
-`detailsStatus` becomes `COMPILED`.
-
-Response: the updated agreement row (G6 shape). `409` if the agreement is not
-`ACCEPTED`, `400` if the end date precedes the start date or the service does
-not belong to the provider.
+`POST /send-agreement-details` writes the sheet as `UNCOMPILED` with
+`beneficiaryAccepted: null`, and no endpoint ever sets it: the other participant
+cannot confirm, `COMPILED` is never reached, and a sheet that is not final is
+indistinguishable from one that is. Requested:
+`POST /agreements/{id}/details/confirm`, `403` for anyone but the beneficiary,
+`409` when the agreement is not `ACCEPTED`.
 
 ## G8 — Chat attached to an agreement
 
-- `GET /agreements/{id}/chat` → `{chatId, messages: [{id, senderId, username,
-  message, createdAt}]}`. `403` if the caller is not a participant, `409` if the
-  agreement is not `ACCEPTED` (concluded agreements have no accessible chat).
-- `POST /agreements/{id}/messages` with `{message}` → `201 {message: {...}}`.
-- Polling for new messages: `GET /agreements/{id}/messages?after={messageId}`.
-
-The chat is reachable only from an accepted agreement, which is the only entry
-point the product allows.
+`GET /api/chats/agreement/{agreementId}` exists in `ChatController`, but the
+`chat`, `chat_messages` and `chat_participants` tables are absent from the
+reference dump, so it cannot work. Requested: the schema plus the send/list
+routes described in the previous version of this file (`POST` a message, poll
+after a message id, `403` for non-participants, `409` when the agreement is not
+`ACCEPTED`).
 
 ## G9 — Registration with optional services
 

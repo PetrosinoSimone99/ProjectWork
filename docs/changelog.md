@@ -6,6 +6,95 @@ documents/code touched.
 
 ---
 
+## 2026-11-09 — Agreements: the endpoints repaired, the contract documented
+
+### What changed
+
+1. **The five agreement routes answer instead of failing.** `AgreementController`
+   read the body from `$request` without ever receiving it, so
+   `create-exchange-agreement`, `send-agreement-response` and
+   `send-agreement-details` returned `500` on every call — with a correct schema
+   too. The three actions take `Request $request` now, and body fields are read
+   with `?? null`, so a missing key is a `400` instead of a warning that the dev
+   error handler turns into an exception caught as `500`.
+2. **404 stays 404.** `catch(\ResourceNotFound)` pointed at the global namespace,
+   so the imported `App\Exception\ResourceNotFound` fell through to the generic
+   `catch(\Exception)` and the response was `500`. Both occurrences (response and
+   cancel) catch the real class.
+3. **The delivery sheet names the service.** It used
+   `ServiceManager::getUserOfferedService()` — the provider's *first* offer,
+   whatever the exchange was about. The body carries `serviceId`, which must be
+   an offer owned by the caller (`404` otherwise), plus `beneficiaryId`
+   validation, `endDate > startDate` (`400`) and an `ACCEPTED`-only guard.
+4. **`response: null` means "has not answered yet".** It was `false` for the
+   invited participant, indistinguishable from a refusal, and both participants
+   were stored as `Provider`. The invited participant is `BENEFICIARY` with a
+   `null` response, the creator keeps `response: true`, and `sendResponse`
+   refuses a second answer or a non-pending agreement (`409`) instead of
+   overwriting the state.
+5. **Cancelling no longer breaks on the enum.** The reference schema's
+   `agreements.status` has no `CANCELLED` value while the code wrote it, so the
+   update failed. Cancel produces `VOID` (the schema's "called off" state) and
+   the unused `AgreementStatus::CANCELLED` case is gone. Only a participant can
+   cancel; anyone else gets `404`.
+6. **The sheet's status reaches the client.** `AgreementDetailsDTO` declared
+   seven constructor arguments while the manager passed eight, so PHP dropped
+   `status` silently. The DTO exposes it now (`UNCOMPILED`).
+7. **`send-agreement-details` is a `POST`.** It was a `GET` that read a JSON
+   body, which a browser cannot send: the sheet was unreachable from the app.
+8. **Tests.** New `AgreementControllerTest` drives the whole lifecycle on the
+   reference schema (create → second answer `409` → accept → sheet → inverted
+   dates `400` → non-participant `404` → cancel → `VOID`). The route-inventory
+   test was already red before this session — it listed three chat routes that no
+   longer exist and missed `GET /api/chats/agreement/{agreementId}` — and now
+   matches the router, agreement routes included.
+
+### Why
+
+The frontend needs the agreements tab against a real contract. The endpoints
+existed but could not be called: three of them failed on a missing request
+object, and the response model could not tell "has not answered" from
+"refused". `docs/api.md` now documents the delivered contract, and
+`docs/backend-gaps.md` G4–G8 state what is still missing (service on creation,
+per-participant answers, ids in the rows, sheet confirmation, chat schema)
+instead of describing endpoints that exist in another shape.
+
+### Verified
+
+- `php bin/phpunit`: 87 tests, 1062 assertions, 1 failure —
+  `DeletedServiceControllerTest::testPermissionsAndInputValidation`, red before
+  these changes (`DeletedServiceController.php:70` calls `getUser()->getId()`
+  without the null guard, so an unauthenticated call is a `500` instead of a
+  `401`). Left untouched: outside this fix.
+- Live on the Docker stack, MySQL 8, against a scratch database imported from
+  `barattolo_demo_20261108.sql` (dropped afterwards): create `201`, empty body
+  `400`, self `400`, unknown participant `404`, second answer `409`, sheet `200`,
+  inverted dates `400`, cancel `200` with `status = VOID`, and the row returns
+  `agreementDetails[].status = "UNCOMPILED"`.
+
+### Touched
+
+`Backend/src/{Controller/AgreementController,Manager/AgreementManager,DTO/AgreementDetailsDTO,Entity/Agreement,Entity/AgreementProposal,Enum/AgreementStatus}.php`,
+`Backend/tests/Functional/{AgreementControllerTest,RetainedApiTest}.php`,
+`docs/{api,backend-gaps,changelog}.md`.
+
+### Attention (backend maintainer)
+
+These are the only `Backend/**` source changes made from the frontend side in
+this session, under Andrea's explicit authorization (the file scope in
+`AGENTS.md` keeps the backend read-only by default). Please review:
+
+- `send-agreement-details` changed method from `GET` to `POST` and now requires
+  `serviceId` in the body — a breaking change for any other client.
+- `cancel-agreement` writes `VOID` instead of a state the schema does not have.
+  If a distinct `CANCELLED` is wanted, the enum in
+  `Context_and_DB_V2/barattolo_demo_20261108.sql` must carry it (that file is
+  read-only here).
+- `AgreementStatus::CANCELLED` was removed with no remaining references.
+- The `DeletedServiceController` guard is still missing; its test remains red.
+
+---
+
 ## 2026-11-09 — First code block: the five tabs against the real backend
 
 ### What changed
