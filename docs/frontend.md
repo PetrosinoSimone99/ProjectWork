@@ -92,5 +92,11 @@ npx tsc --noEmit
 
 Both must pass before any push. `tsc` reads JavaScript and catches syntax
 errors; it does not type-check JavaScript, so it is a syntax net, not a type
-check. Unit tests for pure logic are planned with jest; they are not part of the
-gate yet.
+check.
+
+Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library)
+and cover the pure modules: `src/services/relevance.js` and `src/validation/`.
+They are **not** part of the gate yet: the suite is new and non-blocking, so a
+red test is a signal to fix before pushing, not a reason to weaken an assertion.
+`collectCoverageFrom` is limited to those two modules, and the suite runs at
+99% statements / 80% branches on them.

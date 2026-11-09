@@ -14,14 +14,25 @@
  * Pure: copies, never mutates the input array or its rows.
  */
 
+/**
+ * One category id, or `null` when the value is absent or not an integer.
+ * `Number(null)` is `0`, which is why a plain `Number.isInteger` check is not
+ * enough: a missing id must not turn into category zero.
+ */
+function toCategoryId(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const numeric = Number(value);
+  return Number.isInteger(numeric) ? numeric : null;
+}
+
 /** The category ids of a catalog row (`categorie: [{id, nome}]`). */
 function categoryIdsOf(service) {
   if (!Array.isArray(service?.categorie)) {
     return [];
   }
-  return service.categorie
-    .map((category) => Number(category?.id))
-    .filter((id) => Number.isInteger(id));
+  return service.categorie.map((category) => toCategoryId(category?.id)).filter((id) => id !== null);
 }
 
 /** The category ids of the viewer's requests, deduplicated. */
@@ -34,9 +45,9 @@ export function requestCategoryIds(requests) {
         ? []
         : [request.idCategoria];
     for (const id of rowIds) {
-      const numeric = Number(id);
-      if (Number.isInteger(numeric)) {
-        ids.add(numeric);
+      const categoryId = toCategoryId(id);
+      if (categoryId !== null) {
+        ids.add(categoryId);
       }
     }
   }
