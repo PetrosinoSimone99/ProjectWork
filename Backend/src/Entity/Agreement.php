@@ -40,6 +40,7 @@ class Agreement
         $this->creationDate = $creationDate;
         $this->fromQueue = $fromQueue;
         $this->agreementProposals = new ArrayCollection();
+        $this->agreementDetails = new ArrayCollection();
     }
 
     public function getId(): ?int

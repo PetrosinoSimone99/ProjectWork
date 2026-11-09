@@ -4,7 +4,7 @@ namespace App\Entity;
 
 use App\Enum\AgreementParticipantRole;
 
-use App\Repository\AgreementRepository;
+use App\Repository\AgreementProposalRepository;
 use Doctrine\ORM\Mapping as ORM;
 use DateTimeImmutable;
 
@@ -31,7 +31,7 @@ class AgreementProposal
     #[ORM\Column(name: 'response_date')]
     private ?DateTimeImmutable $responseDate = null;
 
-    public function __construct(Agreement $agreement, User $user, AgreementParticipantRole $role, bool $response, DateTimeImmutable $responseDate){
+    public function __construct(Agreement $agreement, User $user, AgreementParticipantRole $role, ?bool $response, ?DateTimeImmutable $responseDate){
         $this->agreement = $agreement;
         $this->user = $user;
         $this->role = $role;
