@@ -109,6 +109,22 @@ not belong to the provider.
 The chat is reachable only from an accepted agreement, which is the only entry
 point the product allows.
 
+## G9 — Registration with optional services
+
+`POST /auth/register` should accept an empty `offers` or `requests` list. Today
+`AuthController::validateServices` returns `null` for `[]`, so the whole
+registration is a `400` and an account cannot be created without publishing at
+least one offer **and** one request.
+
+Why the frontend asks: the brief makes services optional at registration (a
+person may want to look at the catalog before publishing anything), and the
+"Deleted" section already lets them publish later. Until this lands, the
+registration screen stops before the request and says that one entry per section
+is required.
+
+Response: unchanged (`201 {token, user, offers, requests}`), with the empty
+section simply an empty list.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id

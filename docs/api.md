@@ -17,9 +17,12 @@ carries `Authorization: Bearer <jwt>`. Errors are `{"error": "<text>"}` with a
 | `POST /auth/register` | `{name, surname, username, email, password, location, offers[], requests[]}` | `201 {token, user, offers, requests}` |
 | `POST /auth/login` | `{username, password}` | `{token, user}` |
 
-`location` is mandatory; `offers` and `requests` may be empty arrays. Items are
-`{description, categories[]}`. Registration always assigns `ROLE_USER` and an
-active account. The token lasts one hour.
+`location` is mandatory. **Each of `offers` and `requests` must contain at least
+one entry today**: `AuthController::validateServices` rejects an empty list with
+a `400`, so the frontend states that limit instead of sending a doomed request
+(see [`backend-gaps.md`](backend-gaps.md) G9). Items are
+`{description, categoryIds[], isRemote, location?}`. Registration always assigns
+`ROLE_USER` and an active account. The token lasts one hour.
 
 ## Profile
 

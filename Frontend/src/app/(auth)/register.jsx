@@ -7,14 +7,19 @@ import { getCategories } from '@/api';
 import {
   LIMITE_VOCI,
   TIPI_VOCE,
-  aggiungiVoce,
   aggiornaVoce,
   nuovaVoce,
-  rimuoviVoce,
   senzaChiave,
   senzaPrefisso,
   validaVoce,
 } from '@/services/offer-request';
+import {
+  MIN_PASSWORD_LENGTH,
+  emailError,
+  maxLengthError,
+  passwordError,
+  requiredError,
+} from '@/validation';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
@@ -39,9 +44,6 @@ import { space } from '@/theme/tokens';
  * Le regole delle voci stanno in `src/services/offer-request.js`; qui restano
  * solo le regole anagrafiche, la chiamata e i messaggi da disegnare.
  */
-
-const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
-const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Limiti anagrafici: **copia dichiarata** del backend Symfony, `AuthController::validateRegistration()`
@@ -74,7 +76,6 @@ const SEZIONI = [
       'Scegli la categoria e spiega in due righe cosa fai.',
     etichettaAggiungi: "Aggiungi un'altra offerta",
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
-    motivoObbligo: "Serve almeno un'offerta: senza, non entri nel match.",
   },
   {
     chiave: 'ricerche',
@@ -84,54 +85,68 @@ const SEZIONI = [
       'Scegli la categoria di quello che ti serve e racconta in due righe cosa devi risolvere.',
     etichettaAggiungi: "Aggiungi un'altra ricerca",
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} ricerche.`,
-    motivoObbligo: 'Serve almeno una ricerca: senza, non entri nel match.',
   },
 ];
 
-/** Caratteri come `mb_strlen`: code point, non unità UTF-16. */
-function contaCaratteri(testo) {
-  return [...testo].length;
-}
-
-/** Errori dei campi anagrafici: oggetto vuoto = form valido. */
+/**
+ * Account fields, validated with the shared rules of `src/validation/`.
+ * Località is mandatory (`AuthController` rejects an empty `location`) and is
+ * chosen as region + province: the first missing value gives one error, not two.
+ */
 function validaAnagrafica(form) {
   const errori = {};
   const nome = form.nome.trim();
   const cognome = form.cognome.trim();
   const username = form.username.trim();
-  const email = form.email.trim();
 
-  if (!nome) {
-    errori.nome = 'Il nome è obbligatorio.';
-  } else if (contaCaratteri(nome) > LIMITE_NOME) {
-    errori.nome = `Il nome può avere al massimo ${LIMITE_NOME} caratteri.`;
+  const nomeErrore =
+    requiredError(nome, 'Il nome è obbligatorio.') ??
+    maxLengthError(nome, LIMITE_NOME, `Il nome può avere al massimo ${LIMITE_NOME} caratteri.`);
+  if (nomeErrore) {
+    errori.nome = nomeErrore;
   }
-  if (!cognome) {
-    errori.cognome = 'Il cognome è obbligatorio.';
-  } else if (contaCaratteri(cognome) > LIMITE_COGNOME) {
-    errori.cognome = `Il cognome può avere al massimo ${LIMITE_COGNOME} caratteri.`;
+  const cognomeErrore =
+    requiredError(cognome, 'Il cognome è obbligatorio.') ??
+    maxLengthError(
+      cognome,
+      LIMITE_COGNOME,
+      `Il cognome può avere al massimo ${LIMITE_COGNOME} caratteri.`,
+    );
+  if (cognomeErrore) {
+    errori.cognome = cognomeErrore;
   }
-  if (!username) {
-    errori.username = "L'username è obbligatorio.";
-  } else if (contaCaratteri(username) > LIMITE_USERNAME) {
-    errori.username = `L'username può avere al massimo ${LIMITE_USERNAME} caratteri.`;
+  const usernameErrore =
+    requiredError(username, "L'username è obbligatorio.") ??
+    maxLengthError(
+      username,
+      LIMITE_USERNAME,
+      `L'username può avere al massimo ${LIMITE_USERNAME} caratteri.`,
+    );
+  if (usernameErrore) {
+    errori.username = usernameErrore;
   }
-  if (!EMAIL_PATTERN.test(email)) {
-    errori.email = 'Email non valida.';
-  } else if (contaCaratteri(email) > LIMITE_EMAIL) {
-    errori.email = `L'email può avere al massimo ${LIMITE_EMAIL} caratteri.`;
+  const emailErrore =
+    emailError(form.email) ??
+    maxLengthError(form.email, LIMITE_EMAIL, `L'email può avere al massimo ${LIMITE_EMAIL} caratteri.`);
+  if (emailErrore) {
+    errori.email = emailErrore;
   }
-  if (form.password.length < MIN_PASSWORD_LENGTH) {
-    errori.password = `Almeno ${MIN_PASSWORD_LENGTH} caratteri.`;
+  const passwordErrore = passwordError(form.password);
+  if (passwordErrore) {
+    errori.password = passwordErrore;
   }
   if (!form.regione) {
     errori.regione = 'Seleziona la regione.';
   } else if (!form.provincia) {
-    // La provincia si può chiedere solo dopo la regione: primo dato mancante
-    // = un solo errore, mai due insieme.
     errori.provincia = 'Seleziona la provincia.';
   }
   return errori;
+}
+
+/** An entry the user has not filled at all: it is skipped, not validated. */
+function isBlankEntry(entry) {
+  const description = typeof entry?.mansione === 'string' ? entry.mansione.trim() : '';
+  return description === '' && (entry?.idCategoria === null || entry?.idCategoria === undefined);
 }
 
 /**
@@ -141,6 +156,9 @@ function validaAnagrafica(form) {
  */
 function validaSezione(chiave, voci, categorie) {
   return voci.reduce((errori, voce, indice) => {
+    if (isBlankEntry(voce)) {
+      return errori;
+    }
     const esito = validaVoce(voce, categorie);
     Object.entries(esito).forEach(([campo, messaggio]) => {
       errori[`${chiave}.${indice}.${campo}`] = messaggio;
@@ -156,7 +174,7 @@ function validaSezione(chiave, voci, categorie) {
  * person's, added by the API layer.
  */
 function toServiceEntries(entries) {
-  return entries.map((entry) => ({
+  return entries.filter((entry) => !isBlankEntry(entry)).map((entry) => ({
     description: entry.mansione.trim(),
     categoryIds:
       entry.idCategoria === null || entry.idCategoria === undefined ? [] : [entry.idCategoria],
@@ -250,14 +268,15 @@ export default function RegisterScreen() {
 
   function aggiungiAllaSezione(chiave) {
     const setVoci = chiave === 'offerte' ? setOfferte : setRicerche;
-    setVoci((correnti) => (correnti.length >= LIMITE_VOCI ? correnti : aggiungiVoce(correnti)));
+    const tipo = chiave === 'offerte' ? TIPI_VOCE.OFFERTA : TIPI_VOCE.RICERCA;
+    setVoci((correnti) =>
+      correnti.length >= LIMITE_VOCI ? correnti : [...correnti, nuovaVoce(tipo)],
+    );
   }
 
   function rimuoviDallaSezione(chiave, indice) {
     const setVoci = chiave === 'offerte' ? setOfferte : setRicerche;
-    setVoci((correnti) =>
-      correnti.length <= 1 ? correnti : rimuoviVoce(correnti, correnti[indice].chiave),
-    );
+    setVoci((correnti) => correnti.filter((_, posizione) => posizione !== indice));
     // Gli indici delle voci successive si spostano: gli errori di quella sezione
     // si azzerano e la validazione li rimette al posto giusto al prossimo invio.
     setFieldErrors((correnti) => senzaPrefisso(correnti, `${chiave}.`));
@@ -278,6 +297,18 @@ export default function RegisterScreen() {
     if (!validate()) {
       return;
     }
+    // The backend rejects an empty `offers`/`requests` array today
+    // (`AuthController::validateServices`), so an account cannot be created
+    // without at least one entry per section. Declared here instead of letting
+    // the generic 400 explain nothing; see docs/backend-gaps.md.
+    const offersEntries = toServiceEntries(offerte);
+    const requestEntries = toServiceEntries(ricerche);
+    if (offersEntries.length === 0 || requestEntries.length === 0) {
+      setError(
+        "Il backend oggi richiede almeno un'offerta e almeno una ricerca per creare l'account: aggiungine una per sezione. Potrai modificarle o eliminarle dopo la registrazione.",
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       await signUp({
@@ -287,8 +318,8 @@ export default function RegisterScreen() {
         email: form.email.trim(),
         password: form.password,
         location: formattaLocalita(form.provincia, form.regione),
-        offers: toServiceEntries(offerte),
-        requests: toServiceEntries(ricerche),
+        offers: offersEntries,
+        requests: requestEntries,
       });
       // A registrazione riuscita la root navigation passa da sola ai tab.
     } catch (err) {
@@ -403,6 +434,7 @@ export default function RegisterScreen() {
           onCambia={(indice, campo, valore) => cambiaVoce(sezione.chiave, indice, campo, valore)}
           onAggiungi={() => aggiungiAllaSezione(sezione.chiave)}
           onRimuovi={(indice) => rimuoviDallaSezione(sezione.chiave, indice)}
+          allowEmpty
         />
       ))}
 

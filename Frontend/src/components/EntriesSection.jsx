@@ -27,6 +27,7 @@ export function EntriesSection({
   onCambia,
   onAggiungi,
   onRimuovi,
+  allowEmpty = false,
 }) {
   const pieno = voci.length >= LIMITE_VOCI;
 
@@ -50,7 +51,7 @@ export function EntriesSection({
             idCategoria: fieldErrors[`${sezione.chiave}.${indice}.idCategoria`] ?? null,
             mansione: fieldErrors[`${sezione.chiave}.${indice}.mansione`] ?? null,
           }}
-          rimuovibile={voci.length > 1}
+          rimuovibile={allowEmpty || voci.length > 1}
           motivoNonRimuovibile={voci.length === 1 ? sezione.motivoObbligo : null}
           onCambia={(campo, valore) => onCambia(indice, campo, valore)}
           onRimuovi={() => onRimuovi(indice)}
