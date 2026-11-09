@@ -97,10 +97,11 @@ export function PublicationsSection({
         </AppText>
         {/* Il pulsante non sparisce mai al limite: un comando che scompare fa
             credere che la funzione sia rotta. */}
+        {/* The "+" is the primary action of the screen and never disappears at
+            the limit: a command that vanishes looks like a broken feature. */}
         <AppButton
-          label="Aggiungi"
-          variant="secondary"
-          icon="add-outline"
+          label="+ Aggiungi"
+          icon="add"
           disabled={pieno || !categoriePronte}
           onPress={onApriNuova}
           accessibilityLabel={sezione.etichettaAggiungi}

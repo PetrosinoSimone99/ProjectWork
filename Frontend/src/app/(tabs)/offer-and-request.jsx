@@ -7,7 +7,9 @@ import {
   createService,
   deleteService,
   getCategories,
+  listDeletedServices,
   listMyServices,
+  restoreService,
   setServiceSuspended,
   updateService,
 } from '@/api';
@@ -29,6 +31,7 @@ import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { PublicationsSection, SEZIONI_PUBBLICAZIONI } from '@/components/PublicationsSection';
+import { DeletedServicesSection } from '@/components/DeletedServicesSection';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -104,16 +107,15 @@ function messaggioEliminazione(voce, ultimaDelTipo) {
       ? ' Senza offerte non entri nel match: potrai pubblicarne una nuova quando vuoi.'
       : ' Senza ricerche non entri nel match: potrai pubblicarne una nuova quando vuoi.'
     : '';
-  return `${voce.mansione.trim() || 'Questa voce'} sparisce dall'elenco e non si recupera. Gli accordi già avviati non cambiano.${avviso}`;
+  return `${voce.mansione.trim() || 'Questa voce'} sparisce dall'elenco: la trovi in «Eliminati» e puoi ripristinarla. Gli accordi già avviati non cambiano.${avviso}`;
 }
 
 export default function OfferAndRequestScreen() {
   const { token, utente } = useAuth();
   const t = useTokens();
 
-  // Il bivio finti/veri dell'elenco sta tutto nel layer (`ottieniPubblicazioni`):
-  // la schermata chiede sempre — con i finti il deposito, senza la coppia di
-  // rotte reali — e parte in caricamento in entrambi i casi.
+  // The list comes from the API layer (`listMyServices`), which joins the two
+  // real routes; the screen only knows this list and its states.
   const [pubblicazioni, setPubblicazioni] = useState(null);
   const [loading, setLoading] = useState(true);
   const [erroreElenco, setErroreElenco] = useState(null);
@@ -131,6 +133,13 @@ export default function OfferAndRequestScreen() {
   const [eliminazione, setEliminazione] = useState(null);
   const [esito, setEsito] = useState(null);
 
+  // The "Eliminati" section has its own request and its own states: a failure
+  // there must not make the active list look broken.
+  const [eliminate, setEliminate] = useState(null);
+  const [caricamentoEliminate, setCaricamentoEliminate] = useState(false);
+  const [erroreEliminate, setErroreEliminate] = useState(null);
+  const [ripristinoInCorso, setRipristinoInCorso] = useState(null);
+
   const carica = useCallback(async () => {
     if (!token || !utente) {
       return;
@@ -143,6 +152,21 @@ export default function OfferAndRequestScreen() {
       setErroreElenco(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
       setLoading(false);
+    }
+  }, [token, utente]);
+
+  const caricaEliminate = useCallback(async () => {
+    if (!token || !utente) {
+      return;
+    }
+    setCaricamentoEliminate(true);
+    setErroreEliminate(null);
+    try {
+      setEliminate(await listDeletedServices(token));
+    } catch (err) {
+      setErroreEliminate(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+    } finally {
+      setCaricamentoEliminate(false);
     }
   }, [token, utente]);
 
@@ -164,13 +188,14 @@ export default function OfferAndRequestScreen() {
   useFocusEffect(
     useCallback(() => {
       void carica();
+      void caricaEliminate();
       void caricaCategorie();
-    }, [carica, caricaCategorie]),
+    }, [carica, caricaEliminate, caricaCategorie]),
   );
 
   const ricaricaTutto = useCallback(async () => {
-    await Promise.all([carica(), caricaCategorie()]);
-  }, [carica, caricaCategorie]);
+    await Promise.all([carica(), caricaEliminate(), caricaCategorie()]);
+  }, [carica, caricaEliminate, caricaCategorie]);
 
   const { refreshing, onRefresh } = useRefresh(ricaricaTutto);
 
@@ -316,6 +341,26 @@ export default function OfferAndRequestScreen() {
     setEliminazione(null);
   }
 
+  /** "Ripristina" of the deleted section: bring it back, then reload both lists. */
+  async function ripristina(voce) {
+    if (!token || !utente) {
+      return;
+    }
+    setRipristinoInCorso(voce.id);
+    setErroreEliminate(null);
+    try {
+      await restoreService(token, voce);
+      setEsito(
+        voce.tipo === TIPI_VOCE.OFFERTA ? 'Offerta ripristinata.' : 'Ricerca ripristinata.',
+      );
+      await Promise.all([carica(), caricaEliminate()]);
+    } catch (err) {
+      setErroreEliminate(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+    } finally {
+      setRipristinoInCorso(null);
+    }
+  }
+
   // Spinner a schermo pieno solo al primo caricamento: i ricarichi successivi
   // (focus della scheda, pull-to-refresh) lasciano il contenuto a schermo.
   if (loading && pubblicazioni === null) {
@@ -389,6 +434,16 @@ export default function OfferAndRequestScreen() {
           <ActivityIndicator color={t.primary} />
         </View>
       ) : null}
+
+      <DeletedServicesSection
+        services={eliminate}
+        categories={categorie}
+        loading={caricamentoEliminate}
+        error={erroreEliminate}
+        busyId={ripristinoInCorso}
+        onRetry={() => void caricaEliminate()}
+        onRestore={(voce) => void ripristina(voce)}
+      />
 
       <ConfirmModal
         visible={eliminazione !== null}
