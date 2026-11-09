@@ -9,26 +9,30 @@ data.
 Everything here is a **request to the backend maintainer**, not a description of
 current behaviour. When one lands, it moves to `api.md`.
 
-## G1 — Relevance ordering on the home catalog
+## G1 — Relevance ordering on the home catalog — LANDED 2026-11-09
 
-`GET /services` accepts `sort=relevance`, and it becomes the default.
+Implemented with a different shape from the request: the priority is
+**implicit**, there is no `sort=relevance` parameter. First every service that
+shares **at least one category with the viewer's own active REQUEST services**
+(not deleted, not suspended), newest
+first (`createdAt` then `id` descending); then everything else, same ordering
+inside the group. It is applied to the whole catalog **before** pagination
+(`ServiceRepository::paginateHomepageOffers` + `findDesiredCategoryIds`), so page
+2 continues the ranking instead of restarting it. `sort` still accepts only
+`newest`/`oldest`.
 
-Ordering rule: first every service that shares **at least one category with the
-viewer's own REQUEST services**, newest first (`createdAt` then `id`
-descending); then every other service, same ordering inside the group. Pagination
-must apply after the ordering, so page 2 continues the ranking instead of
-restarting it.
+Consumed by the frontend: `src/services/relevance.js` and the extra
+`GET /requests/mine` per home open are gone (`docs/decisions.md` D021).
 
-Why the backend: the app loads 20 rows per page, so sorting in the client can
-only reorder what it already has, which is not the rule above.
+## G2 — Remote-only filter — LANDED 2026-11-09
 
-Response: unchanged (`offers`, `pagination`); an optional `relevanceRank` per
-row is welcome but not required.
+Implemented as `isRemote=true|false` (not `onlyRemote`): omitted means both
+modes, `true` remote only, `false` in person only, any other value is a `400`.
+Combines with `q`, `categoryIds` and `location`.
 
-## G2 — Remote-only filter
-
-`GET /services` accepts `onlyRemote=true|false`, excluding rows whose
-`isRemote` is false when true. Complements `q`, `categoryIds` and `location`.
+Consumed by the frontend: the client-side mode filter and its "only among the
+loaded rows" line are gone, the mode selector sends the parameter
+(`docs/decisions.md` D021).
 
 ## G3 — Public profile of another user
 
@@ -75,6 +79,12 @@ keep the two answers independent and derive the agreement state from them.
 as concluded. Requested: `serviceId` and the counterpart `id` in each row, plus
 either a concluded status or a documented rule the client applies (today the
 client compares `agreementDetails.endDate` with the current time).
+
+The consequence is concrete, not theoretical: because the client has no
+`beneficiaryId` to send, `POST /send-agreement-details` cannot be called from
+the app at all, so the sheet stays empty forever from the product's point of
+view. Until ids arrive the sheet renders read-only and says "Scheda non
+compilata" instead of offering a form that would guess a user id.
 
 ## G7 — Confirmation of the delivery sheet
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
+import { ApiError, sendExchangeProposal } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -15,8 +16,6 @@ import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import {
   contaFiltri,
   descriviFiltri,
-  rigaFiltroModalita,
-  VALORI_MODALITA,
 } from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
 
@@ -33,10 +32,10 @@ const NOTA_FILTRO_AREA =
  * altri** (`GET /api/services`), con i filtri in cima (testo, categoria, area —
  * regione o provincia — e modalità) e «Carica altri» in fondo alla lista.
  *
- * Il filtro **modalità** è l'unico client-side: il backend non accetta un
- * parametro per la modalità (segnalazione 31), quindi si filtrano le righe già
- * caricate e la riga sopra la lista lo dice, con la via d'uscita onesta («Carica
- * altri» se c'è, altrimenti azzera).
+ * Testo, categoria, area e modalità sono tutti richieste al server: il backend
+ * ordina il catalogo per rilevanza (le categorie delle mie richieste prima)
+ * prima di paginare e filtra con `isRemote=true|false`, quindi qui non c'è
+ * nessun filtro client-side e nessun riordinamento locale.
  *
  * Tutta la logica di rete e dei filtri sta in `useServiceCatalog`; qui restano
  * il disegno, gli stati e il dettaglio. Le voci proprie non entrano nel catalogo
@@ -47,15 +46,47 @@ const NOTA_FILTRO_AREA =
  * risultato per questi filtri»), che sono due messaggi diversi, più il
  * caricamento e l'errore riprovabile di «Carica altri».
  *
- * Qui non c'è il banner dei dati finti: la home parla **solo** col backend vero
- * (decisione del titolare, 30 settembre 2026) e con `EXPO_PUBLIC_DATI_FINTI=1`
- * mostra il suo stato di errore, non un catalogo inventato.
+ * La home parla **solo** col backend vero (decisione del titolare, 30 settembre
+ * 2026): la modalitá a dati finti è stata rimossa (D011), quindi qui non esiste
+ * nessuna scorciatoia che possa mostrare un catalogo inventato.
  */
 export default function HomeScreen() {
   const { token, utente } = useAuth();
   const router = useRouter();
   const t = useTokens();
   const [dettaglio, setDettaglio] = useState(null);
+
+  // The last successful proposal: the popup closed and the banner says where
+  // the proposal went. Opening another service (or sending another one)
+  // resets it, so the line never lingers as if it were about the open panel.
+  const [propostaInviataA, setPropostaInviataA] = useState(null);
+
+  /**
+   * The send action of the detail panel (brief, decision 3):
+   * `POST /create-exchange-agreement` takes the **person** (`offerente.id`),
+   * never a service — the agreement is born with that person and the service
+   * is named later in the sheet. Duplicates with the same person are possible
+   * while the backend takes only a user id (G4): documented, not masked.
+   * The panel owns the in-flight and error states; this function only calls.
+   */
+  async function inviaProposta(servizio) {
+    const autore = servizio?.offerente ?? {};
+    if (!Number.isInteger(autore.id)) {
+      // ApiError so the panel shows this line instead of its generic fallback.
+      throw new ApiError(0, 'Non trovo questa persona: ricarica il catalogo e riprova.');
+    }
+    await sendExchangeProposal(token, autore.id);
+  }
+
+  /**
+   * On success: close the panel only if it still shows the service that was
+   * proposed to (the user may have opened another one while the call flew),
+   * then say where the proposal went.
+   */
+  function propostaInviata(servizioInviato, username) {
+    setDettaglio((corrente) => (corrente === servizioInviato ? null : corrente));
+    setPropostaInviataA(username ?? '');
+  }
 
   /**
    * The report action of the detail panel: the route needs the reported user's
@@ -106,21 +137,11 @@ export default function HomeScreen() {
     caricaAltri,
     refreshing,
     onRefresh,
-    nascondeModalita,
-    relevanceActive,
   } = useServiceCatalog({ token, utenteId: utente?.id });
 
   const numeroFiltri = contaFiltri(filtriApplicati);
   const haFiltri = numeroFiltri > 0;
   const soloTesto = numeroFiltri === 1 && filtriApplicati.testo.trim() !== '';
-
-  // Stato del filtro client-side della modalità: attivo, da solo, e il nome
-  // della modalità in italiano per i messaggi di vuoto.
-  const modalitaAttiva = filtriApplicati.modalita !== VALORI_MODALITA.TUTTE;
-  const soloModalita = numeroFiltri === 1 && modalitaAttiva;
-  const nomeModalita =
-    filtriApplicati.modalita === VALORI_MODALITA.REMOTO ? 'da remoto' : 'in presenza';
-  const testoModalita = rigaFiltroModalita(filtriApplicati.modalita);
 
   // Il filtro area (regione e/o provincia) è attivo: solo allora il vuoto può
   // essere «ingiusto», perché le voci vecchie non hanno la località e non
@@ -155,35 +176,18 @@ export default function HomeScreen() {
     );
   } else if (servizi !== null && servizi.length === 0 && !errore) {
     // Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner.
-    // Vuoto causato dal filtro client-side della modalità da solo: il messaggio
-    // dice la via d'uscita vera — «Carica altri» quando il backend ne ha, dato
-    // che il filtro vede solo ciò che è già caricato.
     contenuto = haFiltri ? (
-      nascondeModalita && soloModalita ? (
-        <EmptyState
-          icon="search-outline"
-          title={`Nessun servizio ${nomeModalita} tra quelli caricati`}
-          description={
-            ciSonoAltri
-              ? 'Il catalogo ha altre pagine: caricarne altre può portarne qualcuna.'
-              : 'Tra le righe già caricate nessuna corrisponde: prova a togliere il filtro.'
-          }
-          etichettaAzione={ciSonoAltri ? 'Carica altri' : 'Azzera filtri'}
-          onAzione={ciSonoAltri ? () => void caricaAltri() : azzeraFiltri}
-        />
-      ) : (
-        <EmptyState
-          icon="search-outline"
-          title={
-            soloTesto
-              ? `Nessun risultato per “${filtriApplicati.testo.trim()}”`
-              : 'Nessun risultato per questi filtri'
-          }
-          description={descrizioneVuotoFiltri}
-          etichettaAzione="Azzera filtri"
-          onAzione={azzeraFiltri}
-        />
-      )
+      <EmptyState
+        icon="search-outline"
+        title={
+          soloTesto
+            ? `Nessun risultato per “${filtriApplicati.testo.trim()}”`
+            : 'Nessun risultato per questi filtri'
+        }
+        description={descrizioneVuotoFiltri}
+        etichettaAzione="Azzera filtri"
+        onAzione={azzeraFiltri}
+      />
     ) : (
       <EmptyState
         variante="mercato"
@@ -199,14 +203,14 @@ export default function HomeScreen() {
     // aggiungono allo stesso elenco, e il pulsante sta sotto la sezione.
     contenuto = (
       <>
-        {/* Riga onesta del filtro client-side: solo quando il filtro
-            modalità è attivo c'è davvero una parte di catalogo non visibile. */}
-        {testoModalita ? (
-          <AppText variant="small" tone="secondary">
-            {testoModalita}
-          </AppText>
-        ) : null}
-        <ServicesSection titolo="Servizi" voci={servizi} onSelect={setDettaglio} />
+        <ServicesSection
+          titolo="Servizi"
+          voci={servizi}
+          onSelect={(servizio) => {
+            setPropostaInviataA(null);
+            setDettaglio(servizio);
+          }}
+        />
         {ciSonoAltri ? (
           <View style={{ alignItems: 'center', gap: space.sm }}>
             {erroreAltri ? <Banner kind="error" message={erroreAltri} /> : null}
@@ -229,11 +233,24 @@ export default function HomeScreen() {
   return (
     // L'unica schermata larga: le card del catalogo guadagnano spazio su
     // desktop, tutte le altre restano su `layout.maxContent`.
-    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh} larga>
+    <Screen
+      scroll
+      withBottomInset={false}
+      refreshing={refreshing}
+      onRefresh={() => {
+        // An explicit pull-to-refresh retires the confirmation: a banner left
+        // over from hours ago would read as a proposal sent just now.
+        setPropostaInviataA(null);
+        onRefresh();
+      }}
+      larga
+    >
       <ServiceDetailModal
         servizio={dettaglio}
         onClose={() => setDettaglio(null)}
         onReport={apriSegnalazione}
+        onSendProposal={inviaProposta}
+        onProposalSent={propostaInviata}
       />
 
       <View style={{ gap: space.xs }}>
@@ -242,16 +259,18 @@ export default function HomeScreen() {
           I servizi pubblicati dagli altri: filtra per testo, categoria, area e
           modalità.
         </AppText>
-        {/* Nota onesta dell'ordinamento: vale per le pagine caricate, non per
-            tutto il catalogo — il backend non ha ancora `sort=relevance`
-            (`docs/backend-gaps.md` G1). Senza categorie mie non c'è classifica. */}
-        {relevanceActive ? (
-          <AppText variant="caption" tone="secondary">
-            Prima i servizi che condividono una categoria con le tue ricerche. L&apos;ordine
-            vale per i servizi già caricati.
-          </AppText>
-        ) : null}
       </View>
+
+      {propostaInviataA !== null ? (
+        <Banner
+          kind="success"
+          message={
+            propostaInviataA
+              ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
+              : 'Proposta inviata. La trovi in Accordi.'
+          }
+        />
+      ) : null}
 
       <FilterBar
         filtri={filtri}

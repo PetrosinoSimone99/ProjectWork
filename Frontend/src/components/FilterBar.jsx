@@ -25,10 +25,9 @@ const SOGLIA_LAYOUT_STRETTO = 480;
  * provincia) e **modalità** (Tutti / solo da remoto / solo in presenza).
  * Nessuno stato proprio: i filtri e le callback arrivano dall'hook
  * (`useServiceCatalog`), così quello che c'è nella barra è anche quello che
- * produce la lista — una sola verità. La modalità è l'unico filtro
- * **client-side**: `GET /api/services` non accetta un parametro per la
- * modalità (segnalazione 31), quindi la callback dell'hook non fa richieste e
- * il filtro si applica alle righe già caricate. Anche la **località a testo
+ * produce la lista — una sola verità. La modalità va al server come le altre
+ * scelte discrete (`isRemote=true|false`): è il backend a decidere quali righe
+ * entrano in pagina. Anche la **località a testo
  * libero non c'è più**: era un errore di sicurezza, ora sono due tendine dal
  * dataset statico.
  *
@@ -36,7 +35,7 @@ const SOGLIA_LAYOUT_STRETTO = 480;
  * - **testo** con Invio o con il pulsante «Filtra»: non si fa una richiesta per
  *   tasto premuto, altrimenti ogni lettera produrrebbe una richiesta e una
  *   raffica di risposte da scartare;
- * - **categoria, regione e provincia** al tocco: sono scelte discrete e non
+ * - **categoria, regione, provincia e modalità** al tocco: sono scelte discrete e non
  *   hanno costo. L'azzeramento di provincia al cambio regione lo fa l'hook.
  *
  * Il pulsante di azzeramento compare **solo** quando qualcosa è attivo, e non

@@ -230,7 +230,8 @@ export function normalizeCatalog(response, viewerId) {
  * the answer of create/update/restore). The UI shape is the one the
  * offer-and-request screen already reads: `type -> tipo`,
  * `description -> mansione`, `categories -> idCategoria` (the form allows one)
- * plus `categoryIds` with all of them, which the relevance ordering needs.
+ * plus `categoryIds` with all of them, kept for the service form and for any
+ * future multi-category UI (the home no longer ranks locally: D021).
  * `isSuspended -> stato` (`PUBBLICATA`/`SOSPESA`).
  */
 export function normalizeOwnedService(row) {
@@ -403,4 +404,107 @@ export function normalizeStaffOperations(response) {
       .filter(Boolean),
     paginazione: normalizePagination(response?.pagination),
   };
+}
+
+/**
+ * One row of `agreementProposal`: a participant of an agreement with their
+ * role (`Provider`/`Beneficiary`, kept raw like every other wire word) and
+ * their answer — `true`/`false`, `null` while they have not answered yet.
+ * Rows without a username cannot identify anyone and are dropped.
+ */
+function normalizeAgreementProposal(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const username = toTextOrNull(row.username);
+  if (username === null) {
+    return null;
+  }
+  return {
+    username,
+    ruolo: toTextOrNull(row.role),
+    risposta: typeof row.response === 'boolean' ? row.response : null,
+    dataRisposta: toTextOrNull(row.responseDate),
+  };
+}
+
+/**
+ * The delivery sheet of an agreement (`agreementDetails`): read-only data
+ * the backend fills, never a form from the app (the route needs an id the
+ * agreement rows do not carry). An empty `agreementDetails` array means the
+ * sheet does not exist yet -> `null`, which the screens draw as
+ * "Scheda non compilata".
+ *
+ * The wire keys are the ones `AgreementDetailsDTO` serialises
+ * (`providerUsername`, `serviceDescription`, `beneficiaryUsername`), not the
+ * getter names without the prefix. A row with no service description names no
+ * service, so it is treated as no sheet at all: the card must not claim
+ * "Servizio non indicato" over a sheet that does exist.
+ */
+function normalizeAgreementSheet(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const descrizione = toTextOrNull(row.serviceDescription);
+  if (descrizione === null) {
+    return null;
+  }
+  return {
+    username: toTextOrNull(row.providerUsername),
+    descrizione,
+    beneficiario: toTextOrNull(row.beneficiaryUsername),
+    daRemoto: typeof row.fromRemote === 'boolean' ? row.fromRemote : null,
+    inizio: toTextOrNull(row.startDate),
+    fine: toTextOrNull(row.endDate),
+    beneficiarioAccettato:
+      typeof row.beneficiaryAccepted === 'boolean' ? row.beneficiaryAccepted : null,
+    stato: typeof row.status === 'string' ? row.status.trim().toUpperCase() : null,
+  };
+}
+
+/**
+ * One row of `GET /get-agreements`, the same shape for both participants:
+ * `{id, stato, creazione, proposte: [{username, ruolo, risposta,
+ * dataRisposta}], scheda: null | {...}}`.
+ *
+ * `stato` stays the raw wire word
+ * (`PENDING`/`ACCEPTED`/`REFUSED`/`CONTESTED`/`VOID`): the screens map it to
+ * Italian display copy, this layer does not decide display. A row without an
+ * id cannot be answered or cancelled, so it is dropped like every other row
+ * the UI could not act on; a malformed row returns `null` instead of throwing
+ * (the file is tolerant by design).
+ */
+export function normalizeAgreement(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  if (id === null) {
+    return null;
+  }
+  const proposte = Array.isArray(row.agreementProposal) ? row.agreementProposal : [];
+  const dettagli = Array.isArray(row.agreementDetails) ? row.agreementDetails : [];
+  return {
+    id,
+    stato:
+      typeof row.agreementStatus === 'string'
+        ? row.agreementStatus.trim().toUpperCase()
+        : null,
+    creazione: toTextOrNull(row.creationDate),
+    proposte: proposte.map(normalizeAgreementProposal).filter(Boolean),
+    scheda: dettagli.length > 0 ? normalizeAgreementSheet(dettagli[0]) : null,
+  };
+}
+
+/**
+ * `GET /get-agreements` -> `[{...}]`, read from `response.success.agreements`.
+ * An absent or malformed list is an empty array, never a throw: a new account
+ * simply has no agreements yet.
+ */
+export function normalizeAgreements(response) {
+  const list = response?.success?.agreements;
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(normalizeAgreement).filter(Boolean);
 }

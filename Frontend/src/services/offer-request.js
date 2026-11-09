@@ -1,10 +1,10 @@
 /**
  * Offerta e ricerca: la forma del dato e le sue regole, in un punto solo.
  *
- * È l'analogo di `src/agreements/states.js` per gli accordi 1:1: logica di dominio
- * fuori dalle schermate. Le schermate che trattano le voci (registrazione,
- * pubblicazione, filtri, match) importano questo modulo e non ridichiarano
- * niente: se il backend cambia un nome di campo, si cambia qui.
+ * È l'analogo, per le voci pubblicate, di `src/services/agreements.js` per gli
+ * accordi: logica di dominio fuori dalle schermate. Le schermate che trattano le
+ * voci (registrazione, pubblicazione, filtri, match) importano questo modulo e
+ * non ridichiarano niente: se il backend cambia un nome di campo, si cambia qui.
  *
  * Nessuna funzione muta i dati ricevuti: copia, trasforma, restituisce.
  */
@@ -265,29 +265,17 @@ export function senzaPrefisso(oggetto, prefisso) {
 // semantica `LIKE` del backend: sola regione = regione intera, regione +
 // provincia = quella provincia).
 //
-// Il filtro **modalità** è l'unico che si applica lato frontend: le righe del
-// catalogo portano `daRemoto`, ma `GET /api/services` non accetta ancora un
-// parametro per la modalità (segnalazione 31). Si filtra ciò che è già
-// caricato: al parametro lato server si sposta nel layer `src/api/*` senza
-// toccare la UI.
+// Il filtro **modalità** va al server: `GET /api/services` accetta
+// `isRemote=true|false` (assente = entrambe le modalità), e l'ordinamento per
+// rilevanza — priorità alle categorie delle richieste del viewer — lo decide il
+// backend su tutto il catalogo prima di paginare. Qui resta solo la forma dei
+// filtri e la loro traduzione in query.
 // ---------------------------------------------------------------------------
 
 /**
- * Le tre scelte del filtro modalità. `null` = non restringe, `true` = solo da
- * remoto, `false` = solo in presenza. Tre stati e non una casella perché un
- * servizio può essere offerto in entrambi i modi.
- */
-export const SCELTE_MODALITA = [
-  { valore: null, etichetta: 'Tutti' },
-  { valore: true, etichetta: 'Da remoto' },
-  { valore: false, etichetta: 'In presenza' },
-];
-
-/**
- * Le tre scelte del **filtro client-side** della home. `''` = tutti (nessun
- * filtro), `'REMOTO'` = solo righe con `daRemoto === true`, `'PRESENZA'` = solo
- * `daRemoto === false`. Sonorità distinte da `SCELTE_MODALITA` (sopra, residue
- * di una versione precedente): non confonderle.
+ * Le tre scelte del filtro modalità della home. `''` = tutti (nessun
+ * filtro), `'REMOTO'` = solo da remoto (`isRemote=true`), `'PRESENZA'` = solo
+ * in presenza (`isRemote=false`).
  */
 export const VALORI_MODALITA = { TUTTE: '', REMOTO: 'REMOTO', PRESENZA: 'PRESENZA' };
 
@@ -307,34 +295,6 @@ export function etichettaValoreModalita(valore) {
 export function valoreDaEtichettaModalita(etichetta) {
   const trovata = SCELTE_FILTRO_MODALITA.find((scelta) => scelta.etichetta === etichetta);
   return trovata ? trovata.valore : VALORI_MODALITA.TUTTE;
-}
-
-/**
- * La riga passa il filtro client-side della modalità? `''` non restringe;
- * `'REMOTO'` e `'PRESENZA'` guardano `daRemoto` della riga del catalogo.
- */
-export function passaModalita(riga, modalita) {
-  if (modalita === VALORI_MODALITA.REMOTO) {
-    return riga.daRemoto === true;
-  }
-  if (modalita === VALORI_MODALITA.PRESENZA) {
-    return riga.daRemoto === false;
-  }
-  return true;
-}
-
-/**
- * La riga onesta sopra la lista quando il filtro client-side è attivo: dice che
- * si vede solo parte del catalogo e come vedere altro. `''` → null (nessuna riga).
- */
-export function rigaFiltroModalita(modalita) {
-  if (modalita === VALORI_MODALITA.REMOTO) {
-    return 'Stai vedendo solo i servizi da remoto tra quelli già caricati: usa «Carica altri» per averne altri.';
-  }
-  if (modalita === VALORI_MODALITA.PRESENZA) {
-    return 'Stai vedendo solo i servizi in presenza tra quelli già caricati: usa «Carica altri» per averne altri.';
-  }
-  return null;
 }
 
 /**
@@ -394,6 +354,10 @@ export function filtriDaQuery(filtri) {
     ...(testo ? { q: testo } : {}),
     ...(Number.isInteger(filtri.idCategoria) ? { categoryIds: filtri.idCategoria } : {}),
     ...(localita ? { location: localita } : {}),
+    // La modalità viaggia come stringa (`isRemote=true|false`): il backend
+    // rifiuta ogni altro valore con un 400. `''` (Tutti) non manda il parametro.
+    ...(filtri.modalita === VALORI_MODALITA.REMOTO ? { isRemote: 'true' } : {}),
+    ...(filtri.modalita === VALORI_MODALITA.PRESENZA ? { isRemote: 'false' } : {}),
   };
 }
 

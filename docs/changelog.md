@@ -6,6 +6,94 @@ documents/code touched.
 
 ---
 
+## 2026-11-09 — Agreements wired in the app, relevance and remote filter delegated to the backend
+
+### What changed
+
+1. **Local database moved to the demo dump.** `Backend/compose.yaml` mounts
+   `Context_and_DB_V2/barattolo_demo_20261108.sql` instead of the schema-only v3.1
+   dump: 12 tables (the three agreement tables included) plus seed rows — 50
+   categories, 30 users with password `demo`, 200 offers, 100 requests. The
+   agreement endpoints answered `500` against the old dump because their tables
+   did not exist. Re-import requires `docker compose down -v`, which wipes local
+   dev data. **Backend maintainer: `compose.yaml` is a shared file, edited under
+   the Docker ownership exception in `AGENTS.md` — this is the notification.**
+2. **Home: the client-side relevance ordering and remote filter are gone.** The
+   backend sorts the whole catalog by the viewer's request categories before
+   pagination and accepts `isRemote=true|false`, so `src/services/relevance.js`
+   and its test were deleted, `passaModalita`/`rigaFiltroModalita` removed, and
+   the extra `GET /requests/mine` per home open dropped. The mode selector now
+   sends the parameter; both "only among the rows already loaded" lines are gone
+   because they were no longer true.
+3. **Agreements tab wired to the real endpoints.** New `src/api/areas/agreements.js`
+   (`get-agreements`, `create-exchange-agreement`, `send-agreement-response`,
+   `cancel-agreement/{id}`), agreement normalisers, the pure classification in
+   `src/services/agreements.js` with tests, `useAgreements`, `AgreementCard`, and a
+   rewritten `agreements.jsx`: real bell count, tick/cross answering, three
+   sections, explicit loading/empty/error states, "Annulla scambio" on accepted
+   agreements. The delivery sheet stays read-only as "Scheda non compilata":
+   `send-agreement-details` needs a `beneficiaryId` no row carries (G6).
+4. **"Invia proposta" is real.** It sends the person (`offerente.id`), not a
+   service: the agreement is born with that person and the service is named later
+   in the sheet. Duplicates with the same person remain possible while the backend
+   takes only a user id (G4), documented and not masked. Success closes the panel
+   and shows a banner pointing to Accordi; failures show an Italian line.
+5. **Gaps closed with their real shape.** G1 landed as an implicit relevance order
+   (no `sort=relevance`) and G2 as `isRemote` (not `onlyRemote`); both recorded as
+   landed in `backend-gaps.md` without renumbering. G6 gained the concrete
+   consequence: the sheet cannot be filled from the app at all.
+
+### Verified
+
+Backend on port 8000, after the DB rebuild: login (`mario.rossi`/`demo`) →
+proposal to `giulia.bianchi` (`201`, creator `Provider` with `response: true`) →
+her list shows `response: null` → accept (`200`, `ACCEPTED`) → second answer
+`409` → cancel (`200`, `VOID`) → self-proposal `400`, unknown user `404`.
+Frontend gate: `expo lint` clean, `tsc --noEmit` clean, `jest` 37/37.
+
+Browser pass on `npx expo start --web` (200 OK, no console errors): login
+`mario.rossi`/`demo` → home shows 20 rows ordered by relevance → mode filter
+"Solo da remoto" returns a different page from the server (no client-side
+disclaimer line) → "Invia proposta" on a service closes the panel and shows
+"Proposta inviata a @lorenzo.fontana. La trovi in Accordi." → on `lorenzo.fontana`
+the bell reads "1 da rispondere" → the panel lists the proposal with tick/cross
+and the counterpart in the accessible name → accept moves it to "Accordi in
+corso" with "Scheda non compilata" and "Annulla scambio" → confirming the
+modal moves it to "Conclusi" as "Annullato".
+
+### Files
+
+`Backend/compose.yaml`, `Frontend/package.json`, `Frontend/src/api/{index,normalizers}.js`,
+`Frontend/src/api/areas/{agreements.js (new),services.js}`,
+`Frontend/src/services/{offer-request,agreements}.js`,
+`Frontend/src/services/__tests__/{relevance.test.js (deleted),agreements.test.js}`,
+`Frontend/src/hooks/{useServiceCatalog,useAgreements}.js`,
+`Frontend/src/components/{ServiceDetailModal,AgreementCard,FilterBar}.jsx`,
+`Frontend/src/app/(tabs)/{index,agreements}.jsx`,
+`docs/{api,backend-gaps,database,setup,frontend,decisions,changelog,README}.md`,
+`docs/briefs/agreements-wiring/{plan-brief,plan}.md` (new; local process artefact,
+committed so the next session can reconstruct every closed decision).
+
+### Fixes applied after review
+
+`normalizeAgreementSheet` now reads the wire keys the backend serialises
+(`providerUsername`, `serviceDescription`, `beneficiaryUsername`); the sections
+no longer claim "Caricamento non riuscito" before the first request; the focus
+cleanup switches off the loading flags so «Carica altri» cannot stay stuck; a
+send-proposal response can no longer act on a service opened later; `CONTESTED`
+lands in "Conclusi" instead of vanishing; the bell label carries the count and
+`expanded`; accept/refuse are distinguishable by screen reader; the mode filter
+no longer applies unconfirmed text; `pendingCount`, `SCELTE_MODALITA` and
+`listMyRequests` (orphans) are gone.
+
+### Known doc drift (not introduced here)
+
+`docs/decisions.md` D005 still names `php:8.3-cli` while `Backend/docker/Dockerfile`
+ships 8.4. Historical entries are appended, never rewritten, so the correction
+belongs in a new decision if the image pin becomes a topic.
+
+---
+
 ## 2026-11-09 — Agreements: the endpoints repaired, the contract documented
 
 ### What changed

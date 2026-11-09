@@ -21,9 +21,14 @@ services:
     volumes:
       - database_data:/var/lib/mysql
       # First boot on an empty data volume imports the reference dump named by
-      # ../Context_and_DB_V2/LAST_DB_TO_USE.txt: the v3.1 schema (14 tables).
-      # It carries no seed rows: categories and users are created at runtime.
-      - ../Context_and_DB_V2/barattolo_v3_1_senza_swipe_chat_catene.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      # ../Context_and_DB_V2/LAST_DB_TO_USE.txt: the demo dump (12 tables,
+      # agreements/agreement_proposal/agreement_details included) with seed
+      # rows - 50 categories, 30 users (password `demo`), 200 offers, 100
+      # requests. The previous v3.1 schema dump predated the agreement tables,
+      # which is why the agreement endpoints failed against it.
+      # docker-entrypoint-initdb.d only runs on an empty data volume: after
+      # changing this line the stack needs `docker compose down -v`.
+      - ../Context_and_DB_V2/barattolo_demo_20261108.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 5s

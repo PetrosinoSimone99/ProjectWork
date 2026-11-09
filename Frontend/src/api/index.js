@@ -31,7 +31,6 @@ export {
   createService,
   deleteService,
   listDeletedServices,
-  listMyRequests,
   listMyServices,
   restoreService,
   setServiceSuspended,
@@ -47,6 +46,12 @@ export {
   reviewStaffReport,
   setStaffUserStatus,
 } from './areas/staff.js';
+export {
+  cancelAgreement,
+  listAgreements,
+  respondToAgreement,
+  sendExchangeProposal,
+} from './areas/agreements';
 
 // ---------------------------------------------------------------------------
 // Access — login and registration
@@ -163,7 +168,8 @@ const CATALOG_PAGE_SIZE = 20;
  * decision, not only a query one). Returns `{elenco, paginazione}`.
  *
  * `sort` is **not** sent: the backend default (`newest`) is the order the page
- * needs, and `sort=relevance` is rejected today (`docs/backend-gaps.md` G1).
+ * needs, and it already applies the relevance priority before paginating, so
+ * there is no `sort=relevance` to ask for (`docs/api.md`, D021).
  */
 export async function getHomeCatalog(token, viewerId, filters, page = 1) {
   const params = {

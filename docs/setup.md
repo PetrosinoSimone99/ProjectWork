@@ -24,9 +24,15 @@ docker compose up -d --build
 | `backend` | PHP 8.4 (built from `Backend/docker/`) | **8000** | Symfony at `http://localhost:8000` |
 
 First boot on an empty data volume imports the dump named by
-`Context_and_DB_V2/LAST_DB_TO_USE.txt` (schema v3.1, 14 tables). The dump has no
-seed rows, so **categories start empty**: load the reference categories before
-publishing services, otherwise the service form has nothing to choose from.
+`Context_and_DB_V2/LAST_DB_TO_USE.txt` — today
+`barattolo_demo_20261108.sql`: the full schema (12 tables, agreement tables
+included) **plus seed rows** — 50 categories, 30 users (every password `demo`),
+200 offers and 100 requests. The previous schema-only dump predated the
+agreement tables, which is why the agreement endpoints failed against it.
+
+Re-importing only happens on an empty volume: after changing the dump in
+`compose.yaml`, `docker compose down -v` then up again. That **wipes** the local
+dev data.
 
 The backend container installs Composer dependencies, generates local JWT keys
 (`Backend/config/jwt/*.pem`, skipped when present) and serves
@@ -45,8 +51,8 @@ docker compose ps
 curl http://localhost:8000/api/categories    # 200 {"categories":[...]} — GET is public
 ```
 
-Reset from scratch: `docker compose down -v`, then up again (re-imports the dump
-on the empty volume).
+Reset from scratch: `docker compose down -v`, then up again (re-imports the demo
+dump on the empty volume — 30 demo users, password `demo`).
 
 ## 2. Configure the frontend
 
@@ -103,7 +109,8 @@ php bin/phpunit
 | --- | --- | --- |
 | `curl :8000` refused | backend container still installing | `docker compose logs backend -f`, wait for the `php -S` line |
 | `Unknown database barattolo` | volume initialized before the dump existed | `docker compose down -v`, then up |
-| Service form has no categories | the v3.1 dump carries no seed rows | load the reference categories into the database |
+| Service form has no categories | the database was imported from the old schema-only dump | `docker compose down -v`, then up (the demo dump carries 50 categories) |
+| Agreement endpoints answer `500` | the volume still holds the old dump, which has no agreement tables | `docker compose down -v`, then up |
 | Registration cannot load categories | API slower than the 10 s client timeout (cold container, workers missing) | `docker compose up -d backend`, retry; the first call after a start is the slowest |
 | A PHP edit does not appear for a minute | `opcache.revalidate_freq=60` | wait, or `docker compose restart backend` |
 | One call blocks the next | `PHP_CLI_SERVER_WORKERS` lost (old container) | `docker compose up -d backend` |

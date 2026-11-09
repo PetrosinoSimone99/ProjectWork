@@ -148,3 +148,18 @@ components already read (`descrizione`, `categorie`, `offerente`, `mansione`,
 before (same rule as D001 for opportunistic renames).
 *Consequences:* one shape at a time in the app; `docs/frontend.md` documents the
 Italian UI-shape keys; a rename that lands on one side only is a defect.
+
+**D021 — 2026-11-09 — Relevance ordering and the remote filter belong to the backend.**
+The backend sorts the whole catalog by the categories of the viewer's own
+requests **before** pagination and accepts `isRemote=true|false`. The frontend had
+replicated both: `src/services/relevance.js` reordered the loaded page, the mode
+filter dropped rows already in memory, and an extra `GET /requests/mine` ran on
+every home open.
+*Consequences:* `relevance.js` and its test are deleted, the catalog hook performs
+one request per filter change, the mode selector sends `isRemote`, and the two
+"only among the rows already loaded" disclaimers are gone because they were no
+longer true. No `sort` is sent: the backend accepts only `newest`/`oldest`. A
+multi-category home filter stays out of scope until requested — the backend
+already accepts `categoryIds[]`, so it is a UI decision, not a gap. The jest
+coverage set moves from `relevance.js` to `src/services/agreements.js`; D019
+stays as written, as an appended log does.

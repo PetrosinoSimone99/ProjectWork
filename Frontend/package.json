@@ -53,7 +53,7 @@
       "**/__tests__/**/*.test.js"
     ],
     "collectCoverageFrom": [
-      "src/services/relevance.js",
+      "src/services/agreements.js",
       "src/validation/index.js"
     ]
   }

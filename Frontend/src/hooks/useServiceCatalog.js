@@ -1,14 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError } from '@/api/client';
-import { getHomeCatalog, listMyRequests } from '@/api';
-import {
-  contaFiltri,
-  nuoviFiltri,
-  passaModalita,
-  VALORI_MODALITA,
-} from '@/services/offer-request';
-import { requestCategoryIds, orderByRelevance } from '@/services/relevance';
+import { getHomeCatalog } from '@/api';
+import { contaFiltri, nuoviFiltri } from '@/services/offer-request';
 import { useRefresh } from '@/hooks/useRefresh';
 
 /**
@@ -40,11 +34,12 @@ import { useRefresh } from '@/hooks/useRefresh';
  *    che non è arrivata.
  * 5. **«Carica altri» appende in copia** (`[...correnti, ...elenco]`): l'array a
  *    schermo non si muta mai, e ogni richiesta porta con sé la propria pagina.
- * 6. **La modalità non è una richiesta**: `GET /api/services` non accetta un
- *    parametro per la modalità (segnalazione 31), quindi `cambiaModalita` non
- *    chiama `esegui`: il filtro client-side deriva la lista visibile da quella
- *    già caricata (`servizi` restituito è già filtrato), la paginazione del
- *    backend resta intatta.
+ * 6. **La modalità è un filtro come gli altri**: `GET /api/services` accetta
+ *    `isRemote=true|false`, quindi `cambiaModalita` chiama `esegui` come le
+ *    scelte discrete — una richiesta al server. Anche l'ordinamento per
+ *    rilevanza è del backend (priorità alle categorie delle mie richieste su
+ *    tutto il catalogo, prima della paginazione): qui non si riordina e non si
+ *    filtra più niente.
  */
 export function useServiceCatalog({ token, utenteId }) {
   const [servizi, setServizi] = useState(null);
@@ -73,11 +68,6 @@ export function useServiceCatalog({ token, utenteId }) {
   // La richiesta dell'ultima volta partita, anche se è fallita: è quello che
   // «Riprova» ripete (filtri, pagina e se era un «Carica altri»).
   const ultimaRichiestaRef = useRef({ filtri: nuoviFiltri(), pagina: 1, inCoda: false });
-
-  // Le categorie delle **mie richieste**: servono all'ordinamento per rilevanza
-  // della pagina caricata (brief, decisione 5). Se non arrivano, il catalogo
-  // resta nell'ordine del backend: nessuna classifica inventata.
-  const [relevantCategoryIds, setRelevantCategoryIds] = useState([]);
 
   const esegui = useCallback(
     async (filtriRichiesti, pagina = 1, inCoda = false) => {
@@ -147,36 +137,14 @@ export function useServiceCatalog({ token, utenteId }) {
       void esegui(filtriApplicatiRef.current);
       return () => {
         // Fuori dal focus la risposta in volo non deve applicarsi alla UI.
+        // La sequenza invalidata basta a scartarla, ma il suo `finally` non
+        // spegnerebbe più i flag (la seq non combacia): senza queste due righe
+        // «Carica altri» resterebbe in spinner per sempre al ritorno sulla tab.
         requestSeqRef.current += 1;
+        setCaricamento(false);
+        setCaricamentoAltri(false);
       };
     }, [esegui]),
-  );
-
-  // Le mie richieste si rileggono quando la home torna in primo piano: se ne
-  // pubblico una nuova, il catalogo deve rankare con le categorie vere. Un
-  // errore qui non è un errore della home: l'ordine resta quello del backend e
-  // la nota in cima dice che la classifica per rilevanza non è attiva.
-  useFocusEffect(
-    useCallback(() => {
-      if (!token) {
-        return undefined;
-      }
-      let active = true;
-      listMyRequests(token)
-        .then((requests) => {
-          if (active) {
-            setRelevantCategoryIds(requestCategoryIds(requests));
-          }
-        })
-        .catch(() => {
-          if (active) {
-            setRelevantCategoryIds([]);
-          }
-        });
-      return () => {
-        active = false;
-      };
-    }, [token]),
   );
 
   /** Testo: cambia la bozza senza fare richieste (si applica con Invio o «Filtra»). */
@@ -221,16 +189,23 @@ export function useServiceCatalog({ token, utenteId }) {
   }, [esegui]);
 
   /**
-   * Il cambio di modalità **non richiede nulla**: la richiesta al backend non
-   * ha un parametro per la modalità (segnalazione 31), quindi il filtro si
-   * applica solo alle righe già caricate, subito. Aggiorna bozza e filtri
-   * applicati in un colpo: quello che c'è a schermo cambia immantinente.
+   * Modalità: scelta discreta, quindi chiede subito al server (come categoria,
+   * regione e provincia). `filtriDaQuery` la traduce in `isRemote=true|false`:
+   * la lista visibile la decide il backend, pagine comprese.
+   *
+   * La richiesta parte dai filtri **applicati**, non dalla bozza: il testo
+   * digitato e non confermato viaggia solo con Invio o «Filtra», e una modalità
+   * non deve applicarlo di nascosto. La bozza riceve la modalità per restare
+   * coerente con ciò che è a schermo.
    */
-  const cambiaModalita = useCallback((valore) => {
-    setFiltri((correnti) => ({ ...correnti, modalita: valore }));
-    setFiltriApplicati((correnti) => ({ ...correnti, modalita: valore }));
-    filtriApplicatiRef.current = { ...filtriApplicatiRef.current, modalita: valore };
-  }, []);
+  const cambiaModalita = useCallback(
+    (valore) => {
+      const prossimi = { ...filtriApplicatiRef.current, modalita: valore };
+      setFiltri((correnti) => ({ ...correnti, modalita: valore }));
+      void esegui(prossimi);
+    },
+    [esegui],
+  );
 
   /** «Riprova»: ripete la richiesta fallita, con filtri e pagina che l'avevano prodotta. */
   const riprova = useCallback(() => {
@@ -256,31 +231,8 @@ export function useServiceCatalog({ token, utenteId }) {
   const aggiorna = useCallback(() => esegui(filtriApplicatiRef.current), [esegui]);
   const { refreshing, onRefresh } = useRefresh(aggiorna);
 
-  // Il filtro modalità è l'unico client-side: droppa le righe già caricate
-  // senza richiedere nulla al backend, la cui paginazione resta intatta
-  // («Carica altri» porta pagine piene; a schermo resta la parte che passa). 
-  const serviziMostrate = useMemo(
-    () =>
-      Array.isArray(servizi)
-        ? orderByRelevance(
-            servizi.filter((riga) => passaModalita(riga, filtriApplicati.modalita)),
-            relevantCategoryIds,
-          )
-        : servizi,
-    [servizi, filtriApplicati.modalita, relevantCategoryIds],
-  );
-
-  // Il filtro client-side ha svuotato a schermo un elenco che **non** era vuoto?
-  // Lo stato vuoto della schermata ne deve tenere conto: con altre pagine la via
-  // d'uscita è «Carica altri», non solo azzera.
-  const nascondeModalita =
-    filtriApplicati.modalita !== VALORI_MODALITA.TUTTE &&
-    Array.isArray(servizi) &&
-    servizi.length > 0 &&
-    serviziMostrate.length === 0;
-
   return {
-    servizi: serviziMostrate,
+    servizi,
     caricamento,
     errore,
     paginazione,
@@ -298,7 +250,5 @@ export function useServiceCatalog({ token, utenteId }) {
     caricaAltri,
     refreshing,
     onRefresh,
-    nascondeModalita,
-    relevanceActive: relevantCategoryIds.length > 0,
   };
 }

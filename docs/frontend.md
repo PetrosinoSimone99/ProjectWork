@@ -58,12 +58,17 @@ empty state, never fake content.
   (`descrizione`, `categorie`, `offerente`, `mansione`, `stato`, `idCategoria`).
   Each key is renamed together with the component that consumes it
   (`docs/decisions.md` D020).
-- Home ordering lives in `src/services/relevance.js`: the loaded page puts first
-  the services sharing a category with the viewer's requests, then the rest,
-  keeping the backend's newest-first order inside each group. It is a declared
-  limitation of the page, not of the catalog — the ordering the product wants is
-  `sort=relevance` on the backend (`docs/backend-gaps.md` G1). With no request
-  categories, the order is untouched.
+- Home ordering and the remote filter live in the backend: `GET /services`
+  sorts by relevance (offers sharing a category with the viewer's own requests
+  first, whole catalog, pagination after the sort) and filters with
+  `isRemote=true|false`. The app keeps no ordering code — `src/services/relevance.js`
+  was deleted together with its test — and the mode selector is a server
+  round-trip like the other discrete filters (`docs/decisions.md` D021).
+- The agreements tab reads `GET /get-agreements` through `useAgreements` and
+  splits the rows with the pure `src/services/agreements.js` (to answer, sent,
+  in progress, concluded). Those rules mirror the backend's real lifecycle (the
+  creator is born with `response: true`) and are the only place the sections are
+  decided: a row that fits no rule is dropped, never guessed into one.
 
 ## Theme
 
@@ -99,7 +104,7 @@ errors; it does not type-check JavaScript, so it is a syntax net, not a type
 check.
 
 Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library)
-and cover the pure modules: `src/services/relevance.js` and `src/validation/`.
+and cover the pure modules: `src/services/agreements.js` and `src/validation/`.
 They are **not** part of the gate yet: the suite is new and non-blocking, so a
 red test is a signal to fix before pushing, not a reason to weaken an assertion.
 `collectCoverageFrom` is limited to those two modules, and the suite runs at

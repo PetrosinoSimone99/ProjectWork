@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
@@ -18,21 +20,75 @@ import { radius, space, useTokens } from '@/theme/tokens';
  *
  * Two actions, both honest:
  * - "Segnala" is real: it opens the report route, which calls `POST /reports`;
- * - "Invia proposta" stays visible and disabled with "disponibile a breve",
- *   because proposals have no endpoint yet (`docs/backend-gaps.md` G4) and a
- *   button that pretends to work would be worse than a disabled one.
+ * - "Invia proposta" is real too (decision 3): the parent performs the call
+ *   through `onSendProposal(servizio)` (`POST /create-exchange-agreement`
+ *   sends the **person**, never a service — duplicates with the same person
+ *   are possible and are not masked), while this panel owns the states:
+ *   "Invio…" on a disabled button while the call flies, an Italian error
+ *   line under the button on failure, no retry loop. On success
+ *   `onProposalSent(servizio, username)` tells the parent to close the popup
+ *   and show its banner (decision 9).
  *
  * The "what they offer and look for" block is the third declared gap (G3): the
  * public profile of another user does not exist, so the box says it is not
  * available instead of showing the owner's own data as if it were a summary.
  */
-export function ServiceDetailModal({ servizio, onClose, onReport }) {
+export function ServiceDetailModal({
+  servizio,
+  onClose,
+  onReport,
+  onSendProposal,
+  onProposalSent,
+}) {
   const t = useTokens();
   const owner = servizio?.offerente ?? {};
   const name = nomePersona(owner);
   const categories = servizio?.categorie?.length ? servizio.categorie : null;
   const description = servizio?.descrizione ?? '';
   const publishedAt = formatIsoDate(servizio?.pubblicatoIl);
+
+  // Send-proposal states are keyed by service id, so a response that arrives
+  // after the panel moved to another person cannot touch the new panel: the
+  // "in flight" flag only counts for the service it was started for, and an
+  // error is displayed only for the service that produced it. No effect and no
+  // state reset on prop change: the key does the scoping.
+  const [invioPer, setInvioPer] = useState(null); // id of the service being sent
+  const [erroreInvio, setErroreInvio] = useState(null); // {id, messaggio}
+  const servizioId = Number.isInteger(servizio?.id) ? servizio.id : null;
+  const invio = servizioId !== null && invioPer === servizioId;
+  const erroreVisibile =
+    erroreInvio !== null && erroreInvio.id === servizioId ? erroreInvio.messaggio : null;
+
+  // Without an owner id there is no person to propose to: the button stays
+  // disabled instead of firing a request the backend must reject.
+  const haPersona = Number.isInteger(owner.id);
+  const invioDisabilitato = invio || !haPersona || typeof onSendProposal !== 'function';
+
+  async function inviaProposta() {
+    if (!servizio || invioDisabilitato) {
+      return;
+    }
+    const inviatoId = servizioId;
+    setInvioPer(inviatoId);
+    setErroreInvio(null);
+    try {
+      await onSendProposal(servizio);
+    } catch (err) {
+      // The API area already maps every status to Italian copy; only an
+      // error from outside that layer gets its own generic line.
+      setErroreInvio({
+        id: inviatoId,
+        messaggio: err instanceof ApiError ? err.message : 'Non è stato possibile inviare la proposta. Riprova.',
+      });
+      // Functional reset: a send started for another service stays busy.
+      setInvioPer((corrente) => (corrente === inviatoId ? null : corrente));
+      return;
+    }
+    setInvioPer((corrente) => (corrente === inviatoId ? null : corrente));
+    // The parent decides whether to close: if the panel already moved on, the
+    // success belongs to a service that is no longer open.
+    onProposalSent?.(servizio, owner.username ?? null);
+  }
   // Only the service's own location: falling back to the owner's city would
   // claim a place for a service that has none (a remote-only offer), which is
   // exactly the datum the product cares about here.
@@ -151,14 +207,17 @@ export function ServiceDetailModal({ servizio, onClose, onReport }) {
 
             <View style={{ gap: space.sm }}>
               <AppButton
-                label="Invia proposta"
+                label={invio ? 'Invio…' : 'Invia proposta'}
                 variant="secondary"
                 icon="swap-horizontal-outline"
-                disabled
+                onPress={() => void inviaProposta()}
+                disabled={invioDisabilitato}
               />
-              <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-                Le proposte saranno disponibili a breve.
-              </AppText>
+              {erroreVisibile ? (
+                <AppText variant="caption" tone="danger" style={{ textAlign: 'center' }}>
+                  {erroreVisibile}
+                </AppText>
+              ) : null}
             </View>
 
             <View style={{ gap: space.xs }}>

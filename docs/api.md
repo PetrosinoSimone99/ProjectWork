@@ -7,8 +7,11 @@ guide). What the frontend needs and the backend does not have is in
 [`backend-gaps.md`](backend-gaps.md).
 
 Base URL: `http://localhost:8000/api` in development. Every protected call
-carries `Authorization: Bearer <jwt>`. Errors are `{"error": "<text>"}` with a
-4xx/5xx status; the frontend maps them to Italian copy.
+carries `Authorization: Bearer <jwt>`. Catalog, auth and staff routes answer
+errors as `{"error": "<text>"}` with a 4xx/5xx status. The **agreement routes**
+use the wrapped shape `{"error": {"code": …, "message": …}}` instead: the app
+maps those by status (`Frontend/src/api/areas/agreements.js`), never by body, so
+both shapes reach the user as Italian copy.
 
 ## Authentication
 
@@ -42,12 +45,25 @@ by description. Used by the filters and by the service form.
 
 ## Services: the home catalog
 
-`GET /services?q=&categoryIds=1,2&location=&sort=newest|oldest&page=1&limit=20`
+`GET /services?q=&categoryIds=1,2&location=&isRemote=true|false&sort=newest|oldest&page=1&limit=20`
 
 Returns `{offers: [...], pagination: {page, limit, totalItems, totalPages}}`.
 `limit` defaults to 20, maximum 50. The backend already excludes the viewer's
 own services, soft-deleted services, suspended services and inactive owners, and
 returns `OFFER` rows only.
+
+`isRemote` is optional and restricts the mode: omitted means both, `true` remote
+only, `false` in person only. `sort` accepts only `newest` (default) and
+`oldest`; there is **no** `sort=relevance`.
+
+**The ordering is relevance-first and the backend decides it.** Before
+paginating, the whole catalog is sorted: first the offers sharing at least one
+category with the viewer's own **active** REQUEST services (not deleted, not
+suspended), then everything else; inside each group `createdAt` (newest first by
+default) and then `id`, which keeps pagination stable when two rows share a
+timestamp. The priority is implicit, so page 2 continues the ranking instead of
+restarting it, and the frontend does not reorder anything (`docs/decisions.md`
+D021).
 
 Each offer:
 
@@ -102,7 +118,7 @@ proposal; the other participant answers once and it becomes `ACCEPTED` or
 | `GET /get-agreements` | — | `{success: {code, message, agreements: [...]}}`, every agreement the viewer participates in |
 | `POST /create-exchange-agreement` | `{otherParticipant}` | `201`. Creates a `PENDING` exchange: the caller answers `true` (they proposed), the other participant has `response: null` (has not answered yet). `400` for yourself, `404` for an unknown user |
 | `POST /send-agreement-response` | `{agreementId, response: true\|false}` | The answer, once. `true` → `ACCEPTED`, `false` → `REFUSED`. `409` when the agreement is no longer `PENDING` or this participant already answered |
-| `POST /send-agreement-details` | `{agreementId, serviceId, beneficiaryId, fromRemote, startDate, endDate}` | The delivery sheet, writable by either participant of an `ACCEPTED` agreement. `serviceId` must be an offer owned by the caller; `400` when the end date does not come after the start date. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` |
+| `POST /send-agreement-details` | `{agreementId, serviceId, beneficiaryId, fromRemote, startDate, endDate}` | The delivery sheet on an `ACCEPTED` agreement. Today the manager checks only that the agreement exists and is accepted, that `serviceId` belongs to the caller and that the beneficiary exists: **no** participant check and **no** type check on `serviceId` (backend to add, G7). `400` when the end date does not come after the start date. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` |
 | `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `VOID`. `404` when the caller is not a participant |
 
 The details route used to be a `GET` that read a JSON body, which a browser
@@ -138,7 +154,9 @@ refusal. `agreementDetails` is empty until someone writes the sheet, and its
 `status` stays `UNCOMPILED` because no endpoint confirms it yet
 (`backend-gaps.md` G7). Rows carry no user ids: the viewer is identified by
 username, and no row names the exchanged service until the sheet does
-(`backend-gaps.md` G4).
+(`backend-gaps.md` G4). Because the sheet route needs a `beneficiaryId` that no
+row carries, the frontend never calls `POST /send-agreement-details`: the sheet
+renders read-only as "Scheda non compilata" (`backend-gaps.md` G6).
 
 ## Reports
 
