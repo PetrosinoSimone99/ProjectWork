@@ -1,643 +1,406 @@
-import { STATI_PUBBLICAZIONE, TIPI_VOCE, filtriDaQuery } from '@/services/offer-request';
-import { RIFERIMENTI, idRiferimento } from '@/services/reports';
+import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/services/offer-request';
 
 /**
- * Le normalizzazioni condivise: dalla forma di rete del backend alla forma che
- * la UI può mostrare.
+ * Normalisers: from the backend wire shape to the shape the screens read.
  *
- * Vivono qui e non in `api/index.js` per una ragione misurata: il file degli
- * endpoint ha superato le 800 righe del progetto, e queste sono le funzioni pure
- * che si possono spostare **senza cambiare una riga di comportamento**. Lo
- * spostamento è stato fatto a più riprese e con l'ultimo, il 19 settembre 2026
- * (categorie, filtri del catalogo, coda, buoni, esito dell'invio e accordo),
- * **entrambi i file sono sotto il limite** (conteggi aggiornati il 24
- * settembre 2026: `barattolo.js` 799 righe, questo 796). `barattolo.js` le importa e continua a esporre quelle che erano
- * pubbliche.
+ * They live here and not inside the endpoint modules because they are pure:
+ * copy, transform, return — no network, no mutation of the input, and every
+ * function drops a row the UI could not show instead of drawing an empty one.
  *
- * La regola vale per tutte: **copia, trasforma, restituisci**. Niente chiamate
- * di rete, niente import da `barattolo.js` (niente cicli), e ogni funzione
- * scarta le righe che la UI non può mostrare invece di disegnare dati inventati.
+ * Italian field names inside the returned objects (`descrizione`, `categorie`,
+ * `offerente`, `mansione`, `stato`) are the UI shape the surviving components
+ * already read (see `docs/frontend.md`, §Language rules). They are renamed
+ * together with the component that consumes them, not before: a rename that
+ * lands on one side only is two shapes in the same app.
  */
 
-/** Numero intero, oppure `null` per un valore assente o non numerico. */
-export function numeroInteroONull(valore) {
-  if (valore === null || valore === undefined || valore === '') {
+/** Integer or `null` for a missing or non-numeric value. */
+export function toIntegerOrNull(value) {
+  if (value === null || value === undefined || value === '') {
     return null;
   }
-  const numero = Number(valore);
-  return Number.isInteger(numero) ? numero : null;
+  const number = Number(value);
+  return Number.isInteger(number) ? number : null;
 }
 
-/** Nome addomesticato: stringa non vuota dopo `trim`, altrimenti `null`. */
-export function testoONull(valore) {
-  return typeof valore === 'string' && valore.trim() !== '' ? valore.trim() : null;
+/** Trimmed, non-empty string or `null`. */
+export function toTextOrNull(value) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
 
 /**
- * I ruoli del backend (`User::ROLE_*`) nel ruolo interno della UI (`UTENTE | STAFF`
- * di `services/staff-users.js`), **in ordine di privilegio**: con più ruoli noti
- * vince il primo. Un ruolo sconosciuto non si traduce (resta solo in `ruoli`) e,
- * se nessun ruolo noto c'è, `ruolo` è `null`: la UI nasconde l'area staff (fail
- * closed). `User.php` ne definisce solo due: niente voci "per sicurezza".
+ * The backend roles (`User::ROLE_*`) in the two words the UI understands, most
+ * privileged first. An unknown role is not translated and leaves `role` null:
+ * the staff entry stays hidden (fail closed).
  */
-const RUOLI_INTERNI = [
-  { role: 'ROLE_STAFF', ruolo: 'STAFF' },
-  { role: 'ROLE_USER', ruolo: 'UTENTE' },
+const INTERNAL_ROLES = [
+  { wire: 'ROLE_STAFF', role: 'STAFF' },
+  { wire: 'ROLE_USER', role: 'USER' },
 ];
 
-/** Il ruolo interno più privilegiato fra quelli noti in `ruoli`, oppure `null`. */
-function ruoloDaRoles(ruoli) {
-  for (const voce of RUOLI_INTERNI) {
-    if (ruoli.includes(voce.role)) {
-      return voce.ruolo;
+function roleFromRoles(roles) {
+  for (const entry of INTERNAL_ROLES) {
+    if (roles.includes(entry.wire)) {
+      return entry.role;
     }
   }
   return null;
 }
 
 /**
- * L'utente della risposta di accesso nella forma interna dei consumatori
- * (`profile.jsx`, `staff-users.jsx`, `services/staff-users.js`).
- *
- * Contratto (`AuthController.php`, `User::toApiArray()`): `{id, name, surname,
- * location, username, email, roles, accountStatus}`. `stato` resta **grezzo**
- * (`'ACTIVE'`/`'INACTIVE'`, `User::STATUS_*`): tradurlo in `ATTIVO`/`SOSPESO`/
- * `BLOCCATO` sarebbe un'equivalenza inventata. `roles` si copia così com'è.
- * Restituisce `null` se `user` non è un oggetto.
+ * A user from the auth response (`User::toApiArray`).
+ * `accountStatus` stays raw (`ACTIVE`/`INACTIVE`): translating it here would be
+ * an invented equivalence; the screen maps it for display.
  */
-function normalizzaUtenteAccesso(user) {
+function normalizeAuthUser(user) {
   if (user === null || typeof user !== 'object') {
     return null;
   }
-  const ruoli = Array.isArray(user.roles) ? [...user.roles] : [];
+  const roles = Array.isArray(user.roles) ? [...user.roles] : [];
   return {
-    id: numeroInteroONull(user.id),
+    id: toIntegerOrNull(user.id),
     nome: typeof user.name === 'string' ? user.name : '',
     cognome: typeof user.surname === 'string' ? user.surname : '',
     username: typeof user.username === 'string' ? user.username : '',
     email: typeof user.email === 'string' ? user.email : '',
-    localita: testoONull(user.location),
-    ruoli,
-    ruolo: ruoloDaRoles(ruoli),
+    localita: toTextOrNull(user.location),
+    ruoli: roles,
+    ruolo: roleFromRoles(roles),
     stato: typeof user.accountStatus === 'string' ? user.accountStatus : null,
+    bio: toTextOrNull(user.bio),
+    immagineProfilo: toTextOrNull(user.profileImageUrl),
   };
 }
 
 /**
- * La risposta di accesso del backend Symfony nella forma interna:
- * `{token, user}` (login e registrazione, `AuthController.php`) → `{token, utente}`.
- * Copia, trasforma, restituisce: la risposta ricevuta non si tocca.
+ * Login and registration answer `{token, user, offers?, requests?}`.
+ * Returns `{token, utente}`: the session shape the auth context stores.
  */
-export function normalizzaRispostaAccesso(risposta) {
+export function normalizeAuthResponse(response) {
   return {
-    token: typeof risposta?.token === 'string' ? risposta.token : null,
-    utente: normalizzaUtenteAccesso(risposta?.user),
+    token: typeof response?.token === 'string' ? response.token : null,
+    utente: normalizeAuthUser(response?.user),
   };
 }
 
 /**
- * Lo stato di pubblicazione nella forma che mostra la UI.
- * TODO(backend): i valori veri non sono decisi — se i colleghi scelgono
- * `ACTIVE`/`INACTIVE` o altri nomi, si cambia qui e nessun componente si tocca.
- * Una riga **senza** stato è «Pubblicata» (è così che la demo legge le voci
- * salvate prima che il campo esistesse); uno stato **sconosciuto** si
- * restituisce così com'è invece di nasconderlo.
+ * `GET /profile` -> the editable profile in the UI shape.
+ * Absent optional fields become explicit `null`, never `undefined`: a key that
+ * disappears between renders makes rows vanish unevenly.
  */
-export function normalizzaStatoPubblicazione(stato) {
-  if (typeof stato !== 'string' || !stato.trim()) {
-    return STATI_PUBBLICAZIONE.PUBBLICATA;
-  }
-  return stato.trim().toUpperCase();
-}
-
-/** Lo stato con cui il backend può dire che la voce non c'è più. */
-const STATO_ELIMINATA = 'ELIMINATA';
-
-/**
- * Una riga di `servizi.php` nella forma della voce
- * (vedi `services/offer-request.js`). Restituisce `null` per le righe che la UI
- * non può mostrare: un tipo sconosciuto non ha una sezione in cui finire e una
- * voce eliminata non deve comparire. `indice` serve solo a dare una chiave
- * stabile a una riga senza id (che resta senza azioni: lezione di P37).
- */
-export function normalizzaPubblicazione(riga, indice = 0) {
-  if (!riga || typeof riga !== 'object') {
+export function normalizeProfile(response) {
+  const profile = response?.profile;
+  if (!profile || typeof profile !== 'object') {
     return null;
   }
-
-  const tipo = typeof riga.tipo === 'string' ? riga.tipo.trim().toUpperCase() : '';
-  if (tipo !== TIPI_VOCE.OFFERTA && tipo !== TIPI_VOCE.RICERCA) {
-    return null;
-  }
-
-  const stato = normalizzaStatoPubblicazione(riga.stato);
-  if (stato === STATO_ELIMINATA) {
-    return null;
-  }
-
-  const id = numeroInteroONull(riga.id);
   return {
-    chiave: id === null ? `${tipo}-riga-${indice}` : `${tipo}-${id}`,
-    tipo,
-    id,
-    idCategoria: numeroInteroONull(riga.id_categoria),
-    mansione: typeof riga.mansione === 'string' ? riga.mansione : '',
-    daRemoto: riga.da_remoto === true,
-    localita: typeof riga.localita === 'string' ? riga.localita : '',
-    stato,
-  };
-}
-
-/** La riga salvata: tollera la busta `{data:{servizio}}` e la riga nuda. */
-export function normalizzaServizio(risposta) {
-  return normalizzaPubblicazione(risposta?.data?.servizio ?? risposta?.servizio ?? risposta);
-}
-
-/** L'elenco: `{data:{servizi:[…]}}`, `{servizi:[…]}` oppure l'array nudo. */
-export function normalizzaPubblicazioni(risposta) {
-  const elenco = risposta?.data?.servizi ?? risposta?.servizi ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map((riga, indice) => normalizzaPubblicazione(riga, indice)).filter(Boolean);
-}
-
-/**
- * L'autore di una riga, tollerando la forma annidata (`offerente` del modello
- * vecchio, `owner` del backend Symfony) e quella piatta (`utente_id`, `nome`,
- * …): quale delle due sceglierà il backend è indifferente, le legge questa
- * normalizzazione. Anche i nomi dei campi arrivano in due lingue (`nome`/`name`)
- * e si leggono qui una volta sola, mai nei componenti.
- *
- * La località della **persona** (dal profilo) è cosa diversa dalla località
- * dell'annuncio: si legge solo dentro l'oggetto autore, e se manca non si mostra.
- */
-export function normalizzaOfferente(riga) {
-  const sorgente = riga?.offerente ?? riga?.owner;
-  const dentro = sorgente && typeof sorgente === 'object' ? sorgente : {};
-  return {
-    id: numeroInteroONull(dentro.id ?? dentro.utente_id ?? riga?.utente_id),
-    username: testoONull(dentro.username ?? riga?.username),
-    nome: testoONull(dentro.nome ?? dentro.name ?? riga?.nome),
-    cognome: testoONull(dentro.cognome ?? dentro.surname ?? riga?.cognome),
-    localita: testoONull(dentro.localita ?? dentro.location),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Segnalazioni e notifiche in-app
-//
-// Stanno qui per la stessa ragione delle altre: sono funzioni pure che
-// `barattolo.js` usa nel bivio dei finti e nel ramo vero, così la forma della
-// segnalazione e della notifica è decisa **una volta sola**. Il riferimento al
-// fatto (`id_gruppo` o `id_accordo`) usa `idRiferimento` di
-// `services/reports.js`: la stessa regola serve alla rotta e alla
-// validazione, e due copie divergerebbero.
-// ---------------------------------------------------------------------------
-
-/**
- * Il riferimento al fatto: `{tipo, id}`, da `id_gruppo` o `id_accordo`. `null`
- * quando il backend non ne manda nessuno — e in quel caso la riga non si inventa
- * un contesto.
- */
-function normalizzaRiferimentoSegnalazione(riga) {
-  const idGruppo = idRiferimento(riga?.id_gruppo ?? riga?.idGruppo);
-  if (idGruppo !== null) {
-    return { tipo: RIFERIMENTI.GRUPPO, id: idGruppo };
-  }
-  const idAccordo = idRiferimento(riga?.id_accordo ?? riga?.idAccordo);
-  if (idAccordo !== null) {
-    return { tipo: RIFERIMENTI.ACCORDO, id: idAccordo };
-  }
-  return null;
-}
-
-/**
- * Una segnalazione nella forma della UI. `stato` è in maiuscolo e uno stato
- * **ignoto passa così com'è**: la schermata lo mostra grezzo, non lo traduce a
- * caso (stessa vista neutra della coda e dei buoni). L'autore non c'è: è chi
- * chiede, e la UI non lo disegna.
- */
-export function normalizzaSegnalazione(riga) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-  const id = numeroInteroONull(riga.id);
-  if (id === null) {
-    return null;
-  }
-  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
-  const motivo = typeof riga.motivo === 'string' ? riga.motivo.trim() : '';
-  return {
-    id,
-    stato: stato || null,
-    motivo: motivo || null,
-    descrizione: testoONull(riga.descrizione),
-    segnalato: numeroInteroONull(riga.segnalato_id ?? riga.segnalatoId ?? riga.utente_segnalato_id),
-    riferimento: normalizzaRiferimentoSegnalazione(riga),
-    // `creato_il` è la convenzione del progetto; `creata_il` è la forma usata nella
-    // proposta di `segnalazioni.php` (Parte 21): si accettano entrambe, così un
-    // nome diverso non fa sparire la data.
-    creataIl: testoONull(riga.creato_il ?? riga.creata_il ?? riga.creataIl),
-  };
-}
-
-/** L'elenco delle segnalazioni: `{data:{segnalazioni:[…]}}` oppure l'array nudo. */
-export function normalizzaSegnalazioni(risposta) {
-  const elenco = risposta?.data?.segnalazioni ?? risposta?.segnalazioni ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map(normalizzaSegnalazione).filter(Boolean);
-}
-
-/**
- * Una persona **annidata** in una riga (`autore`, `segnalato`, `partecipanti`):
- * `{id, username, nome, cognome}`. `normalizzaOfferente` non serve qui perché
- * legge l'autore di un annuncio (annidato in `offerente` o piatto nella riga):
- * questa legge l'oggetto che *è* la persona. Tutto ciò che manca resta `null`,
- * senza inventare un nome.
- */
-export function normalizzaPersona(valore) {
-  if (!valore || typeof valore !== 'object') {
-    return { id: null, username: null, nome: null, cognome: null };
-  }
-  return {
-    id: numeroInteroONull(valore.id ?? valore.utente_id),
-    username: testoONull(valore.username),
-    nome: testoONull(valore.nome),
-    cognome: testoONull(valore.cognome),
+    id: toIntegerOrNull(profile.id),
+    nome: toTextOrNull(profile.name),
+    cognome: toTextOrNull(profile.surname),
+    localita: toTextOrNull(profile.location),
+    username: toTextOrNull(profile.username),
+    email: toTextOrNull(profile.email),
+    bio: toTextOrNull(profile.bio),
+    immagineProfilo: toTextOrNull(profile.profileImageUrl),
   };
 }
 
 /**
- * Gli esiti di una chiusura nella forma della UI: una lista di stringhe in
- * maiuscolo. Il backend puo mandarne una sola (`esito`) o piu di una (`esiti`),
- * e un valore ignoto **passa cosi com'è**: la schermata lo mostra grezzo invece
- * di tradurlo a caso (stessa vista neutra di stati e buoni).
+ * Italian display labels for the categories observed in the database. A new,
+ * unmapped category is shown as the raw description: no invented translation.
  */
-export function normalizzaEsiti(valore) {
-  const elenco = Array.isArray(valore) ? valore : valore === null || valore === undefined ? [] : [valore];
-  return elenco
-    .map((esito) => (typeof esito === 'string' ? esito.trim().toUpperCase() : ''))
-    .filter((esito) => esito !== '');
-}
-
-/**
- * Una segnalazione **vista dalla staff**: la forma della segnalazione piu chi l'ha
- * scritta, chi e stato segnalato, i partecipanti al fatto (per la scelta del
- * beneficiario del token) e l'esito della chiusura. L'autore qui c'e perche la
- * staff deve sapere chi ha segnalato; nella riga dell'utente non c'era — era chi
- * chiedeva, e la UI non lo disegnava.
- */
-export function normalizzaSegnalazioneStaff(riga) {
-  const base = normalizzaSegnalazione(riga);
-  if (!base) {
-    return null;
-  }
-  const autore = normalizzaPersona(riga?.autore ?? riga?.segnalante);
-  const segnalato =
-    riga?.segnalato && typeof riga.segnalato === 'object'
-      ? normalizzaPersona(riga.segnalato)
-      : { id: base.segnalato, username: null, nome: null, cognome: null };
-  const dichiarati = Array.isArray(riga?.partecipanti)
-    ? riga.partecipanti.map(normalizzaPersona).filter((persona) => persona.id !== null)
-    : [];
-  return {
-    ...base,
-    autore,
-    segnalato,
-    // Senza l'elenco dei partecipanti si ripiega sui due che la riga conosce:
-    // la scelta del beneficiario resta possibile.
-    partecipanti:
-      dichiarati.length > 0
-        ? dichiarati
-        : [autore, segnalato].filter((persona) => persona.id !== null),
-    gestitaDa: numeroInteroONull(riga?.gestito_da ?? riga?.gestitaDa),
-    esiti: normalizzaEsiti(riga?.esiti ?? riga?.esito),
-    nota: testoONull(riga?.nota ?? riga?.nota_staff),
-    chiusaIl: testoONull(riga?.chiusa_il ?? riga?.chiuso_il ?? riga?.chiusaIl),
-  };
-}
-
-/** L'elenco per la staff: `{data:{segnalazioni:[…]}}` oppure l'array nudo. */
-export function normalizzaSegnalazioniStaff(risposta) {
-  const elenco = risposta?.data?.segnalazioni ?? risposta?.segnalazioni ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map(normalizzaSegnalazioneStaff).filter(Boolean);
-}
-
-/**
- * Una notifica nella forma della UI. `letta` è `true` **solo** quando il backend
- * lo dice: una notifica senza il campo è da leggere. Il tipo ignoto resta com'è e
- * il testo lo decide `services/notifications.js`.
- */
-export function normalizzaNotifica(riga) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-  const id = numeroInteroONull(riga.id);
-  if (id === null) {
-    return null;
-  }
-  const tipo = typeof riga.tipo === 'string' ? riga.tipo.trim() : '';
-  return {
-    id,
-    tipo: tipo || null,
-    messaggio: testoONull(riga.messaggio),
-    idToken: numeroInteroONull(riga.id_token ?? riga.idToken),
-    letta: riga.letta === true,
-    creataIl: testoONull(riga.creata_il ?? riga.creataIl),
-  };
-}
-
-/** L'elenco delle notifiche: `{data:{notifiche:[…]}}` oppure l'array nudo. */
-export function normalizzaNotifiche(risposta) {
-  const elenco = risposta?.data?.notifiche ?? risposta?.notifiche ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map(normalizzaNotifica).filter(Boolean);
-}
-
-// ---------------------------------------------------------------------------
-// Utenti dell'area staff
-//
-// Stanno qui per la stessa ragione delle altre: sono funzioni pure che
-// `barattolo.js` usa nel bivio dei finti e nel ramo vero, così la forma della
-// riga utente è decisa **una volta sola** e i due manager (che rispondono con la
-// busta piatta `{messaggio, utente}`) non dettano la forma alla schermata.
-// ---------------------------------------------------------------------------
-
-/**
- * Un utente nella forma della UI: `{id, username, nome, cognome, ruolo, stato,
- * creatoIl}`. Ruolo e stato sono in maiuscolo e un valore **ignoto passa così
- * com'è**: la schermata lo mostra grezzo, non lo traduce a caso (stessa vista
- * neutra di stati e buoni). Una riga senza id non si può mostrare né gestire,
- * quindi si scarta.
- */
-export function normalizzaUtenteStaff(riga) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-  const id = numeroInteroONull(riga.id ?? riga.utente_id);
-  if (id === null) {
-    return null;
-  }
-  const ruolo = typeof riga.ruolo === 'string' ? riga.ruolo.trim().toUpperCase() : '';
-  const stato = typeof riga.stato === 'string' ? riga.stato.trim().toUpperCase() : '';
-  return {
-    id,
-    username: testoONull(riga.username),
-    nome: testoONull(riga.nome),
-    cognome: testoONull(riga.cognome),
-    ruolo: ruolo || null,
-    stato: stato || null,
-    creatoIl: testoONull(riga.creato_il ?? riga.creatoIl),
-  };
-}
-
-/** L'elenco degli utenti: `{data:{utenti:[…]}}`, `{utenti:[…]}` oppure l'array nudo. */
-export function normalizzaUtentiStaff(risposta) {
-  const elenco = risposta?.data?.utenti ?? risposta?.utenti ?? risposta;
-  if (!Array.isArray(elenco)) {
-    return [];
-  }
-  return elenco.map(normalizzaUtenteStaff).filter(Boolean);
-}
-
-/**
- * L'esito dei due manager nella forma della schermata: l'utente aggiornato e il
- * `messaggio` del backend, gi\u00e0 pronto per il `Banner`. La busta \u00e8 **piatta**
- * (`{messaggio, utente}`, non `{success, message, data}`): \u00e8 la seconda busta del
- * progetto e la legge `client.js`.
- */
-export function normalizzaEsitoUtenteStaff(risposta) {
-  return {
-    utente: normalizzaUtenteStaff(risposta?.utente ?? risposta),
-    messaggio: typeof risposta?.messaggio === 'string' ? risposta.messaggio : '',
-  };
-}
-// ---------------------------------------------------------------------------
-// Il catalogo della home (`GET /api/services` del backend Symfony)
-//
-// Il contratto (`MarketplaceController::listServices` +
-// `Service::toHomepageOfferApiArray`) manda `{offers: [...], pagination: {page,
-// limit, totalItems, totalPages}}`; ogni offerta ha `description`, `categories:
-// [{id, description}]`, `createdAt` (ISO 8601) e `owner: {id, name, surname,
-// username, location, …}`.
-//
-// La riga normalizzata resta in italiano di dominio come il resto del repo:
-// `{chiave, id, descrizione, categorie, offerente, pubblicatoIl}`. Non porta
-// `tipo` né `stato`: per contratto il catalogo è **solo** offerte attive di
-// utenti attivi, e la query del backend lo garantisce già.
-// ---------------------------------------------------------------------------
-
-/**
- * La paginazione nella forma della UI: `{pagina, limite, elementiTotali,
- * pagineTotali}`. I valori che non sono interi diventano `null`: chi legge
- * decide se mostrare «Carica altri», senza inventare numeri.
- */
-export function normalizzaPaginazione(paginazione) {
-  return {
-    pagina: numeroInteroONull(paginazione?.page),
-    limite: numeroInteroONull(paginazione?.limit),
-    elementiTotali: numeroInteroONull(paginazione?.totalItems),
-    pagineTotali: numeroInteroONull(paginazione?.totalPages),
-  };
-}
-
-/**
- * Una riga di `offers` nella forma della riga di catalogo. `indice` serve solo
- * a dare una chiave stabile alla riga senza id.
- *
- * Le righe **senza descrizione si scartano** (per contratto non esistono) e le
- * categorie si normalizzano con `normalizzaCategorie`: le righe di `offers`
- * portano lo stesso formato della tendina (`[{id, description}]`), quindi la
- * mappatura `{id, nome}` è una sola. `type` diventa `tipo` in **maiuscolo**
- * (`OFFER`/`REQUEST`, i valori del contratto): serve a «I miei token» per
- * mostrare solo le offerte, le uniche pagabili con un buono. La riga non porta
- * stato, ma porta `isRemote` (modalità «da remoto»/«in presenza»): qui diventa
- * `daRemoto`, lo stesso vocabolario di `VoceServizio`.
- *
- * `location` è la località **del servizio** (così come l'ha salvata chi l'ha
- * pubblicato), cosa diversa da `offerente.localita` (che resta com'è): diventa
- * `localita`. Le voci più vecchie non hanno il campo → `null`.
- */
-export function normalizzaOffertaCatalogo(riga, indice = 0) {
-  if (!riga || typeof riga !== 'object') {
-    return null;
-  }
-  const descrizione = testoONull(riga.description);
-  if (descrizione === null) {
-    return null;
-  }
-  const id = numeroInteroONull(riga.id);
-  return {
-    chiave: id === null ? `offerta-riga-${indice}` : `offerta-${id}`,
-    id,
-    tipo: typeof riga.type === 'string' ? riga.type.trim().toUpperCase() : '',
-    descrizione,
-    daRemoto: riga.isRemote === true,
-    localita: testoONull(riga.location),
-    categorie: normalizzaCategorie(riga),
-    offerente: normalizzaOfferente(riga),
-    // `createdAt` è ISO 8601 (DATE_ATOM): qui non si parsano date, il formato
-    // si decide alla card.
-    pubblicatoIl: testoONull(riga.createdAt),
-  };
-}
-
-/**
- * Il catalogo della home: `{elenco, paginazione}`.
- *
- * Due decisioni vivono qui e in nessun altro punto:
- * - **le righe proprie non entrano nel catalogo** (in home si vedono solo gli
- *   altri): la query del backend esclude già il viewer, ma il frontend non si
- *   fida della query per una decisione che è sua;
- * - le righe senza descrizione si scartano invece di disegnare dati vuoti.
- */
-export function normalizzaCatalogo(risposta, utenteId) {
-  const elenco = Array.isArray(risposta?.offers) ? risposta.offers : [];
-  return {
-    elenco: elenco
-      .map((riga, indice) => {
-        const voce = normalizzaOffertaCatalogo(riga, indice);
-        if (!voce) {
-          return null;
-        }
-        if (voce.offerente.id !== null && Number(voce.offerente.id) === Number(utenteId)) {
-          return null;
-        }
-        return voce;
-      })
-      .filter(Boolean),
-    paginazione: normalizzaPaginazione(risposta?.pagination),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Categorie e filtri del catalogo
-//
-// Spostate qui dal file degli endpoint: sono pure. La categoria diventa
-// `{id, nome}` con l'id numerico e le righe senza id o senza nome si scartano,
-// così la tendina non mostra righe vuote; `queryDaFiltri` costruisce la query
-// string del catalogo e omette le condizioni non attive.
-//
-// Il `nome` è un'**etichetta di display**: il backend manda la `description`
-// come sta nel database (oggi in inglese per alcune categorie) e la mappa qui
-// sotto la traduce per chip e tendine. È una toppa di frontend, non la
-// correzione del dato: la fonte vera è il DB dei colleghi e la richiesta sta in
-// `temp/gruppo-3-mancanti/26-categorie-in-italiano.md` (scala §4 di
-// `AGENTS.md`). L'`id` non si tocca mai: i filtri viaggiano su quello.
-// ---------------------------------------------------------------------------
-
-/**
- * Le etichette italiane delle categorie **a display**, con la `description`
- * grezza come chiave.
- *
- * Copre solo i valori osservati nel database (`curl /api/categories` del
- * 5 ottobre 2026: `Cleaning`, `Cooking`, `Danza`, `Gardening`, `Musica`); i
- * valori già in italiano (`Danza`, `Musica`) non servono e ricadono sul
- * fallback. Una categoria nuova e non mappata si mostra com'è (fallback nel
- * valore grezzo): non si inventano traduzioni, si aggiorna la mappa quando il
- * DB cresce.
- */
-const ETICHETTE_CATEGORIE = {
+const CATEGORY_LABELS = {
   Cleaning: 'Pulizie',
   Cooking: 'Cucina',
   Gardening: 'Giardinaggio',
+  Languages: 'Lingue',
+  Repairs: 'Riparazioni',
 };
 
-/**
- * L'etichetta italiana di una categoria a display: la traduzione della mappa
- * quando esiste, altrimenti il valore grezzo. `null` per un valore assente o
- * non testuale, così il chiamante può scartare la riga senza inventare nomi.
- */
-export function etichettaCategoria(testo) {
-  const grezzo = testoONull(testo);
-  if (grezzo === null) {
+function categoryLabel(text) {
+  const raw = toTextOrNull(text);
+  if (raw === null) {
     return null;
   }
-  return ETICHETTE_CATEGORIE[grezzo] ?? grezzo;
+  return CATEGORY_LABELS[raw] ?? raw;
 }
 
-/**
- * Le categorie nella forma che serve alla UI: `[{id, nome}]`.
- *
- * Stessa normalizzazione per il finto e per il backend vero, così la schermata
- * non vede mai due forme diverse: il backend manda `{categories:[{id,
- * description}]}` e qui `description` diventa `nome`, passando da
- * `etichettaCategoria` (etichetta di display, con fallback sul grezzo). L'id
- * diventa numero (il confronto con `idCategoria` è numerico) e le voci senza id
- * o senza nome vengono scartate invece di disegnare una tendina con righe
- * vuote.
- */
-export function normalizzaCategorie(risposta) {
-  const elenco = risposta?.categories;
-  if (!Array.isArray(elenco)) {
+/** `GET /categories` -> `[{id, nome}]`, rows without id or label dropped. */
+export function normalizeCategories(response) {
+  const list = response?.categories;
+  if (!Array.isArray(list)) {
     return [];
   }
-  return elenco
-    .map((categoria) => ({
-      id: Number(categoria?.id),
-      nome: etichettaCategoria(categoria?.description) ?? '',
+  return list
+    .map((category) => ({
+      id: Number(category?.id),
+      nome: categoryLabel(category?.description) ?? '',
     }))
-    .filter((categoria) => Number.isInteger(categoria.id) && categoria.nome !== '');
+    .filter((category) => Number.isInteger(category.id) && category.nome !== '');
 }
 
-/**
- * La query string di `GET /api/services`: i filtri attivi più la paginazione.
- * Le condizioni non attive si omettono (da `filtriDaQuery`), mentre `page` e
- * `limit` viaggiano sempre: sono numeri, non condizioni. `limit` è `null` quando
- * il chiamante vuole il default del backend.
- */
-export function queryDaFiltri(filtri, pagina = 1, limite = null) {
-  const parametri = {
-    ...filtriDaQuery(filtri),
-    page: pagina,
-    ...(Number.isInteger(limite) ? { limit: limite } : {}),
-  };
-  const voci = Object.entries(parametri).map(
-    ([chiave, valore]) => `${chiave}=${encodeURIComponent(valore)}`,
-  );
-  return `?${voci.join('&')}`;
-}
-
-// ---------------------------------------------------------------------------
-// Esito dell'invio di una segnalazione
-// ---------------------------------------------------------------------------
-
-/**
- * L'esito dell'invio nella forma della schermata: la segnalazione creata e il
- * `message` del backend, già pronto per il `Banner`. È pura e usa
- * `normalizzaSegnalazione`, che sta in questo file.
- */
-export function normalizzaEsitoInvio(risposta) {
-  const dati = risposta?.data ?? risposta;
+/** An `owner`/`offerente` object of a catalog row. */
+function normalizeOwner(row) {
+  const source = row?.owner ?? row?.offerente;
+  const inside = source && typeof source === 'object' ? source : {};
   return {
-    segnalazione: normalizzaSegnalazione(dati?.segnalazione ?? dati),
-    messaggio: typeof risposta?.message === 'string' ? risposta.message : '',
+    id: toIntegerOrNull(inside.id),
+    username: toTextOrNull(inside.username),
+    nome: toTextOrNull(inside.name),
+    cognome: toTextOrNull(inside.surname),
+    localita: toTextOrNull(inside.location),
+    bio: toTextOrNull(inside.bio),
+    immagineProfilo: toTextOrNull(inside.profileImageUrl),
   };
 }
 
-// ---------------------------------------------------------------------------
-// Accordi 1:1
-// ---------------------------------------------------------------------------
+/** `pagination` -> `{pagina, limite, elementiTotali, pagineTotali}`. */
+export function normalizePagination(pagination) {
+  return {
+    pagina: toIntegerOrNull(pagination?.page),
+    limite: toIntegerOrNull(pagination?.limit),
+    elementiTotali: toIntegerOrNull(pagination?.totalItems),
+    pagineTotali: toIntegerOrNull(pagination?.totalPages),
+  };
+}
 
 /**
- * Aggiunge all'accordo ciò che il backend non manda: chi sono io, chi è l'altro.
- * Copia-trasforma-restituisce: l'accordo di risposta non viene mai mutato.
+ * One `offers[]` row of `GET /services`. Rows without a description are
+ * dropped (the contract guarantees one), and `categories` becomes
+ * `[{id, nome}]` so the card and the detail never read backend keys.
+ *`isRemote` becomes `daRemoto`, `location` becomes `localita` (the location of
+ * the *service*), `createdAt` becomes `pubblicatoIl`.
  */
-export function normalizzaAccordo(accordo, utenteId) {
-  if (!accordo || !Array.isArray(accordo.partecipanti)) {
-    return accordo;
+export function normalizeCatalogOffer(row, index = 0) {
+  if (!row || typeof row !== 'object') {
+    return null;
   }
-  const io =
-    accordo.partecipanti.find((p) => Number(p.id_utente) === Number(utenteId)) ?? null;
-  const altro =
-    accordo.partecipanti.find((p) => Number(p.id_utente) !== Number(utenteId)) ?? null;
-  return { ...accordo, io, altro };
+  const descrizione = toTextOrNull(row.description);
+  if (descrizione === null) {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  const categorie = Array.isArray(row.categories)
+    ? row.categories
+        .map((category) => ({
+          id: toIntegerOrNull(category?.id),
+          nome: categoryLabel(category?.description) ?? '',
+        }))
+        .filter((category) => category.id !== null && category.nome !== '')
+    : [];
+  return {
+    chiave: id === null ? `offerta-riga-${index}` : `offerta-${id}`,
+    id,
+    tipo: typeof row.type === 'string' ? row.type.trim().toUpperCase() : '',
+    descrizione,
+    daRemoto: row.isRemote === true,
+    localita: toTextOrNull(row.location),
+    categorie,
+    offerente: normalizeOwner(row),
+    pubblicatoIl: toTextOrNull(row.createdAt),
+  };
+}
+
+/**
+ * `GET /services` -> `{elenco, paginazione}`.
+ * The viewer's own rows never enter the catalog: the backend query excludes
+ * them, but this decision belongs to the client and is enforced here too.
+ */
+export function normalizeCatalog(response, viewerId) {
+  const list = Array.isArray(response?.offers) ? response.offers : [];
+  return {
+    elenco: list
+      .map((row, index) => {
+        const offer = normalizeCatalogOffer(row, index);
+        if (!offer) {
+          return null;
+        }
+        if (offer.offerente.id !== null && Number(offer.offerente.id) === Number(viewerId)) {
+          return null;
+        }
+        return offer;
+      })
+      .filter(Boolean),
+    paginazione: normalizePagination(response?.pagination),
+  };
+}
+
+/**
+ * One of the viewer's own services (`GET /offers/mine`, `/requests/mine`, and
+ * the answer of create/update/restore). The UI shape is the one the
+ * offer-and-request screen already reads: `type -> tipo`,
+ * `description -> mansione`, `categories -> idCategoria` (the form allows one)
+ * plus `categoryIds` with all of them, which the relevance ordering needs.
+ * `isSuspended -> stato` (`PUBBLICATA`/`SOSPESA`).
+ */
+export function normalizeOwnedService(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const type =
+    row.type === 'OFFER' ? TIPI_VOCE.OFFERTA : row.type === 'REQUEST' ? TIPI_VOCE.RICERCA : null;
+  const id = toIntegerOrNull(row.id);
+  if (type === null || id === null) {
+    return null;
+  }
+  const categories = Array.isArray(row.categories) ? row.categories : [];
+  const categoryIds = categories
+    .map((category) => toIntegerOrNull(category?.id))
+    .filter((categoryId) => categoryId !== null);
+  return {
+    chiave: `${type}-${id}`,
+    tipo: type,
+    id,
+    idCategoria: categoryIds.length > 0 ? categoryIds[0] : null,
+    categoryIds,
+    mansione: typeof row.description === 'string' ? row.description : '',
+    daRemoto: row.isRemote === true,
+    localita: typeof row.location === 'string' ? row.location : '',
+    stato:
+      row.isSuspended === true
+        ? STATI_PUBBLICAZIONE.SOSPESA
+        : STATI_PUBBLICAZIONE.PUBBLICATA,
+    eliminataIl: toTextOrNull(row.deletedAt),
+  };
+}
+
+/**
+ * The two answers of the own-services list (`{offers: [...]}`,
+ * `{requests: [...]}`) in a single list. Rows the UI cannot show are dropped;
+ * the order stays the backend's (newest first).
+ */
+export function normalizeOwnedServices(offersResponse, requestsResponse) {
+  const rows = [
+    ...(Array.isArray(offersResponse?.offers) ? offersResponse.offers : []),
+    ...(Array.isArray(requestsResponse?.requests) ? requestsResponse.requests : []),
+  ];
+  return rows.map(normalizeOwnedService).filter(Boolean);
+}
+
+/** The single row of a create/update/restore answer (`{service|offer|request}`). */
+export function normalizeServiceEnvelope(response) {
+  return normalizeOwnedService(response?.service ?? response?.offer ?? response?.request);
+}
+
+/** `POST /reports` -> the created report, without inventing fields. */
+export function normalizeUserReport(response) {
+  const report = response?.report ?? response;
+  if (!report || typeof report !== 'object') {
+    return null;
+  }
+  return {
+    id: toIntegerOrNull(report.id),
+    reportedUserId: toIntegerOrNull(report.reportedUserId),
+    reason: typeof report.reason === 'string' ? report.reason : '',
+    createdAt: toTextOrNull(report.createdAt),
+  };
+}
+
+/** A person embedded in a staff row: `{id, username, nome, cognome}`. */
+function normalizePerson(value) {
+  if (!value || typeof value !== 'object') {
+    return { id: null, username: null, nome: null, cognome: null };
+  }
+  return {
+    id: toIntegerOrNull(value.id),
+    username: toTextOrNull(value.username),
+    nome: toTextOrNull(value.name),
+    cognome: toTextOrNull(value.surname),
+  };
+}
+
+/**
+ * A staff-visible user (`GET /staff/users`). `role` is the internal word
+ * (`STAFF`/`USER`), `accountStatus` stays raw (`ACTIVE`/`INACTIVE`).
+ */
+export function normalizeStaffUser(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  if (id === null) {
+    return null;
+  }
+  const roles = Array.isArray(row.roles) ? [...row.roles] : [];
+  return {
+    id,
+    username: toTextOrNull(row.username),
+    nome: toTextOrNull(row.name),
+    cognome: toTextOrNull(row.surname),
+    email: toTextOrNull(row.email),
+    ruoli: roles,
+    ruolo: roleFromRoles(roles),
+    stato: typeof row.accountStatus === 'string' ? row.accountStatus : null,
+  };
+}
+
+/** `GET /staff/users` -> `{utenti, paginazione}`. */
+export function normalizeStaffUsers(response) {
+  const list = Array.isArray(response?.users) ? response.users : [];
+  return {
+    utenti: list.map(normalizeStaffUser).filter(Boolean),
+    paginazione: normalizePagination(response?.pagination),
+  };
+}
+
+/**
+ * A report as the staff sees it (`UserReport::toStaffApiArray`): the reason,
+ * who reported whom, the review status and the review trail.
+ */
+export function normalizeStaffReport(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  if (id === null) {
+    return null;
+  }
+  return {
+    id,
+    motivo: typeof row.reason === 'string' ? row.reason : '',
+    creataIl: toTextOrNull(row.createdAt),
+    autore: normalizePerson(row.reporter),
+    segnalato: normalizePerson(row.reportedUser),
+    stato: typeof row.status === 'string' ? row.status.trim().toUpperCase() : null,
+    assegnataA: normalizePerson(row.assignedTo),
+    assegnataIl: toTextOrNull(row.assignedAt),
+    nota: toTextOrNull(row.reviewNote),
+    rivistaDa: normalizePerson(row.reviewedBy),
+    rivistaIl: toTextOrNull(row.reviewedAt),
+  };
+}
+
+/** `GET /staff/reports` -> `{segnalazioni, paginazione}`. */
+export function normalizeStaffReports(response) {
+  const list = Array.isArray(response?.reports) ? response.reports : [];
+  return {
+    segnalazioni: list.map(normalizeStaffReport).filter(Boolean),
+    paginazione: normalizePagination(response?.pagination),
+  };
+}
+
+/** `GET /staff/operations` -> `{operazioni, paginazione}` in a flat UI shape. */
+export function normalizeStaffOperations(response) {
+  const list = Array.isArray(response?.operations) ? response.operations : [];
+  return {
+    operazioni: list
+      .map((operation) => {
+        const id = toIntegerOrNull(operation?.id);
+        if (id === null) {
+          return null;
+        }
+        const target = operation.target && typeof operation.target === 'object' ? operation.target : {};
+        const actor = operation.actor && typeof operation.actor === 'object' ? operation.actor : {};
+        return {
+          id,
+          azione: toTextOrNull(operation.action),
+          bersaglio: toTextOrNull(target.type),
+          bersaglioId: toIntegerOrNull(target.id),
+          staff: { id: toIntegerOrNull(actor.id), username: toTextOrNull(actor.username) },
+          creataIl: toTextOrNull(operation.createdAt),
+        };
+      })
+      .filter(Boolean),
+    paginazione: normalizePagination(response?.pagination),
+  };
 }

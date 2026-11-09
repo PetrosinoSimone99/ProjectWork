@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
-import { aggiornaProfilo, ottieniProfilo } from '@/api';
+import { getProfile, updateProfile } from '@/api';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -96,7 +96,7 @@ export default function EditProfileScreen() {
     }
     setCaricamentoProfilo(true);
     try {
-      const profilo = await ottieniProfilo(token);
+      const profilo = await getProfile(token);
       const attuali = { localita: profilo?.localita ?? '', bio: profilo?.bio ?? '' };
       setValoriIniziali(attuali);
       // Valore parsabile → selettori precaricati; valore legacy (o vuoto) →
@@ -170,7 +170,7 @@ export default function EditProfileScreen() {
       modifiche.bio = bio.trim();
     }
     try {
-      await aggiornaProfilo(token, modifiche);
+      await updateProfile(token, modifiche);
       // La schermata Profilo si rilegge già al focus (passo 01): si torna
       // indietro e lasciamo che sia lei a mostrare i valori nuovi. Nessun
       // banner di successo, nessuna copia locale dei dati. Se la rotta è stata

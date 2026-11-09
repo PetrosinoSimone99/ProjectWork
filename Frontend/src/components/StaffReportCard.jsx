@@ -1,149 +1,97 @@
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { ToneChip } from './ToneChip';
 import { nomePersona } from '@/services/offer-request';
-import { etichettaMotivo, etichettaStatoSegnalazione, testoRiferimento, tonoStatoSegnalazione } from '@/services/reports';
-import { descriviEsitiChiusi, puoPrendereInCarico, puoiChiudere } from '@/services/staff';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { statusLabel, statusTone } from '@/services/reports';
+import { canClaim, canReview, isClosed } from '@/services/staff';
+import { space, useTokens } from '@/theme/tokens';
 
 /**
- * La card di una segnalazione nell'elenco della staff.
+ * One report in the staff list.
  *
- * Mostra quello che serve per decidere: chi ha segnalato, chi è segnalato, il
- * motivo, il fatto a cui la segnalazione si aggancia e la data. La descrizione
- * completa sta dietro «Mostra tutto» — è il racconto, non la sintesi — e le
- * azioni compaiono **solo** se la pratica non è chiusa: la UI non offre un
- * pulsante che il backend rifiuterebbe.
- *
- * L'anteprima si accorcia con un limite dichiarato e non misurando il testo: la
- * misura dipende dal carattere e dalla larghezza, il limite no.
- *
- * Le etichette accessibili nominano la persona segnalata («Prendi in carico la
- * segnalazione su Mario Rossi»): in un elenco di card ripetute un «Prendi in
- * carico» nudo non dice su chi.
+ * Shows what the decision needs: who reported whom, the reason (the whole text:
+ * it is the evidence), when it arrived, who took it and the review outcome when
+ * closed. The actions are drawn only when the backend would accept them —
+ * "Prendi in carico" on a `PENDING` report, "Chiudi" on an `IN_REVIEW` report
+ * assigned to the caller — and the accessibility labels name the reported
+ * person so repeated cards stay distinguishable.
  */
-
-/** Oltre questa lunghezza la descrizione si accorcia dietro «Mostra tutto». */
-const LIMITE_ANTEPRIMA = 140;
-
-export function StaffReportCard({
-  segnalazione,
-  azioneInCorso = null,
-  onPrendiInCarico,
-  onApriChiusura,
-}) {
+export function StaffReportCard({ report, staffId, busy = false, onClaim, onReview }) {
   const t = useTokens();
-  const [espansa, setEspansa] = useState(false);
-
-  const stato = etichettaStatoSegnalazione(segnalazione.stato) ?? 'Stato sconosciuto';
-  const nomeSegnalato = nomePersona(segnalazione.segnalato);
-  const riferimento = testoRiferimento(segnalazione.riferimento);
-  const descrizione = segnalazione.descrizione ?? '';
-  const accorciabile = descrizione.length > LIMITE_ANTEPRIMA;
-  const esiti = descriviEsitiChiusi(segnalazione.esiti);
+  const reported = nomePersona(report.segnalato);
+  const reporter = nomePersona(report.autore);
 
   return (
     <Card>
       <View
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }}
       >
-        <ToneChip tono={tonoStatoSegnalazione(segnalazione.stato)}>{stato}</ToneChip>
+        <ToneChip tono={statusTone(report.stato)}>
+          {statusLabel(report.stato) ?? 'Stato sconosciuto'}
+        </ToneChip>
         <AppText variant="small" tone="secondary">
-          {segnalazione.creataIl ?? 'Data non disponibile'}
+          {report.creataIl ?? 'Data non disponibile'}
         </AppText>
       </View>
 
       <View style={{ gap: space.xs }}>
-        <AppText variant="heading" style={{ fontSize: 17 }}>
-          {etichettaMotivo(segnalazione.motivo) ?? 'Motivo non indicato'}
-        </AppText>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Ionicons name="person-outline" size={15} color={t.textSecondary} />
           <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-            {`${nomePersona(segnalazione.autore)} segnala ${nomeSegnalato}`}
+            {`${reporter} segnala ${reported}`}
           </AppText>
         </View>
-        {riferimento ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <Ionicons name="link-outline" size={15} color={t.textSecondary} />
-            <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-              {`Riguarda ${riferimento}`}
-            </AppText>
-          </View>
-        ) : null}
+        <AppText variant="body">{report.motivo}</AppText>
       </View>
 
-      {descrizione ? (
-        <View style={{ gap: space.xs }}>
-          <AppText variant="body" numberOfLines={espansa ? undefined : 3}>
-            {descrizione}
-          </AppText>
-          {accorciabile ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={espansa ? 'Mostra meno della descrizione' : 'Mostra tutta la descrizione'}
-              onPress={() => setEspansa((precedente) => !precedente)}
-              hitSlop={6}
-              style={({ pressed }) => ({
-                alignSelf: 'flex-start',
-                borderRadius: radius.input,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <AppText variant="small" tone="primary">
-                {espansa ? 'Mostra meno' : 'Mostra tutto'}
-              </AppText>
-            </Pressable>
-          ) : null}
-        </View>
+      {report.assegnataA?.id ? (
+        <AppText variant="small" tone="secondary">
+          {`Presa in carico da ${nomePersona(report.assegnataA)}.`}
+        </AppText>
+      ) : null}
+      {report.nota ? (
+        <AppText variant="small" tone="secondary">
+          {`Nota della staff: ${report.nota}`}
+        </AppText>
+      ) : null}
+
+      {isClosed(report) ? (
+        <AppText variant="small" tone="secondary">
+          Pratica chiusa: non ci sono azioni da fare.
+        </AppText>
       ) : (
-        <AppText variant="small" tone="secondary">
-          Nessuna descrizione: la segnalazione ha solo il motivo.
-        </AppText>
-      )}
-
-      {esiti ? (
-        <AppText variant="small" tone="secondary">
-          {`Esito: ${esiti}`}
-        </AppText>
-      ) : null}
-      {segnalazione.nota ? (
-        <AppText variant="small" tone="secondary">
-          {`Nota della staff: ${segnalazione.nota}`}
-        </AppText>
-      ) : null}
-
-      {puoiChiudere(segnalazione) ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {puoPrendereInCarico(segnalazione) ? (
+          {canClaim(report) ? (
             <AppButton
               label="Prendi in carico"
               variant="secondary"
               icon="eye-outline"
-              loading={azioneInCorso === 'carico'}
-              disabled={azioneInCorso !== null}
-              onPress={onPrendiInCarico}
-              accessibilityLabel={`Prendi in carico la segnalazione su ${nomeSegnalato}`}
+              loading={busy}
+              disabled={busy}
+              onPress={onClaim}
+              accessibilityLabel={`Prendi in carico la segnalazione su ${reported}`}
               style={{ flex: 1 }}
             />
           ) : null}
-          <AppButton
-            label="Chiudi"
-            icon="checkmark-done-outline"
-            disabled={azioneInCorso !== null}
-            onPress={onApriChiusura}
-            accessibilityLabel={`Chiudi la segnalazione su ${nomeSegnalato}`}
-            style={{ flex: 1 }}
-          />
+          {canReview(report, staffId) ? (
+            <AppButton
+              label="Chiudi"
+              icon="checkmark-done-outline"
+              disabled={busy}
+              onPress={onReview}
+              accessibilityLabel={`Chiudi la segnalazione su ${reported}`}
+              style={{ flex: 1 }}
+            />
+          ) : null}
+          {!canClaim(report) && !canReview(report, staffId) ? (
+            <AppText variant="small" tone="secondary">
+              In esame da un altro membro dello staff.
+            </AppText>
+          ) : null}
         </View>
-      ) : (
-        <AppText variant="small" tone="secondary">
-          Pratica chiusa: non ci sono azioni da fare.
-        </AppText>
       )}
     </Card>
   );

@@ -3,12 +3,10 @@ import { View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
-import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
-import { ottieniCategorie } from '@/api';
+import { getCategories } from '@/api';
 import {
   LIMITE_VOCI,
   TIPI_VOCE,
-  aPayloadApi,
   aggiungiVoce,
   aggiornaVoce,
   nuovaVoce,
@@ -151,6 +149,21 @@ function validaSezione(chiave, voci, categorie) {
   }, {});
 }
 
+/**
+ * The entries of the form in the contract shape of a service: the form holds
+ * `idCategoria`/`mansione`/`daRemoto`, the backend wants
+ * `categoryIds`/`description`/`isRemote`. The location of the service is the
+ * person's, added by the API layer.
+ */
+function toServiceEntries(entries) {
+  return entries.map((entry) => ({
+    description: entry.mansione.trim(),
+    categoryIds:
+      entry.idCategoria === null || entry.idCategoria === undefined ? [] : [entry.idCategoria],
+    isRemote: entry.daRemoto === true,
+  }));
+}
+
 /** Il messaggio della Card quando le categorie non sono utilizzabili. */
 function messaggioCategorie(stato, dettaglio) {
   if (stato === 'caricamento') {
@@ -181,7 +194,7 @@ export default function RegisterScreen() {
       // In registrazione non c'è ancora una sessione: il token è null, ma
       // `GET /api/categories` è pubblico per le GET (`security.yaml`), quindi
       // la tendina si popola anche prima del login.
-      const elenco = await ottieniCategorie(token);
+      const elenco = await getCategories(token);
       setCategorie(elenco);
       setStatoCategorie(elenco.length > 0 ? 'pronto' : 'vuoto');
       setErroreCategorie(null);
@@ -268,17 +281,14 @@ export default function RegisterScreen() {
     setSubmitting(true);
     try {
       await signUp({
-        nome: form.nome.trim(),
-        cognome: form.cognome.trim(),
+        name: form.nome.trim(),
+        surname: form.cognome.trim(),
         username: form.username.trim(),
         email: form.email.trim(),
         password: form.password,
-        // `localita`, `offerte` e `ricerche` partono nel payload: la forma inglese
-        // del contratto ({description, categoryIds}, {location} ecc.) la costruisce
-        // `api/index.js`, che è l'unico posto che conosce il backend.
-        localita: formattaLocalita(form.provincia, form.regione),
-        offerte: aPayloadApi(offerte),
-        ricerche: aPayloadApi(ricerche),
+        location: formattaLocalita(form.provincia, form.regione),
+        offers: toServiceEntries(offerte),
+        requests: toServiceEntries(ricerche),
       });
       // A registrazione riuscita la root navigation passa da sola ai tab.
     } catch (err) {
@@ -296,10 +306,6 @@ export default function RegisterScreen() {
           Bastano pochi dati per iniziare a scambiare servizi.
         </AppText>
       </View>
-
-      {USA_DATI_FINTI ? (
-        <Banner kind="info" message={AVVISO_DEMO} />
-      ) : null}
 
       <Card>
         <AppText variant="heading">I tuoi dati</AppText>

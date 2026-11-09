@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError } from '@/api/client';
-import { ottieniCategorie } from '@/api';
+import { getCategories } from '@/api';
 
 /**
  * Le categorie e il loro stato: «caricale e dimmi in che stato sono».
@@ -33,7 +33,7 @@ export function useCategories(token) {
   // per cui l'effetto non provoca un render a cascata).
   const carica = useCallback(async () => {
     try {
-      const elenco = await ottieniCategorie(token);
+      const elenco = await getCategories(token);
       setCategorie(elenco);
       setStato(elenco.length > 0 ? 'pronto' : 'vuoto');
       setErrore(null);

@@ -2,7 +2,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
-import { formattaDataIso } from '@/agreements/states';
+import { formatIsoDate } from '@/services/dates';
 import { etichettaModalita, nomePersona } from '@/services/offer-request';
 import { localitaPerDisplay } from '@/services/italian-regions';
 import { space, useTokens } from '@/theme/tokens';
@@ -33,7 +33,7 @@ export function ServiceCard({ servizio, onPress }) {
   const apribile = Number.isInteger(servizio.id);
   const categorie = servizio.categorie?.length ? servizio.categorie : null;
   const autore = nomePersona(servizio.offerente);
-  const pubblicatoIl = formattaDataIso(servizio.pubblicatoIl);
+  const pubblicatoIl = formatIsoDate(servizio.pubblicatoIl);
   const localita = servizio.localita ?? servizio.offerente?.localita;
 
   return (

@@ -4,11 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
 import { FocusRing } from '@/components/FocusRing';
-import { NotificationBanner } from '@/components/NotificationBanner';
 import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { WebNavMenu } from '@/components/WebNavMenu';
-import { useNotifications } from '@/hooks/useNotifications';
 import { useSessionExpiry } from '@/hooks/useSessionExpiry';
 import { fasciaPallinoMenuWeb, space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
@@ -26,22 +24,20 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * Si aspetta anche la preferenza del tema salvata, così il primo render usa già
  * il tema scelto e non c'è un cambio di colore a schermata caricata.
  *
- * Qui stanno anche i **due avvisi in alto**: la scadenza della sessione
- * (`SessionExpiryBanner`) e l'esito di una segnalazione (`NotificationBanner`). È l'unico
- * punto in cui una shell è visibile in tutte le schermate che hanno una sessione
- * attiva. I due componenti sono distinti e **una sola** `View` li contiene: così
- * condividono la safe area e l'allineamento, e la navigazione non cambia — senza
- * avvisi l'albero dei componenti è quello di prima.
+ * L'unico avviso globale è la scadenza della sessione (`SessionExpiryBanner`):
+ * è l'unico punto in cui una shell è visibile in tutte le schermate che hanno una
+ * sessione attiva. Il banner delle notifiche in-app è stato rimosso: il backend
+ * non espone un endpoint per le notifiche (`docs/backend-gaps.md`), quindi non
+ * c'è niente di reale da mostrare.
  */
 function RootNavigator() {
   const { utente, token, booting } = useAuth();
   const { ready } = useThemePreference();
   const { inScadenza, scadenzaMs } = useSessionExpiry(token);
-  const { notifica, inChiusura, chiudi } = useNotifications({ token, utenteId: utente?.id });
   const insets = useSafeAreaInsets();
   // Solo con una sessione: nel ramo (auth) non c'è nessuna scadenza da dire e
   // nessuna notifica da leggere.
-  const mostraAvvisi = Boolean(utente) && (inScadenza || notifica !== null);
+  const mostraAvvisi = Boolean(utente) && inScadenza;
 
   if (booting || !ready) {
     return <LoadingScreen label="Preparazione di Baratto-lo…" />;
@@ -72,13 +68,6 @@ function RootNavigator() {
           }}
         >
           {inScadenza ? <SessionExpiryBanner scadenzaMs={scadenzaMs} /> : null}
-          {notifica !== null ? (
-            <NotificationBanner
-              notifica={notifica}
-              inChiusura={inChiusura}
-              onChiudi={chiudi}
-            />
-          ) : null}
         </View>
       ) : null}
       <Stack screenOptions={{ headerShown: false }}>

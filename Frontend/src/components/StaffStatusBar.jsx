@@ -1,30 +1,34 @@
 import { PillBar } from './PillBar';
-import { STATI_SEGNALAZIONE } from '@/services/reports';
+import { REPORT_STATUS, REPORT_STATUS_LABELS } from '@/services/reports';
 
 /**
- * Il filtro per stato dell'area staff: le tre scelte dello stato più «Tutte».
- *
- * «Tutte» non è un quarto stato: è l'**assenza** di filtro (`null`), ed è il
- * valore di partenza — aprendo la schermata si vede tutto quello che c'è da
- * esaminare. Le tre scelte vere sono gli stati della segnalazione, che restano in
- * `services/reports.js`: qui non si ridichiara nessun valore.
- *
- * Il disegno è quello comune di `PillBar`: la riga di pillole è la stessa
- * forma dei filtri degli utenti (`staff-users.jsx`).
+ * The report-status filter of the staff area: "Tutte" plus the four statuses of
+ * `UserReport::STATUS_*`. "Tutte" is not a fifth status: it is the absence of a
+ * filter (`null`), and it is where the screen starts.
  */
-export const FILTRI_STAFF = [
+export const REPORT_STATUS_FILTERS = [
   { valore: null, etichetta: 'Tutte' },
-  { valore: STATI_SEGNALAZIONE.OPEN, etichetta: 'Aperte' },
-  { valore: STATI_SEGNALAZIONE.IN_REVIEW, etichetta: 'In esame' },
-  { valore: STATI_SEGNALAZIONE.CLOSED, etichetta: 'Chiuse' },
+  { valore: REPORT_STATUS.PENDING, etichetta: 'Aperte' },
+  { valore: REPORT_STATUS.IN_REVIEW, etichetta: 'In esame' },
+  { valore: REPORT_STATUS.CONFIRMED, etichetta: 'Confermate' },
+  { valore: REPORT_STATUS.REJECTED, etichetta: 'Respinte' },
 ];
 
-export function StaffStatusBar({ filtro, onChange, disabled = false, style }) {
+/** Human sentence for the empty list of a given filter. */
+export function emptyTextForFilter(filter) {
+  if (filter === null) {
+    return 'Non c\u2019è nessuna segnalazione.';
+  }
+  const label = REPORT_STATUS_LABELS[filter] ?? filter;
+  return `Non c\u2019è nessuna segnalazione «${label.toLowerCase()}».`;
+}
+
+export function StaffStatusBar({ filter, onChange, disabled = false, style }) {
   return (
     <PillBar
       accessibilityLabel="Filtra le segnalazioni per stato"
-      scelte={FILTRI_STAFF}
-      valore={filtro}
+      scelte={REPORT_STATUS_FILTERS}
+      valore={filter}
       onChange={onChange}
       disabled={disabled}
       style={style}

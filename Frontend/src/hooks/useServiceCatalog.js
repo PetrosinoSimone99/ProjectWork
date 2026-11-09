@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError } from '@/api/client';
-import { ottieniCatalogo } from '@/api';
+import { getHomeCatalog } from '@/api';
 import {
   contaFiltri,
   nuoviFiltri,
@@ -90,7 +90,7 @@ export function useServiceCatalog({ token, utenteId }) {
         setErroreAltri(null);
       }
       try {
-        const { elenco, paginazione: nuovaPaginazione } = await ottieniCatalogo(
+        const { elenco, paginazione: nuovaPaginazione } = await getHomeCatalog(
           token,
           utenteId,
           filtriRichiesti,

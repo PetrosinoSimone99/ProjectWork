@@ -1,61 +1,47 @@
-import { useState } from 'react';
 import { View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
-import { PillBar } from './PillBar';
 import { Card } from './Card';
 import { ToneChip } from './ToneChip';
 import { nomePersona } from '@/services/offer-request';
 import {
-  AZIONI_UTENTE,
-  azioniConsentite,
-  etichettaRuolo,
-  etichettaStatoUtente,
-  ruoliAssegnabili,
-  statiAssegnabili,
-  tonoRuolo,
-  tonoStatoUtente,
+  ACCOUNT_STATUSES,
+  accountStatusLabel,
+  accountStatusTone,
+  accountStatusValue,
+  canChangeStatus,
+  canPromote,
+  nextAccountStatus,
+  roleLabel,
+  roleTone,
+  roleValue,
 } from '@/services/staff-users';
 import { space } from '@/theme/tokens';
 
 /**
- * La card di un utente nell'elenco dell'area staff.
+ * One user in the staff list.
  *
- * Mostra quello che serve per decidere: nome, username, ruolo e stato. I comandi
- * compaiono **solo** se `azioniConsentite` li ammette: la UI non offre un
- * pulsante che il backend rifiuterebbe, e le regole non vivono qui (stanno in
- * `services/staff-users.js`, che replica `userRoleManager.php` e
- * `userStatoManager.php`).
+ * Shows name, username, role and account status, and draws a command only when
+ * the backend would accept it: promoting is possible on an active non-staff
+ * account, changing the status on a non-staff account, and neither on your own.
+ * The commands open the confirmation of the screen, which names the person and
+ * the change.
  *
- * Il comando non cambia niente da solo: apre un pannello con i valori possibili e
- * la scelta passa alla conferma della schermata (`ConfirmModal`), perché
- * cambiare un ruolo o sospendere una persona è un'azione che riguarda qualcun
- * altro. Il pannello si chiude toccando una pillola o «Annulla».
- *
- * Le etichette accessibili nominano **la persona** («Cambia il ruolo di Mario
- * Rossi»): in un elenco di righe ripetute un «Cambia ruolo» nudo non dice su chi.
+ * Accessibility labels name the person: in a list of repeated rows a bare
+ * "Rendi staff" does not say who.
  */
-export function StaffUserCard({ utente, io, azioneInCorso = null, onScegli }) {
-  const [pannello, setPannello] = useState(null);
-
-  const azioni = azioniConsentite(io, utente);
-  const puoRuolo = azioni.includes(AZIONI_UTENTE.RUOLO);
-  const puoStato = azioni.includes(AZIONI_UTENTE.STATO);
-  const nome = nomePersona(utente);
-  const mio = statoInCorso(azioneInCorso, utente.id);
-
-  const scelteRuolo = ruoliAssegnabili(io, utente)
-    .filter((ruolo) => ruolo !== utente.ruolo)
-    .map((ruolo) => ({ valore: ruolo, etichetta: etichettaRuolo(ruolo) }));
-  const scelteStato = statiAssegnabili(io, utente).map((stato) => ({
-    valore: stato,
-    etichetta: etichettaStatoUtente(stato),
-  }));
-
-  function scegli(tipo, valore) {
-    setPannello(null);
-    onScegli(tipo, utente, valore);
-  }
+export function StaffUserCard({ user, callerId, busy = false, onPromote, onStatusChange }) {
+  const name = nomePersona(user);
+  const promote = canPromote(callerId, user);
+  const status = canChangeStatus(callerId, user);
+  const currentStatus = accountStatusValue(user);
+  const target = nextAccountStatus(user);
+  const statusLabel =
+    target === ACCOUNT_STATUSES.INACTIVE ? 'Disattiva' : 'Riattiva';
+  const statusAria =
+    target === ACCOUNT_STATUSES.INACTIVE
+      ? `Disattiva l'account di ${name}`
+      : `Riattiva l'account di ${name}`;
 
   return (
     <Card>
@@ -64,98 +50,53 @@ export function StaffUserCard({ utente, io, azioneInCorso = null, onScegli }) {
       >
         <View style={{ flexShrink: 1, gap: space.xs }}>
           <AppText variant="heading" style={{ fontSize: 17 }}>
-            {nome}
+            {name}
           </AppText>
           <AppText variant="small" tone="secondary">
-            {utente.username ? `@${utente.username}` : 'Username non disponibile'}
+            {user.username ? `@${user.username}` : 'Username non disponibile'}
           </AppText>
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, justifyContent: 'flex-end' }}>
-          <ToneChip tono={tonoRuolo(utente.ruolo)}>
-            {etichettaRuolo(utente.ruolo) ?? 'Ruolo sconosciuto'}
+          <ToneChip tono={roleTone(roleValue(user))}>
+            {roleLabel(roleValue(user)) ?? 'Ruolo sconosciuto'}
           </ToneChip>
-          <ToneChip tono={tonoStatoUtente(utente.stato)}>
-            {etichettaStatoUtente(utente.stato) ?? 'Stato sconosciuto'}
+          <ToneChip tono={accountStatusTone(currentStatus)}>
+            {accountStatusLabel(currentStatus) ?? 'Stato sconosciuto'}
           </ToneChip>
         </View>
       </View>
 
-      {puoRuolo || puoStato ? (
+      {promote || status ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {puoRuolo ? (
+          {promote ? (
             <AppButton
-              label="Cambia ruolo"
+              label="Rendi staff"
               variant="secondary"
-              icon="swap-horizontal-outline"
-              disabled={mio}
-              loading={mio && azioneInCorso.tipo === AZIONI_UTENTE.RUOLO}
-              onPress={() => setPannello((precedente) => (precedente === AZIONI_UTENTE.RUOLO ? null : AZIONI_UTENTE.RUOLO))}
-              accessibilityLabel={`Cambia il ruolo di ${nome}`}
+              icon="shield-checkmark-outline"
+              disabled={busy}
+              loading={busy}
+              onPress={onPromote}
+              accessibilityLabel={`Rendi staff ${name}`}
               style={{ flex: 1 }}
             />
           ) : null}
-          {puoStato ? (
+          {status ? (
             <AppButton
-              label="Cambia stato"
-              variant="secondary"
-              icon="power-outline"
-              disabled={mio}
-              loading={mio && azioneInCorso.tipo === AZIONI_UTENTE.STATO}
-              onPress={() => setPannello((precedente) => (precedente === AZIONI_UTENTE.STATO ? null : AZIONI_UTENTE.STATO))}
-              accessibilityLabel={`Cambia lo stato di ${nome}`}
+              label={statusLabel}
+              variant={target === ACCOUNT_STATUSES.INACTIVE ? 'danger' : 'secondary'}
+              icon={target === ACCOUNT_STATUSES.INACTIVE ? 'power-outline' : 'checkmark-circle-outline'}
+              disabled={busy}
+              onPress={onStatusChange}
+              accessibilityLabel={statusAria}
               style={{ flex: 1 }}
             />
           ) : null}
         </View>
       ) : (
         <AppText variant="small" tone="secondary">
-          Su questo account non hai azioni: o è il tuo, o il tuo ruolo non lo consente.
+          Su questo account non hai azioni: o è il tuo, o il suo ruolo non lo consente.
         </AppText>
       )}
-
-      {pannello === AZIONI_UTENTE.RUOLO && scelteRuolo.length > 0 ? (
-        <View style={{ gap: space.sm }}>
-          <AppText variant="small" tone="secondary">
-            {`Nuovo ruolo per ${nome}:`}
-          </AppText>
-          <PillBar
-            accessibilityLabel={`Nuovo ruolo per ${nome}`}
-            scelte={scelteRuolo}
-            valore={null}
-            onChange={(valore) => scegli(AZIONI_UTENTE.RUOLO, valore)}
-          />
-        </View>
-      ) : null}
-
-      {pannello === AZIONI_UTENTE.STATO && scelteStato.length > 0 ? (
-        <View style={{ gap: space.sm }}>
-          <AppText variant="small" tone="secondary">
-            {`Nuovo stato per ${nome}:`}
-          </AppText>
-          <PillBar
-            accessibilityLabel={`Nuovo stato per ${nome}`}
-            scelte={scelteStato}
-            valore={null}
-            onChange={(valore) => scegli(AZIONI_UTENTE.STATO, valore)}
-          />
-        </View>
-      ) : null}
-
-      {pannello !== null ? (
-        <AppButton
-          label="Annulla"
-          variant="ghost"
-          icon="close-outline"
-          onPress={() => setPannello(null)}
-          accessibilityLabel={`Chiudi la scelta per ${nome}`}
-          style={{ alignSelf: 'flex-start' }}
-        />
-      ) : null}
     </Card>
   );
-}
-
-/** `true` se l'azione in corso riguarda proprio questo utente. */
-function statoInCorso(azioneInCorso, id) {
-  return azioneInCorso !== null && Number(azioneInCorso.id) === Number(id);
 }

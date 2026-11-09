@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
-import { creaSegnalazione } from '@/api';
-import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
+import { createUserReport } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppInput } from '@/components/AppInput';
 import { AppText } from '@/components/AppText';
@@ -15,108 +14,60 @@ import { EmptyState } from '@/components/EmptyState';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
 import { nomePersona } from '@/services/offer-request';
-import {
-  ELENCO_MOTIVI,
-  ETICHETTE_MOTIVO,
-  LIMITE_DESCRIZIONE,
-  aPayloadSegnalazione,
-  riferimentoDaParametri,
-  testoRiferimento,
-  validaSegnalazione,
-} from '@/services/reports';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { REPORT_REASON_MAX, reasonError } from '@/validation';
+import { space, useTokens } from '@/theme/tokens';
 
 /**
- * «Segnala alla staff»: l'unica leva contro chi non mantiene la parola.
+ * "Segnala alla staff": the report the service detail offers.
  *
- * La schermata arriva **da un fatto concreto** — una catena saltata o un accordo
- * non rispettato — e il fatto è nei parametri della rotta (`id_gruppo`,
- * `utente_id`, i dati della persona): si mostra in **sola lettura** e non si
- * modifica. Dalla home e dal Loop non si arriva qui: non si segnala «una persona
- * qualsiasi» (`AGENTS.md`, e il piano 09).
+ * `POST /reports` accepts exactly `{reportedUserId, reason}`: the author comes
+ * from the JWT, and the reason (1–2000 characters) is the whole story. There is
+ * no category of report and no reference to a chain, so the screen asks for the
+ * text and nothing else. Reporting yourself is refused by the backend; the
+ * service detail never opens this screen for the viewer's own service.
  *
- * Tre decisioni che stanno qui e non nel layer API:
- * - **chi segnala** non compare in nessun campo: viaggia nel token di accesso. Il
- *   form non lo chiede perché l'utente è quello;
- * - **nessuna promessa di esito**: dopo l'invio si torna alla catena e la riga lo
- *   dice — la staff decide, e se non prende provvedimenti non arriva nessuna
- *   notifica. Il form non anticipa né sospensione né token;
- * - **i motivi sono una lista a scelta**, non testo libero: sono quelli decisi il
- *   18 settembre 2026 e restano segnaposto dichiarati (`// TODO(backend)` nel
- *   bivio dei finti). Il racconto libero è la `descrizione`, facoltativa.
- *
- * Non c'è nessun caricamento iniziale: quello che serve è già nei parametri, e non
- * esiste un endpoint che legga una segnalazione. L'unica attesa è l'**invio**.
+ * States: the parameters may be missing (declared empty state), the send may
+ * fail (banner + retry), and success replaces the form with a closing card.
  */
 export default function ReportScreen() {
-  const { token, utente } = useAuth();
+  const { token } = useAuth();
   const router = useRouter();
   const t = useTokens();
-  const parametri = useLocalSearchParams();
+  const params = useLocalSearchParams();
 
-  const riferimento = riferimentoDaParametri(parametri);
-  const segnalatoId = Number(parametri.utente_id);
-  const idSegnalato = Number.isInteger(segnalatoId) && segnalatoId > 0 ? segnalatoId : null;
-  const nomeSegnalato = nomePersona({
-    nome: parametri.nome,
-    cognome: parametri.cognome,
-    username: parametri.username,
+  const reportedUserId = Number(params.reportedUserId);
+  const validId = Number.isInteger(reportedUserId) && reportedUserId > 0 ? reportedUserId : null;
+  const reportedName = nomePersona({
+    nome: params.nome,
+    cognome: params.cognome,
+    username: params.username,
   });
-  const apribile = riferimento !== null && idSegnalato !== null;
 
-  const [motivo, setMotivo] = useState(null);
-  const [descrizione, setDescrizione] = useState('');
-  const [errori, setErrori] = useState({});
-  const [invio, setInvio] = useState(false);
-  const [erroreInvio, setErroreInvio] = useState(null);
-  const [messaggio, setMessaggio] = useState(null);
-  const [inviata, setInviata] = useState(false);
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState(null);
+  const [fieldError, setFieldError] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const canReport = validId !== null;
 
-  const dati = { motivo, descrizione, riferimento, segnalatoId: idSegnalato };
-  const valida = Object.keys(validaSegnalazione(dati)).length === 0;
-
-  /** Toglie l'errore di un campo appena lo si corregge, senza mutare lo stato. */
-  function pulisciErrore(campo) {
-    setErrori((precedenti) => {
-      if (!precedenti[campo]) {
-        return precedenti;
-      }
-      const copia = { ...precedenti };
-      delete copia[campo];
-      return copia;
-    });
-  }
-
-  function scegliMotivo(valore) {
-    setMotivo(valore);
-    pulisciErrore('motivo');
-  }
-
-  function cambiaDescrizione(testo) {
-    setDescrizione(testo);
-    pulisciErrore('descrizione');
-  }
-
-  async function invia() {
-    if (invio) {
+  async function submit() {
+    if (sending || !canReport) {
       return;
     }
-    const trovati = validaSegnalazione(dati);
-    setErrori(trovati);
-    if (Object.keys(trovati).length > 0) {
+    const message = reasonError(reason);
+    setFieldError(message);
+    if (message !== null) {
       return;
     }
-
-    setInvio(true);
-    setErroreInvio(null);
+    setSending(true);
+    setError(null);
     try {
-      const esito = await creaSegnalazione(token, utente?.id, aPayloadSegnalazione(dati));
-      setMessaggio(esito.messaggio || 'Segnalazione inviata alla staff.');
-      setInviata(true);
+      await createUserReport(token, { reportedUserId: validId, reason });
+      setSent(true);
     } catch (err) {
-      setErroreInvio(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
-      setInvio(false);
+      setSending(false);
     }
   }
 
@@ -128,18 +79,16 @@ export default function ReportScreen() {
       </View>
 
       <AppText variant="small" tone="secondary">
-        La segnalazione arriva alla staff, che la esamina e decide. Racconta il fatto: qui non si
-        assegnano punteggi né token, e la decisione non è dell'app.
+        La segnalazione arriva alla staff, che la esamina e decide. Racconta il fatto:
+        la decisione non è dell'app.
       </AppText>
 
-      {USA_DATI_FINTI ? <Banner kind="info" message={AVVISO_DEMO} /> : null}
-
-      {!apribile ? (
+      {!canReport ? (
         <>
           <EmptyState
             variante="non-disponibile"
-            title="Manca il fatto da segnalare"
-            description="Questa schermata si apre da una catena saltata o da un accordo non rispettato: da lì arrivano la persona e il riferimento. Riapri la segnalazione da lì."
+            title="Manca la persona da segnalare"
+            description="Questa schermata si apre dal dettaglio di un servizio, che porta con sé la persona da segnalare. Riapri la segnalazione da lì."
           />
           <AppButton
             label="Torna indietro"
@@ -151,16 +100,16 @@ export default function ReportScreen() {
         </>
       ) : null}
 
-      {apribile && inviata ? (
+      {canReport && sent ? (
         <Card>
           <AppText variant="heading">Segnalazione inviata</AppText>
-          <Banner kind="success" message={messaggio} />
+          <Banner kind="success" message="La staff esaminerà la segnalazione." />
           <AppText variant="small" tone="secondary">
-            La staff la esaminerà. Se prenderà provvedimenti riceverai un avviso nell'app; se non ne
-            prenderà, non arriverà nessuna notifica.
+            Non riceverai un avviso nell'app: questo backend non espone le notifiche. La
+            segnalazione non si può ritirare.
           </AppText>
           <AppButton
-            label="Torna alla catena"
+            label="Torna indietro"
             icon="arrow-back-outline"
             onPress={() => router.back()}
             style={{ alignSelf: 'flex-start' }}
@@ -168,127 +117,48 @@ export default function ReportScreen() {
         </Card>
       ) : null}
 
-      {apribile && !inviata ? (
+      {canReport && !sent ? (
         <>
           <Card>
-            <AppText variant="heading">Il fatto</AppText>
+            <AppText variant="heading">La persona</AppText>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <Ionicons name="person-outline" size={16} color={t.textSecondary} />
               <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-                {`Segnali ${nomeSegnalato}`}
+                {`Segnali ${reportedName}`}
               </AppText>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <Ionicons name="lock-closed-outline" size={16} color={t.textSecondary} />
-              <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-                {`Riguarda ${testoRiferimento(riferimento)}: il riferimento arriva dalla catena e non si modifica qui.`}
-              </AppText>
-            </View>
-            {errori.riferimento || errori.segnalato ? (
-              <AppText variant="small" tone="danger">
-                {errori.riferimento ?? errori.segnalato}
-              </AppText>
-            ) : null}
-          </Card>
-
-          <Card>
-            <View style={{ gap: space.xs }}>
-              <AppText variant="small" style={{ fontWeight: '600' }}>
-                Motivo
-              </AppText>
-              <AppText variant="small" tone="secondary">
-                Scegli quello che descrive il fatto. Il racconto libero va nella descrizione.
-              </AppText>
-            </View>
-            <View
-              accessibilityRole="radiogroup"
-              accessibilityLabel="Motivo della segnalazione"
-              style={{ gap: space.xs }}
-            >
-              {ELENCO_MOTIVI.map((valore) => {
-                const scelto = motivo === valore;
-                return (
-                  <Pressable
-                    key={valore}
-                    accessibilityRole="radio"
-                    accessibilityLabel={ETICHETTE_MOTIVO[valore]}
-                    accessibilityState={{ checked: scelto }}
-                    aria-checked={scelto}
-                    onPress={() => scegliMotivo(valore)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: space.sm,
-                      paddingVertical: space.sm,
-                      paddingHorizontal: space.sm,
-                      borderRadius: radius.input,
-                      backgroundColor: pressed ? t.border : 'transparent',
-                    })}
-                  >
-                    <View
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: radius.pill,
-                        borderWidth: 1,
-                        borderColor: scelto ? t.primary : t.borderInput,
-                        backgroundColor: t.surface,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {scelto ? (
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: radius.pill,
-                            backgroundColor: t.primary,
-                          }}
-                        />
-                      ) : null}
-                    </View>
-                    <AppText variant="small" style={{ flex: 1 }}>
-                      {ETICHETTE_MOTIVO[valore]}
-                    </AppText>
-                  </Pressable>
-                );
-              })}
-            </View>
-            {errori.motivo ? (
-              <AppText variant="small" tone="danger">
-                {errori.motivo}
-              </AppText>
-            ) : null}
           </Card>
 
           <Card>
             <AppInput
-              label="Descrizione (facoltativa)"
-              value={descrizione}
-              onChangeText={cambiaDescrizione}
-              placeholder="Racconta cosa è successo: date, cosa era stato concordato, cosa non è stato fatto."
+              label="Cosa è successo"
+              value={reason}
+              onChangeText={(text) => {
+                setReason(text);
+                setFieldError(null);
+              }}
+              placeholder="Racconta il fatto: cosa era stato concordato e cosa non è stato fatto."
               multiline
               autoCapitalize="sentences"
-              maxLength={LIMITE_DESCRIZIONE}
-              contatore={`${descrizione.length}/${LIMITE_DESCRIZIONE}`}
-              error={errori.descrizione}
+              maxLength={REPORT_REASON_MAX}
+              contatore={`${reason.length}/${REPORT_REASON_MAX}`}
+              error={fieldError}
+              editable={!sending}
             />
             <AppText variant="small" tone="secondary">
-              La descrizione è facoltativa ma aiuta la staff a decidere: senza il racconto resta solo
-              il motivo.
+              Una segnalazione per persona: non puoi segnalare due volte la stessa persona.
             </AppText>
           </Card>
 
-          {erroreInvio ? (
+          {error ? (
             <View style={{ gap: space.sm }}>
-              <Banner kind="error" message={erroreInvio} />
+              <Banner kind="error" message={error} />
               <AppButton
                 label="Riprova"
                 variant="secondary"
                 icon="refresh-outline"
-                onPress={() => void invia()}
-                loading={invio}
+                onPress={() => void submit()}
+                loading={sending}
                 style={{ alignSelf: 'flex-start' }}
               />
             </View>
@@ -297,16 +167,11 @@ export default function ReportScreen() {
           <AppButton
             label="Invia alla staff"
             icon="send-outline"
-            onPress={() => void invia()}
-            loading={invio}
-            accessibilityLabel={`Invia la segnalazione alla staff${nomeSegnalato ? ` su ${nomeSegnalato}` : ''}`}
+            onPress={() => void submit()}
+            loading={sending}
+            accessibilityLabel={`Invia la segnalazione alla staff su ${reportedName}`}
             style={{ alignSelf: 'flex-start' }}
           />
-          {!valida ? (
-            <AppText variant="small" tone="secondary">
-              Per inviare servono il motivo e il riferimento al fatto.
-            </AppText>
-          ) : null}
         </>
       ) : null}
     </Screen>

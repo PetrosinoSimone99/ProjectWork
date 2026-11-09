@@ -1,243 +1,176 @@
 import { useCallback, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import {
-  chiudiSegnalazione,
-  ottieniSegnalazioniStaff,
-  prendiInCaricoSegnalazione,
+  claimStaffReport,
+  listStaffOperations,
+  listStaffReports,
+  reviewStaffReport,
 } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
-import { StaffStatusBar } from '@/components/StaffStatusBar';
+import { Card } from '@/components/Card';
+import { StaffStatusBar, emptyTextForFilter } from '@/components/StaffStatusBar';
 import { StaffReportCard } from '@/components/StaffReportCard';
+import { ReportReviewSheet } from '@/components/ReportReviewSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ConfirmModal } from '@/components/ConfirmModal';
-import { ReportClosureSheet } from '@/components/ReportClosureSheet';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
-import { STATI_SEGNALAZIONE } from '@/services/reports';
-import { conEsito, descriviEsiti, richiedeToken, validaChiusura } from '@/services/staff';
+import { REVIEW_LABELS, emptyReview, validateReview } from '@/services/staff';
+import { statusLabel } from '@/services/reports';
+import { nomePersona } from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
- * «Area staff»: l'esame delle segnalazioni.
+ * "Area staff": the reports to examine.
  *
- * Non è una sesta tab: è una rotta secondaria con la freccia di ritorno, aperta
- * dal Profilo **solo** quando `utente.ruolo` è `STAFF` o `ADMIN` (la voce la
- * nasconde la UI, la protezione è del backend). La schermata legge l'elenco,
- * filtra per stato, prende in carico una pratica e la chiude con uno o più esiti.
+ * Not a sixth tab: it is a secondary route opened from the Profile only when the
+ * session carries the staff role (the UI hides, the backend protects). The
+ * screen lists reports by status, claims a pending one and closes it with an
+ * outcome and a mandatory note; both actions treat `403` and `409` as normal
+ * outcomes and reload, because the state on screen can be stale.
  *
- * Quattro decisioni che stanno qui e non altrove:
- * - **il ruolo non si inventa**: la voce compare solo se la sessione porta un
- *   ruolo staff, e ogni azione gestisce il `403` come un caso normale;
- * - **il `409` è un caso previsto**: se la pratica è già stata chiusa da un altro,
- *   si mostra il messaggio del backend e si **ricarica**, perché lo stato a
- *   schermo può essere vecchio;
- * - **la conferma è obbligatoria**: l'esito cambia la vita di due persone, quindi
- *   `ConfirmModal` riassume cosa sta per succedere prima di chiamare l'API;
- * - **la regola dell'esclusività è visibile**: «nessun provvedimento» disabilita
- *   le altre caselle e la scheda lo dice (vedi `services/staff.js`).
+ * The operations log at the bottom is the audit trail the backend records for
+ * every staff action (`GET /staff/operations`); it is read-only.
  */
-
-/** Il vuoto si dice diverso per ogni filtro: «nessuna aperta» non è «nessuna». */
-function testoVuoto(filtro) {
-  if (filtro === STATI_SEGNALAZIONE.OPEN) {
-    return 'Non c\'è nessuna segnalazione aperta.';
-  }
-  if (filtro === STATI_SEGNALAZIONE.IN_REVIEW) {
-    return 'Non c\'è nessuna segnalazione in esame.';
-  }
-  if (filtro === STATI_SEGNALAZIONE.CLOSED) {
-    return 'Non c\'è nessuna segnalazione chiusa.';
-  }
-  return 'Non c\'è nessuna segnalazione.';
-}
-
 export default function StaffScreen() {
   const { token, utente } = useAuth();
   const router = useRouter();
   const t = useTokens();
-  const utenteId = utente?.id;
+  const staffId = utente?.id ?? null;
 
-  const [filtro, setFiltro] = useState(null);
-  const [segnalazioni, setSegnalazioni] = useState(null);
-  const [caricamento, setCaricamento] = useState(false);
-  const [errore, setErrore] = useState(null);
-  const [erroreAzione, setErroreAzione] = useState(null);
-  const [messaggio, setMessaggio] = useState(null);
-  const [azioneInCorso, setAzioneInCorso] = useState(null);
+  const [filter, setFilter] = useState(null);
+  const [reports, setReports] = useState(null);
+  const [operations, setOperations] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [busy, setBusy] = useState(null);
 
-  // La chiusura in corso di compilazione e la conferma finale (due `Modal` mai insieme).
-  const [chiusura, setChiusura] = useState(null);
-  const [erroriChiusura, setErroriChiusura] = useState({});
-  const [conferma, setConferma] = useState(null);
+  const [review, setReview] = useState(null);
+  const [reviewErrors, setReviewErrors] = useState({});
+  const [confirm, setConfirm] = useState(null);
 
-  // Le richieste in volo: una risposta si applica solo se nessuna più recente è
-  // già partita (il cambio di filtro non litiga con un «Riprova»).
-  const richiestaRef = useRef(0);
-  const azioneRef = useRef(false);
+  const requestRef = useRef(0);
+  const actionRef = useRef(false);
 
-  const carica = useCallback(async () => {
-    if (!token || utenteId === null || utenteId === undefined) {
+  const load = useCallback(async () => {
+    if (!token) {
       return;
     }
-    const seq = ++richiestaRef.current;
-    setCaricamento(true);
+    const seq = ++requestRef.current;
+    setLoading(true);
     try {
-      const elenco = await ottieniSegnalazioniStaff(token, utenteId, filtro);
-      if (seq !== richiestaRef.current) {
+      const [reportPage, operationPage] = await Promise.all([
+        listStaffReports(token, { status: filter, limit: 50 }),
+        listStaffOperations(token, { limit: 10 }),
+      ]);
+      if (seq !== requestRef.current) {
         return;
       }
-      setSegnalazioni(elenco);
-      setErrore(null);
+      setReports(reportPage.segnalazioni);
+      setOperations(operationPage.operazioni);
+      setError(null);
     } catch (err) {
-      if (seq !== richiestaRef.current) {
+      if (seq !== requestRef.current) {
         return;
       }
-      setErrore(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
-      if (seq === richiestaRef.current) {
-        setCaricamento(false);
+      if (seq === requestRef.current) {
+        setLoading(false);
       }
     }
-  }, [token, utenteId, filtro]);
+  }, [token, filter]);
 
-  // Si rilegge quando la schermata torna in primo piano e a ogni cambio di filtro.
   useFocusEffect(
     useCallback(() => {
-      void carica();
+      void load();
       return () => {
-        richiestaRef.current += 1;
+        requestRef.current += 1;
       };
-    }, [carica]),
+    }, [load]),
   );
 
-  async function prendiInCarico(segnalazione) {
-    if (azioneRef.current) {
+  async function claim(report) {
+    if (actionRef.current) {
       return;
     }
-    azioneRef.current = true;
-    setAzioneInCorso('carico');
-    setErroreAzione(null);
-    setMessaggio(null);
+    actionRef.current = true;
+    setBusy({ id: report.id, action: 'claim' });
+    setActionError(null);
+    setMessage(null);
     try {
-      await prendiInCaricoSegnalazione(token, utenteId, segnalazione.id);
-      setMessaggio('Segnalazione presa in carico: ora è «In esame».');
+      await claimStaffReport(token, report.id);
+      setMessage('Segnalazione presa in carico: ora puoi chiuderla.');
     } catch (err) {
-      // Il `409` (già presa o chiusa) e il `403` (non sei staff) si mostrano così
-      // come sono: l'elenco resta, e la ricarica in coda rimette lo stato vero.
-      setErroreAzione(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setActionError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
-      await carica();
-      azioneRef.current = false;
-      setAzioneInCorso(null);
+      await load();
+      actionRef.current = false;
+      setBusy(null);
     }
   }
 
-  function apriChiusura(segnalazione) {
-    setErroreAzione(null);
-    setMessaggio(null);
-    setErroriChiusura({});
-    setChiusura({ segnalazione, esiti: [], nota: '', idBeneficiario: null });
+  function openReview(report) {
+    setActionError(null);
+    setMessage(null);
+    setReviewErrors({});
+    setReview({ report, ...emptyReview() });
   }
 
-  function chiudiChiusura() {
-    setChiusura(null);
-    setErroriChiusura({});
-  }
-
-  function cambiaEsito(esito) {
-    setChiusura((precedente) => {
-      if (!precedente) {
-        return precedente;
-      }
-      const esiti = conEsito(precedente.esiti, esito);
-      return {
-        ...precedente,
-        esiti,
-        // Senza `TOKEN_ASSEGNATO` la scelta del beneficiario non ha più senso.
-        idBeneficiario: richiedeToken(esiti) ? precedente.idBeneficiario : null,
-      };
-    });
-    setErroriChiusura({});
-  }
-
-  function cambiaNota(nota) {
-    setChiusura((precedente) => (precedente ? { ...precedente, nota } : precedente));
-  }
-
-  function cambiaBeneficiario(idBeneficiario) {
-    setChiusura((precedente) => (precedente ? { ...precedente, idBeneficiario } : precedente));
-    setErroriChiusura({});
-  }
-
-  /** La validazione: se passa, si passa alla conferma; altrimenti si resta sul form. */
-  function rivediChiusura() {
-    if (!chiusura) {
+  /** Validation first; then the confirmation sheet, which is the real switch. */
+  function askConfirmation() {
+    if (!review) {
       return;
     }
-    const trovati = validaChiusura(chiusura.esiti, chiusura.nota, chiusura.idBeneficiario);
-    setErroriChiusura(trovati);
-    if (Object.keys(trovati).length > 0) {
+    const errors = validateReview({ outcome: review.outcome, note: review.note });
+    setReviewErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
-    setConferma({ ...chiusura });
-    setChiusura(null);
+    setConfirm({ ...review });
+    setReview(null);
   }
 
-  async function confermaChiusura() {
-    if (!conferma || azioneRef.current) {
+  async function confirmReview() {
+    if (!confirm || actionRef.current) {
       return;
     }
-    azioneRef.current = true;
-    setAzioneInCorso('chiusura');
-    setErroreAzione(null);
-    setMessaggio(null);
+    actionRef.current = true;
+    setBusy({ id: confirm.report.id, action: 'review' });
+    setActionError(null);
+    setMessage(null);
     try {
-      const esito = await chiudiSegnalazione(
-        token,
-        utenteId,
-        conferma.segnalazione.id,
-        conferma.esiti,
-        conferma.nota,
-        conferma.idBeneficiario,
-      );
-      setMessaggio(
-        esito.idToken !== null
-          ? 'Segnalazione chiusa. Il token è stato assegnato: lo trovi in «I miei token».'
-          : 'Segnalazione chiusa.',
-      );
-      setConferma(null);
+      await reviewStaffReport(token, confirm.report.id, {
+        status: confirm.outcome,
+        reviewNote: confirm.note,
+      });
+      setMessage('Segnalazione chiusa.');
+      setConfirm(null);
     } catch (err) {
-      setErroreAzione(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
-      setConferma(null);
+      setActionError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setConfirm(null);
     } finally {
-      await carica();
-      azioneRef.current = false;
-      setAzioneInCorso(null);
+      await load();
+      actionRef.current = false;
+      setBusy(null);
     }
   }
 
-  if (segnalazioni === null && !errore) {
+  if (reports === null && !error) {
     return <LoadingScreen label="Guardo le segnalazioni…" />;
   }
 
-  const beneficiario = conferma
-    ? (conferma.segnalazione.partecipanti.find(
-        (persona) => Number(persona.id) === Number(conferma.idBeneficiario),
-      ) ?? null)
-    : null;
-  const fraseConferma = conferma
-    ? descriviEsiti(conferma.esiti, {
-        segnalato: conferma.segnalazione.segnalato,
-        beneficiario,
-      })
-    : '';
-  const notaConferma = conferma?.nota?.trim();
+  const list = reports ?? [];
+  const busyOn = (report) => busy !== null && Number(busy.id) === Number(report.id);
 
   return (
     <Screen scroll withBottomInset={false}>
@@ -246,8 +179,6 @@ export default function StaffScreen() {
         <AppText variant="title">Area staff</AppText>
       </View>
 
-      {/* L'altra sezione dell'area staff: sono due file e due rotte, non due
-          tab, e ognuno rimanda all'altro. */}
       <AppButton
         label="Utenti"
         variant="ghost"
@@ -258,81 +189,113 @@ export default function StaffScreen() {
       />
 
       <AppText variant="small" tone="secondary">
-        Esamina le segnalazioni, prendile in carico e chiudile con un esito. L'esito cambia la vita
-        di due persone: la nota dice su cosa si è basata la decisione, e chiudi solo dopo aver
-        riletto il riepilogo.
+        Esamina le segnalazioni, prendile in carico e chiudile con un esito. La nota
+        dice su cosa si è basata la decisione: chiudi solo dopo aver riletto il riepilogo.
       </AppText>
 
+      <StaffStatusBar filter={filter} onChange={setFilter} disabled={loading} />
 
-      {/* Nascondere non è proteggere: la protezione è del backend. Se un'azione non è permessa,
-          l'utente lo scopre dall'esito dell'azione, non da una nota a schermo. */}
-
-      <StaffStatusBar filtro={filtro} onChange={setFiltro} disabled={caricamento} />
-
-      {errore ? (
+      {error ? (
         <Banner
           kind="error"
-          message={errore}
+          message={error}
           etichettaAzione="Riprova"
-          onAzione={() => void carica()}
-          caricamentoAzione={caricamento}
+          onAzione={() => void load()}
+          caricamentoAzione={loading}
         />
       ) : null}
 
-      {messaggio ? <Banner kind="success" message={messaggio} /> : null}
-      {erroreAzione ? <Banner kind="error" message={erroreAzione} /> : null}
+      {message ? <Banner kind="success" message={message} /> : null}
+      {actionError ? <Banner kind="error" message={actionError} /> : null}
 
-      {segnalazioni !== null && segnalazioni.length === 0 ? (
+      {reports !== null && list.length === 0 ? (
         <EmptyState
           variante="mercato"
           icon="shield-checkmark-outline"
           title="Niente da esaminare"
-          description={`${testoVuoto(filtro)} Quando qualcuno segnala un fatto concreto, la pratica compare qui.`}
+          description={emptyTextForFilter(filter)}
           etichettaAzione="Ricarica"
-          onAzione={() => void carica()}
+          onAzione={() => void load()}
         />
       ) : null}
 
-      {(segnalazioni ?? []).map((segnalazione) => (
+      {list.map((report) => (
         <StaffReportCard
-          key={segnalazione.id}
-          segnalazione={segnalazione}
-          azioneInCorso={azioneInCorso}
-          onPrendiInCarico={() => void prendiInCarico(segnalazione)}
-          onApriChiusura={() => apriChiusura(segnalazione)}
+          key={report.id}
+          report={report}
+          staffId={staffId}
+          busy={busyOn(report)}
+          onClaim={() => void claim(report)}
+          onReview={() => openReview(report)}
         />
       ))}
 
+      {loading && reports !== null ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+          <ActivityIndicator color={t.primary} />
+        </View>
+      ) : null}
+
+      <Card>
+        <AppText variant="heading">Registro delle operazioni</AppText>
+        <AppText variant="small" tone="secondary">
+          Le ultime azioni fatte dallo staff, così come le registra il backend.
+        </AppText>
+        {operations === null ? (
+          <AppText variant="small" tone="secondary">
+            Registro non disponibile.
+          </AppText>
+        ) : operations.length === 0 ? (
+          <AppText variant="small" tone="secondary">
+            Nessuna operazione registrata.
+          </AppText>
+        ) : (
+          operations.map((operation) => (
+            <View
+              key={operation.id}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+            >
+              <Ionicons name="time-outline" size={15} color={t.textSecondary} />
+              <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
+                {`${operation.azione ?? 'Azione'} · ${operation.bersaglio ?? ''} ${
+                  operation.bersaglioId ?? ''
+                } · ${operation.staff?.username ?? 'staff'} · ${
+                  operation.creataIl ?? 'data non disponibile'
+                }`}
+              </AppText>
+            </View>
+          ))
+        )}
+      </Card>
+
       <Modal
-        visible={chiusura !== null}
+        visible={review !== null}
         transparent
         animationType="fade"
-        onRequestClose={chiudiChiusura}
+        onRequestClose={() => setReview(null)}
       >
         <View
           style={{ flex: 1, backgroundColor: t.overlay, justifyContent: 'center', padding: space.lg }}
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Chiudi la scheda di chiusura"
+            accessibilityLabel="Chiudi la scheda di revisione"
             style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-            disabled={azioneInCorso !== null}
-            onPress={chiudiChiusura}
+            disabled={busy !== null}
+            onPress={() => setReview(null)}
           />
           <ScrollView style={{ maxHeight: '85%' }}>
-            {chiusura ? (
-              <ReportClosureSheet
-                segnalazione={chiusura.segnalazione}
-                esiti={chiusura.esiti}
-                nota={chiusura.nota}
-                idBeneficiario={chiusura.idBeneficiario}
-                errori={erroriChiusura}
-                azioneInCorso={azioneInCorso === 'chiusura'}
-                onCambiaEsito={cambiaEsito}
-                onCambiaNota={cambiaNota}
-                onCambiaBeneficiario={cambiaBeneficiario}
-                onConferma={rivediChiusura}
-                onAnnulla={chiudiChiusura}
+            {review ? (
+              <ReportReviewSheet
+                report={review.report}
+                outcome={review.outcome}
+                note={review.note}
+                errors={reviewErrors}
+                busy={busy !== null}
+                onChangeOutcome={(outcome) => setReview({ ...review, outcome })}
+                onChangeNote={(note) => setReview({ ...review, note })}
+                onSubmit={askConfirmation}
+                onCancel={() => setReview(null)}
               />
             ) : null}
           </ScrollView>
@@ -340,29 +303,21 @@ export default function StaffScreen() {
       </Modal>
 
       <ConfirmModal
-        visible={conferma !== null}
+        visible={confirm !== null}
         titolo="Chiudere la segnalazione?"
         messaggio={
-          conferma
-            ? `${fraseConferma}${
-                notaConferma ? `\n\nNota: ${notaConferma}` : ''
-              }\n\nDopo la chiusura la pratica non si riapre.`
+          confirm
+            ? `${REVIEW_LABELS[confirm.outcome] ?? 'Chiudi la segnalazione'} su ${nomePersona(
+                confirm.report.segnalato,
+              )}.\n\nEsito: ${statusLabel(confirm.outcome) ?? confirm.outcome}\nNota: ${confirm.note.trim()}\n\nDopo la chiusura la pratica non si riapre.`
             : ''
         }
         etichettaConferma="Chiudi la segnalazione"
-        loading={azioneInCorso === 'chiusura'}
-        onConferma={() => void confermaChiusura()}
-        onAnnulla={() => setConferma(null)}
+        varianteConferma="danger"
+        loading={busy?.action === 'review'}
+        onConferma={() => void confirmReview()}
+        onAnnulla={() => setConfirm(null)}
       />
-
-      {/* Il dettaglio completo si legge nella card; questa riga serve solo a
-          ricordare che il nome è quello del segnalato, non dell'autore. */}
-      {segnalazioni !== null && segnalazioni.length > 0 ? (
-        <AppText variant="small" tone="secondary">
-          Ogni card riguarda la persona segnalata: «Prendi in carico» e «Chiudi» agiscono su di
-          lei.
-        </AppText>
-      ) : null}
     </Screen>
   );
 }

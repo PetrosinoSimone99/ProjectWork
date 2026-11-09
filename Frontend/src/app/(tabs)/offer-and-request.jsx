@@ -3,14 +3,13 @@ import { ActivityIndicator, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
-import { AVVISO_DEMO, USA_DATI_FINTI } from '@/api/config';
 import {
-  aggiornaPubblicazione,
-  cambiaStatoPubblicazione,
-  creaPubblicazione,
-  eliminaPubblicazione,
-  ottieniCategorie,
-  ottieniPubblicazioni,
+  createService,
+  deleteService,
+  getCategories,
+  listMyServices,
+  setServiceSuspended,
+  updateService,
 } from '@/api';
 import {
   STATI_PUBBLICAZIONE,
@@ -139,7 +138,7 @@ export default function OfferAndRequestScreen() {
     setLoading(true);
     setErroreElenco(null);
     try {
-      setPubblicazioni(await ottieniPubblicazioni(token, utente.id));
+      setPubblicazioni(await listMyServices(token));
     } catch (err) {
       setErroreElenco(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
@@ -149,7 +148,7 @@ export default function OfferAndRequestScreen() {
 
   const caricaCategorie = useCallback(async () => {
     try {
-      const elenco = await ottieniCategorie(token);
+      const elenco = await getCategories(token);
       setCategorie(elenco);
       setStatoCategorie(elenco.length > 0 ? 'pronto' : 'vuoto');
       setErroreCategorie(null);
@@ -248,9 +247,9 @@ export default function OfferAndRequestScreen() {
     const tipo = form.tipo;
     try {
       if (inModifica) {
-        await aggiornaPubblicazione(token, utente.id, form.voce);
+        await updateService(token, form.voce);
       } else {
-        await creaPubblicazione(token, utente.id, form.voce);
+        await createService(token, form.voce);
       }
       // Ora l'elenco esiste sempre (vero o finto): la conferma di una nuova
       // voce è piena e si rilegge la lista «senza ricaricare la pagina».
@@ -298,7 +297,7 @@ export default function OfferAndRequestScreen() {
     void eseguiAzione(
       voce,
       'stato',
-      () => cambiaStatoPubblicazione(token, utente.id, voce.id, voce.tipo, nuovoStato),
+      () => setServiceSuspended(token, { ...voce, stato: nuovoStato }),
       testoEsito(sospesa ? 'ripubblicata' : 'sospesa', voce.tipo),
     );
   }
@@ -311,7 +310,7 @@ export default function OfferAndRequestScreen() {
     await eseguiAzione(
       voce,
       'elimina',
-      () => eliminaPubblicazione(token, utente.id, voce.id, voce.tipo),
+      () => deleteService(token, voce),
       testoEsito('eliminata', voce.tipo),
     );
     setEliminazione(null);
@@ -336,10 +335,6 @@ export default function OfferAndRequestScreen() {
         <AppText variant="title">Offro e cerco</AppText>
         <AppText variant="small" tone="secondary">{INTRODUZIONE}</AppText>
       </View>
-
-      {USA_DATI_FINTI ? (
-        <Banner kind="info" message={AVVISO_DEMO} />
-      ) : null}
 
       {esito ? <Banner kind="success" message={esito} /> : null}
 

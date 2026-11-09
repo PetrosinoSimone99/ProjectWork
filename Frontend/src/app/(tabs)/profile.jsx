@@ -5,7 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { formatOrarioScadenza, tokenExpiresAt } from '@/auth/token-store';
-import { ottieniProfilo } from '@/api';
+import { getProfile } from '@/api';
 import { localitaPerDisplay } from '@/services/italian-regions';
 import { useRefresh } from '@/hooks/useRefresh';
 import { Screen } from '@/components/Screen';
@@ -63,7 +63,7 @@ export default function ProfileScreen() {
     const seq = ++richiestaRef.current;
     setRichiestaInCorso(true);
     try {
-      const dati = await ottieniProfilo(token);
+      const dati = await getProfile(token);
       if (seq !== richiestaRef.current) {
         return;
       }
