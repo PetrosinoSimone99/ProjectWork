@@ -82,6 +82,7 @@ export default function HomeScreen() {
     refreshing,
     onRefresh,
     nascondeModalita,
+    relevanceActive,
   } = useServiceCatalog({ token, utenteId: utente?.id });
 
   const numeroFiltri = contaFiltri(filtriApplicati);
@@ -212,6 +213,15 @@ export default function HomeScreen() {
           I servizi pubblicati dagli altri: filtra per testo, categoria, area e
           modalità.
         </AppText>
+        {/* Nota onesta dell'ordinamento: vale per le pagine caricate, non per
+            tutto il catalogo — il backend non ha ancora `sort=relevance`
+            (`docs/backend-gaps.md` G1). Senza categorie mie non c'è classifica. */}
+        {relevanceActive ? (
+          <AppText variant="caption" tone="secondary">
+            Prima i servizi che condividono una categoria con le tue ricerche. L&apos;ordine
+            vale per i servizi già caricati.
+          </AppText>
+        ) : null}
       </View>
 
       <FilterBar

@@ -54,6 +54,12 @@ empty state, never fake content.
 - "Load more" appends a copy (`[...current, ...page]`); nothing is mutated.
 - The API layer is the only place that knows backend field names; screens read
   the normalised shape.
+- Home ordering lives in `src/services/relevance.js`: the loaded page puts first
+  the services sharing a category with the viewer's requests, then the rest,
+  keeping the backend's newest-first order inside each group. It is a declared
+  limitation of the page, not of the catalog — the ordering the product wants is
+  `sort=relevance` on the backend (`docs/backend-gaps.md` G1). With no request
+  categories, the order is untouched.
 
 ## Theme
 

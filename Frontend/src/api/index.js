@@ -31,6 +31,7 @@ export {
   createService,
   deleteService,
   listDeletedServices,
+  listMyRequests,
   listMyServices,
   restoreService,
   setServiceSuspended,
@@ -45,7 +46,7 @@ export {
   promoteStaffUser,
   reviewStaffReport,
   setStaffUserStatus,
-} from './areas/staff';
+} from './areas/staff.js';
 
 // ---------------------------------------------------------------------------
 // Access — login and registration

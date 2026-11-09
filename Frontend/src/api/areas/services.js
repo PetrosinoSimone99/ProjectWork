@@ -136,6 +136,15 @@ export async function listMyServices(token) {
 }
 
 /**
+ * GET /requests/mine — only the viewer's requests.
+ * The home needs their categories to rank the catalog (`services/relevance.js`),
+ * and asking for the request list alone avoids loading the offers as well.
+ */
+export async function listMyRequests(token) {
+  return normalizeOwnedServices(null, await apiFetch('requests/mine', { token }));
+}
+
+/**
  * GET /offers/deleted + GET /requests/deleted — the viewer's soft-deleted
  * services, with `deletedAt`. Same shape as `listMyServices`, plus
  * `eliminataIl`.

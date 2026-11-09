@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError } from '@/api/client';
-import { getHomeCatalog } from '@/api';
+import { getHomeCatalog, listMyRequests } from '@/api';
 import {
   contaFiltri,
   nuoviFiltri,
   passaModalita,
   VALORI_MODALITA,
 } from '@/services/offer-request';
+import { requestCategoryIds, orderByRelevance } from '@/services/relevance';
 import { useRefresh } from '@/hooks/useRefresh';
 
 /**
@@ -72,6 +73,11 @@ export function useServiceCatalog({ token, utenteId }) {
   // La richiesta dell'ultima volta partita, anche se è fallita: è quello che
   // «Riprova» ripete (filtri, pagina e se era un «Carica altri»).
   const ultimaRichiestaRef = useRef({ filtri: nuoviFiltri(), pagina: 1, inCoda: false });
+
+  // Le categorie delle **mie richieste**: servono all'ordinamento per rilevanza
+  // della pagina caricata (brief, decisione 5). Se non arrivano, il catalogo
+  // resta nell'ordine del backend: nessuna classifica inventata.
+  const [relevantCategoryIds, setRelevantCategoryIds] = useState([]);
 
   const esegui = useCallback(
     async (filtriRichiesti, pagina = 1, inCoda = false) => {
@@ -144,6 +150,33 @@ export function useServiceCatalog({ token, utenteId }) {
         requestSeqRef.current += 1;
       };
     }, [esegui]),
+  );
+
+  // Le mie richieste si rileggono quando la home torna in primo piano: se ne
+  // pubblico una nuova, il catalogo deve rankare con le categorie vere. Un
+  // errore qui non è un errore della home: l'ordine resta quello del backend e
+  // la nota in cima dice che la classifica per rilevanza non è attiva.
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) {
+        return undefined;
+      }
+      let active = true;
+      listMyRequests(token)
+        .then((requests) => {
+          if (active) {
+            setRelevantCategoryIds(requestCategoryIds(requests));
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setRelevantCategoryIds([]);
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, [token]),
   );
 
   /** Testo: cambia la bozza senza fare richieste (si applica con Invio o «Filtra»). */
@@ -229,9 +262,12 @@ export function useServiceCatalog({ token, utenteId }) {
   const serviziMostrate = useMemo(
     () =>
       Array.isArray(servizi)
-        ? servizi.filter((riga) => passaModalita(riga, filtriApplicati.modalita))
+        ? orderByRelevance(
+            servizi.filter((riga) => passaModalita(riga, filtriApplicati.modalita)),
+            relevantCategoryIds,
+          )
         : servizi,
-    [servizi, filtriApplicati.modalita],
+    [servizi, filtriApplicati.modalita, relevantCategoryIds],
   );
 
   // Il filtro client-side ha svuotato a schermo un elenco che **non** era vuoto?
@@ -263,5 +299,6 @@ export function useServiceCatalog({ token, utenteId }) {
     refreshing,
     onRefresh,
     nascondeModalita,
+    relevanceActive: relevantCategoryIds.length > 0,
   };
 }
