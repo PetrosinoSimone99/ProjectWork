@@ -89,7 +89,7 @@ final class ServiceRepository extends ServiceEntityRepository
         return $this->db->fetchOne('SELECT id FROM services WHERE id = ? AND deleted_at IS NULL'.$suffix, [$id]) !== false;
     }
 
-    /** Protect agreement history, queues and existing token reservations from service mutations. */
+    /** Protect agreement history and queues from service mutations. */
     public function isInUse(int $serviceId): bool
     {
         $tables = $this->db->createSchemaManager()->listTableNames();
@@ -98,8 +98,6 @@ final class ServiceRepository extends ServiceEntityRepository
         $references = [
             'agreement_details' => ['service_provided'],
             'service_queues' => ['service_id'],
-            // Existing reservations must remain protected after their APIs are removed.
-            'token_redemptions' => ['reserved_service_id'],
         ];
 
         foreach ($references as $table => $columns) {
@@ -135,6 +133,7 @@ final class ServiceRepository extends ServiceEntityRepository
         string $sort,
         int $page,
         int $limit,
+        ?bool $isRemote = null,
     ): Paginator {
         $queryBuilder = $this->createQueryBuilder('service')
             ->select('DISTINCT service, owner, category')
@@ -148,6 +147,12 @@ final class ServiceRepository extends ServiceEntityRepository
             ->setParameter('offerType', Service::TYPE_OFFER)
             ->setParameter('activeStatus', User::STATUS_ACTIVE)
             ->setParameter('viewer', $viewer);
+
+        if ($isRemote !== null) {
+            $queryBuilder
+                ->andWhere('service.isRemote = :isRemote')
+                ->setParameter('isRemote', $isRemote);
+        }
 
         if ($searchText !== null) {
             $queryBuilder
@@ -168,13 +173,59 @@ final class ServiceRepository extends ServiceEntityRepository
                 ->setParameter('categoryIds', $categoryIds);
         }
 
+        $preferredCategoryIds = $this->findDesiredCategoryIds($viewer);
+        if ($preferredCategoryIds !== []) {
+            // A subquery checks membership without duplicating offers with several categories.
+            $matchingOffers = $this->createQueryBuilder('preferredService')
+                ->select('preferredService.id')
+                ->innerJoin('preferredService.categories', 'preferredCategory')
+                ->where('preferredCategory.id IN (:preferredCategoryIds)');
+
+            // Sort the whole catalog before pagination, so all preferred offers come first.
+            // HIDDEN keeps this internal priority out of the API response.
+            $queryBuilder
+                ->addSelect('CASE WHEN service.id IN ('.$matchingOffers->getDQL().') THEN 0 ELSE 1 END AS HIDDEN preferencePriority')
+                ->setParameter('preferredCategoryIds', $preferredCategoryIds)
+                ->orderBy('preferencePriority', 'ASC');
+        }
+
         $queryBuilder
-            ->orderBy('service.createdAt', $sort === 'oldest' ? 'ASC' : 'DESC')
+            ->addOrderBy('service.createdAt', $sort === 'oldest' ? 'ASC' : 'DESC')
             // The ID makes pagination stable when two services share the same timestamp.
             ->addOrderBy('service.id', $sort === 'oldest' ? 'ASC' : 'DESC')
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit);
 
         return new Paginator($queryBuilder, true);
+    }
+
+    /** @return list<int> Categories the viewer currently wants, as defined by their requests. */
+    private function findDesiredCategoryIds(User $viewer): array
+    {
+        $rows = $this->createQueryBuilder('request')
+            ->select('DISTINCT desiredCategory.id AS id')
+            ->innerJoin('request.categories', 'desiredCategory')
+            ->where('request.user = :viewer')
+            ->andWhere('request.type = :requestType')
+            ->andWhere('request.deletedAt IS NULL')
+            ->andWhere('request.isSuspended = false')
+            ->setParameter('viewer', $viewer)
+            ->setParameter('requestType', Service::TYPE_REQUEST)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    public function findUserOfferedService(User $user): ?Service
+    {
+        return $this->createQueryBuilder('service')
+            ->andWhere('service.user = :user')
+            ->andWhere('service.type = :offerType')
+            ->andWhere('service.deletedAt IS NULL')
+            ->setParameter('user', $user)
+            ->setParameter('offerType', Service::TYPE_OFFER)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

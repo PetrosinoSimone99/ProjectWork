@@ -21,8 +21,8 @@ class ChatController extends AbstractController
         $this->chatManager = $chatManager;
     }
 
-    #[Route('/chats/mutual-proposal/{proposalId}', name: 'get_chat_by_mutual_proposal_id', methods: ['GET'])]
-    public function getChatAndHistoryByProposalId(int $proposalId): JsonResponse
+    #[Route('/chats/agreement/{agreementId}', name: 'get_chat_by_agreement_id', methods: ['GET'])]
+    public function getChatAndHistoryByAgreementId(int $agreementId): JsonResponse
     {
         $user = $this->getUser();
         if(!$user instanceof User){
@@ -30,70 +30,23 @@ class ChatController extends AbstractController
         }
 
         try{
-            $chat = $this->chatManager->getOrCreateMutualProposalChat($proposalId);
-            $chatMessageDTOs = $this->chatManager->getChatHistory($chat->getId());
+            $chat = $this->chatManager->getOrCreateChat($agreementId);
+            $chatMessageDTOs = $this->chatManager->getChatHistory($chat);
             
             return $this->json(['chatId' => $chat->getId(),'messages' => $chatMessageDTOs]);
 
         }catch (\InvalidArgumentException) {
             return $this->json(['error' => 'Invalid chat'], 400);
         }
-        catch(\Exception){
-            return $this->json(['error' => 'An unexpected error occurred'], 500);
+        catch(\Exception $e){
+            return $this->json(['error' => 'Internal server error '. $e->getMessage()], 500);
         }
         
-    }
-
-    #[Route('/chats/group-proposal/beneficiary/{groupProposalId}', name: 'get_chat_by_group_proposal_id_beneficiary', methods: ['GET'])]
-    public function getChatAndHistoryByGroupProposalIdBeneficiary(int $groupProposalId): JsonResponse
-    {
-        $user = $this->getUser();
-        if(!$user instanceof User){
-            return $this->json(['error' => 'User not authenticated'], 401);
-        }
-        try{
-            $chat = $this->chatManager->getOrCreateGroupProposalChatBeneficiary($groupProposalId, $user->getId());
-
-            $chatMessageDTOs = $this->chatManager->getChatHistory($chat->getId());
-            
-            return $this->json(['chatId' => $chat->getId(),'messages' => $chatMessageDTOs]);
-
-        }catch (\InvalidArgumentException) {
-            return $this->json(['error' => 'Invalid chat'], 400);
-        }
-        catch(\Exception){
-            return $this->json(['error' => 'An unexpected error occurred'], 500);
-        }
-    }
-
-    #[Route('/chats/group-proposal/provider/{groupProposalId}', name: 'get_chat_by_group_proposal_id_provider', methods: ['GET'])]
-    public function getChatAndHistoryByGroupProposalIdProvider(int $groupProposalId): JsonResponse
-    {        
-        $user = $this->getUser();
-        if(!$user instanceof User){
-            return $this->json(['error' => 'User not authenticated'], 401);
-        }
-        try{
-            $chat = $this->chatManager->getOrCreateGroupProposalChatProvider($groupProposalId, $user->getId());
-
-            $chatMessageDTOs = $this->chatManager->getChatHistory($chat->getId());
-            
-            return $this->json(['chatId' => $chat->getId(),'messages' => $chatMessageDTOs]);
-
-
-        }
-        catch (\InvalidArgumentException) {
-            return $this->json(['error' => 'Invalid chat'], 400);
-        }
-        catch(\Exception){
-            return $this->json(['error' => 'An unexpected error occurred'], 500);
-        }
     }
 
     #[Route('/chats/send-message/{chatId}', name: 'send_message', methods: ['POST'])]
     public function sendMessage(Request $request, int $chatId): JsonResponse
     {   
-        $user = $this->getUser();
         if(!$user instanceof User){
             return $this->json(['error' => 'User not authenticated'], 401);
         }
@@ -109,8 +62,8 @@ class ChatController extends AbstractController
                 return $this->json(['error' => 'Message must be a string'], 400);
             }
 
-            $this->chatManager->sendMessage($chatId, $user->getId(), $message);
-            return $this->json(['success' => true]);
+            $this->chatManager->sendMessage($chatId, $user, $message = 'Hello Bob');
+            return $this->json(['success' => ['code' => 200, 'message' => 'Message sent successfully']], 200);
         }
         catch (JsonException) {
             return $this->json(['error' => 'Invalid JSON'], 400);
@@ -121,8 +74,8 @@ class ChatController extends AbstractController
         catch (\InvalidArgumentException) {
             return $this->json(['error' => 'Invalid message'], 400);
         }
-        catch (\Exception) {
-            return $this->json(['error' => 'An unexpected error occurred'], 500);
+        catch (\Exception $e) {
+            return $this->json(['error' => 'An unexpected error occurred '. $e->getMessage()], 500);
         }
         
     }
@@ -130,13 +83,14 @@ class ChatController extends AbstractController
     #[Route('/chats/most-recent-message', name: 'get_most_recent_message', methods: ['GET'])]
     public function getUserMostRecentReceivedMessage(): JsonResponse
     {   
-        $user = $this->getUser();
+        //$user = $this->getUser();
+        $user = $this->userManager->getUserById(1); // Replace 1 with the actual user ID you want to test with
         if(!$user instanceof User){
             return $this->json(['error' => 'User not authenticated'], 401);
         }
         
         try{
-            $mostRecentMessage = $this->chatManager->getUserMostRecentReceivedMessage($user->getId());
+            $mostRecentMessage = $this->chatManager->getUserMostRecentReceivedMessage($user);
 
             if($mostRecentMessage === null){
                 return $this->json(['chatMessageId' => null]);
@@ -153,16 +107,17 @@ class ChatController extends AbstractController
     public function checkNewMessagesForUser(int $recentMessageId): JsonResponse
     {
         $user = $this->getUser();
+
         if(!$user instanceof User){
             return $this->json(['error' => 'User not authenticated'], 401);
         }
         try{
-            $chatMessageDTOS = $this->chatManager->checkNewMessagesForUser($user->getId(), $recentMessageId);
+            $chatMessageDTOS = $this->chatManager->checkNewMessagesForUser($user, $recentMessageId);
 
             return $this->json($chatMessageDTOS);
 
-        }catch(\Exception){
-            return $this->json(['error' => 'An unexpected error occurred'], 500);
+        }catch(\Exception $e){
+            return $this->json(['error' => 'An unexpected error occurred: ' . $e->getMessage()], 500);
         }
     }
 }

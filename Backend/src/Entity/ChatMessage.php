@@ -6,6 +6,7 @@ use App\Entity\Chat;
 use App\Entity\User;
 use App\Repository\ChatMessageRepository;
 use Doctrine\ORM\Mapping as ORM;
+use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: ChatMessageRepository::class)]
 #[ORM\Table(name: "chat_messages")]
@@ -16,43 +17,53 @@ class ChatMessage
     #[ORM\Column(name: "id")]
     private ?int $id = null;
 
-    #[ORM\Column(name: "chat_id")]
-    private ?int $chatId = null;
+    #[ORM\ManyToOne(targetEntity: Chat::class)]
+    #[ORM\JoinColumn(name: "chat_id", referencedColumnName: "id", nullable: false, onDelete: "CASCADE")]
+    private ?Chat $chat = null;
 
-    #[ORM\Column(name: "user_id")]
-    private ?int $userId = null;
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id", nullable: false, onDelete: "CASCADE")]
+    private ?User $user = null;
 
     #[ORM\Column(name: "message")]
     private ?string $message = null;
 
-    #[ORM\Column(name: "creation_date", type: "datetime")]
-    private ?\DateTimeInterface $creationDate = null;
+    #[ORM\Column(name: "creation_date", type: "datetime_immutable")]
+    private ?\DateTimeImmutable $creationDate = null;
 
+    public function __construct(Chat $chat, User $user, string $message)
+    {
+        $this->chat = $chat;
+        $this->user = $user;
+        $this->message = $message;
+        $this->creationDate = new DateTimeImmutable();
+    }
+    
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getChatId(): ?int
+    public function getChat(): ?Chat
     {
-        return $this->chatId;
+        return $this->chat;
     }
 
-    public function setChatId(?int $chatId): self
+    public function setChat(?Chat $chat): self
     {
-        $this->chatId = $chatId;
+        $this->chat = $chat;
 
         return $this;
     }
 
-    public function getUserId(): ?int
+    public function getUser(): ?User
     {
-        return $this->userId;
+        return $this->user;
     }
 
-    public function setUserId(?int $userId): self
+    public function setUser(?User $user): self
     {
-        $this->userId = $userId;
+        $this->user = $user;
 
         return $this;
     }
@@ -69,16 +80,9 @@ class ChatMessage
         return $this;
     }
 
-    public function getCreationDate(): ?\DateTimeInterface
+    public function getCreationDate(): ?\DateTimeImmutable
     {
         return $this->creationDate;
-    }
-
-    public function setCreationDate(\DateTimeInterface $creationDate): self
-    {
-        $this->creationDate = $creationDate;
-
-        return $this;
     }
 
 }
