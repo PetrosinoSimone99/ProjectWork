@@ -9,35 +9,42 @@ import { localitaPerDisplay } from '@/services/italian-regions';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * Dettaglio di un servizio del catalogo: descrizione per esteso, categorie,
- * località della persona che lo offre, data di pubblicazione e autore con
- * username, più le due azioni possibili — contattare l'autore o proporgli un
- * accordo.
+ * The service detail panel of the home catalog.
  *
- * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
- * come nella card, la località è dell'**annuncio** (`servizio.localita`), con
- * ripiego su quella della persona, e la modalità («da remoto» / «in presenza»)
- * arriva dalla riga normalizzata (`servizio.daRemoto`).
+ * Shows what the product decided a person needs to judge an offer before
+ * writing anything: who publishes it (name and username), where it happens
+ * (the service location, or "da remoto" when the service has none and is
+ * remote), and the categories with the full description.
  *
- * Non esiste il ramo «è il tuo annuncio»: nel catalogo arrivano solo i servizi
- * degli altri (le proprie voci non entrano, per decisione del titolare), quindi
- * non c'è nessun pulsante nascosto da gestire.
+ * Two actions, both honest:
+ * - "Segnala" is real: it opens the report route, which calls `POST /reports`;
+ * - "Invia proposta" stays visible and disabled with "disponibile a breve",
+ *   because proposals have no endpoint yet (`docs/backend-gaps.md` G4) and a
+ *   button that pretends to work would be worse than a disabled one.
  *
- * Il modulo della proposta non esiste ancora: il pulsante resta visibile e
- * disabilitato, così l'utente vede che l'azione è prevista senza poterla
- * avviare a vuoto (brief, decisione 8).
+ * The "what they offer and look for" block is the third declared gap (G3): the
+ * public profile of another user does not exist, so the box says it is not
+ * available instead of showing the owner's own data as if it were a summary.
  */
-export function ServiceDetailModal({ servizio, onChiudi }) {
+export function ServiceDetailModal({ servizio, onClose, onReport }) {
   const t = useTokens();
-  const offerente = servizio?.offerente ?? {};
-  const localita = servizio?.localita ?? offerente.localita;
-  const nome = nomePersona(offerente);
-  const categorie = servizio?.categorie?.length ? servizio.categorie : null;
-  const descrizione = servizio?.descrizione ?? '';
-  const pubblicatoIl = formatIsoDate(servizio?.pubblicatoIl);
+  const owner = servizio?.offerente ?? {};
+  const name = nomePersona(owner);
+  const categories = servizio?.categorie?.length ? servizio.categorie : null;
+  const description = servizio?.descrizione ?? '';
+  const publishedAt = formatIsoDate(servizio?.pubblicatoIl);
+  const location = servizio?.localita ?? owner.localita ?? null;
+  const remote = servizio?.daRemoto === true;
+  // One place line: the location when there is one, otherwise the mode, and
+  // "not indicated" when neither says anything.
+  const place = location
+    ? localitaPerDisplay(location)
+    : remote
+      ? 'Da remoto'
+      : 'Località non indicata';
 
   return (
-    <Modal visible={servizio !== null} transparent animationType="fade" onRequestClose={onChiudi}>
+    <Modal visible={servizio !== null} transparent animationType="fade" onRequestClose={onClose}>
       <View
         style={{
           flex: 1,
@@ -46,24 +53,24 @@ export function ServiceDetailModal({ servizio, onChiudi }) {
           padding: space.lg,
         }}
       >
-        {/* Sfondo chiudibile: su web `Alert` non esiste e il tocco fuori dal
-            pannello è l'unico modo per annullare. */}
+        {/* Closing background: on web there is no `Alert`, and a tap outside the
+            panel is the way to cancel. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Chiudi dettaglio"
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-          onPress={onChiudi}
+          onPress={onClose}
         />
         {servizio ? (
           <Card style={{ gap: space.md, position: 'relative', zIndex: 1 }}>
             <View
               style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', alignItems: 'center' }}
             >
-              {categorie ? (
-                categorie.map((categoria) => (
-                  <Chip key={categoria.id} background={t.serviceBg}>
+              {categories ? (
+                categories.map((category) => (
+                  <Chip key={category.id} background={t.serviceBg}>
                     <AppText variant="caption" style={{ color: t.serviceText }}>
-                      {categoria.nome}
+                      {category.nome}
                     </AppText>
                   </Chip>
                 ))
@@ -76,7 +83,7 @@ export function ServiceDetailModal({ servizio, onChiudi }) {
               )}
             </View>
 
-            <AppText variant="heading">{descrizione}</AppText>
+            <AppText variant="heading">{description}</AppText>
 
             <View style={{ gap: space.xs }}>
               <AppText variant="small" tone="secondary">
@@ -84,41 +91,59 @@ export function ServiceDetailModal({ servizio, onChiudi }) {
               </AppText>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 <Ionicons name="person-circle-outline" size={18} color={t.textSecondary} />
-                <AppText>{nome}</AppText>
-                {offerente.username ? (
+                <AppText>{name}</AppText>
+                {owner.username ? (
                   <AppText variant="small" tone="secondary">
-                    @{offerente.username}
+                    @{owner.username}
                   </AppText>
                 ) : null}
               </View>
-              {/* La località è del servizio (ripiego: quella della persona) ed è
-                  facoltativa: se manca, la riga non compare. */}
-              {localita ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Ionicons name="location-outline" size={16} color={t.textSecondary} />
-                  <AppText variant="small" tone="secondary">
-                    Si svolge a {localitaPerDisplay(localita)}
-                  </AppText>
-                </View>
-              ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 <Ionicons
-                  name={servizio?.daRemoto ? 'videocam-outline' : 'people-outline'}
+                  name={location ? 'location-outline' : remote ? 'videocam-outline' : 'help-circle-outline'}
                   size={16}
                   color={t.textSecondary}
                 />
                 <AppText variant="small" tone="secondary">
-                  Si svolge {etichettaModalita(servizio?.daRemoto)}
+                  {`Si svolge: ${place}`}
                 </AppText>
               </View>
-              {pubblicatoIl ? (
+              {location && remote ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
+                  <Ionicons name="videocam-outline" size={16} color={t.textSecondary} />
                   <AppText variant="small" tone="secondary">
-                    Pubblicato il {pubblicatoIl}
+                    {`Disponibile anche ${etichettaModalita(true)}`}
                   </AppText>
                 </View>
               ) : null}
+              {publishedAt ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
+                  <AppText variant="small" tone="secondary">
+                    {`Pubblicato il ${publishedAt}`}
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Declared gap G3: no public profile endpoint for another user. */}
+            <View
+              style={{
+                gap: space.xs,
+                padding: space.md,
+                borderRadius: radius.input,
+                borderWidth: 1,
+                borderColor: t.border,
+                backgroundColor: t.background,
+              }}
+            >
+              <AppText variant="small" style={{ fontWeight: '600' }}>
+                Cosa offre e cerca
+              </AppText>
+              <AppText variant="small" tone="secondary">
+                Non disponibile: il backend non espone ancora il profilo pubblico di un altro
+                utente, quindi qui non si possono mostrare le sue altre offerte e ricerche.
+              </AppText>
             </View>
 
             <View style={{ gap: space.sm }}>
@@ -133,10 +158,23 @@ export function ServiceDetailModal({ servizio, onChiudi }) {
               </AppText>
             </View>
 
+            <View style={{ gap: space.xs }}>
+              <AppButton
+                label="Segnala"
+                variant="ghost"
+                icon="flag-outline"
+                onPress={() => onReport?.(servizio)}
+                accessibilityLabel={`Segnala ${name} alla staff`}
+              />
+              <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                La segnalazione arriva alla staff, che la esamina e decide.
+              </AppText>
+            </View>
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Chiudi dettaglio servizio"
-              onPress={onChiudi}
+              onPress={onClose}
               style={({ pressed }) => ({
                 alignSelf: 'flex-end',
                 backgroundColor: pressed ? t.primaryPressed : t.primary,

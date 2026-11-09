@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { AppButton } from '@/components/AppButton';
@@ -52,8 +53,32 @@ const NOTA_FILTRO_AREA =
  */
 export default function HomeScreen() {
   const { token, utente } = useAuth();
+  const router = useRouter();
   const t = useTokens();
   const [dettaglio, setDettaglio] = useState(null);
+
+  /**
+   * The report action of the detail panel: the route needs the reported user's
+   * id (the author always comes from the JWT) and, for the copy, the name the
+   * panel already shows. The catalog never contains the viewer's own rows, so
+   * the self-report case cannot be reached from here.
+   */
+  function apriSegnalazione(servizio) {
+    const autore = servizio?.offerente ?? {};
+    if (!Number.isInteger(autore.id)) {
+      return;
+    }
+    setDettaglio(null);
+    router.push({
+      pathname: '/report',
+      params: {
+        reportedUserId: String(autore.id),
+        username: autore.username ?? '',
+        nome: autore.nome ?? '',
+        cognome: autore.cognome ?? '',
+      },
+    });
+  }
 
   const {
     categorie,
@@ -205,7 +230,11 @@ export default function HomeScreen() {
     // L'unica schermata larga: le card del catalogo guadagnano spazio su
     // desktop, tutte le altre restano su `layout.maxContent`.
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh} larga>
-      <ServiceDetailModal servizio={dettaglio} onChiudi={() => setDettaglio(null)} />
+      <ServiceDetailModal
+        servizio={dettaglio}
+        onClose={() => setDettaglio(null)}
+        onReport={apriSegnalazione}
+      />
 
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Servizi</AppText>
