@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError } from '@/api/client';
 import { getProfile, updateProfile } from '@/api';
+import { INVALID_PROFILE_MESSAGE } from '@/api/areas/profile';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -19,183 +20,215 @@ import {
   formattaLocalita,
   provincePerRegione,
 } from '@/services/italian-regions';
-import { space } from '@/theme/tokens';
+import { maxLengthError, photoUrlError, requiredError } from '@/validation';
+import { radius, space, useTokens } from '@/theme/tokens';
 
-const LIMITI = {
-  localita: { max: 255, messaggio: 'La località può avere al massimo 255 caratteri.' },
-  bio: { max: 1000, messaggio: 'La bio può avere al massimo 1000 caratteri.' },
+/** Field limits, copied from `ProfileController::validateField`. */
+const LIMITS = {
+  nome: 50,
+  cognome: 50,
+  bio: 1000,
+  localita: 255,
 };
 
-const ERRORE_GENERICO_400 = 'Controlla i dati inseriti: manca qualcosa o non è valido.';
+const PHOTO_HTTPS_MESSAGE =
+  "L'indirizzo dell'immagine deve essere https: il backend rifiuta http.";
 
 /**
- * Controlla un campo con i **limiti del backend** (location 1–255, bio ≤1000,
- * entrambi anche svuotabili): la validazione è client-side, per campo, in
- * italiano (§8 di `AGENTS.md`, niente lib di schema). Un campo vuoto è
- * legittimo: si scriverà `null` e il backend lo svuota.
- */
-function validaCampo(campo, testo) {
-  const { max, messaggio } = LIMITI[campo];
-  return testo.length > max ? messaggio : null;
-}
-
-/**
- * «Modifica profilo»: la rotta che rende finalmente scrivibili località e bio
- * (`PATCH /api/profile`), aperta dalla schermata Profilo.
+ * "Modifica profilo": name, surname, location, bio and the photo URL.
  *
- * Suono di fondo del piano: **non si salva nulla di ciò che non è cambiato**.
- * I campi arrivano precompilati dalla GET, e al «Salva» il corpo della PATCH
- * contiene solo i campi diversati — così l'invariante «almeno un campo» del
- * backend è rispettata senza controlli speciali e «Salva» è disabilitato quando
- * non c'è nulla da mandare.
+ * Nothing is saved that did not change: the form starts from the values of the
+ * `GET`, and the `PATCH` body carries only the fields that differ, which also
+ * satisfies the backend's "at least one field" rule without special cases.
  *
- * La località si sceglie con due selettori a cascata (regione → provincia) e
- * viene composta in `Provincia (Regione)` da `formattaLocalita`: il backend
- * continua a ricevere la stringa `location` di sempre. Un valore salvato in
- * vecchio formato (non parsabile) parte con i selettori vuoti e viene mostrato
- * così com'è, mai azzerato in silenzio: si aggiorna solo se chi lo possiede
- * sceglie esplicitamente regione e provincia.
+ * The photo is a pasted URL (`docs/backend-gaps.md` and brief decision 13): no
+ * upload, no storage. It is validated twice — shape in `src/validation/`, and
+ * "does it actually load" through an `Image` onError — because a URL that
+ * points at a 404 is a broken profile even when it looks well formed.
  *
- * Gli stati sono tutti espliciti (§7 di `AGENTS.md`):
- * - **caricamento**: `LoadingScreen` finché la GET non porta i valori attuali
- *   (il form non apre mai vuoto o a metà);
- * - **validazione**: errori italiani sotto il campo, i limiti sono quelli del
- *   backend (`validateField()` del controller);
- * - **errore di salvataggio**: `Banner` il form **conserva tutto ciò che è
- *   stato digitato** e «Salva» torna attivo, per riprovare;
- * - **disabilitato**: «Salva» non reagisce se non è cambiato nulla;
- * - un `401` si gestisce da solo in `client.js` (logout), i messaggi di errore
- *   in inglese del backend `400` si sostituiscono con un messaggio generico
- *   italiano, il resto passa così com'è.
+ * Errors stay explicit: shape errors under their field, a failed save in a
+ * banner that keeps everything typed, and a failed load in the preview area.
  */
 export default function EditProfileScreen() {
   const { token } = useAuth();
   const router = useRouter();
+  const t = useTokens();
 
-  const [primoCaricamento, setPrimoCaricamento] = useState(true);
-  const [caricamentoProfilo, setCaricamentoProfilo] = useState(false);
-  const [caricamentoErrore, setCaricamentoErrore] = useState(null);
+  const [firstLoad, setFirstLoad] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
-  const [regione, setRegione] = useState(null);
-  const [provincia, setProvincia] = useState(null);
-  // Valore `location` in vecchio formato (non parsabile): si mostra così com'è
-  // finché l'utente non aggiorna i selettori; `null` se non serve.
-  const [legacyLocalita, setLegacyLocalita] = useState(null);
-  const [bio, setBio] = useState('');
-  const [erroreBio, setErroreBio] = useState(null);
+  const [form, setForm] = useState({
+    nome: '',
+    cognome: '',
+    regione: null,
+    provincia: null,
+    bio: '',
+    immagineProfilo: '',
+  });
+  const [initial, setInitial] = useState({});
+  const [legacyLocation, setLegacyLocation] = useState(null);
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
-  const [erroreSalvataggio, setErroreSalvataggio] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
-  // I valori attuali del server: servono perché «Salva» calcoli il da-salvare.
-  const [valoriIniziali, setValoriIniziali] = useState({ localita: '', bio: '' });
-
-  const caricaProfilo = useCallback(async () => {
+  const loadProfile = useCallback(async () => {
     if (!token) {
       return;
     }
-    setCaricamentoProfilo(true);
+    setLoading(true);
     try {
-      const profilo = await getProfile(token);
-      const attuali = { localita: profilo?.localita ?? '', bio: profilo?.bio ?? '' };
-      setValoriIniziali(attuali);
-      // Valore parsabile → selettori precaricati; valore legacy (o vuoto) →
-      // selettori vuoti e, se non era vuoto, riga con il valore attuale.
-      const coppia = analizzaLocalita(attuali.localita);
-      setRegione(coppia?.regione ?? null);
-      setProvincia(coppia?.provincia ?? null);
-      setLegacyLocalita(coppia ? null : attuali.localita || null);
-      setBio(attuali.bio);
-      setErroreBio(null);
-      setErroreSalvataggio(null);
-      setCaricamentoErrore(null);
+      const profile = await getProfile(token);
+      const location = profile?.localita ?? '';
+      const pair = analizzaLocalita(location);
+      const values = {
+        nome: profile?.nome ?? '',
+        cognome: profile?.cognome ?? '',
+        bio: profile?.bio ?? '',
+        immagineProfilo: profile?.immagineProfilo ?? '',
+        localita: location,
+      };
+      setInitial(values);
+      setForm({
+        nome: values.nome,
+        cognome: values.cognome,
+        regione: pair?.regione ?? null,
+        provincia: pair?.provincia ?? null,
+        bio: values.bio,
+        immagineProfilo: values.immagineProfilo,
+      });
+      setLegacyLocation(pair || !location ? null : location);
+      setPhotoLoadFailed(false);
+      setFieldErrors({});
+      setSaveError(null);
+      setLoadError(null);
     } catch (err) {
-      setCaricamentoErrore(
-        err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.',
-      );
+      setLoadError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
     } finally {
-      setCaricamentoProfilo(false);
-      setPrimoCaricamento(false);
+      setLoading(false);
+      setFirstLoad(false);
     }
   }, [token]);
 
-  // La rotta apre con i valori attuali del server: i campi non si presentano
-  // mai vuoti per errore (finché la GET non l'ha detta, c'è `LoadingScreen`).
-  // `useFocusEffect` (e non `useEffect`) è il pattern della schermata Profilo:
-  // la lettura si lega all'entrata in primo piano, non ai render.
   useFocusEffect(
     useCallback(() => {
-      void caricaProfilo();
-    }, [caricaProfilo]),
+      void loadProfile();
+    }, [loadProfile]),
   );
 
-  const cambiaRegione = useCallback((nuovaRegione) => {
-    setRegione(nuovaRegione);
-    // Nella nuova regione la provincia vecchia non è valida: si azzera sempre.
-    setProvincia(null);
-  }, []);
+  function update(field, value) {
+    setForm((current) => (field === 'regione'
+      ? { ...current, regione: value, provincia: null }
+      : { ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: null }));
+    if (field === 'immagineProfilo') {
+      setPhotoLoadFailed(false);
+    }
+  }
 
-  // `setProvincia` già è stabile: nessun useCallback serve.
-  const cambiaProvincia = setProvincia;
+  // Derived, never stored: what would travel, and whether it differs.
+  const composedLocation = formattaLocalita(form.provincia, form.regione);
+  const locationChanged =
+    form.regione !== null &&
+    form.provincia !== null &&
+    composedLocation !== null &&
+    composedLocation !== (initial.localita ?? '');
+  const changes = {};
+  if (form.nome.trim() !== (initial.nome ?? '')) {
+    changes.nome = form.nome;
+  }
+  if (form.cognome.trim() !== (initial.cognome ?? '')) {
+    changes.cognome = form.cognome;
+  }
+  if (locationChanged) {
+    changes.localita = composedLocation;
+  }
+  if (form.bio.trim() !== (initial.bio ?? '')) {
+    changes.bio = form.bio;
+  }
+  if (form.immagineProfilo.trim() !== (initial.immagineProfilo ?? '')) {
+    changes.immagineProfilo = form.immagineProfilo;
+  }
+  const dirty = Object.keys(changes).length > 0;
 
-  const aggiornaBio = useCallback((testo) => {
-    setBio(testo);
-    setErroreBio(validaCampo('bio', testo));
-  }, []);
+  const nameError = fieldErrors.nome;
+  const surnameError = fieldErrors.cognome;
+  const provinceError =
+    form.regione !== null && form.provincia === null ? 'Seleziona la provincia.' : null;
+  const locationError =
+    composedLocation !== null && composedLocation.length > LIMITS.localita
+      ? `La località può avere al massimo ${LIMITS.localita} caratteri.`
+      : null;
+  const bioError = fieldErrors.bio;
+  const photoError = fieldErrors.immagineProfilo;
+  const valid =
+    !nameError &&
+    !surnameError &&
+    !provinceError &&
+    !locationError &&
+    !bioError &&
+    !photoError &&
+    !photoLoadFailed;
 
-  // Derivati, non stato: la provincia manca solo dopo una scelta di regione,
-  // quindi l'errore si ricalcola a ogni render senza venire memorizzato.
-  const nuovaLocalita = formattaLocalita(provincia, regione);
-  const localitaCambiata = nuovaLocalita !== null && nuovaLocalita !== valoriIniziali.localita;
-  const bioCambiata = bio.trim() !== valoriIniziali.bio;
-  const formNonCambiato = !(localitaCambiata || bioCambiata);
-  const erroreProvincia = regione && !provincia ? 'Seleziona la provincia.' : null;
-  // Rete di sicurezza sul limite del backend (255): col formato composto
-  // non si sfora di norma, resta per il caso fuori scala.
-  const erroreLunghezzaLocalita = nuovaLocalita ? validaCampo('localita', nuovaLocalita) : null;
-  const validazione =
-    erroreBio === null && erroreProvincia === null && erroreLunghezzaLocalita === null;
+  function validate() {
+    const errors = {
+      nome:
+        requiredError(form.nome, 'Il nome è obbligatorio.') ??
+        maxLengthError(form.nome, LIMITS.nome, `Il nome può avere al massimo ${LIMITS.nome} caratteri.`),
+      cognome:
+        requiredError(form.cognome, 'Il cognome è obbligatorio.') ??
+        maxLengthError(
+          form.cognome,
+          LIMITS.cognome,
+          `Il cognome può avere al massimo ${LIMITS.cognome} caratteri.`,
+        ),
+      bio: maxLengthError(form.bio, LIMITS.bio, `La bio può avere al massimo ${LIMITS.bio} caratteri.`),
+      immagineProfilo: photoUrlError(form.immagineProfilo),
+    };
+    setFieldErrors(
+      Object.fromEntries(Object.entries(errors).filter(([, message]) => message !== null)),
+    );
+    return Object.values(errors).every((message) => message === null);
+  }
 
-  async function handleSalva() {
-    if (!token || formNonCambiato || !validazione) {
+  async function save() {
+    if (!token || saving || !dirty) {
       return;
     }
-    setSalvataggioInCorso(true);
-    setErroreSalvataggio(null);
-    const modifiche = {};
-    if (localitaCambiata) {
-      modifiche.localita = nuovaLocalita;
+    if (!validate()) {
+      return;
     }
-    if (bioCambiata) {
-      modifiche.bio = bio.trim();
-    }
+    setSaving(true);
+    setSaveError(null);
     try {
-      await updateProfile(token, modifiche);
-      // La schermata Profilo si rilegge già al focus (passo 01): si torna
-      // indietro e lasciamo che sia lei a mostrare i valori nuovi. Nessun
-      // banner di successo, nessuna copia locale dei dati. Se la rotta è stata
-      // aperta da un link diretto (web) non c'è nulla a cui tornare: si va
-      // comunque alla Profilo.
+      await updateProfile(token, changes);
       if (router.canGoBack()) {
         router.back();
       } else {
         router.replace('/(tabs)/profile');
       }
     } catch (err) {
-      const messaggio =
+      const message =
         err instanceof ApiError
           ? err.status === 400
-            ? ERRORE_GENERICO_400
+            ? 'immagineProfilo' in changes
+              ? `${INVALID_PROFILE_MESSAGE} ${PHOTO_HTTPS_MESSAGE}`
+              : INVALID_PROFILE_MESSAGE
             : err.message
           : 'Errore imprevisto. Riprova.';
-      setErroreSalvataggio(messaggio);
-      setSalvataggioInCorso(false);
+      setSaveError(message);
+      setSaving(false);
     }
   }
 
-  if (primoCaricamento && caricamentoProfilo) {
+  if (firstLoad && loading) {
     return <LoadingScreen label="Carico il tuo profilo…" />;
   }
+
+  const photoUrl = form.immagineProfilo.trim();
+  const photoLooksValid = photoUrl !== '' && photoUrlError(photoUrl) === null;
 
   return (
     <Screen scroll withBottomInset={false}>
@@ -205,19 +238,19 @@ export default function EditProfileScreen() {
       </View>
 
       <AppText variant="small" tone="secondary">
-        Puoi cambiare la località, scegliendo regione e provincia, e la bio. Nome e cognome non si
-        cambiano da qui.
+        Nome, cognome, località, bio e immagine del profilo: gli altri vedono questi dati
+        quando ti contattano.
       </AppText>
 
-      {caricamentoErrore ? (
+      {loadError ? (
         <View style={{ gap: space.md }}>
-          <Banner kind="error" message={caricamentoErrore} />
+          <Banner kind="error" message={loadError} />
           <AppButton
             label="Riprova"
             variant="secondary"
             icon="refresh-outline"
-            onPress={() => void caricaProfilo()}
-            loading={caricamentoProfilo}
+            onPress={() => void loadProfile()}
+            loading={loading}
             style={{ alignSelf: 'flex-start' }}
           />
         </View>
@@ -225,53 +258,143 @@ export default function EditProfileScreen() {
 
       <Card>
         <View style={{ gap: space.md }}>
+          <View style={{ flexDirection: 'row', gap: space.md }}>
+            <View style={{ flex: 1 }}>
+              <AppInput
+                label="Nome"
+                value={form.nome}
+                onChangeText={(value) => update('nome', value)}
+                autoCapitalize="words"
+                maxLength={LIMITS.nome}
+                error={nameError ?? null}
+                editable={!saving}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppInput
+                label="Cognome"
+                value={form.cognome}
+                onChangeText={(value) => update('cognome', value)}
+                autoCapitalize="words"
+                maxLength={LIMITS.cognome}
+                error={surnameError ?? null}
+                editable={!saving}
+              />
+            </View>
+          </View>
+
           <ListSelector
             label="Regione"
-            valore={regione}
-            opzioni={REGIONI.map((r) => r.nome)}
-            onChange={cambiaRegione}
-            disabled={caricamentoProfilo || salvataggioInCorso}
+            valore={form.regione}
+            opzioni={REGIONI.map((region) => region.nome)}
+            onChange={(value) => update('regione', value)}
+            disabled={saving}
           />
           <ListSelector
             label="Provincia"
-            placeholder={regione ? 'Scegli' : 'Scegli prima la regione'}
-            valore={provincia}
-            opzioni={provincePerRegione(regione)}
-            onChange={cambiaProvincia}
-            disabled={!regione || caricamentoProfilo || salvataggioInCorso}
-            errore={erroreProvincia}
+            placeholder={form.regione ? 'Scegli' : 'Scegli prima la regione'}
+            valore={form.provincia}
+            opzioni={provincePerRegione(form.regione)}
+            onChange={(value) => update('provincia', value)}
+            disabled={!form.regione || saving}
+            errore={provinceError}
           />
-          {legacyLocalita ? (
+          {legacyLocation ? (
             <AppText variant="small" tone="secondary">
-              Valore attuale: {legacyLocalita} — scegli regione e provincia per aggiornarlo.
+              {`Valore attuale: ${legacyLocation} — scegli regione e provincia per aggiornarlo.`}
             </AppText>
           ) : null}
-          {erroreLunghezzaLocalita ? (
+          {locationError ? (
             <AppText variant="small" tone="danger">
-              {erroreLunghezzaLocalita}
+              {locationError}
             </AppText>
           ) : null}
+
           <AppInput
             label="Bio"
-            value={bio}
-            onChangeText={aggiornaBio}
+            value={form.bio}
+            onChangeText={(value) => update('bio', value)}
             placeholder="Racconta le competenze che offri e cerchi"
             multiline
-            maxLength={LIMITI.bio.max}
-            contatore={`${bio.length}/${LIMITI.bio.max}`}
-            editable={!caricamentoProfilo && !salvataggioInCorso}
-            error={erroreBio}
+            maxLength={LIMITS.bio}
+            contatore={`${form.bio.length}/${LIMITS.bio}`}
+            editable={!saving}
+            error={bioError ?? null}
           />
         </View>
       </Card>
 
-      {erroreSalvataggio ? <Banner kind="error" message={erroreSalvataggio} /> : null}
+      <Card>
+        <View style={{ gap: space.md }}>
+          <View style={{ gap: space.xs }}>
+            <AppText variant="heading">Immagine del profilo</AppText>
+            <AppText variant="small" tone="secondary">
+              Incolla l&apos;indirizzo di un&apos;immagine .png, .jpg o .jpeg. Non si caricano file:
+              il backend salva solo l&apos;indirizzo.
+            </AppText>
+          </View>
+
+          <AppInput
+            label="URL dell'immagine"
+            value={form.immagineProfilo}
+            onChangeText={(value) => update('immagineProfilo', value)}
+            placeholder="https://esempio.it/foto.jpg"
+            autoCapitalize="none"
+            maxLength={2048}
+            editable={!saving}
+            error={photoError ?? null}
+          />
+
+          {photoLooksValid ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <Image
+                source={{ uri: photoUrl }}
+                accessibilityLabel="Anteprima dell'immagine del profilo"
+                onError={() => setPhotoLoadFailed(true)}
+                onLoad={() => setPhotoLoadFailed(false)}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: radius.card,
+                  backgroundColor: t.border,
+                }}
+              />
+              {photoLoadFailed ? (
+                <AppText variant="small" tone="danger" style={{ flexShrink: 1 }}>
+                  L&apos;immagine non si carica: controlla che l&apos;indirizzo esista e sia
+                  raggiungibile. Non salvo un indirizzo rotto.
+                </AppText>
+              ) : (
+                <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
+                  Anteprima dell&apos;immagine che gli altri vedranno.
+                </AppText>
+              )}
+            </View>
+          ) : null}
+
+          {photoUrl !== '' ? (
+            <AppButton
+              label="Togli l'immagine"
+              variant="ghost"
+              icon="close-outline"
+              disabled={saving}
+              onPress={() => {
+                update('immagineProfilo', '');
+                setPhotoLoadFailed(false);
+              }}
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
+        </View>
+      </Card>
+
+      {saveError ? <Banner kind="error" message={saveError} /> : null}
 
       <AppButton
-        label={salvataggioInCorso ? 'Salvataggio in corso…' : 'Salva modifiche'}
-        onPress={() => void handleSalva()}
-        loading={salvataggioInCorso}
-        disabled={formNonCambiato || !validazione}
+        label={saving ? 'Salvataggio in corso…' : 'Salva modifiche'}
+        onPress={() => void save()}
+        loading={saving}
+        disabled={!dirty || !valid}
         icon="checkmark-outline"
       />
     </Screen>

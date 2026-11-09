@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
@@ -51,6 +51,9 @@ export default function ProfileScreen() {
   const [primoCaricamento, setPrimoCaricamento] = useState(true);
   const [richiestaInCorso, setRichiestaInCorso] = useState(false);
   const [errore, setErrore] = useState(null);
+  // The pasted photo URL may point at nothing: an explicit state says so
+  // instead of leaving a blank circle that looks like a loading bug.
+  const [immagineRotta, setImmagineRotta] = useState(false);
 
   // Le richieste in volo: una risposta si applica solo se nessuna più recente è
   // già partita (il focus non litiga con un «Riprova»), come nella home.
@@ -68,6 +71,7 @@ export default function ProfileScreen() {
         return;
       }
       setProfilo(dati);
+      setImmagineRotta(false);
       setErrore(null);
     } catch (err) {
       if (seq !== richiestaRef.current) {
@@ -123,6 +127,8 @@ export default function ProfileScreen() {
   const email = profilo?.email ?? null;
   const localita = profilo?.localita ?? null;
   const bio = profilo?.bio ?? null;
+  const immagine = profilo?.immagineProfilo ?? null;
+  const mostraImmagine = immagine !== null && !immagineRotta;
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -153,22 +159,38 @@ export default function ProfileScreen() {
       ) : null}
 
       <View style={{ alignItems: 'center', gap: space.md, paddingTop: space.md }}>
-        {/* L'immagine del profilo non si mostra (decisione del piano): il
-            cerchio resta con le iniziali, che non dipendono dal server. */}
-        <View
-          style={{
-            width: 84,
-            height: 84,
-            borderRadius: 999,
-            backgroundColor: t.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <AppText variant="title" tone="onPrimary" style={{ fontSize: 30 }}>
-            {iniziali}
+        {/* The pasted photo URL, when the image loads. When it does not, the
+            initials stay and the line below says it explicitly: a broken image
+            is a state, not something to hide. */}
+        {mostraImmagine ? (
+          <Image
+            source={{ uri: immagine }}
+            accessibilityLabel="Immagine del profilo"
+            onError={() => setImmagineRotta(true)}
+            style={{ width: 84, height: 84, borderRadius: 999 }}
+          />
+        ) : (
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 999,
+              backgroundColor: t.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AppText variant="title" tone="onPrimary" style={{ fontSize: 30 }}>
+              {iniziali}
+            </AppText>
+          </View>
+        )}
+        {immagine !== null && immagineRotta ? (
+          <AppText variant="caption" tone="danger" style={{ textAlign: 'center' }}>
+            L&apos;immagine del profilo non si carica: controlla l&apos;indirizzo in «Modifica
+            profilo».
           </AppText>
-        </View>
+        ) : null}
         <View style={{ alignItems: 'center', gap: 2 }}>
           <AppText variant="title" style={{ fontSize: 22 }}>
             {displayName}
