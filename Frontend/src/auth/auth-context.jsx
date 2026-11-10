@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import * as api from '@/api';
-import { setSessionExpiredHandler } from '@/api/client';
+import { SESSION_EXPIRED_MESSAGE, setSessionExpiredHandler } from '@/api/client';
 import { clearSession, isTokenValid, loadSession, saveSession } from './token-store';
 
 const AuthContext = createContext(null);
@@ -28,6 +28,10 @@ function utenteDallaRisposta(risposta) {
 export function AuthProvider({ children }) {
   const [booting, setBooting] = useState(true);
   const [session, setSession] = useState(null);
+  // Perche' la sessione e' finita. Serve alla schermata di accesso: senza,
+  // l'utente viene buttato fuori e non sa se ha sbagliato lui o se il token e'
+  // scaduto (audit UX F25). Si azzera al primo accesso riuscito.
+  const [motivoUscita, setMotivoUscita] = useState(null);
 
   // All'avvio ripristiniamo la sessione salvata, se il token non è scaduto.
   useEffect(() => {
@@ -63,6 +67,7 @@ export function AuthProvider({ children }) {
     setSessionExpiredHandler(() => {
       void clearSession();
       setSession(null);
+      setMotivoUscita(SESSION_EXPIRED_MESSAGE);
     });
     return () => {
       setSessionExpiredHandler(null);
@@ -74,6 +79,7 @@ export function AuthProvider({ children }) {
     const nextSession = { token: response.token, utente: utenteDallaRisposta(response) };
     await saveSession(nextSession);
     setSession(nextSession);
+    setMotivoUscita(null);
   }, []);
 
   const signUp = useCallback(async (input) => {
@@ -86,7 +92,11 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     await clearSession();
     setSession(null);
+    setMotivoUscita(null);
   }, []);
+
+  /** L'utente ha letto il motivo dell'uscita: sparisce dalla schermata di accesso. */
+  const congedaMotivo = useCallback(() => setMotivoUscita(null), []);
 
   // Rilegge la sessione salvata (pull-to-refresh del Profilo): se nel frattempo
   // il token è scaduto si chiude la sessione, altrimenti la UI torna allineata
@@ -107,12 +117,14 @@ export function AuthProvider({ children }) {
       booting,
       token: session?.token ?? null,
       utente: session?.utente ?? null,
+      motivoUscita,
+      congedaMotivo,
       signIn,
       signUp,
       signOut,
       ricaricaSessione,
     }),
-    [booting, session, signIn, signUp, signOut, ricaricaSessione],
+    [booting, session, motivoUscita, congedaMotivo, signIn, signUp, signOut, ricaricaSessione],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,9 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { formatOrarioScadenza, tokenExpiresAt } from '@/auth/token-store';
 import { getProfile } from '@/api';
 import { localitaPerDisplay } from '@/services/italian-regions';
@@ -11,11 +10,12 @@ import { useRefresh } from '@/hooks/useRefresh';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppButton } from '@/components/AppButton';
+import { AppIcon } from '@/components/AppIcon';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ThemeSelector } from '@/components/ThemeSelector';
-import { space, useTokens } from '@/theme/tokens';
+import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
  * «Profilo»: i dati della sessione (nome, username, ruolo) **più** email,
@@ -42,6 +42,9 @@ import { space, useTokens } from '@/theme/tokens';
 export default function ProfileScreen() {
   const { utente, token, signOut, ricaricaSessione } = useAuth();
   const router = useRouter();
+  // «Modifiche salvate»: il salvataggio del profilo porta qui il suo esito
+  // (audit UX F35), e l'utente lo chiude quando l'ha letto.
+  const { salvato } = useLocalSearchParams();
   const t = useTokens();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -79,7 +82,7 @@ export default function ProfileScreen() {
       }
       // Un 401 è già gestito da `client.js` (logout e ritorno al login):
       // qui restano il 403 (account inattivo), la rete assente e gli altri.
-      setErrore(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       if (seq === richiestaRef.current) {
         setRichiestaInCorso(false);
@@ -148,6 +151,16 @@ export default function ProfileScreen() {
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+      {salvato ? (
+        <Banner
+          kind="success"
+          message="Modifiche salvate."
+          etichettaAzione="Ho capito"
+          iconaAzione="checkmark-outline"
+          onAzione={() => router.setParams({ salvato: undefined })}
+        />
+      ) : null}
+
       {errore !== null ? (
         <View style={{ gap: space.md, marginBottom: space.lg }}>
           <Banner kind="error" message={errore} />
@@ -169,20 +182,20 @@ export default function ProfileScreen() {
             source={{ uri: immagine }}
             accessibilityLabel="Immagine del profilo"
             onError={() => setImmagineRotta(true)}
-            style={{ width: 84, height: 84, borderRadius: 999 }}
+            style={{ width: 84, height: 84, borderRadius: radius.pill }}
           />
         ) : (
           <View
             style={{
               width: 84,
               height: 84,
-              borderRadius: 999,
+              borderRadius: radius.pill,
               backgroundColor: t.primary,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <AppText variant="title" tone="onPrimary" style={{ fontSize: 30 }}>
+            <AppText variant="display" tone="onPrimary">
               {iniziali}
             </AppText>
           </View>
@@ -193,8 +206,8 @@ export default function ProfileScreen() {
             profilo».
           </AppText>
         ) : null}
-        <View style={{ alignItems: 'center', gap: 2 }}>
-          <AppText variant="title" style={{ fontSize: 22 }}>
+        <View style={{ alignItems: 'center', gap: space.xs }}>
+          <AppText variant="title">
             {displayName}
           </AppText>
           {utente.username ? (
@@ -202,9 +215,12 @@ export default function ProfileScreen() {
               @{utente.username}
             </AppText>
           ) : null}
-          {ruolo ? (
+          {/* Il ruolo non è un'etichetta per chiunque: «USER» sotto il proprio
+              nome è un enum interno, non informazione (audit UX F29). Lo staff
+              invece ha bisogno di sapere di esserlo. */}
+          {isStaff ? (
             <AppText variant="small" tone="secondary">
-              {ruolo}
+              {ruolo === 'ADMIN' ? 'Amministrazione' : 'Staff'}
             </AppText>
           ) : null}
         </View>
@@ -242,9 +258,9 @@ export default function ProfileScreen() {
         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
       >
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <Ionicons name="pencil-outline" size={20} color={t.primary} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <AppText variant="heading" style={{ fontSize: 16 }}>
+          <AppIcon name="pencil-outline" size={20} color={t.primary} />
+          <View style={{ flex: 1, gap: space.xs }}>
+            <AppText variant="subheading">
               Modifica profilo
             </AppText>
             <AppText variant="small" tone="secondary">
@@ -252,13 +268,13 @@ export default function ProfileScreen() {
               vedono quando ti contattano.
             </AppText>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
+          <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
         </Card>
       </Pressable>
 
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Ionicons name="time-outline" size={18} color={t.textSecondary} />
+          <AppIcon name="time-outline" size={18} color={t.textSecondary} />
           <AppText variant="small" tone="secondary">
             {expiresAt
               ? `Sessione valida fino alle ${formatOrarioScadenza(expiresAt * 1000)}`
@@ -277,16 +293,16 @@ export default function ProfileScreen() {
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={t.primary} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <AppText variant="heading" style={{ fontSize: 16 }}>
+            <AppIcon name="shield-checkmark-outline" size={20} color={t.primary} />
+            <View style={{ flex: 1, gap: space.xs }}>
+              <AppText variant="subheading">
                 Area staff
               </AppText>
               <AppText variant="small" tone="secondary">
                 Esamina le segnalazioni e chiudile con un esito.
               </AppText>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={t.textSecondary} />
+            <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
           </Card>
         </Pressable>
       ) : null}
@@ -302,9 +318,12 @@ export default function ProfileScreen() {
         <ThemeSelector />
       </Card>
 
+      {/* «Esci» era il controllo più rumoroso del profilo (audit UX F08): è
+          un'uscita, non il compito della schermata. Resta riconoscibile
+          (icona + parola) ma non compete con «Modifica profilo». */}
       <AppButton
         label="Esci"
-        variant="danger"
+        variant="ghost"
         onPress={handleSignOut}
         loading={signingOut}
         icon="log-out-outline"
@@ -318,7 +337,7 @@ function RigaProfilo({ icona, etichetta, valore }) {
   const t = useTokens();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-      <Ionicons name={icona} size={18} color={t.textSecondary} style={{ marginTop: 1 }} />
+      <AppIcon name={icona} size={18} color={t.textSecondary} style={{ marginTop: 1 }} />
       <View style={{ flex: 1, flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' }}>
         <AppText variant="small" tone="secondary">
           {etichetta}:

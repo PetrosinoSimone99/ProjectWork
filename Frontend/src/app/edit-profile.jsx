@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getProfile, updateProfile } from '@/api';
 import { INVALID_PROFILE_MESSAGE } from '@/api/areas/profile';
 import { BackButton } from '@/components/BackButton';
@@ -32,7 +32,31 @@ const LIMITS = {
 };
 
 const PHOTO_HTTPS_MESSAGE =
-  "L'indirizzo dell'immagine deve essere https: il backend rifiuta http.";
+  "L'indirizzo dell'immagine deve iniziare con https://.";
+
+/**
+ * La bozza di una modifica interrotta.
+ *
+ * Quando una richiesta risponde 401 la sessione si chiude e questa schermata,
+ * che è protetta, non può più salvare: prima restava aperta con il modulo
+ * modificabile e «Salva» ripeteva lo stesso guasto, e l'unico modo per uscire
+ * era ricaricare la pagina perdendo il testo (audit UX F26). La bozza vive qui,
+ * in memoria, per il tempo di un nuovo accesso: niente disco, niente dati
+ * rimasti dopo la chiusura dell'app.
+ */
+let bozzaInterrotta = null;
+
+/** I valori di partenza di un modulo vuoto. */
+function formVuoto() {
+  return {
+    nome: '',
+    cognome: '',
+    regione: null,
+    provincia: null,
+    bio: '',
+    immagineProfilo: '',
+  };
+}
 
 /**
  * "Modifica profilo": name, surname, location, bio and the photo URL.
@@ -50,7 +74,7 @@ const PHOTO_HTTPS_MESSAGE =
  * banner that keeps everything typed, and a failed load in the preview area.
  */
 export default function EditProfileScreen() {
-  const { token } = useAuth();
+  const { token, utente } = useAuth();
   const router = useRouter();
   const t = useTokens();
 
@@ -58,15 +82,11 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
 
-  const [form, setForm] = useState({
-    nome: '',
-    cognome: '',
-    regione: null,
-    provincia: null,
-    bio: '',
-    immagineProfilo: '',
-  });
-  const [initial, setInitial] = useState({});
+  // Se c'è una bozza interrotta da un 401, il modulo riparte da lì: è il lavoro
+  // che l'utente aveva già scritto.
+  const [form, setForm] = useState(() => bozzaInterrotta?.form ?? formVuoto());
+  const [initial, setInitial] = useState(() => bozzaInterrotta?.initial ?? {});
+  const bozzaRipresa = useRef(Boolean(bozzaInterrotta));
   const [legacyLocation, setLegacyLocation] = useState(null);
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -76,6 +96,13 @@ export default function EditProfileScreen() {
 
   const loadProfile = useCallback(async () => {
     if (!token) {
+      return;
+    }
+    if (bozzaRipresa.current) {
+      // La bozza vale più del profilo letto dal server: non si sovrascrive.
+      bozzaRipresa.current = false;
+      bozzaInterrotta = null;
+      setFirstLoad(false);
       return;
     }
     setLoading(true);
@@ -105,7 +132,7 @@ export default function EditProfileScreen() {
       setSaveError(null);
       setLoadError(null);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setLoadError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setLoading(false);
       setFirstLoad(false);
@@ -117,6 +144,16 @@ export default function EditProfileScreen() {
       void loadProfile();
     }, [loadProfile]),
   );
+
+  // Senza sessione questa schermata non può salvare niente: si esce subito,
+  // portandosi dietro il testo e la strada per tornare (audit UX F26).
+  useEffect(() => {
+    if (utente) {
+      return;
+    }
+    bozzaInterrotta = { form, initial, legacyLocation };
+    router.replace({ pathname: '/login', params: { ritorno: '/edit-profile' } });
+  }, [utente, form, initial, legacyLocation, router]);
 
   function update(field, value) {
     setForm((current) => (field === 'regione'
@@ -204,11 +241,9 @@ export default function EditProfileScreen() {
     setSaveError(null);
     try {
       await updateProfile(token, changes);
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/(tabs)/profile');
-      }
+      bozzaInterrotta = null;
+      // Una conferma al ritorno, non il silenzio (audit UX F35).
+      router.replace({ pathname: '/(tabs)/profile', params: { salvato: '1' } });
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -217,7 +252,7 @@ export default function EditProfileScreen() {
               ? `${INVALID_PROFILE_MESSAGE} ${PHOTO_HTTPS_MESSAGE}`
               : INVALID_PROFILE_MESSAGE
             : err.message
-          : 'Errore imprevisto. Riprova.';
+          : GENERIC_ERROR_MESSAGE;
       setSaveError(message);
       setSaving(false);
     }
@@ -329,8 +364,8 @@ export default function EditProfileScreen() {
           <View style={{ gap: space.xs }}>
             <AppText variant="heading">Immagine del profilo</AppText>
             <AppText variant="small" tone="secondary">
-              Incolla l&apos;indirizzo di un&apos;immagine .png, .jpg o .jpeg. Non si caricano file:
-              il backend salva solo l&apos;indirizzo.
+              Incolla l&apos;indirizzo di un&apos;immagine .png, .jpg o .jpeg: l&apos;immagine resta
+              dove &egrave; ospitata, non ne conserviamo una copia.
             </AppText>
           </View>
 

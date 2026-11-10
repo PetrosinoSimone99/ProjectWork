@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getCategories } from '@/api';
 import {
   LIMITE_VOCI,
@@ -73,7 +73,7 @@ const SEZIONI = [
     tipo: TIPI_VOCE.OFFERTA,
     titolo: 'Cosa offri',
     introduzione:
-      'Scegli la categoria e spiega in due righe cosa fai.',
+      'Scegli la categoria e spiega in due righe cosa fai. Serve almeno una voce qui e una in «Cosa cerchi».',
     etichettaAggiungi: "Aggiungi un'altra offerta",
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
   },
@@ -219,7 +219,7 @@ export default function RegisterScreen() {
     } catch (err) {
       setCategorie([]);
       setStatoCategorie('errore');
-      setErroreCategorie(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreCategorie(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     }
   }, [token]);
 
@@ -282,6 +282,13 @@ export default function RegisterScreen() {
     setFieldErrors((correnti) => senzaPrefisso(correnti, `${chiave}.`));
   }
 
+  // Le stesse regole del submit, applicate prima: un pulsante attivo su un
+  // modulo che non può passare sposta la scoperta dell'errore al tocco (F07).
+  const anagraficaValida = Object.keys(validaAnagrafica(form)).length === 0;
+  const offertePresenti = offerte.some((voce) => !isBlankEntry(voce));
+  const ricerchePresenti = ricerche.some((voce) => !isBlankEntry(voce));
+  const puoInviare = categoriePronte && anagraficaValida && offertePresenti && ricerchePresenti;
+
   function validate() {
     const errori = {
       ...validaAnagrafica(form),
@@ -305,7 +312,7 @@ export default function RegisterScreen() {
     const requestEntries = toServiceEntries(ricerche);
     if (offersEntries.length === 0 || requestEntries.length === 0) {
       setError(
-        "Il backend oggi richiede almeno un'offerta e almeno una ricerca per creare l'account: aggiungine una per sezione. Potrai modificarle o eliminarle dopo la registrazione.",
+        "Per creare l'account serve almeno un'offerta e almeno una ricerca: aggiungine una per sezione. Potrai modificarle o eliminarle dopo la registrazione.",
       );
       return;
     }
@@ -323,7 +330,7 @@ export default function RegisterScreen() {
       });
       // A registrazione riuscita la root navigation passa da sola ai tab.
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setSubmitting(false);
     }
@@ -447,11 +454,18 @@ export default function RegisterScreen() {
           label="Crea account"
           onPress={handleSubmit}
           loading={submitting}
-          disabled={!categoriePronte}
+          disabled={!puoInviare}
         />
+        {puoInviare ? null : (
+          <AppText variant="small" tone="secondary">
+            {categoriePronte
+              ? "Per attivare il pulsante completa i dati obbligatori e aggiungi almeno una voce per sezione."
+              : 'Aspetto le categorie dal servizio: senza non posso creare l&apos;account.'}
+          </AppText>
+        )}
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
         <AppText variant="small" tone="secondary">
           Hai già un account?
         </AppText>

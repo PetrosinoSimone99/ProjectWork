@@ -18,7 +18,7 @@ export default function MatchScreen() {
       <EmptyState
         variante="non-disponibile"
         title="Non ancora disponibile"
-        description="Il match automatico arriverà quando il backend esporrà il calcolo delle compatibilità fra richieste e offerte."
+        description="Il match automatico arriverà: stiamo preparando il calcolo delle compatibilità fra richieste e offerte."
       />
     </Screen>
   );

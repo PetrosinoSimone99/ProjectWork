@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getCategories } from '@/api';
 
 /**
@@ -40,7 +40,7 @@ export function useCategories(token) {
     } catch (err) {
       setCategorie([]);
       setStato('errore');
-      setErrore(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     }
   }, [token]);
 

@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { AppIcon } from '@/components/AppIcon';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { requiredError } from '@/validation';
-import { space, useTokens } from '@/theme/tokens';
+import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
  * Login: username and password only.
@@ -20,9 +20,17 @@ import { space, useTokens } from '@/theme/tokens';
  * or whether the account is inactive. `api/index.js` collapses the backend
  * statuses into one message, so nothing here depends on the English text.
  * Missing-field errors are explicit: they are about what the user is typing.
+ *
+ * Two things are new since the audit. The session-expiry line: when a request
+ * returned 401 the session was cleared and the navigator dropped the user here
+ * with no explanation (F25) — the reason now comes from `useAuth` and says what
+ * happened. And the return path: the screen remembers where the user was
+ * (`ritorno`) so re-logging in does not start the task over (F26).
  */
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, motivoUscita, congedaMotivo } = useAuth();
+  const router = useRouter();
+  const { ritorno } = useLocalSearchParams();
   const t = useTokens();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -43,9 +51,13 @@ export default function LoginScreen() {
     setError(null);
     try {
       await signIn(username.trim(), password);
-      // On success the root navigator switches to the tabs by itself.
+      // On success the root navigator switches to the tabs by itself; if the
+      // user was thrown out of a screen, they land back on it.
+      if (typeof ritorno === 'string' && ritorno.startsWith('/')) {
+        router.replace(ritorno);
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setSubmitting(false);
     }
@@ -58,13 +70,13 @@ export default function LoginScreen() {
           style={{
             width: 64,
             height: 64,
-            borderRadius: 999,
+            borderRadius: radius.pill,
             backgroundColor: t.primary,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="swap-horizontal" size={30} color={t.onPrimary} />
+          <AppIcon name="swap-horizontal" size={30} color={t.onPrimary} />
         </View>
         <AppText variant="title">Baratto-lo</AppText>
         <AppText
@@ -78,6 +90,15 @@ export default function LoginScreen() {
       </View>
 
       <View style={{ gap: space.md, marginTop: space.xl }}>
+        {motivoUscita ? (
+          <Banner
+            kind="info"
+            message={motivoUscita}
+            etichettaAzione="Ho capito"
+            iconaAzione="checkmark-outline"
+            onAzione={congedaMotivo}
+          />
+        ) : null}
         {error ? <Banner kind="error" message={error} /> : null}
         <AppInput
           label="Username"
@@ -104,10 +125,17 @@ export default function LoginScreen() {
           editable={!submitting}
           onSubmitEditing={() => void handleSubmit()}
         />
-        <AppButton label="Accedi" onPress={() => void handleSubmit()} loading={submitting} />
+        <AppButton
+          label="Accedi"
+          onPress={() => void handleSubmit()}
+          loading={submitting}
+          // Il modulo vuoto non e' inviabile: prima il bottone restava attivo e
+          // la ragione compariva solo dopo il tocco (audit UX F07).
+          disabled={username.trim() === '' || password === ''}
+        />
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
         <AppText variant="small" tone="secondary">
           Non hai un account?
         </AppText>

@@ -1,4 +1,4 @@
-import { ApiError, apiFetch } from './client';
+import { ApiError, GENERIC_ERROR_MESSAGE, apiFetch } from './client';
 import {
   normalizeAuthResponse,
   normalizeCatalog,
@@ -65,7 +65,7 @@ export {
 // ---------------------------------------------------------------------------
 
 /** Generic message for access errors with no precise mapping. */
-const ACCESS_FALLBACK = 'Qualcosa non ha funzionato. Riprova.';
+const ACCESS_FALLBACK = GENERIC_ERROR_MESSAGE;
 
 const ACCESS_MESSAGES = {
   login: {

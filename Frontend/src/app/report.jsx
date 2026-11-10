@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { AppIcon } from '@/components/AppIcon';
 import { createUserReport } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppInput } from '@/components/AppInput';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { EmptyState } from '@/components/EmptyState';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
@@ -28,6 +29,10 @@ import { space, useTokens } from '@/theme/tokens';
  *
  * States: the parameters may be missing (declared empty state), the send may
  * fail (banner + retry), and success replaces the form with a closing card.
+ *
+ * The send goes through the `ConfirmModal`: a report cannot be withdrawn, and
+ * that was only said *after* it had been sent (audit UX F02). The confirmation
+ * repeats the reason and states the consequence before the POST.
  */
 export default function ReportScreen() {
   const { token } = useAuth();
@@ -48,6 +53,7 @@ export default function ReportScreen() {
   const [fieldError, setFieldError] = useState(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [confermaAperta, setConfermaAperta] = useState(false);
   const canReport = validId !== null;
 
   async function submit() {
@@ -65,7 +71,7 @@ export default function ReportScreen() {
       await createUserReport(token, { reportedUserId: validId, reason });
       setSent(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setSending(false);
     }
@@ -105,7 +111,7 @@ export default function ReportScreen() {
           <AppText variant="heading">Segnalazione inviata</AppText>
           <Banner kind="success" message="La staff esaminerà la segnalazione." />
           <AppText variant="small" tone="secondary">
-            Non riceverai un avviso nell'app: questo backend non espone le notifiche. La
+            Non riceverai un avviso nell&apos;app quando la staff la esamina. La
             segnalazione non si può ritirare.
           </AppText>
           <AppButton
@@ -122,7 +128,7 @@ export default function ReportScreen() {
           <Card>
             <AppText variant="heading">La persona</AppText>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <Ionicons name="person-outline" size={16} color={t.textSecondary} />
+              <AppIcon name="person-outline" size={16} color={t.textSecondary} />
               <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
                 {`Segnali ${reportedName}`}
               </AppText>
@@ -151,26 +157,40 @@ export default function ReportScreen() {
           </Card>
 
           {error ? (
-            <View style={{ gap: space.sm }}>
-              <Banner kind="error" message={error} />
-              <AppButton
-                label="Riprova"
-                variant="secondary"
-                icon="refresh-outline"
-                onPress={() => void submit()}
-                loading={sending}
-                style={{ alignSelf: 'flex-start' }}
-              />
-            </View>
+            <Banner
+              kind="error"
+              message={error}
+              etichettaAzione="Riprova"
+              onAzione={() => void submit()}
+              caricamentoAzione={sending}
+            />
           ) : null}
 
           <AppButton
             label="Invia alla staff"
             icon="send-outline"
-            onPress={() => void submit()}
+            onPress={() => setConfermaAperta(true)}
             loading={sending}
+            // Un modulo vuoto non si invia: la ragione compariva solo dopo il
+            // tocco (audit UX F07).
+            disabled={reason.trim() === ''}
             accessibilityLabel={`Invia la segnalazione alla staff su ${reportedName}`}
             style={{ alignSelf: 'flex-start' }}
+          />
+
+          <ConfirmModal
+            visible={confermaAperta}
+            titolo="Inviare la segnalazione?"
+            messaggio={`La segnalazione su ${reportedName} arriva alla staff e non si può ritirare.`}
+            etichettaConferma="Invia la segnalazione"
+            etichettaAnnulla="No, torna al testo"
+            varianteConferma="danger"
+            loading={sending}
+            onConferma={() => {
+              setConfermaAperta(false);
+              void submit();
+            }}
+            onAnnulla={() => setConfermaAperta(false)}
           />
         </>
       ) : null}

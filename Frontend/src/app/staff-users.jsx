@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { listStaffUsers, promoteStaffUser, setStaffUserStatus } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppInput } from '@/components/AppInput';
@@ -38,10 +38,16 @@ import { space } from '@/theme/tokens';
  * and `409` as normal outcomes: when the backend refuses, its Italian mapping
  * is shown and the list is reloaded, because the state on screen can be stale.
  *
- * The search and the two pills filter the loaded page locally and say so: the
- * endpoint accepts `q` and `accountStatus`, and switching to server-side
- * filters is a change in this file only.
+ * The search and the status pill are **server-side** (`q` and `accountStatus`):
+ * the endpoint accepts both, and filtering only the 50 loaded rows made the
+ * empty state claim «Nessun utente corrisponde ai filtri» about people the
+ * screen had never received (audit UX F11). The role pill stays local because
+ * the endpoint has no role parameter, and the rows it hides are rows that did
+ * arrive: the empty state names that case instead of blaming the search.
  */
+
+/** How long the search waits after the last key before asking the server. */
+const RICERCA_ATTESA_MS = 350;
 
 const ROLE_FILTERS = [
   { valore: null, etichetta: 'Tutti' },
@@ -74,6 +80,7 @@ export default function StaffUsersScreen() {
 
   const requestRef = useRef(0);
   const actionRef = useRef(false);
+  const primoCaricamento = useRef(true);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -82,7 +89,13 @@ export default function StaffUsersScreen() {
     const seq = ++requestRef.current;
     setLoading(true);
     try {
-      const page = await listStaffUsers(token, { limit: 50 });
+      // I filtri che il backend sa applicare partono da qui: la ricerca non
+      // guarda solo le righe già arrivate (audit UX F11).
+      const page = await listStaffUsers(token, {
+        limit: 50,
+        q: query.trim(),
+        accountStatus: statusFilter ?? '',
+      });
       if (seq !== requestRef.current) {
         return;
       }
@@ -92,13 +105,26 @@ export default function StaffUsersScreen() {
       if (seq !== requestRef.current) {
         return;
       }
-      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       if (seq === requestRef.current) {
         setLoading(false);
       }
     }
-  }, [token]);
+  }, [token, query, statusFilter]);
+
+  // Il primo caricamento lo fa `useFocusEffect`: qui si richiede solo quando la
+  // ricerca o lo stato cambiano, un attimo dopo l'ultimo tasto.
+  useEffect(() => {
+    if (primoCaricamento.current) {
+      primoCaricamento.current = false;
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      void load();
+    }, RICERCA_ATTESA_MS);
+    return () => clearTimeout(timer);
+  }, [load]);
 
   useFocusEffect(
     useCallback(() => {
@@ -109,9 +135,10 @@ export default function StaffUsersScreen() {
     }, [load]),
   );
 
+  // Testo e stato li ha già applicati il server: qui resta il solo ruolo.
   const visible = useMemo(
-    () => filterUsers(users ?? [], query, roleFilter, statusFilter),
-    [users, query, roleFilter, statusFilter],
+    () => filterUsers(users ?? [], '', roleFilter, null),
+    [users, roleFilter],
   );
   const filtersActive = query.trim() !== '' || roleFilter !== null || statusFilter !== null;
 
@@ -155,7 +182,7 @@ export default function StaffUsersScreen() {
       }
       setConfirm(null);
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       setConfirm(null);
     } finally {
       await load();
@@ -197,8 +224,8 @@ export default function StaffUsersScreen() {
       />
 
       <AppText variant="small" tone="secondary">
-        Rendi staff un utente o disattiva il suo account. Ogni modifica riguarda un'altra
-        persona: la conferma dice cosa cambia e per chi, e l'elenco si aggiorna subito dopo.
+        Rendi staff un utente o sospendi il suo account. Ogni modifica riguarda un'altra
+        persona: la conferma dice cosa cambia e per chi, e l&apos;elenco si aggiorna subito dopo.
       </AppText>
 
       <Card>
@@ -207,7 +234,6 @@ export default function StaffUsersScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="nome, cognome o username"
-          optionalHint="filtro locale"
         />
         <View style={{ gap: space.sm }}>
           <AppText variant="small" style={{ fontWeight: '600' }}>
@@ -264,11 +290,10 @@ export default function StaffUsersScreen() {
         <EmptyState
           icon="people-outline"
           title="Nessun utente da mostrare"
-          description={
-            users.length === 0
-              ? "Non c'è nessun utente nell'elenco."
-              : 'Nessun utente corrisponde ai filtri: prova un altro nome o azzera i filtri.'
-          }
+          description={descrizioneElencoVuoto({
+            filtri: filtersActive,
+            ruolo: roleFilter !== null,
+          })}
         />
       ) : null}
 
@@ -285,9 +310,23 @@ export default function StaffUsersScreen() {
 
       <ConfirmModal
         visible={confirm !== null}
-        titolo={confirm?.kind === 'promote' ? 'Rendere staff questo utente?' : 'Cambiare lo stato?'}
+        // Il titolo e il verbo dicono l'esito, non «cambiare lo stato»: la stessa
+        // azione non può avere tre nomi (audit UX F31).
+        titolo={
+          confirm?.kind === 'promote'
+            ? 'Rendere staff questo utente?'
+            : confirm?.status === ACCOUNT_STATUSES.INACTIVE
+              ? 'Sospendere questo account?'
+              : 'Riattivare questo account?'
+        }
         messaggio={confirmText}
-        etichettaConferma={confirm?.kind === 'promote' ? 'Rendi staff' : 'Cambia lo stato'}
+        etichettaConferma={
+          confirm?.kind === 'promote'
+            ? 'Rendi staff'
+            : confirm?.status === ACCOUNT_STATUSES.INACTIVE
+              ? "Sospendi l'account"
+              : "Riattiva l'account"
+        }
         varianteConferma={
           confirm?.kind === 'status' && confirm.status === ACCOUNT_STATUSES.INACTIVE
             ? 'danger'
@@ -299,4 +338,15 @@ export default function StaffUsersScreen() {
       />
     </Screen>
   );
+}
+
+/** Perché l'elenco è vuoto: tre cause diverse, tre frasi diverse. */
+function descrizioneElencoVuoto({ filtri, ruolo }) {
+  if (!filtri) {
+    return "Non c'è nessun utente nell'elenco.";
+  }
+  if (ruolo) {
+    return 'Nessun utente con questo ruolo fra quelli che corrispondono alla ricerca: cambia ruolo o azzera i filtri.';
+  }
+  return 'Nessun utente corrisponde alla ricerca o allo stato scelto: prova un altro nome o azzera i filtri.';
 }

@@ -1,9 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   claimStaffReport,
   listStaffOperations,
@@ -11,6 +10,7 @@ import {
   reviewStaffReport,
 } from '@/api';
 import { AppButton } from '@/components/AppButton';
+import { AppIcon } from '@/components/AppIcon';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
@@ -19,6 +19,7 @@ import { StaffReportCard } from '@/components/StaffReportCard';
 import { ReportReviewSheet } from '@/components/ReportReviewSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { ModalShell } from '@/components/ModalShell';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
@@ -83,7 +84,7 @@ export default function StaffScreen() {
       if (seq !== requestRef.current) {
         return;
       }
-      setError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       if (seq === requestRef.current) {
         setLoading(false);
@@ -112,7 +113,7 @@ export default function StaffScreen() {
       await claimStaffReport(token, report.id);
       setMessage('Segnalazione presa in carico: ora puoi chiuderla.');
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       await load();
       actionRef.current = false;
@@ -157,7 +158,7 @@ export default function StaffScreen() {
       setMessage('Segnalazione chiusa.');
       setConfirm(null);
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       setConfirm(null);
     } finally {
       await load();
@@ -240,12 +241,25 @@ export default function StaffScreen() {
       <Card>
         <AppText variant="heading">Registro delle operazioni</AppText>
         <AppText variant="small" tone="secondary">
-          Le ultime azioni fatte dallo staff, così come le registra il backend.
+          Le ultime azioni fatte dallo staff, nell&apos;ordine in cui sono state registrate.
         </AppText>
         {operations === null ? (
-          <AppText variant="small" tone="secondary">
-            Registro non disponibile.
-          </AppText>
+          loading ? (
+            <AppText variant="small" tone="secondary">
+              Carico il registro…
+            </AppText>
+          ) : (
+            // Non è un guasto e non è un elenco vuoto: è un dato che non arriva,
+            // e la frase deve dirlo (audit UX F34).
+            <EmptyState
+              variante="non-disponibile"
+              icon="time-outline"
+              title="Registro non disponibile"
+              description="Il servizio non restituisce il registro delle operazioni: le segnalazioni e gli utenti qui sopra funzionano lo stesso."
+              etichettaAzione="Riprova"
+              onAzione={() => void load()}
+            />
+          )
         ) : operations.length === 0 ? (
           <AppText variant="small" tone="secondary">
             Nessuna operazione registrata.
@@ -256,7 +270,7 @@ export default function StaffScreen() {
               key={operation.id}
               style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
             >
-              <Ionicons name="time-outline" size={15} color={t.textSecondary} />
+              <AppIcon name="time-outline" size={15} color={t.textSecondary} />
               <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
                 {`${operation.azione ?? 'Azione'} · ${operation.bersaglio ?? ''} ${
                   operation.bersaglioId ?? ''
@@ -269,43 +283,33 @@ export default function StaffScreen() {
         )}
       </Card>
 
-      <Modal
+      <ModalShell
         visible={review !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setReview(null)}
+        onClose={() => setReview(null)}
+        etichettaChiudi="Chiudi la scheda di revisione"
+        chiudibile={busy === null}
+        pannelloStyle={{ padding: 0, borderWidth: 0, backgroundColor: 'transparent' }}
       >
-        <View
-          style={{ flex: 1, backgroundColor: t.overlay, justifyContent: 'center', padding: space.lg }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Chiudi la scheda di revisione"
-            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-            disabled={busy !== null}
-            onPress={() => setReview(null)}
-          />
-          <ScrollView style={{ maxHeight: '85%' }}>
-            {review ? (
-              <ReportReviewSheet
-                report={review.report}
-                outcome={review.outcome}
-                note={review.note}
-                errors={reviewErrors}
-                busy={busy !== null}
-                onChangeOutcome={(outcome) => setReview({ ...review, outcome })}
-                onChangeNote={(note) => setReview({ ...review, note })}
-                onSubmit={askConfirmation}
-                onCancel={() => setReview(null)}
-              />
-            ) : null}
-          </ScrollView>
-        </View>
-      </Modal>
+        <ScrollView style={{ maxHeight: '85%' }}>
+          {review ? (
+            <ReportReviewSheet
+              report={review.report}
+              outcome={review.outcome}
+              note={review.note}
+              errors={reviewErrors}
+              busy={busy !== null}
+              onChangeOutcome={(outcome) => setReview({ ...review, outcome })}
+              onChangeNote={(note) => setReview({ ...review, note })}
+              onSubmit={askConfirmation}
+              onCancel={() => setReview(null)}
+            />
+          ) : null}
+        </ScrollView>
+      </ModalShell>
 
       <ConfirmModal
         visible={confirm !== null}
-        titolo="Chiudere la segnalazione?"
+        titolo="Confermare questo esito?"
         messaggio={
           confirm
             ? `${REVIEW_LABELS[confirm.outcome] ?? 'Chiudi la segnalazione'} su ${nomePersona(
@@ -313,7 +317,7 @@ export default function StaffScreen() {
               )}.\n\nEsito: ${statusLabel(confirm.outcome) ?? confirm.outcome}\nNota: ${confirm.note.trim()}\n\nDopo la chiusura la pratica non si riapre.`
             : ''
         }
-        etichettaConferma="Chiudi la segnalazione"
+        etichettaConferma={confirm ? `Chiudi come «${statusLabel(confirm.outcome) ?? confirm.outcome}»` : 'Chiudi la segnalazione'}
         varianteConferma="danger"
         loading={busy?.action === 'review'}
         onConferma={() => void confirmReview()}
