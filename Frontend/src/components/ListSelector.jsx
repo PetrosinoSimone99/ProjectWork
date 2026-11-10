@@ -1,22 +1,22 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
-import { Card } from './Card';
+import { ModalShell } from './ModalShell';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
- * Selettore a tendina generico: un `Pressable` che apre un `Modal` con campo
- * di ricerca ed elenco scorrevole di opzioni di tipo stringa (regioni,
+ * Selettore a tendina generico: un `Pressable` che apre un `ModalShell` con
+ * campo di ricerca ed elenco scorrevole di opzioni di tipo stringa (regioni,
  * province, …).
  *
  * Perché modale + elenco e non una libreria di picker: nessuna libreria è
  * installata e aggiungerne una richiede l'approvazione del titolare (§7 di
  * `AGENTS.md`). È la stessa scelta già fatta per `CategorySelector` e
  * `ConfirmModal`: il `Modal` di react-native funziona su web (il target della
- * demo), Android e iOS. Rispetto a `CategorySelector` c'è la ricerca, perché
- * gli elenchi che lo useranno (regioni, province) sono troppo lunghi per
- * scorrerli a mano.
+ * demo), Android e iOS. La ricerca c'è in entrambi i selettori (F41): gli
+ * elenchi che lo useranno (regioni, province, categorie) sono troppo lunghi
+ * per scorrerli a mano.
  *
  * Doppio canale accessibilità: `accessibilityState` **e** attributi `aria-*`
  * con lo stesso valore, perché su web `react-native-web` ignora
@@ -25,6 +25,10 @@ import { radius, space, target, useTokens } from '@/theme/tokens';
  *
  * Non muta mai `opzioni`: il filtro crea un array nuovo, l'array ricevuto non
  * viene sortato né toccato.
+ *
+ * Con `etichettaAzzera` (la barra filtri della home) la prima riga dell'elenco
+ * è l'azzeramento di quella sola scelta: `onChange('')`, il valore «non
+ * scelto» di questo componente (F05).
  */
 
 /** Oltre questa altezza la lista diventa scomoda da scorrere in un telefono. */
@@ -38,6 +42,7 @@ export function ListSelector({
   onChange,
   disabled = false,
   errore = null,
+  etichettaAzzera = null,
   style,
 }) {
   const t = useTokens();
@@ -97,101 +102,132 @@ export function ListSelector({
         </AppText>
       ) : null}
 
-      <Modal visible={aperto} transparent animationType="fade" onRequestClose={() => setAperto(false)}>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: t.overlay,
-            justifyContent: 'center',
-            padding: space.lg,
-          }}
-        >
-          {/* Sfondo chiudibile, come in ConfirmModal: toccare fuori dal pannello
-              chiude senza selezionare. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Chiudi l'elenco di ${label}`}
-            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-            onPress={() => setAperto(false)}
+      <ModalShell visible={aperto} onClose={() => setAperto(false)} titolo={label}>
+        <View style={{ gap: space.sm }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.sm,
+              borderWidth: 1,
+              borderRadius: radius.input,
+              borderColor: t.borderInput,
+              backgroundColor: t.surface,
+              paddingHorizontal: space.md,
+            }}
+          >
+            <Ionicons name="search" size={18} color={t.textSecondary} />
+            <TextInput
+              style={{ flex: 1, minHeight: 44, fontSize: 15, color: t.text }}
+              value={ricerca}
+              onChangeText={setRicerca}
+              placeholder="Cerca…"
+              placeholderTextColor={t.textSecondary}
+              accessibilityLabel={`Cerca in ${label}`}
+            />
+          </View>
+
+          <ElencoOpzioni
+            opzioniFiltrate={corrispondono}
+            valore={valore}
+            onChange={onChange}
+            etichettaAzzera={etichettaAzzera}
+            onChiudi={() => setAperto(false)}
           />
-
-          <Card style={{ position: 'relative', zIndex: 1 }}>
-            <View style={{ gap: space.sm }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: space.sm,
-                  borderWidth: 1,
-                  borderRadius: radius.input,
-                  borderColor: t.borderInput,
-                  backgroundColor: t.surface,
-                  paddingHorizontal: space.md,
-                }}
-              >
-                <Ionicons name="search" size={18} color={t.textSecondary} />
-                <TextInput
-                  style={{ flex: 1, minHeight: 44, fontSize: 15, color: t.text }}
-                  value={ricerca}
-                  onChangeText={setRicerca}
-                  placeholder="Cerca…"
-                  placeholderTextColor={t.textSecondary}
-                  accessibilityLabel={`Cerca in ${label}`}
-                />
-              </View>
-
-              <ScrollView
-                accessibilityRole="radiogroup"
-                style={{ maxHeight: ALTEZZA_MASSIMA_LISTA }}
-                contentContainerStyle={{ gap: space.xs }}
-                keyboardShouldPersistTaps="handled"
-              >
-                {corrispondono.length === 0 ? (
-                  <AppText tone="secondary" style={{ paddingVertical: space.md }}>
-                    Nessun risultato.
-                  </AppText>
-                ) : (
-                  corrispondono.map((opzione) => {
-                    const attiva = opzione === valore;
-                    return (
-                      <Pressable
-                        key={opzione}
-                        accessibilityRole="radio"
-                        accessibilityLabel={opzione}
-                        accessibilityState={{ checked: attiva }}
-                        aria-checked={attiva}
-                        onPress={() => {
-                          onChange(opzione);
-                          setAperto(false);
-                        }}
-                        style={({ pressed }) => ({
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: space.sm,
-                          minHeight: target.min,
-                          paddingHorizontal: space.sm,
-                          borderRadius: radius.input,
-                          backgroundColor: pressed ? t.border : 'transparent',
-                        })}
-                      >
-                        {/* La spunta rende la voce selezionata riconoscibile
-                            anche senza colore; il peso del testo aiuta. */}
-                        <AppText
-                          style={{ color: attiva ? t.primary : t.text, fontWeight: attiva ? '700' : '400' }}
-                        >
-                          {opzione}
-                        </AppText>
-                        {attiva ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
-                      </Pressable>
-                    );
-                  })
-                )}
-              </ScrollView>
-            </View>
-          </Card>
         </View>
-      </Modal>
+      </ModalShell>
     </View>
+  );
+}
+
+/**
+ * L'elenco scorrevole del pannello: la riga di azzeramento (solo quando la
+ * chiamante la chiede) e le opzioni che la ricerca lascia passare.
+ */
+function ElencoOpzioni({ opzioniFiltrate, valore, onChange, etichettaAzzera, onChiudi }) {
+  const t = useTokens();
+  const nessunaScelta = !valore;
+  return (
+    <ScrollView
+      accessibilityRole="radiogroup"
+      style={{ maxHeight: ALTEZZA_MASSIMA_LISTA }}
+      contentContainerStyle={{ gap: space.xs }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {etichettaAzzera !== null ? (
+        <Pressable
+          key="azzera"
+          accessibilityRole="radio"
+          accessibilityLabel={etichettaAzzera}
+          accessibilityState={{ checked: nessunaScelta }}
+          aria-checked={nessunaScelta}
+          onPress={() => {
+            onChange('');
+            onChiudi();
+          }}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: space.sm,
+            minHeight: target.min,
+            paddingHorizontal: space.sm,
+            borderRadius: radius.input,
+            backgroundColor: pressed ? t.border : 'transparent',
+          })}
+        >
+          <AppText
+            style={{
+              color: nessunaScelta ? t.primary : t.text,
+              fontWeight: nessunaScelta ? '700' : '400',
+            }}
+          >
+            {etichettaAzzera}
+          </AppText>
+          {nessunaScelta ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+        </Pressable>
+      ) : null}
+      {opzioniFiltrate.length === 0 ? (
+        <AppText tone="secondary" style={{ paddingVertical: space.md }}>
+          Nessun risultato.
+        </AppText>
+      ) : (
+        opzioniFiltrate.map((opzione) => {
+          const attiva = opzione === valore;
+          return (
+            <Pressable
+              key={opzione}
+              accessibilityRole="radio"
+              accessibilityLabel={opzione}
+              accessibilityState={{ checked: attiva }}
+              aria-checked={attiva}
+              onPress={() => {
+                onChange(opzione);
+                onChiudi();
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: space.sm,
+                minHeight: target.min,
+                paddingHorizontal: space.sm,
+                borderRadius: radius.input,
+                backgroundColor: pressed ? t.border : 'transparent',
+              })}
+            >
+              {/* La spunta rende la voce selezionata riconoscibile
+                  anche senza colore; il peso del testo aiuta. */}
+              <AppText
+                style={{ color: attiva ? t.primary : t.text, fontWeight: attiva ? '700' : '400' }}
+              >
+                {opzione}
+              </AppText>
+              {attiva ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+            </Pressable>
+          );
+        })
+      )}
+    </ScrollView>
   );
 }

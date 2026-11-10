@@ -1,16 +1,17 @@
-import { Modal, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
-import { Card } from './Card';
-import { space, useTokens } from '@/theme/tokens';
+import { ModalShell } from './ModalShell';
+import { space } from '@/theme/tokens';
 
 /**
  * Conferma di un'azione distruttiva (annulla, contesta).
  *
  * Non usa `Alert.alert`: su react-native-web quel metodo è vuoto, quindi la
  * conferma non comparirebbe sul target principale dell'app e l'azione
- * partirebbe al primo tocco. Il `Modal` di react-native funziona su web, Android
- * e iOS.
+ * partirebbe al primo tocco. Il pannello è un `ModalShell` — la stessa
+ * finestra degli altri pannelli, con X da 44 pt, Escape sul web e focus
+ * dentro (F15, F16, F38) — che funziona su web, Android e iOS.
  */
 export function ConfirmModal({
   visible,
@@ -38,53 +39,36 @@ export function ConfirmModal({
   children = null,
   confermaDisabilitata = false,
 }) {
-  const t = useTokens();
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onAnnulla}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: t.overlay,
-          justifyContent: 'center',
-          padding: space.lg,
-        }}
-      >
-        {/* Sfondo chiudibile: toccare fuori dal pannello annulla, come nel
-            dettaglio annuncio. Disattivato mentre la chiamata è in corso. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Chiudi la conferma"
-          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-          disabled={loading}
-          onPress={onAnnulla}
-        />
-
-        <Card style={{ position: 'relative', zIndex: 1 }}>
-          <View style={{ gap: space.xs }}>
-            <AppText variant="heading">{titolo}</AppText>
-            <AppText tone="secondary">{messaggio}</AppText>
-          </View>
-          {children}
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <AppButton
-              label={etichettaAnnulla}
-              variant="secondary"
-              onPress={onAnnulla}
-              disabled={loading}
-              style={{ flex: 1 }}
-            />
-            <AppButton
-              label={etichettaConferma}
-              variant={varianteConferma}
-              onPress={onConferma}
-              loading={loading}
-              disabled={confermaDisabilitata}
-              style={{ flex: 1 }}
-            />
-          </View>
-        </Card>
-      </View>
-    </Modal>
+    <ModalShell
+      visible={visible}
+      onClose={onAnnulla}
+      titolo={titolo}
+      // Mentre la chiamata è in corso il pannello non si può lasciare a metà:
+      // X, Escape e sfondo spenti, come lo sfondo di prima.
+      chiudibile={!loading}
+      footer={
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <AppButton
+            label={etichettaAnnulla}
+            variant="secondary"
+            onPress={onAnnulla}
+            disabled={loading}
+            style={{ flex: 1 }}
+          />
+          <AppButton
+            label={etichettaConferma}
+            variant={varianteConferma}
+            onPress={onConferma}
+            loading={loading}
+            disabled={confermaDisabilitata}
+            style={{ flex: 1 }}
+          />
+        </View>
+      }
+    >
+      <AppText tone="secondary">{messaggio}</AppText>
+      {children}
+    </ModalShell>
   );
 }

@@ -118,7 +118,7 @@ export async function apiFetch(path, options = {}) {
     const messaggio =
       error?.name === 'AbortError' ? TIMEOUT_ERROR_MESSAGE : NETWORK_ERROR_MESSAGE;
     if (typeof __DEV__ === 'undefined' || __DEV__) {
-      console.warn(`[api] ${method} ${path} non raggiunto:`, error?.message ?? error);
+      console.warn('[api] richiesta non raggiunta', { method, path, detail: error?.message });
     }
     throw new ApiError(0, messaggio, error?.message ?? null);
   } finally {
@@ -139,7 +139,7 @@ export async function apiFetch(path, options = {}) {
       onSessionExpired();
     }
     if (typeof __DEV__ === 'undefined' || __DEV__) {
-      console.warn(`[api] ${method} ${path} -> ${response.status}`, raw ?? '');
+      console.warn('[api] risposta non ok', { method, path, status: response.status, raw });
     }
     throw new ApiError(response.status, messageForStatus(response.status), raw);
   }

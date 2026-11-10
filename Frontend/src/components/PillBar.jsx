@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { AppText } from './AppText';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Una riga di pillole selezionabili: la forma comune dei filtri e delle scelte
@@ -43,6 +43,9 @@ export function PillBar({
             disabled={disabled}
             onPress={() => onChange(scelta.valore)}
             style={({ pressed }) => ({
+              // 44 pt: la pillola era 34 pt (8+18+8), audit UX F17.
+              minHeight: target.min,
+              justifyContent: 'center',
               paddingVertical: space.sm,
               paddingHorizontal: space.lg,
               borderRadius: radius.pill,

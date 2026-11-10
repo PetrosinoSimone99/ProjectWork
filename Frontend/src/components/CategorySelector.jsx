@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
-import { Card } from './Card';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { ModalShell } from './ModalShell';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
- * Campo della categoria: un `Pressable` che apre la lista in un `Modal`.
+ * Campo della categoria: un `Pressable` che apre la lista in un `ModalShell`.
  *
  * Perché non un `<select>` o un picker di sistema: nessuna libreria di picker è
  * installata e aggiungerne una richiede l'approvazione del titolare (§7 di
@@ -22,6 +22,13 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * perché su web `react-native-web` ignora `accessibilityState` e legge solo gli
  * attributi `aria-*` (su native `aria-*` ha la precedenza, quindi il valore
  * annunciato è lo stesso su tutte le piattaforme).
+ *
+ * Il pannello è un `ModalShell` (X da 44 pt, Escape sul web, focus dentro) e
+ * dentro c'è la stessa ricerca di `ListSelector`, perché una lista di
+ * categorie lunga non si scorrerà a mano (F41). Con `etichettaAzzera` —
+ * proposta facoltativa, la passa solo chi ha un filtro da azzerare, come la
+ * barra filtri della home — la prima riga azzera la sola scelta
+ * (`onChange(null)`, F05).
  */
 
 /** Oltre questa altezza la lista diventa scomoda da scorrere in un telefono. */
@@ -40,10 +47,24 @@ export function CategorySelector({
   onChange,
   error,
   stato = 'pronto',
+  etichettaAzzera = null,
   style,
 }) {
   const t = useTokens();
   const [aperto, setAperto] = useState(false);
+  const [ricerca, setRicerca] = useState('');
+
+  // Filtro come in `ListSelector`: case-insensitive su sottostringa, su copia
+  // (l'array ricevuto non viene toccato).
+  const normalizza = (testo) => testo.toLowerCase();
+  const corrispondono = categorie.filter((categoria) =>
+    normalizza(categoria.nome).includes(normalizza(ricerca.trim())),
+  );
+
+  const apri = () => {
+    setRicerca('');
+    setAperto(true);
+  };
 
   const scelta = categorie.find((categoria) => Number(categoria.id) === Number(value)) ?? null;
   const selezionabile = stato === 'pronto' && categorie.length > 0;
@@ -63,7 +84,7 @@ export function CategorySelector({
         accessibilityState={{ expanded: aperto, disabled: !selezionabile }}
         aria-expanded={aperto}
         disabled={!selezionabile}
-        onPress={() => setAperto(true)}
+        onPress={apri}
         style={({ pressed }) => [
           {
             flexDirection: 'row',
@@ -90,74 +111,127 @@ export function CategorySelector({
         </AppText>
       ) : null}
 
-      <Modal
-        visible={aperto}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAperto(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: t.overlay,
-            justifyContent: 'center',
-            padding: space.lg,
-          }}
-        >
-          {/* Sfondo chiudibile, come in ConfirmModal: su web `Alert` non esiste
-              e il tocco fuori dal pannello è l'unico modo per annullare. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Chiudi l'elenco delle categorie"
-            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-            onPress={() => setAperto(false)}
-          />
+      <ModalShell visible={aperto} onClose={() => setAperto(false)} titolo="Scegli una categoria">
+        <View style={{ gap: space.sm }}>
+          {/* Ricerca come in `ListSelector`: con una lista lunga lo scorrimento
+              a mano diventa una caccia (F41). */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.sm,
+              borderWidth: 1,
+              borderRadius: radius.input,
+              borderColor: t.borderInput,
+              backgroundColor: t.surface,
+              paddingHorizontal: space.md,
+            }}
+          >
+            <Ionicons name="search" size={18} color={t.textSecondary} />
+            <TextInput
+              style={{ flex: 1, minHeight: 44, fontSize: 15, color: t.text }}
+              value={ricerca}
+              onChangeText={setRicerca}
+              placeholder="Cerca…"
+              placeholderTextColor={t.textSecondary}
+              accessibilityLabel={`Cerca in ${label}`}
+            />
+          </View>
 
-          <Card style={{ position: 'relative', zIndex: 1 }}>
-            <AppText variant="heading">Scegli una categoria</AppText>
-            <ScrollView
-              accessibilityRole="radiogroup"
-              style={{ maxHeight: ALTEZZA_MASSIMA_LISTA }}
-              contentContainerStyle={{ gap: space.xs }}
-              keyboardShouldPersistTaps="handled"
-            >
-              {categorie.map((categoria) => {
-                const attiva = Number(categoria.id) === Number(value);
-                return (
-                  <Pressable
-                    key={categoria.id}
-                    accessibilityRole="radio"
-                    accessibilityLabel={categoria.nome}
-                    accessibilityState={{ checked: attiva }}
-                    aria-checked={attiva}
-                    onPress={() => {
-                      onChange(categoria.id);
-                      setAperto(false);
-                    }}
-                    style={({ pressed }) => [
-                      {
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: space.sm,
-                        paddingVertical: space.md,
-                        paddingHorizontal: space.sm,
-                        borderRadius: radius.input,
-                        backgroundColor: pressed ? t.border : 'transparent',
-                      },
-                    ]}
-                  >
-                    <AppText style={{ color: attiva ? t.primary : t.text }}>
-                      {categoria.nome}
-                    </AppText>
-                    {attiva ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Card>
+          <ElencoCategorie
+            categorieFiltrate={corrispondono}
+            value={value}
+            onChange={onChange}
+            etichettaAzzera={etichettaAzzera}
+            onChiudi={() => setAperto(false)}
+          />
         </View>
-      </Modal>
+      </ModalShell>
     </View>
+  );
+}
+
+/**
+ * L'elenco scorrevole del pannello: la riga di azzeramento (solo quando la
+ * chiamante la chiede) e le categorie che la ricerca lascia passare.
+ */
+function ElencoCategorie({ categorieFiltrate, value, onChange, etichettaAzzera, onChiudi }) {
+  const t = useTokens();
+  // La riga di azzeramento è selezionata quando non c'è scelta.
+  const azzero = value === null || value === undefined || value === '';
+  return (
+    <ScrollView
+      accessibilityRole="radiogroup"
+      style={{ maxHeight: ALTEZZA_MASSIMA_LISTA }}
+      contentContainerStyle={{ gap: space.xs }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {etichettaAzzera !== null ? (
+        <Pressable
+          key="azzera"
+          accessibilityRole="radio"
+          accessibilityLabel={etichettaAzzera}
+          accessibilityState={{ checked: azzero }}
+          aria-checked={azzero}
+          onPress={() => {
+            onChange(null);
+            onChiudi();
+          }}
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: space.sm,
+              minHeight: target.min,
+              paddingVertical: space.md,
+              paddingHorizontal: space.sm,
+              borderRadius: radius.input,
+              backgroundColor: pressed ? t.border : 'transparent',
+            },
+          ]}
+        >
+          <AppText style={{ color: azzero ? t.primary : t.text }}>{etichettaAzzera}</AppText>
+          {azzero ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+        </Pressable>
+      ) : null}
+      {categorieFiltrate.length === 0 ? (
+        <AppText tone="secondary" style={{ paddingVertical: space.md }}>
+          Nessun risultato.
+        </AppText>
+      ) : (
+        categorieFiltrate.map((categoria) => {
+          const attiva = Number(categoria.id) === Number(value);
+          return (
+            <Pressable
+              key={categoria.id}
+              accessibilityRole="radio"
+              accessibilityLabel={categoria.nome}
+              accessibilityState={{ checked: attiva }}
+              aria-checked={attiva}
+              onPress={() => {
+                onChange(categoria.id);
+                onChiudi();
+              }}
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: space.sm,
+                  paddingVertical: space.md,
+                  paddingHorizontal: space.sm,
+                  borderRadius: radius.input,
+                  backgroundColor: pressed ? t.border : 'transparent',
+                },
+              ]}
+            >
+              <AppText style={{ color: attiva ? t.primary : t.text }}>{categoria.nome}</AppText>
+              {attiva ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+            </Pressable>
+          );
+        })
+      )}
+    </ScrollView>
   );
 }

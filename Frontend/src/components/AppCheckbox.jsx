@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Casella di spunta con etichetta.
@@ -35,6 +35,8 @@ export function AppCheckbox({ label, value, onChange, disabled = false, style })
           flexDirection: 'row',
           alignItems: 'center',
           gap: space.sm,
+          // 44 pt: la riga era 30 pt (4+22+4), audit UX F17.
+          minHeight: target.min,
           paddingVertical: space.xs,
           borderRadius: radius.input,
           backgroundColor: pressed ? t.border : 'transparent',

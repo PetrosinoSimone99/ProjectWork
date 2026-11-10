@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
-import { Card, Chip } from './Card';
+import { ModalShell } from './ModalShell';
+import { Chip } from './Card';
 import { formatIsoDate } from '@/services/dates';
 import { etichettaModalita, nomePersona } from '@/services/offer-request';
 import { localitaPerDisplay } from '@/services/italian-regions';
@@ -103,153 +104,136 @@ export function ServiceDetailModal({
       : 'Località non indicata';
 
   return (
-    <Modal visible={servizio !== null} transparent animationType="fade" onRequestClose={onClose}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: t.overlay,
-          justifyContent: 'center',
-          padding: space.lg,
-        }}
-      >
-        {/* Closing background: on web there is no `Alert`, and a tap outside the
-            panel is the way to cancel. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Chiudi dettaglio"
-          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
-          onPress={onClose}
-        />
-        {servizio ? (
-          <Card style={{ gap: space.md, position: 'relative', zIndex: 1 }}>
-            <View
-              style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', alignItems: 'center' }}
-            >
-              {categories ? (
-                categories.map((category) => (
-                  <Chip key={category.id} background={t.serviceBg}>
-                    <AppText variant="caption" style={{ color: t.serviceText }}>
-                      {category.nome}
-                    </AppText>
-                  </Chip>
-                ))
-              ) : (
-                <Chip background={t.serviceBg}>
+    <ModalShell
+      visible={servizio !== null}
+      onClose={onClose}
+      titolo="Dettaglio del servizio"
+      etichettaChiudi="Chiudi il dettaglio"
+    >
+      {servizio ? (
+        <View style={{ gap: space.md }}>
+          <View
+            style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', alignItems: 'center' }}
+          >
+            {categories ? (
+              categories.map((category) => (
+                <Chip key={category.id} background={t.serviceBg}>
                   <AppText variant="caption" style={{ color: t.serviceText }}>
-                    Categoria non disponibile
+                    {category.nome}
                   </AppText>
                 </Chip>
-              )}
-            </View>
+              ))
+            ) : (
+              <Chip background={t.serviceBg}>
+                <AppText variant="caption" style={{ color: t.serviceText }}>
+                  Categoria non disponibile
+                </AppText>
+              </Chip>
+            )}
+          </View>
 
-            <AppText variant="heading">{description}</AppText>
+          <AppText variant="heading">{description}</AppText>
 
-            <View style={{ gap: space.xs }}>
-              <AppText variant="small" tone="secondary">
-                Pubblicato da
-              </AppText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <Ionicons name="person-circle-outline" size={18} color={t.textSecondary} />
-                <AppText>{name}</AppText>
-                {owner.username ? (
-                  <AppText variant="small" tone="secondary">
-                    @{owner.username}
-                  </AppText>
-                ) : null}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <Ionicons
-                  name={location ? 'location-outline' : remote ? 'videocam-outline' : 'help-circle-outline'}
-                  size={16}
-                  color={t.textSecondary}
-                />
+          <View style={{ gap: space.xs }}>
+            <AppText variant="small" tone="secondary">
+              Pubblicato da
+            </AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+              <Ionicons name="person-circle-outline" size={18} color={t.textSecondary} />
+              <AppText>{name}</AppText>
+              {owner.username ? (
                 <AppText variant="small" tone="secondary">
-                  {`Si svolge: ${place}`}
+                  @{owner.username}
+                </AppText>
+              ) : null}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+              <Ionicons
+                name={
+                  location
+                    ? 'location-outline'
+                    : remote
+                      ? 'videocam-outline'
+                      : 'help-circle-outline'
+                }
+                size={16}
+                color={t.textSecondary}
+              />
+              <AppText variant="small" tone="secondary">
+                {`Si svolge: ${place}`}
+              </AppText>
+            </View>
+            {location && remote ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Ionicons name="videocam-outline" size={16} color={t.textSecondary} />
+                <AppText variant="small" tone="secondary">
+                  {`Disponibile anche ${etichettaModalita(true)}`}
                 </AppText>
               </View>
-              {location && remote ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Ionicons name="videocam-outline" size={16} color={t.textSecondary} />
-                  <AppText variant="small" tone="secondary">
-                    {`Disponibile anche ${etichettaModalita(true)}`}
-                  </AppText>
-                </View>
-              ) : null}
-              {publishedAt ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
-                  <AppText variant="small" tone="secondary">
-                    {`Pubblicato il ${publishedAt}`}
-                  </AppText>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Declared gap G3: no public profile endpoint for another user. */}
-            <View
-              style={{
-                gap: space.xs,
-                padding: space.md,
-                borderRadius: radius.input,
-                borderWidth: 1,
-                borderColor: t.border,
-                backgroundColor: t.background,
-              }}
-            >
-              <AppText variant="small" style={{ fontWeight: '600' }}>
-                Cosa offre e cerca
-              </AppText>
-              <AppText variant="small" tone="secondary">
-                Non disponibile: il backend non espone ancora il profilo pubblico di un altro
-                utente, quindi qui non si possono mostrare le sue altre offerte e ricerche.
-              </AppText>
-            </View>
-
-            <View style={{ gap: space.sm }}>
-              <AppButton
-                label={invio ? 'Invio…' : 'Invia proposta'}
-                variant="secondary"
-                icon="swap-horizontal-outline"
-                onPress={() => void inviaProposta()}
-                disabled={invioDisabilitato}
-              />
-              {erroreVisibile ? (
-                <AppText variant="caption" tone="danger" style={{ textAlign: 'center' }}>
-                  {erroreVisibile}
+            ) : null}
+            {publishedAt ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
+                <AppText variant="small" tone="secondary">
+                  {`Pubblicato il ${publishedAt}`}
                 </AppText>
-              ) : null}
-            </View>
+              </View>
+            ) : null}
+          </View>
 
-            <View style={{ gap: space.xs }}>
-              <AppButton
-                label="Segnala"
-                variant="ghost"
-                icon="flag-outline"
-                onPress={() => onReport?.(servizio)}
-                accessibilityLabel={`Segnala ${name} alla staff`}
-              />
-              <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-                La segnalazione arriva alla staff, che la esamina e decide.
+          {/* Declared gap G3: no public profile endpoint for another user. */}
+          <View
+            style={{
+              gap: space.xs,
+              padding: space.md,
+              borderRadius: radius.input,
+              borderWidth: 1,
+              borderColor: t.border,
+              backgroundColor: t.background,
+            }}
+          >
+            <AppText variant="small" style={{ fontWeight: '600' }}>
+              Cosa offre e cerca
+            </AppText>
+            <AppText variant="small" tone="secondary">
+              Non disponibile per ora: di questa persona vediamo la scheda e il servizio che
+              ti interessa, non le sue altre offerte e ricerche.
+            </AppText>
+          </View>
+
+          <View style={{ gap: space.sm }}>
+            <AppButton
+              label={invio ? 'Invio…' : 'Invia proposta'}
+              icon="swap-horizontal-outline"
+              onPress={() => void inviaProposta()}
+              disabled={invioDisabilitato}
+            />
+            {/* F09: the inline help at the point of doubt — a proposal is
+                blind, non-binding and decided by the other person. */}
+            <AppText variant="small" tone="secondary" style={{ textAlign: 'center' }}>
+              La proposta è alla cieca, non vincolante: la decide l'altra persona.
+            </AppText>
+            {erroreVisibile ? (
+              <AppText variant="caption" tone="danger" style={{ textAlign: 'center' }}>
+                {erroreVisibile}
               </AppText>
-            </View>
+            ) : null}
+          </View>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Chiudi dettaglio servizio"
-              onPress={onClose}
-              style={({ pressed }) => ({
-                alignSelf: 'flex-end',
-                backgroundColor: pressed ? t.primaryPressed : t.primary,
-                borderRadius: radius.pill,
-                paddingHorizontal: space.lg,
-                paddingVertical: space.sm,
-              })}
-            >
-              <AppText style={{ color: t.onPrimary, fontWeight: '700' }}>Chiudi</AppText>
-            </Pressable>
-          </Card>
-        ) : null}
-      </View>
-    </Modal>
+          <View style={{ gap: space.xs }}>
+            <AppButton
+              label="Segnala"
+              variant="ghost"
+              icon="flag-outline"
+              onPress={() => onReport?.(servizio)}
+              accessibilityLabel={`Segnala ${name} alla staff`}
+            />
+            <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+              La segnalazione arriva alla staff, che la esamina e decide.
+            </AppText>
+          </View>
+        </View>
+      ) : null}
+    </ModalShell>
   );
 }

@@ -5,7 +5,7 @@ import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { CategorySelector } from './CategorySelector';
 import { LIMITE_MANSIONE, TIPI_VOCE } from '@/services/offer-request';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Una voce di «cosa offro» o «cosa cerco»: categoria + mansione. La casella
@@ -98,7 +98,14 @@ export function EntryEditor({
               disabled={!rimuovibile}
               onPress={onRimuovi}
               hitSlop={8}
-              style={{ opacity: rimuovibile ? 1 : 0.4 }}
+              style={{
+                // 44 pt: l'icona da 18 + hitSlop 8 era 34 pt, audit UX F17.
+                minWidth: target.min,
+                minHeight: target.min,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: rimuovibile ? 1 : 0.4,
+              }}
             >
               <Ionicons name="trash-outline" size={18} color={t.danger} />
             </Pressable>

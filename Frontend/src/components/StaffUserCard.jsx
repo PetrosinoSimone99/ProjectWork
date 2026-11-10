@@ -36,11 +36,12 @@ export function StaffUserCard({ user, callerId, busy = false, onPromote, onStatu
   const status = canChangeStatus(callerId, user);
   const currentStatus = accountStatusValue(user);
   const target = nextAccountStatus(user);
+  // One verb pair for the state whose chip already reads "Sospeso" (F31).
   const statusLabel =
-    target === ACCOUNT_STATUSES.INACTIVE ? 'Disattiva' : 'Riattiva';
+    target === ACCOUNT_STATUSES.INACTIVE ? 'Sospendi' : 'Riattiva';
   const statusAria =
     target === ACCOUNT_STATUSES.INACTIVE
-      ? `Disattiva l'account di ${name}`
+      ? `Sospendi l'account di ${name}`
       : `Riattiva l'account di ${name}`;
 
   return (
@@ -49,9 +50,7 @@ export function StaffUserCard({ user, callerId, busy = false, onPromote, onStatu
         style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space.sm }}
       >
         <View style={{ flexShrink: 1, gap: space.xs }}>
-          <AppText variant="heading" style={{ fontSize: 17 }}>
-            {name}
-          </AppText>
+          <AppText variant="subheading">{name}</AppText>
           <AppText variant="small" tone="secondary">
             {user.username ? `@${user.username}` : 'Username non disponibile'}
           </AppText>

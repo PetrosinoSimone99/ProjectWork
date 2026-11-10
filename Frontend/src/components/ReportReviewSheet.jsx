@@ -38,7 +38,10 @@ export function ReportReviewSheet({
   return (
     <Card>
       <View style={{ gap: space.xs }}>
-        <AppText variant="heading">Chiudere la segnalazione?</AppText>
+        {/* The sheet title must not repeat the confirmation that follows it
+            (F13): the confirm asks "Chiudere la segnalazione?" — this title
+            says what the sheet collects. */}
+        <AppText variant="heading">Esito e nota</AppText>
         <AppText variant="small" tone="secondary">
           {`Riguarda ${nomePersona(report.segnalato)}. La nota resta agli atti: scrivi su cosa si basa la decisione.`}
         </AppText>

@@ -16,8 +16,9 @@ import { space, useTokens } from '@/theme/tokens';
  * Shows what the decision needs: who reported whom, the reason (the whole text:
  * it is the evidence), when it arrived, who took it and the review outcome when
  * closed. The actions are drawn only when the backend would accept them —
- * "Prendi in carico" on a `PENDING` report, "Chiudi" on an `IN_REVIEW` report
- * assigned to the caller — and the accessibility labels name the reported
+ * "Prendi in carico" on a `PENDING` report, "Esamina e chiudi" on an
+ * `IN_REVIEW` report assigned to the caller (the label says the command opens
+ * the review, F31) — and the accessibility labels name the reported
  * person so repeated cards stay distinguishable.
  */
 export function StaffReportCard({ report, staffId, busy = false, onClaim, onReview }) {
@@ -79,11 +80,11 @@ export function StaffReportCard({ report, staffId, busy = false, onClaim, onRevi
           ) : null}
           {canReview(report, staffId) ? (
             <AppButton
-              label="Chiudi"
+              label="Esamina e chiudi"
               icon="checkmark-done-outline"
               disabled={busy}
               onPress={onReview}
-              accessibilityLabel={`Chiudi la segnalazione su ${reported}`}
+              accessibilityLabel={`Esamina e chiudi la segnalazione su ${reported}`}
               style={{ flex: 1 }}
             />
           ) : null}
