@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   createService,
   deleteService,
@@ -125,6 +125,9 @@ export default function OfferAndRequestScreen() {
   const [erroreCategorie, setErroreCategorie] = useState(null);
 
   const [form, setForm] = useState(null);
+  // L'apertura in attesa della conferma: il form aperto ha testo non salvato,
+  // quindi sostituirlo richiede il via libera dell'utente (audit UX F03).
+  const [sostituzioneForm, setSostituzioneForm] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [erroreForm, setErroreForm] = useState(null);
   const [salvataggio, setSalvataggio] = useState(false);
@@ -149,7 +152,7 @@ export default function OfferAndRequestScreen() {
     try {
       setPubblicazioni(await listMyServices(token));
     } catch (err) {
-      setErroreElenco(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreElenco(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setLoading(false);
     }
@@ -164,7 +167,7 @@ export default function OfferAndRequestScreen() {
     try {
       setEliminate(await listDeletedServices(token));
     } catch (err) {
-      setErroreEliminate(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreEliminate(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setCaricamentoEliminate(false);
     }
@@ -179,7 +182,7 @@ export default function OfferAndRequestScreen() {
     } catch (err) {
       setCategorie([]);
       setStatoCategorie('errore');
-      setErroreCategorie(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreCategorie(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     }
   }, [token]);
 
@@ -211,32 +214,70 @@ export default function OfferAndRequestScreen() {
     void caricaCategorie();
   }
 
-  function apriNuova(tipo) {
+  /**
+   * Il form da aprire: una voce nuova nasce vuota, la modifica parte da quella
+   * salvata. In entrambi i casi la copia è una copia: «Annulla» (e la
+   * sostituzione confermata) scarta senza lasciare modifiche a metà.
+   */
+  function costruisciForm(apertura) {
+    const voce = apertura.voce ?? nuovaVoce(apertura.tipo);
+    // La località di una voce nuova nasce da quella della persona, se la
+    // sessione la conosce; in modifica si rilegge dalla voce salvata. Si legge
+    // la coppia provincia/regione dal valore formattato e si precompilano le due
+    // tendine: un valore legacy non conforme lascia le tendine vuote.
+    const coppia = analizzaLocalita(apertura.voce ? apertura.voce.localita : utente?.localita);
+    const voceAperta = {
+      ...voce,
+      regione: coppia?.regione ?? '',
+      provincia: coppia?.provincia ?? '',
+    };
+    // La copia iniziale serve a capire se il form è stato toccato: il confronto
+    // è sul contenuto, così la sostituzione si chiede solo quando c'è qualcosa
+    // da perdere.
+    return { tipo: apertura.tipo, voce: voceAperta, iniziale: JSON.stringify(voceAperta) };
+  }
+
+  /** Apre il form richiesto e azzera tutto ciò che un nuovo form azzerava. */
+  function apriForm(apertura) {
     setEsito(null);
     setErroreForm(null);
     setFieldErrors({});
-    // La località nasce da quella della persona, se la sessione la conosce: si
-    // rilegge la coppia provincia/regione dal valore formattato e si precompilano
-    // le due tendine. Un valore legacy non conforme lascia le tendine vuote.
-    const vuota = nuovaVoce(tipo);
-    const coppia = analizzaLocalita(utente?.localita);
-    setForm({
-      tipo,
-      voce: { ...vuota, regione: coppia?.regione ?? '', provincia: coppia?.provincia ?? '' },
-    });
+    setForm(costruisciForm(apertura));
+  }
+
+  /** `true` se nel form aperto c'è contenuto diverso da quando è stato aperto. */
+  function formModificato() {
+    return form !== null && JSON.stringify(form.voce) !== form.iniziale;
+  }
+
+  /**
+   * Sostituire un form con del testo non salvato lo perderebbe in silenzio:
+   * prima si chiede conferma, poi si apre l'altro (audit UX F03). Un form non
+   * toccato si sostituisce subito, come prima.
+   */
+  function richiediApertura(apertura) {
+    if (formModificato()) {
+      setSostituzioneForm(apertura);
+      return;
+    }
+    apriForm(apertura);
+  }
+
+  function apriNuova(tipo) {
+    richiediApertura({ tipo });
   }
 
   function apriModifica(voce) {
-    setEsito(null);
-    setErroreForm(null);
-    setFieldErrors({});
-    // Copia: «Annulla» scarta senza lasciare modifiche a metà. La località salvata
-    // si rilegge nella coppia provincia/regione per precompilare le tendine.
-    const coppia = analizzaLocalita(voce.localita);
-    setForm({
-      tipo: voce.tipo,
-      voce: { ...voce, regione: coppia?.regione ?? '', provincia: coppia?.provincia ?? '' },
-    });
+    richiediApertura({ tipo: voce.tipo, voce });
+  }
+
+  /** Conferma della sostituzione: il testo scritto si scarta e si apre l'altro. */
+  function confermaSostituzione() {
+    const apertura = sostituzioneForm;
+    setSostituzioneForm(null);
+    if (apertura) {
+      apriForm(apertura);
+    }
   }
 
   function cambiaCampoForm(campo, valore) {
@@ -284,7 +325,7 @@ export default function OfferAndRequestScreen() {
       await carica();
     } catch (err) {
       // Il form non si svuota: i dati digitati restano.
-      setErroreForm(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreForm(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setSalvataggio(false);
     }
@@ -312,7 +353,7 @@ export default function OfferAndRequestScreen() {
       if (err instanceof ApiError && err.status === 404) {
         await Promise.all([carica(), caricaEliminate()]);
       }
-      setErroreElenco(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreElenco(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setAzioneInCorso(null);
     }
@@ -357,7 +398,7 @@ export default function OfferAndRequestScreen() {
       );
       await Promise.all([carica(), caricaEliminate()]);
     } catch (err) {
-      setErroreEliminate(err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.');
+      setErroreEliminate(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setRipristinoInCorso(null);
     }
@@ -459,6 +500,18 @@ export default function OfferAndRequestScreen() {
         onConferma={() => void confermaEliminazione()}
         onAnnulla={() => setEliminazione(null)}
         loading={azioneInCorso?.nome === 'elimina'}
+      />
+
+      {/* Sostituire un form con del testo non salvato si chiede prima: il testo
+          digitato non si perde mai in silenzio (audit UX F03). */}
+      <ConfirmModal
+        visible={sostituzioneForm !== null}
+        titolo="Cambiare il form di pubblicazione?"
+        messaggio="Hai scritto qualcosa che non è ancora salvato: aprendone un altro, quel testo viene perso."
+        etichettaConferma="Cambia e scarta"
+        etichettaAnnulla="Continua a scrivere"
+        onConferma={confermaSostituzione}
+        onAnnulla={() => setSostituzioneForm(null)}
       />
     </Screen>
   );

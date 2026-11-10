@@ -4,7 +4,12 @@ import { AppText } from './AppText';
 import { EntryCard } from './EntryCard';
 import { EmptyState } from './EmptyState';
 import { EntryForm } from './EntryForm';
-import { LIMITE_VOCI, TIPI_VOCE } from '@/services/offer-request';
+import {
+  LIMITE_VOCI,
+  TIPI_VOCE,
+  limiteRaggiunto,
+  testoConteggioVoci,
+} from '@/services/offer-request';
 import { space } from '@/theme/tokens';
 
 /**
@@ -18,14 +23,14 @@ export const SEZIONI_PUBBLICAZIONI = [
     tipo: TIPI_VOCE.OFFERTA,
     titolo: 'Cosa offro',
     spiegazione:
-      'Sono i servizi che sai fare: con la categoria giusta gli altri ti trovano nella home e nello swipe.',
+      'Sono i servizi che sai fare: con la categoria giusta gli altri ti trovano nella home.',
     etichettaAggiungi: "Aggiungi un'offerta",
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
     vuoto: {
       icona: 'pricetags-outline',
       titolo: 'Non hai pubblicato nessuna offerta',
       descrizione:
-        'Un\'offerta è un servizio che sai fare: con la categoria giusta gli altri ti trovano nella home e nello swipe. Tocca «Aggiungi» per pubblicarne una.',
+        'Un\'offerta è un servizio che sai fare: con la categoria giusta gli altri ti trovano nella home. Tocca «Aggiungi» per pubblicarne una.',
     },
   },
   {
@@ -74,8 +79,15 @@ export function PublicationsSection({
   onCambiaStato,
   onElimina,
 }) {
-  const pieno = voci.length >= LIMITE_VOCI;
+  const pieno = limiteRaggiunto(voci);
   const formQui = form !== null && form.tipo === sezione.tipo;
+  // La voce in modifica è nascosta dall'elenco: non si vede due volte.
+  const vociDaElencare = voci.filter(
+    (voce) => !(formQui && form.voce.chiave === voce.chiave),
+  );
+  // Un solo pulsante primario a schermata: il primo «+ Aggiungi» resta il
+  // comando forte, l'altro diventa secondario (audit UX F08).
+  const varianteAggiungi = sezione.tipo === TIPI_VOCE.OFFERTA ? 'primary' : 'secondary';
 
   return (
     <View style={{ gap: space.md }}>
@@ -90,18 +102,18 @@ export function PublicationsSection({
           }}
         >
           <AppText variant="heading">{sezione.titolo}</AppText>
-          <AppText variant="small" tone="secondary">{`${voci.length} di ${LIMITE_VOCI}`}</AppText>
+          <AppText variant="small" tone="secondary">{testoConteggioVoci(voci)}</AppText>
         </View>
         <AppText variant="small" tone="secondary">
           {sezione.spiegazione}
         </AppText>
         {/* Il pulsante non sparisce mai al limite: un comando che scompare fa
-            credere che la funzione sia rotta. */}
-        {/* The "+" is the primary action of the screen and never disappears at
-            the limit: a command that vanishes looks like a broken feature. */}
+            credere che la funzione sia rotta. Resta primario solo nella prima
+            sezione, perché su una schermata un solo comando è il più forte. */}
         <AppButton
           label="+ Aggiungi"
           icon="add"
+          variant={varianteAggiungi}
           disabled={pieno || !categoriePronte}
           onPress={onApriNuova}
           accessibilityLabel={sezione.etichettaAggiungi}
@@ -135,24 +147,28 @@ export function PublicationsSection({
         />
       ) : null}
 
-      {/* La voce in modifica è nascosta dall'elenco: non si vede due volte. */}
-      {voci.map((voce) =>
-        formQui && form.voce.chiave === voce.chiave ? null : (
-          <EntryCard
-            key={voce.chiave}
-            voce={voce}
-            categorie={categorie}
-            azioneInCorso={
-              azioneInCorso && azioneInCorso.id === voce.id ? azioneInCorso.nome : null
-            }
-            disabilitato={!categoriePronte}
-            mostraStato={mostraStato}
-            onModifica={onModifica}
-            onCambiaStato={onCambiaStato}
-            onElimina={onElimina}
-          />
-        ),
-      )}
+      {/* Le voci pubblicate sono una lista programmabile (WCAG 1.3.1): ruolo
+          `list` sul contenitore e `listitem` su ogni card (audit UX F19). */}
+      {vociDaElencare.length > 0 ? (
+        <View accessibilityRole="list" style={{ gap: space.md }}>
+          {vociDaElencare.map((voce) => (
+            <View key={voce.chiave} accessibilityRole="listitem">
+              <EntryCard
+                voce={voce}
+                categorie={categorie}
+                azioneInCorso={
+                  azioneInCorso && azioneInCorso.id === voce.id ? azioneInCorso.nome : null
+                }
+                disabilitato={!categoriePronte}
+                mostraStato={mostraStato}
+                onModifica={onModifica}
+                onCambiaStato={onCambiaStato}
+                onElimina={onElimina}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {/* Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner. */}
       {voci.length === 0 && !formQui ? (

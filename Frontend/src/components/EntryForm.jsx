@@ -5,7 +5,7 @@ import { Banner } from './Banner';
 import { EntryEditor } from './EntryEditor';
 import { ListSelector } from './ListSelector';
 import { REGIONI, provincePerRegione } from '@/services/italian-regions';
-import { TIPI_VOCE } from '@/services/offer-request';
+import { TIPI_VOCE, validaVoce } from '@/services/offer-request';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
@@ -45,6 +45,12 @@ export function EntryForm({
     : offerta
       ? "Pubblica l'offerta"
       : 'Pubblica la ricerca';
+  // Gli obbligatori si controllano con le stesse regole del salvataggio
+  // (`validaVoce`): il pulsante non si abilita finché la voce non è valida e
+  // la riga sotto elenca cosa manca, così il motivo si vede prima del tap
+  // (audit UX F07).
+  const erroriValidazione = validaVoce(voce, categorie);
+  const valida = Object.keys(erroriValidazione).length === 0;
 
   return (
     <View
@@ -100,12 +106,20 @@ export function EntryForm({
       {/* L'errore del backend sta sopra i pulsanti, dove sta lo sguardo. */}
       {errore ? <Banner kind="error" message={errore} /> : null}
 
+      {/* Cosa manca per pubblicare, scritto sempre e non solo dopo il tap:
+          con il pulsante disabilitato il motivo non avrebbe modo di apparire. */}
+      {valida ? null : (
+        <AppText variant="small" tone="secondary">
+          {Object.values(erroriValidazione).join(' ')}
+        </AppText>
+      )}
+
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <AppButton
           label={etichettaSalva}
           onPress={onSalva}
           loading={salvataggio}
-          disabled={!categoriePronte}
+          disabled={!categoriePronte || !valida}
           style={{ flex: 1 }}
         />
         <AppButton

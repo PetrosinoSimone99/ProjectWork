@@ -121,6 +121,27 @@ export function rimuoviVoce(voci, chiave) {
 }
 
 /**
+ * Il tetto è raggiunto: nessuna voce nuova di questo tipo. Un elenco può
+ * superare `LIMITE_VOCI` (voci pubblicate prima del tetto o da un altro
+ * client), quindi il tetto blocca chi **aggiunge**, non chi elenca: la
+ * schermata deve dire il vero su entrambe le cose.
+ */
+export function limiteRaggiunto(voci) {
+  return voci.length >= LIMITE_VOCI;
+}
+
+/**
+ * Il conteggio accanto al titolo di una sezione: quante voci ci sono su quante
+ * se ne possono aggiungere. Oltre il tetto il rapporto non esiste più («7 di
+ * 5»), quindi si dice solo quante ce ne sono: un numero impossibile rende
+ * inaffidabile ogni altro numero della schermata (audit UX F04).
+ */
+export function testoConteggioVoci(voci) {
+  const quanti = voci.length;
+  return quanti > LIMITE_VOCI ? `${quanti} voci` : `${quanti} di ${LIMITE_VOCI}`;
+}
+
+/**
  * Errori della singola voce, con messaggi in italiano: oggetto vuoto = voce valida.
  * Le chiavi sono i campi del modulo (`idCategoria`, `mansione`).
  *

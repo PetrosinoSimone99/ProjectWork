@@ -3,7 +3,7 @@ import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { EntryEditor } from './EntryEditor';
-import { LIMITE_VOCI } from '@/services/offer-request';
+import { limiteRaggiunto } from '@/services/offer-request';
 import { space } from '@/theme/tokens';
 
 /**
@@ -29,7 +29,7 @@ export function EntriesSection({
   onRimuovi,
   allowEmpty = false,
 }) {
-  const pieno = voci.length >= LIMITE_VOCI;
+  const pieno = limiteRaggiunto(voci);
 
   return (
     <Card>
@@ -40,23 +40,31 @@ export function EntriesSection({
         </AppText>
       </View>
 
-      {voci.map((voce, indice) => (
-        <EntryEditor
-          key={voce.chiave}
-          voce={voce}
-          numero={indice + 1}
-          categorie={categorie}
-          statoCategorie={statoCategorie}
-          errori={{
-            idCategoria: fieldErrors[`${sezione.chiave}.${indice}.idCategoria`] ?? null,
-            mansione: fieldErrors[`${sezione.chiave}.${indice}.mansione`] ?? null,
-          }}
-          rimuovibile={allowEmpty || voci.length > 1}
-          motivoNonRimuovibile={voci.length === 1 ? sezione.motivoObbligo : null}
-          onCambia={(campo, valore) => onCambia(indice, campo, valore)}
-          onRimuovi={() => onRimuovi(indice)}
-        />
-      ))}
+      {/* Le voci sono una lista programmabile (WCAG 1.3.1): ruolo `list` sul
+          contenitore e `listitem` su ogni voce, così chi usa uno screen reader
+          salta da una voce all'altra (audit UX F19). */}
+      {voci.length > 0 ? (
+        <View accessibilityRole="list" style={{ gap: space.md }}>
+          {voci.map((voce, indice) => (
+            <View key={voce.chiave} accessibilityRole="listitem">
+              <EntryEditor
+                voce={voce}
+                numero={indice + 1}
+                categorie={categorie}
+                statoCategorie={statoCategorie}
+                errori={{
+                  idCategoria: fieldErrors[`${sezione.chiave}.${indice}.idCategoria`] ?? null,
+                  mansione: fieldErrors[`${sezione.chiave}.${indice}.mansione`] ?? null,
+                }}
+                rimuovibile={allowEmpty || voci.length > 1}
+                motivoNonRimuovibile={voci.length === 1 ? sezione.motivoObbligo : null}
+                onCambia={(campo, valore) => onCambia(indice, campo, valore)}
+                onRimuovi={() => onRimuovi(indice)}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {/* Il pulsante non sparisce mai quando il limite è raggiunto: un comando che
           scompare fa credere che la funzione sia rotta. */}
