@@ -297,16 +297,21 @@ export default function StaffUsersScreen() {
         />
       ) : null}
 
-      {visible.map((user) => (
-        <StaffUserCard
-          key={user.id}
-          user={user}
-          callerId={callerId}
-          busy={busy !== null && Number(busy) === Number(user.id)}
-          onPromote={() => askPromotion(user)}
-          onStatusChange={() => askStatusChange(user)}
-        />
-      ))}
+      {/* La collezione è una lista anche per le tecnologie assistive
+          (audit UX F19): si salta da una riga all'altra. */}
+      <View accessibilityRole="list" style={{ gap: space.sm }}>
+        {visible.map((user) => (
+          <View key={user.id} accessibilityRole="listitem">
+            <StaffUserCard
+              user={user}
+              callerId={callerId}
+              busy={busy !== null && Number(busy) === Number(user.id)}
+              onPromote={() => askPromotion(user)}
+              onStatusChange={() => askStatusChange(user)}
+            />
+          </View>
+        ))}
+      </View>
 
       <ConfirmModal
         visible={confirm !== null}

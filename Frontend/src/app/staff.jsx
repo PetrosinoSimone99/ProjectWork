@@ -221,16 +221,19 @@ export default function StaffScreen() {
         />
       ) : null}
 
-      {list.map((report) => (
-        <StaffReportCard
-          key={report.id}
-          report={report}
-          staffId={staffId}
-          busy={busyOn(report)}
-          onClaim={() => void claim(report)}
-          onReview={() => openReview(report)}
-        />
-      ))}
+      <View accessibilityRole="list" style={{ gap: space.sm }}>
+        {list.map((report) => (
+          <View key={report.id} accessibilityRole="listitem">
+            <StaffReportCard
+              report={report}
+              staffId={staffId}
+              busy={busyOn(report)}
+              onClaim={() => void claim(report)}
+              onReview={() => openReview(report)}
+            />
+          </View>
+        ))}
+      </View>
 
       {loading && reports !== null ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center' }}>

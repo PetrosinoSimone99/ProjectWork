@@ -81,10 +81,13 @@ export function ReportReviewSheet({
       {errors.form ? <Banner kind="error" message={errors.form} /> : null}
 
       <View style={{ flexDirection: 'row', gap: space.sm }}>
+        {/* Senza un esito scelto il pulsante non parte e non dichiara un'azione
+            che non esiste: prima si chiamava «Chiudi la segnalazione» mentre non
+            c'era niente da chiudere (audit UX F07). */}
         <AppButton
-          label={REVIEW_LABELS[outcome] ?? 'Chiudi la segnalazione'}
+          label={outcome ? (REVIEW_LABELS[outcome] ?? 'Conferma l’esito') : 'Scegli un esito'}
           onPress={onSubmit}
-          disabled={busy}
+          disabled={busy || !outcome}
           style={{ flex: 1 }}
         />
         <AppButton label="Annulla" variant="secondary" onPress={onCancel} disabled={busy} />
