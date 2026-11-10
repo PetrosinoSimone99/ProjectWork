@@ -49,7 +49,10 @@ const dark = {
   text: '#EBEFEA',
   textSecondary: '#99A49B',
   primary: '#4EA97F',
-  primaryPressed: '#3E9169',
+  // 4.75:1 su `onPrimary` `#0D1F15` (era `#3E9169`, 4.46:1: sotto 4.5, WCAG 1.4.3).
+  // Il pressed si scurisce, non si schiarisce: sul tema scuro è "premuto" il
+  // tono più basso, e per alzare il rapporto serve che il fondo si alzi.
+  primaryPressed: '#42966C',
   onPrimary: '#0D1F15',
   accentBg: '#37301B',
   accentText: '#E3B366',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
@@ -25,6 +25,12 @@ export function AppInput({
   const t = useTokens();
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(secureTextEntry);
+  // L'etichetta visibile è un `AppText` fratello dell'input: senza un nome
+  // esplicito il campo veniva annunciato con il suo placeholder (audit UX F14).
+  // `accessibilityLabel` copre tutte le piattaforme, `aria-describedby` lega
+  // l'errore al campo sul web e `nativeID`/`id` lo rendono unico nella pagina.
+  const idCampo = `campo-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const idErrore = `${idCampo}-errore`;
 
   return (
     <View style={styles.container}>
@@ -50,6 +56,10 @@ export function AppInput({
       >
         <TextInput
           style={[styles.input, { color: t.text }, multiline && styles.multiline]}
+          accessibilityLabel={label}
+          nativeID={idCampo}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? idErrore : undefined}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -89,7 +99,7 @@ export function AppInput({
         ) : null}
       </View>
       {error ? (
-        <AppText variant="small" tone="danger">
+        <AppText variant="small" tone="danger" nativeID={idErrore}>
           {error}
         </AppText>
       ) : null}

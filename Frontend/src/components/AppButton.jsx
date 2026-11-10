@@ -71,6 +71,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
   },
-  disabled: { opacity: 0.55 },
+  // 0.7 e non 0.55: il grigio del pulsante disabilitato smetteva di dire cosa
+  // manca. A 0.7 l'etichetta resta a 3.3:1 nel tema chiaro e 3.6:1 nello scuro,
+  // sopra la soglia 3:1 del testo grande e leggibile per chiunque (audit UX F24).
+  disabled: { opacity: 0.7 },
   icon: { marginLeft: -space.xs },
 });

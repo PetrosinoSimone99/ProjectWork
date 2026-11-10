@@ -8,12 +8,57 @@ import { API_BASE_URL } from './config';
  */
 const REQUEST_TIMEOUT_MS = 10000;
 
+/**
+ * Le parole che l'app dice quando non ha niente di più preciso da dire.
+ *
+ * Stanno qui e non in venti schermate (audit UX F33): una riga da correggere,
+ * una sola voce da tradurre, e nessun posto dove il testo resti quello vecchio.
+ */
+export const GENERIC_ERROR_MESSAGE = 'Qualcosa non ha funzionato. Riprova.';
+export const NETWORK_ERROR_MESSAGE =
+  'Non riesco a raggiungere il servizio: controlla la connessione e riprova.';
+export const TIMEOUT_ERROR_MESSAGE = 'Il servizio sta impiegando troppo tempo. Riprova.';
+export const SESSION_EXPIRED_MESSAGE = 'La sessione è scaduta: accedi di nuovo.';
+
+/**
+ * Lo stato HTTP diventa una frase italiana con una causa e una via d'uscita.
+ *
+ * Prima passava il testo del backend — «Invalid JWT Token», in inglese e con il
+ * nome dell'endpoint dentro (audit UX F27) — oppure una frase unica per ogni
+ * guasto, dalla connessione assente al 500 (F30). Il testo del server non si
+ * butta: resta in `ApiError.raw` e nel log, dove serve a chi ripara, non a chi
+ * legge.
+ */
+const STATUS_MESSAGES = {
+  400: 'La richiesta non è valida: controlla i dati e riprova.',
+  401: SESSION_EXPIRED_MESSAGE,
+  403: 'Non hai i permessi per questa operazione.',
+  404: 'Questo contenuto non esiste più.',
+  409: 'L’operazione è in conflitto con lo stato attuale: aggiorna e riprova.',
+  422: 'Alcuni dati non sono validi: controlla i campi e riprova.',
+  429: 'Troppe richieste in poco tempo: aspetta un momento e riprova.',
+  500: 'Il servizio ha avuto un problema. Riprova tra poco.',
+  502: 'Il servizio ha avuto un problema. Riprova tra poco.',
+  503: 'Il servizio ha avuto un problema. Riprova tra poco.',
+  504: 'Il servizio ha avuto un problema. Riprova tra poco.',
+};
+
+/** Il messaggio italiano per uno stato HTTP; `0` è il guasto di rete. */
+export function messageForStatus(status, fallback = GENERIC_ERROR_MESSAGE) {
+  if (status === 0) {
+    return NETWORK_ERROR_MESSAGE;
+  }
+  return STATUS_MESSAGES[status] ?? fallback;
+}
+
 /** The API error: carries the HTTP status and a message ready for the UI. */
 export class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, raw = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    /** Il testo originale del server, per il log: mai per lo schermo. */
+    this.raw = raw;
   }
 }
 
@@ -33,15 +78,10 @@ export function setSessionExpiredHandler(handler) {
   onSessionExpired = handler;
 }
 
-/**
- * The message to show when the response is not ok. Symfony answers
- * `{"error": "<text>"}`; the frontend maps the status, so this text is only a
- * fallback for the screens that do not have their own copy.
- */
-function messageFromBody(data) {
-  const fallback = 'Qualcosa non ha funzionato. Riprova.';
+/** Il testo del server, solo per il log: `{"error": …}` oppure `{"message": …}`. */
+function rawMessageFromBody(data) {
   if (data === null || typeof data !== 'object') {
-    return fallback;
+    return null;
   }
   if (typeof data.error === 'string' && data.error) {
     return data.error;
@@ -49,7 +89,7 @@ function messageFromBody(data) {
   if (typeof data.message === 'string' && data.message) {
     return data.message;
   }
-  return fallback;
+  return null;
 }
 
 /** Shared fetch: base URL, JSON in and out, bearer token, errors as ApiError. */
@@ -73,14 +113,14 @@ export async function apiFetch(path, options = {}) {
     });
     text = await response.text();
   } catch (error) {
-    // Two distinct cases: the connection is refused (network absent) or the
-    // server does not answer and the timer fires.
-    throw new ApiError(
-      0,
-      error?.name === 'AbortError'
-        ? 'Il servizio sta impiegando troppo tempo. Riprova.'
-        : 'Qualcosa non ha funzionato. Riprova.',
-    );
+    // Tre guasti diversi, tre frasi diverse: il timeout ha già la sua, la rete
+    // assente non è «riprova» ma «guarda la connessione» (audit UX F30).
+    const messaggio =
+      error?.name === 'AbortError' ? TIMEOUT_ERROR_MESSAGE : NETWORK_ERROR_MESSAGE;
+    if (typeof __DEV__ === 'undefined' || __DEV__) {
+      console.warn(`[api] ${method} ${path} non raggiunto:`, error?.message ?? error);
+    }
+    throw new ApiError(0, messaggio, error?.message ?? null);
   } finally {
     clearTimeout(timer);
   }
@@ -93,11 +133,15 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    // 401 with a token means the session expired or was revoked.
+    const raw = rawMessageFromBody(data);
+    // 401 con un token allegato significa sessione scaduta o revocata.
     if (response.status === 401 && token && onSessionExpired) {
       onSessionExpired();
     }
-    throw new ApiError(response.status, messageFromBody(data));
+    if (typeof __DEV__ === 'undefined' || __DEV__) {
+      console.warn(`[api] ${method} ${path} -> ${response.status}`, raw ?? '');
+    }
+    throw new ApiError(response.status, messageForStatus(response.status), raw);
   }
 
   return data;
