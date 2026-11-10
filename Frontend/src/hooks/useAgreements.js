@@ -1,15 +1,25 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { cancelAgreement, listAgreements, respondToAgreement } from '@/api';
 import { classifyAgreements } from '@/services/agreements';
 import { useRefresh } from '@/hooks/useRefresh';
 
-/** Copy for an error with no precise message of its own. */
-const FALLBACK_ERROR = 'Errore imprevisto. Riprova.';
-
 /** Copy when an action starts without the session or a valid id. */
 const ACTION_UNAVAILABLE = 'Operazione non disponibile: ricarica la schermata e riprova.';
+
+/**
+ * What the screen says after an action that worked.
+ *
+ * Accettare, rifiutare e annullare finiscono con la lista ricaricata e niente
+ * altro: la riga sparisce e l'utente deve dedurre che cosa è successo (audit UX
+ * F43). Ogni verbo ha la sua frase, e la frase nomina l'esito, non il gesto.
+ */
+const ESITI = {
+  accetta: 'Proposta accettata: lo scambio ora è in «In corso».',
+  rifiuta: 'Proposta rifiutata.',
+  annulla: 'Scambio annullato.',
+};
 
 /**
  * The data layer of the agreements tab: list, classification, the two
@@ -39,6 +49,7 @@ export function useAgreements({ token, myUsername }) {
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [esito, setEsito] = useState(null);
   const [azioneInCorso, setAzioneInCorso] = useState(null);
 
   // Incremented on every list request and on blur: a response that arrives
@@ -63,7 +74,7 @@ export function useAgreements({ token, myUsername }) {
       if (seq !== requestSeqRef.current) {
         return;
       }
-      setErrore(err instanceof ApiError ? err.message : FALLBACK_ERROR);
+      setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       if (seq === requestSeqRef.current) {
         setCaricamento(false);
@@ -93,12 +104,14 @@ export function useAgreements({ token, myUsername }) {
         return;
       }
       setActionError(null);
+      setEsito(null);
       setAzioneInCorso({ id, nome });
       try {
         await call();
+        setEsito(ESITI[nome] ?? null);
         await esegui();
       } catch (err) {
-        setActionError(err instanceof ApiError ? err.message : FALLBACK_ERROR);
+        setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       } finally {
         setAzioneInCorso(null);
       }
@@ -125,8 +138,12 @@ export function useAgreements({ token, myUsername }) {
 
   /** «Riprova»: repeats the list request that failed, nothing else. */
   const riprova = useCallback(() => {
+    setEsito(null);
     void esegui();
   }, [esegui]);
+
+  /** The user has read the outcome: the confirmation goes away. */
+  const congedaEsito = useCallback(() => setEsito(null), []);
 
   // Null until the first response: loading and "loaded but empty" stay apart.
   const classificati = useMemo(
@@ -146,6 +163,8 @@ export function useAgreements({ token, myUsername }) {
     rispondi,
     annulla,
     actionError,
+    esito,
+    congedaEsito,
     azioneInCorso,
     refreshing,
     onRefresh,

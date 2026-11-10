@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
@@ -67,7 +67,7 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-        <Ionicons name="person-outline" size={16} color={t.textSecondary} />
+        <AppIcon name="person-outline" size={16} color={t.textSecondary} />
         <AppText>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
       </View>
 
@@ -83,14 +83,14 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-            <Ionicons name="grid-outline" size={14} color={t.textSecondary} />
+            <AppIcon name="grid-outline" size={14} color={t.textSecondary} />
             <AppText variant="small">{scheda.descrizione ?? 'Servizio non indicato'}</AppText>
           </View>
           {/* The sheet has no location field: the mode is the only place
               datum it carries, and the row disappears when it is absent. */}
           {scheda.daRemoto !== null ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons
+              <AppIcon
                 name={scheda.daRemoto ? 'videocam-outline' : 'people-outline'}
                 size={14}
                 color={t.textSecondary}
@@ -102,7 +102,7 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
           ) : null}
           {formatIsoDate(scheda.inizio) || formatIsoDate(scheda.fine) ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons name="calendar-outline" size={14} color={t.textSecondary} />
+              <AppIcon name="calendar-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
                 {descriviDate(scheda.inizio, scheda.fine)}
               </AppText>
@@ -111,7 +111,7 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
         </View>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-          <Ionicons name="help-circle-outline" size={16} color={t.textSecondary} />
+          <AppIcon name="help-circle-outline" size={16} color={t.textSecondary} />
           <AppText variant="small" tone="secondary">
             Scheda non compilata
           </AppText>

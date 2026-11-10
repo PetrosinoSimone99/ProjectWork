@@ -1,20 +1,14 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { AgreementCard } from '@/components/AgreementCard';
 import { AppButton } from '@/components/AppButton';
+import { AppIcon } from '@/components/AppIcon';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
-import { Card } from '@/components/Card';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { EmptyState } from '@/components/EmptyState';
+import { ModalShell } from '@/components/ModalShell';
 import { Screen } from '@/components/Screen';
 import { useAgreements } from '@/hooks/useAgreements';
 import { counterpartOf } from '@/services/agreements';
@@ -35,9 +29,14 @@ import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
  * response, or without the viewer's username, there is no count at all and the
  * badge is absent. It sits in the bottom-right corner as a floating button and
  * opens its panel **above itself**, so the list never has to grow into the page
- * below. The panel is a `Modal` (not an inline block) because the button floats
- * over the scroll view: an inline block there would be clipped or would scroll
- * away with the page.
+ * below. The panel is a `ModalShell` (not an inline block) because the button
+ * floats over the scroll view: an inline block there would be clipped or would
+ * scroll away with the page.
+ *
+ * Accepting and refusing are irreversible from the bell, so both go through the
+ * `ConfirmModal` used everywhere else for that class of action: one tap on the
+ * row would be the only place in the app where a decision that cannot be undone
+ * starts without confirmation (audit UX F01).
  *
  * Each section draws its own loading, empty and error state, so a section never
  * shows silence where a state belongs. Errors of the list and errors of an
@@ -63,7 +62,7 @@ const SECTIONS = [
     icon: 'time-outline',
     emptyTitle: 'Nessuno scambio in corso',
     emptyDescription:
-      'Quando una proposta viene accettata, lo scambio compare qui con i dettagli che il backend ha registrato, se li ha.',
+      'Quando una proposta viene accettata, lo scambio compare qui con la scheda dell’accordo e i suoi dettagli.',
   },
   {
     key: 'concluded',
@@ -88,9 +87,6 @@ const BELL_PANEL_MAX_WIDTH = 420;
 
 /** Share of the window height the panel may cover, so the page stays visible. */
 const BELL_PANEL_HEIGHT_RATIO = 0.7;
-
-/** Side of the round close button of the bell panel (touch target, in pt). */
-const CLOSE_BUTTON_SIZE = target.min;
 
 /** The shared loading row of the bell panel and of every section. */
 function RigaCaricamento({ testo }) {
@@ -129,7 +125,7 @@ function tabLabel(sezione, conteggio) {
 }
 
 /** The subtitle of the bell panel: the count when it exists, never a fake one. */
-function didascaliaPannello({ conteggio, myUsername, caricamento, errore }) {
+function didascaliaPannello({ conteggio, myUsername, caricamento }) {
   if (myUsername === null) {
     return 'Non riesco a leggere il tuo account: ricarica la sessione.';
   }
@@ -137,7 +133,9 @@ function didascaliaPannello({ conteggio, myUsername, caricamento, errore }) {
     if (caricamento) {
       return 'Carico le proposte…';
     }
-    return errore ? 'Caricamento non riuscito.' : 'Proposte ricevute.';
+    // L'errore non si dice due volte: il corpo del pannello porta il Banner con
+    // «Riprova» dentro, qui resta il fatto che il pannello riguarda le proposte.
+    return 'Proposte ricevute.';
   }
   if (conteggio === 0) {
     return 'Nessuna proposta da rispondere.';
@@ -159,6 +157,8 @@ export default function AgreementsScreen() {
     rispondi,
     annulla,
     actionError,
+    esito,
+    congedaEsito,
     azioneInCorso,
     refreshing,
     onRefresh,
@@ -204,19 +204,28 @@ export default function AgreementsScreen() {
         </View>
 
         {errore ? (
-          <>
-            <Banner kind="error" message={errore} />
-            <AppButton
-              label="Riprova"
-              variant="secondary"
-              icon="refresh-outline"
-              onPress={riprova}
-              style={{ alignSelf: 'flex-start' }}
-            />
-          </>
+          // Il messaggio e il suo ritentativo sono un elemento solo: prima erano
+          // un banner e un bottone separati, con lo stesso fatto detto due volte.
+          <Banner
+            kind="error"
+            message={errore}
+            etichettaAzione="Riprova"
+            onAzione={riprova}
+            caricamentoAzione={caricamento}
+          />
         ) : null}
 
         {actionError ? <Banner kind="error" message={actionError} /> : null}
+
+        {esito ? (
+          <Banner
+            kind="success"
+            message={esito}
+            etichettaAzione="Ho capito"
+            iconaAzione="checkmark-outline"
+            onAzione={congedaEsito}
+          />
+        ) : null}
 
         <SectionTabs
           sections={SECTIONS}
@@ -227,7 +236,7 @@ export default function AgreementsScreen() {
 
         <View style={{ gap: space.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-            <Ionicons name={sezione.icon} size={18} color={t.textSecondary} />
+            <AppIcon name={sezione.icon} size={18} color={t.textSecondary} />
             <AppText variant="heading">{sezione.title}</AppText>
           </View>
           <AppText variant="small" tone="secondary">
@@ -274,14 +283,14 @@ export default function AgreementsScreen() {
       <BellPanel
         visible={pannelloAperto}
         onClose={() => setPannelloAperto(false)}
-        didascalia={didascaliaPannello({ conteggio, myUsername, caricamento, errore })}
+        didascalia={didascaliaPannello({ conteggio, myUsername, caricamento })}
         classificati={classificati}
         myUsername={myUsername}
-        caricamento={caricamento}
         errore={errore}
         occupato={occupato}
         azioneInCorso={azioneInCorso}
         onRispondi={rispondi}
+        onRiprova={riprova}
       />
     </View>
   );
@@ -342,8 +351,10 @@ function SectionTabs({ sections, activeKey, counts, onChange }) {
               <View
                 style={{
                   minWidth: 20,
-                  height: 20,
-                  paddingHorizontal: 5,
+                  // minHeight e non height: al 200% il numero non deve tagliarsi
+                  // (audit UX F23).
+                  minHeight: 20,
+                  paddingHorizontal: space.xs,
                   borderRadius: radius.pill,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -351,8 +362,8 @@ function SectionTabs({ sections, activeKey, counts, onChange }) {
                 }}
               >
                 <AppText
+                  variant="small"
                   style={{
-                    fontSize: 11,
                     fontWeight: '700',
                     color: attiva ? t.primary : t.textSecondary,
                   }}
@@ -401,7 +412,7 @@ function BellButton({ conteggio, aperto, onPress }) {
         elevation: 6,
       })}
     >
-      <Ionicons
+      <AppIcon
         name={aperto ? 'notifications' : 'notifications-outline'}
         size={24}
         color={t.onPrimary}
@@ -413,8 +424,9 @@ function BellButton({ conteggio, aperto, onPress }) {
             top: -space.xs,
             right: -space.xs,
             minWidth: 22,
-            height: 22,
-            paddingHorizontal: 5,
+            // minHeight: il badge non taglia il numero al 200% (audit UX F23).
+            minHeight: 22,
+            paddingHorizontal: space.xs,
             borderRadius: radius.pill,
             borderWidth: 1,
             borderColor: t.danger,
@@ -423,7 +435,7 @@ function BellButton({ conteggio, aperto, onPress }) {
             justifyContent: 'center',
           }}
         >
-          <AppText style={{ fontSize: 11, fontWeight: '700', color: t.dangerText }}>
+          <AppText variant="small" style={{ fontWeight: '700', color: t.dangerText }}>
             {String(conteggio)}
           </AppText>
         </View>
@@ -435,11 +447,18 @@ function BellButton({ conteggio, aperto, onPress }) {
 /**
  * The panel the bell opens: anchored above the button, right-aligned, as wide as
  * the screen allows and never taller than `BELL_PANEL_HEIGHT_RATIO` of the
- * window (the rows scroll inside). Tapping outside closes it; there is also an
- * explicit close button, because on a phone the visible outside area is thin.
+ * window (the rows scroll inside). It is a `ModalShell`, so it closes with the
+ * X, with Escape on the web and with a tap outside, and the focus moves into the
+ * panel when it opens (audit UX F15, F16).
  *
  * Loading, empty, missing-account and error are separate branches: the panel
- * never draws rows it has not read, and never draws an invented count.
+ * never draws rows it has not read, and never draws an invented count. The error
+ * branch carries its own «Riprova»: asking the user to close the panel and find
+ * the button somewhere else cost three steps (F12).
+ *
+ * Accepting and refusing open the `ConfirmModal` first: the copy names the other
+ * person and what the choice does, because neither action can be undone from
+ * here (F01).
  */
 function BellPanel({
   visible,
@@ -447,15 +466,17 @@ function BellPanel({
   didascalia,
   classificati,
   myUsername,
-  caricamento,
   errore,
   occupato,
   azioneInCorso,
   onRispondi,
+  onRiprova,
 }) {
   const t = useTokens();
   const { width: larghezzaFinestra, height: altezzaFinestra } = useWindowDimensions();
   const larghezza = Math.min(BELL_PANEL_MAX_WIDTH, larghezzaFinestra - BELL_MARGIN * 2);
+  // La decisione in attesa di conferma: `null` quando non c'è niente da chiedere.
+  const [daConfermare, setDaConfermare] = useState(null);
 
   let contenuto;
   if (myUsername === null) {
@@ -468,9 +489,12 @@ function BellPanel({
     );
   } else if (classificati === null) {
     contenuto = errore ? (
-      <AppText variant="small" tone="secondary">
-        Caricamento non riuscito: chiudi il pannello e usa «Riprova».
-      </AppText>
+      <Banner
+        kind="error"
+        message={errore}
+        etichettaAzione="Riprova"
+        onAzione={onRiprova}
+      />
     ) : (
       <RigaCaricamento testo="Carico le proposte…" />
     );
@@ -498,7 +522,7 @@ function BellPanel({
             borderTopColor: t.border,
           }}
         >
-          <View style={{ gap: 2 }}>
+          <View style={{ gap: space.xs }}>
             <AppText>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
             {propostaDel ? (
               <AppText variant="caption" tone="secondary">
@@ -512,7 +536,7 @@ function BellPanel({
               variant="primary"
               icon="checkmark-outline"
               accessibilityLabel={`Accetta la proposta di ${chi}`}
-              onPress={() => void onRispondi(accordo.id, true)}
+              onPress={() => setDaConfermare({ id: accordo.id, chi, accepted: true })}
               loading={miaAzione === 'accetta'}
               disabled={occupato && miaAzione !== 'accetta'}
               style={{ flex: 1 }}
@@ -522,7 +546,7 @@ function BellPanel({
               variant="secondary"
               icon="close-outline"
               accessibilityLabel={`Rifiuta la proposta di ${chi}`}
-              onPress={() => void onRispondi(accordo.id, false)}
+              onPress={() => setDaConfermare({ id: accordo.id, chi, accepted: false })}
               loading={miaAzione === 'rifiuta'}
               disabled={occupato && miaAzione !== 'rifiuta'}
               style={{ flex: 1 }}
@@ -534,61 +558,51 @@ function BellPanel({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1 }}>
-        {/* Tapping outside the panel closes it. The backdrop is not announced:
-            the close button carries that name, and two controls saying the same
-            thing is noise for a screen reader. */}
-        <Pressable
-          accessible={false}
-          importantForAccessibility="no"
-          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
-          onPress={onClose}
-        />
+    <>
+      <ModalShell
+        visible={visible}
+        onClose={onClose}
+        titolo="Proposte ricevute"
+        descrizione={didascalia}
+        etichettaChiudi="Chiudi le proposte ricevute"
+        align="bottom"
+        larghezzaMassima={larghezza}
+        contenitoreStyle={{
+          alignItems: 'flex-end',
+          paddingRight: BELL_MARGIN,
+          paddingBottom: BELL_MARGIN + BELL_SIZE + space.sm,
+          paddingLeft: BELL_MARGIN,
+        }}
+        pannelloStyle={{ maxHeight: altezzaFinestra * BELL_PANEL_HEIGHT_RATIO }}
+      >
+        <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: space.sm }}>
+          {contenuto}
+        </ScrollView>
+      </ModalShell>
 
-        <View
-          accessibilityViewIsModal
-          style={{
-            position: 'absolute',
-            right: BELL_MARGIN,
-            bottom: BELL_MARGIN + BELL_SIZE + space.sm,
-            width: larghezza,
-            maxHeight: altezzaFinestra * BELL_PANEL_HEIGHT_RATIO,
-          }}
-        >
-          <Card style={{ gap: space.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <AppText variant="heading" style={{ fontSize: 16 }}>
-                  Proposte ricevute
-                </AppText>
-                <AppText variant="small" tone="secondary">
-                  {didascalia}
-                </AppText>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Chiudi le proposte ricevute"
-                onPress={onClose}
-                style={({ pressed }) => ({
-                  width: CLOSE_BUTTON_SIZE,
-                  height: CLOSE_BUTTON_SIZE,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: radius.pill,
-                  backgroundColor: pressed ? t.border : 'transparent',
-                })}
-              >
-                <Ionicons name="close" size={20} color={t.textSecondary} />
-              </Pressable>
-            </View>
-
-            <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: space.sm }}>
-              {contenuto}
-            </ScrollView>
-          </Card>
-        </View>
-      </View>
-    </Modal>
+      {/* La conferma vive accanto al pannello, non dentro: è un secondo dialogo
+          sopra il primo, come ovunque nell'app. */}
+      <ConfirmModal
+        visible={daConfermare !== null}
+        titolo={
+          daConfermare?.accepted ? 'Accettare questa proposta?' : 'Rifiutare questa proposta?'
+        }
+        messaggio={
+          daConfermare?.accepted
+            ? `Accettando, lo scambio con ${daConfermare?.chi} diventa un accordo in corso: da qui non puoi più cambiare risposta.`
+            : `Rifiutando, la proposta di ${daConfermare?.chi} si chiude: non puoi rispondere di nuovo.`
+        }
+        etichettaConferma={daConfermare?.accepted ? 'Accetta la proposta' : 'Rifiuta la proposta'}
+        varianteConferma={daConfermare?.accepted ? 'primary' : 'danger'}
+        onConferma={() => {
+          const scelta = daConfermare;
+          setDaConfermare(null);
+          if (scelta) {
+            void onRispondi(scelta.id, scelta.accepted);
+          }
+        }}
+        onAnnulla={() => setDaConfermare(null)}
+      />
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -14,7 +14,9 @@ const ICONS = {
  * Avviso a banner: usato per errori delle API, conferme e note.
  * Con `etichettaAzione` + `onAzione` porta dentro di sé la AppButton secondaria:
  * lo stesso gesto d'errore è un solo elemento, non banner e bottone separato.
- * `caricamentoAzione` spegne il comando mentre l'azione è in volo.
+ * `caricamentoAzione` spegne il comando mentre l'azione è in volo;
+ * `iconaAzione` cambia il simbolo del comando (il default è «Riprova», perché
+ * il primo uso del banner è stato un errore con ritentativo).
  */
 export function Banner({
   kind,
@@ -22,6 +24,7 @@ export function Banner({
   etichettaAzione = null,
   onAzione = null,
   caricamentoAzione = false,
+  iconaAzione = 'refresh-outline',
 }) {
   const t = useTokens();
   const palettes = {
@@ -47,15 +50,14 @@ export function Banner({
         padding: space.md,
       }}
     >
-      <Ionicons name={ICONS[kind]} size={18} color={palette.text} style={{ marginTop: 1 }} />
-      <AppText variant="small" style={{ color: palette.text, flex: 1 }}>
+      <AppIcon name={ICONS[kind]} size={18} color={palette.text} style={{ marginTop: 1 }} />      <AppText variant="small" style={{ color: palette.text, flex: 1 }}>
         {message}
       </AppText>
       {etichettaAzione && onAzione ? (
         <AppButton
           label={etichettaAzione}
           variant="secondary"
-          icon="refresh-outline"
+          icon={iconaAzione}
           onPress={onAzione}
           loading={caricamentoAzione}
           style={stileAzione}
