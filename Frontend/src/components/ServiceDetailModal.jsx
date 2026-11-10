@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
@@ -139,7 +139,7 @@ export function ServiceDetailModal({
               Pubblicato da
             </AppText>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons name="person-circle-outline" size={18} color={t.textSecondary} />
+              <AppIcon name="person-circle-outline" size={18} color={t.textSecondary} />
               <AppText>{name}</AppText>
               {owner.username ? (
                 <AppText variant="small" tone="secondary">
@@ -148,7 +148,7 @@ export function ServiceDetailModal({
               ) : null}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons
+              <AppIcon
                 name={
                   location
                     ? 'location-outline'
@@ -165,7 +165,7 @@ export function ServiceDetailModal({
             </View>
             {location && remote ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <Ionicons name="videocam-outline" size={16} color={t.textSecondary} />
+                <AppIcon name="videocam-outline" size={16} color={t.textSecondary} />
                 <AppText variant="small" tone="secondary">
                   {`Disponibile anche ${etichettaModalita(true)}`}
                 </AppText>
@@ -173,7 +173,7 @@ export function ServiceDetailModal({
             ) : null}
             {publishedAt ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <Ionicons name="calendar-outline" size={16} color={t.textSecondary} />
+                <AppIcon name="calendar-outline" size={16} color={t.textSecondary} />
                 <AppText variant="small" tone="secondary">
                   {`Pubblicato il ${publishedAt}`}
                 </AppText>

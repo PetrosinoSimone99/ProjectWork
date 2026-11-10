@@ -1,5 +1,5 @@
 import { Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { useRouter } from 'expo-router';
 import { radius, target, useTokens } from '@/theme/tokens';
 
@@ -29,7 +29,7 @@ export function BackButton({ onPress }) {
         justifyContent: 'center',
       })}
     >
-      <Ionicons name="arrow-back" size={22} color={t.text} />
+      <AppIcon name="arrow-back" size={22} color={t.text} />
     </Pressable>
   );
 }

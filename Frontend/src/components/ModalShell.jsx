@@ -22,6 +22,18 @@ const ALLINEAMENTO = {
 const LARGHEZZA_MASSIMA = 560;
 
 /**
+ * Gli shell aperti, in ordine di apertura.
+ *
+ * Serve perché una conferma si apre **sopra** un altro pannello (la campanella
+ * degli accordi, la scheda di revisione staff) e ogni istanza ascolta `keydown`
+ * sul `document`: `stopPropagation()` non ferma gli altri listener sullo stesso
+ * nodo, quindi un solo Escape chiudeva entrambi i pannelli — nella scheda di
+ * revisione buttava via esito e nota già digitati. Risponde solo l'ultimo
+ * aperto.
+ */
+const pilaAperta = [];
+
+/**
  * L'involucro unico dei pannelli modali.
  *
  * Prima di questo componente ogni pannello (dettaglio servizio, conferma,
@@ -59,9 +71,25 @@ export function ModalShell({
   contenitoreStyle,
 }) {
   const t = useTokens();
-  const idTitolo = `pannello-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const idIstanza = `pannello-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const idTitolo = `${idIstanza}-titolo`;
   const pannelloRef = useRef(null);
   const chiudiSePossibile = chiudibile ? onClose : undefined;
+
+  // Chi è aperto, e in che ordine: l'effetto dichiarato prima dell'ascoltatore,
+  // così al primo `keydown` la pila è già aggiornata.
+  useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+    pilaAperta.push(idIstanza);
+    return () => {
+      const indice = pilaAperta.lastIndexOf(idIstanza);
+      if (indice !== -1) {
+        pilaAperta.splice(indice, 1);
+      }
+    };
+  }, [visible, idIstanza]);
 
   // Escape sul web: `onRequestClose` è la strada documentata di React Native ma
   // su web non arriva al `Modal` (verificato nell'audit, F15).
@@ -73,14 +101,20 @@ export function ModalShell({
       return undefined;
     }
     const onKeyDown = (event) => {
-      if (event.key === 'Escape' || event.key === 'Esc') {
-        event.stopPropagation();
-        onClose();
+      if (event.key !== 'Escape' && event.key !== 'Esc') {
+        return;
       }
+      // Solo il pannello in cima risponde: senza questo, un Escape chiudeva la
+      // conferma **e** il pannello sotto.
+      if (pilaAperta[pilaAperta.length - 1] !== idIstanza) {
+        return;
+      }
+      event.stopPropagation();
+      onClose();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [visible, chiudibile, onClose]);
+  }, [visible, chiudibile, onClose, idIstanza]);
 
   // Focus dentro il pannello all'apertura (WCAG 2.4.3): sul web il focus va sul
   // contenitore, che ha `tabIndex={-1}` e quindi si legge dal primo elemento; da

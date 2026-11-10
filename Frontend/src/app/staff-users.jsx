@@ -81,21 +81,29 @@ export default function StaffUsersScreen() {
   const requestRef = useRef(0);
   const actionRef = useRef(false);
   const primoCaricamento = useRef(true);
+  // I filtri correnti stanno in una ref, non nelle dipendenze di `load`:
+  // `useFocusEffect` dipende da `load`, quindi con `query` fra le dipendenze
+  // ogni tasto faceva partire subito una richiesta **e** il timer ne faceva
+  // partire una seconda identica 350 ms dopo.
+  const filtriRef = useRef({ q: '', accountStatus: '' });
 
-  const load = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-    const seq = ++requestRef.current;
-    setLoading(true);
-    try {
-      // I filtri che il backend sa applicare partono da qui: la ricerca non
-      // guarda solo le righe già arrivate (audit UX F11).
-      const page = await listStaffUsers(token, {
-        limit: 50,
-        q: query.trim(),
-        accountStatus: statusFilter ?? '',
-      });
+  // Aggiornata in un effetto e non durante il render: scrivere una ref nel corpo
+  // del componente è quello che `react-hooks/refs` vieta, e con ragione.
+  useEffect(() => {
+    filtriRef.current = { q: query.trim(), accountStatus: statusFilter ?? '' };
+  }, [query, statusFilter]);
+
+  const load = useCallback(
+    async (filtri = filtriRef.current) => {
+      if (!token) {
+        return;
+      }
+      const seq = ++requestRef.current;
+      setLoading(true);
+      try {
+        // I filtri che il backend sa applicare partono da qui: la ricerca non
+        // guarda solo le righe già arrivate (audit UX F11).
+        const page = await listStaffUsers(token, { limit: 50, ...filtri });
       if (seq !== requestRef.current) {
         return;
       }
@@ -105,13 +113,15 @@ export default function StaffUsersScreen() {
       if (seq !== requestRef.current) {
         return;
       }
-      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-    } finally {
-      if (seq === requestRef.current) {
-        setLoading(false);
+        setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      } finally {
+        if (seq === requestRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  }, [token, query, statusFilter]);
+    },
+    [token],
+  );
 
   // Il primo caricamento lo fa `useFocusEffect`: qui si richiede solo quando la
   // ricerca o lo stato cambiano, un attimo dopo l'ultimo tasto.
@@ -121,10 +131,10 @@ export default function StaffUsersScreen() {
       return undefined;
     }
     const timer = setTimeout(() => {
-      void load();
+      void load({ q: query.trim(), accountStatus: statusFilter ?? '' });
     }, RICERCA_ATTESA_MS);
     return () => clearTimeout(timer);
-  }, [load]);
+  }, [load, query, statusFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -280,6 +290,19 @@ export default function StaffUsersScreen() {
             loading={loading}
             style={{ alignSelf: 'flex-start' }}
           />
+        </View>
+      ) : null}
+
+      {/* Durante una ricerca lato server le righe vecchie restano: senza una
+          riga che lo dica, l'elenco sembra non rispondere al tasto premuto. */}
+      {loading && users !== null ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+        >
+          <AppText variant="small" tone="secondary">
+            Cerco fra tutti gli utenti…
+          </AppText>
         </View>
       ) : null}
 

@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -52,7 +52,7 @@ export function AppButton({
       ) : (
         <>
           {icon ? (
-            <Ionicons name={icon} size={17} color={palette.text} style={styles.icon} />
+            <AppIcon name={icon} size={17} color={palette.text} style={styles.icon} />
           ) : null}
           <AppText style={{ color: palette.text, fontWeight: '600' }}>{label}</AppText>
         </>

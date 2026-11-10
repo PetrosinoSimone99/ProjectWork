@@ -289,14 +289,20 @@ export default function StaffScreen() {
       <ModalShell
         visible={review !== null}
         onClose={() => setReview(null)}
+        // Il titolo dà un nome al dialogo e non ripete la conferma che segue
+        // (F13); la cornice è quella di tutti gli altri pannelli (F38).
+        titolo="Esito e nota"
+        descrizione={
+          review
+            ? `Riguarda ${nomePersona(review.report.segnalato)}. La nota resta agli atti: scrivi su cosa si basa la decisione.`
+            : undefined
+        }
         etichettaChiudi="Chiudi la scheda di revisione"
         chiudibile={busy === null}
-        pannelloStyle={{ padding: 0, borderWidth: 0, backgroundColor: 'transparent' }}
       >
         <ScrollView style={{ maxHeight: '85%' }}>
           {review ? (
             <ReportReviewSheet
-              report={review.report}
               outcome={review.outcome}
               note={review.note}
               errors={reviewErrors}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { ModalShell } from './ModalShell';
 import { radius, space, target, useTokens } from '@/theme/tokens';
@@ -102,7 +102,7 @@ export function CategorySelector({
         ]}
       >
         <AppText style={{ flex: 1, color: scelta ? t.text : t.textSecondary }}>{testo}</AppText>
-        <Ionicons name="chevron-down" size={18} color={t.textSecondary} />
+        <AppIcon name="chevron-down" size={18} color={t.textSecondary} />
       </Pressable>
 
       {error ? (
@@ -127,7 +127,7 @@ export function CategorySelector({
               paddingHorizontal: space.md,
             }}
           >
-            <Ionicons name="search" size={18} color={t.textSecondary} />
+            <AppIcon name="search" size={18} color={t.textSecondary} />
             <TextInput
               style={{ flex: 1, minHeight: 44, fontSize: 15, color: t.text }}
               value={ricerca}
@@ -192,7 +192,7 @@ function ElencoCategorie({ categorieFiltrate, value, onChange, etichettaAzzera, 
           ]}
         >
           <AppText style={{ color: azzero ? t.primary : t.text }}>{etichettaAzzera}</AppText>
-          {azzero ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+          {azzero ? <AppIcon name="checkmark" size={18} color={t.primary} /> : null}
         </Pressable>
       ) : null}
       {categorieFiltrate.length === 0 ? (
@@ -227,7 +227,7 @@ function ElencoCategorie({ categorieFiltrate, value, onChange, etichettaAzzera, 
               ]}
             >
               <AppText style={{ color: attiva ? t.primary : t.text }}>{categoria.nome}</AppText>
-              {attiva ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+              {attiva ? <AppIcon name="checkmark" size={18} color={t.primary} /> : null}
             </Pressable>
           );
         })

@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from '@/components/AppIcon';
 import { Platform } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { TAB_ROUTES } from '@/navigation/tab-routes';
@@ -41,7 +41,7 @@ export default function TabsLayout() {
           options={{
             title: rotta.title,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name={rotta.icona} size={size} color={color} />
+              <AppIcon name={rotta.icona} size={size} color={color} />
             ),
           }}
         />

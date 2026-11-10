@@ -53,7 +53,9 @@ export default function LoginScreen() {
       await signIn(username.trim(), password);
       // On success the root navigator switches to the tabs by itself; if the
       // user was thrown out of a screen, they land back on it.
-      if (typeof ritorno === 'string' && ritorno.startsWith('/')) {
+      // Solo un percorso interno: `//host` è un URL protocol-relative e non deve
+      // diventare una destinazione.
+      if (typeof ritorno === 'string' && !ritorno.startsWith('//') && ritorno.startsWith('/')) {
         router.replace(ritorno);
       }
     } catch (err) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { ModalShell } from './ModalShell';
 import { radius, space, target, useTokens } from '@/theme/tokens';
@@ -93,7 +93,7 @@ export function ListSelector({
         })}
       >
         <AppText style={{ flex: 1, color: valore ? t.text : t.textSecondary }}>{testo}</AppText>
-        <Ionicons name="chevron-down" size={18} color={t.textSecondary} />
+        <AppIcon name="chevron-down" size={18} color={t.textSecondary} />
       </Pressable>
 
       {errore ? (
@@ -116,7 +116,7 @@ export function ListSelector({
               paddingHorizontal: space.md,
             }}
           >
-            <Ionicons name="search" size={18} color={t.textSecondary} />
+            <AppIcon name="search" size={18} color={t.textSecondary} />
             <TextInput
               style={{ flex: 1, minHeight: 44, fontSize: 15, color: t.text }}
               value={ricerca}
@@ -184,7 +184,7 @@ function ElencoOpzioni({ opzioniFiltrate, valore, onChange, etichettaAzzera, onC
           >
             {etichettaAzzera}
           </AppText>
-          {nessunaScelta ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+          {nessunaScelta ? <AppIcon name="checkmark" size={18} color={t.primary} /> : null}
         </Pressable>
       ) : null}
       {opzioniFiltrate.length === 0 ? (
@@ -223,7 +223,7 @@ function ElencoOpzioni({ opzioniFiltrate, valore, onChange, etichettaAzzera, onC
               >
                 {opzione}
               </AppText>
-              {attiva ? <Ionicons name="checkmark" size={18} color={t.primary} /> : null}
+              {attiva ? <AppIcon name="checkmark" size={18} color={t.primary} /> : null}
             </Pressable>
           );
         })

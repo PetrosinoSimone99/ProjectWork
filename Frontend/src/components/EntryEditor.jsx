@@ -1,5 +1,5 @@
 import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppCheckbox } from './AppCheckbox';
 import { AppInput } from './AppInput';
 import { AppText } from './AppText';
@@ -107,7 +107,7 @@ export function EntryEditor({
                 opacity: rimuovibile ? 1 : 0.4,
               }}
             >
-              <Ionicons name="trash-outline" size={18} color={t.danger} />
+              <AppIcon name="trash-outline" size={18} color={t.danger} />
             </Pressable>
           ) : null}
         </View>

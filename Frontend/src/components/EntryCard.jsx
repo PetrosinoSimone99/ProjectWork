@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
@@ -102,7 +102,7 @@ export function EntryCard({
         >
           {voce.localita ? (
             <>
-              <Ionicons name="location-outline" size={14} color={t.textSecondary} />
+              <AppIcon name="location-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
                 {localitaPerDisplay(voce.localita)}
               </AppText>

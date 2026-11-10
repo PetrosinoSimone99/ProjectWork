@@ -46,6 +46,20 @@ const PHOTO_HTTPS_MESSAGE =
  */
 let bozzaInterrotta = null;
 
+/**
+ * La bozza appartiene a un utente.
+ *
+ * Senza il proprietario, la bozza di una persona restava in memoria e chi
+ * accedeva dopo, aprendo «Modifica profilo», vedeva i dati del precedente e un
+ * salvataggio li riscriveva sul proprio profilo.
+ */
+function bozzaDi(username) {
+  if (bozzaInterrotta && bozzaInterrotta.proprietario === username) {
+    return bozzaInterrotta;
+  }
+  return null;
+}
+
 /** I valori di partenza di un modulo vuoto. */
 function formVuoto() {
   return {
@@ -84,9 +98,10 @@ export default function EditProfileScreen() {
 
   // Se c'è una bozza interrotta da un 401, il modulo riparte da lì: è il lavoro
   // che l'utente aveva già scritto.
-  const [form, setForm] = useState(() => bozzaInterrotta?.form ?? formVuoto());
-  const [initial, setInitial] = useState(() => bozzaInterrotta?.initial ?? {});
-  const bozzaRipresa = useRef(Boolean(bozzaInterrotta));
+  const ripresa = bozzaDi(utente?.username ?? null);
+  const [form, setForm] = useState(() => ripresa?.form ?? formVuoto());
+  const [initial, setInitial] = useState(() => ripresa?.initial ?? {});
+  const bozzaRipresa = useRef(Boolean(ripresa));
   const [legacyLocation, setLegacyLocation] = useState(null);
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -151,7 +166,7 @@ export default function EditProfileScreen() {
     if (utente) {
       return;
     }
-    bozzaInterrotta = { form, initial, legacyLocation };
+    bozzaInterrotta = { proprietario: utente?.username ?? null, form, initial, legacyLocation };
     router.replace({ pathname: '/login', params: { ritorno: '/edit-profile' } });
   }, [utente, form, initial, legacyLocation, router]);
 

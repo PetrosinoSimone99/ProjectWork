@@ -1,5 +1,5 @@
 import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
@@ -57,7 +57,7 @@ export function AppCheckbox({ label, value, onChange, disabled = false, style })
           justifyContent: 'center',
         }}
       >
-        {value ? <Ionicons name="checkmark" size={15} color={t.onPrimary} /> : null}
+        {value ? <AppIcon name="checkmark" size={15} color={t.onPrimary} /> : null}
       </View>
       <AppText variant="small" style={{ flex: 1 }}>
         {label}

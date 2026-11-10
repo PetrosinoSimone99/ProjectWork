@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
@@ -41,7 +41,7 @@ export function StaffReportCard({ report, staffId, busy = false, onClaim, onRevi
 
       <View style={{ gap: space.xs }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Ionicons name="person-outline" size={15} color={t.textSecondary} />
+          <AppIcon name="person-outline" size={15} color={t.textSecondary} />
           <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
             {`${reporter} segnala ${reported}`}
           </AppText>

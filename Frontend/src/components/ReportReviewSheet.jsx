@@ -3,9 +3,7 @@ import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { AppInput } from './AppInput';
 import { Banner } from './Banner';
-import { Card } from './Card';
 import { PillBar } from './PillBar';
-import { nomePersona } from '@/services/offer-request';
 import { REVIEW_LABELS, REVIEW_NOTE_MAX, REVIEW_OUTCOMES } from '@/services/staff';
 import { space } from '@/theme/tokens';
 
@@ -25,7 +23,6 @@ const OUTCOME_CHOICES = Object.values(REVIEW_OUTCOMES).map((outcome) => ({
  * for two people.
  */
 export function ReportReviewSheet({
-  report,
   outcome,
   note,
   errors = {},
@@ -36,17 +33,10 @@ export function ReportReviewSheet({
   onCancel,
 }) {
   return (
-    <Card>
-      <View style={{ gap: space.xs }}>
-        {/* The sheet title must not repeat the confirmation that follows it
-            (F13): the confirm asks "Chiudere la segnalazione?" — this title
-            says what the sheet collects. */}
-        <AppText variant="heading">Esito e nota</AppText>
-        <AppText variant="small" tone="secondary">
-          {`Riguarda ${nomePersona(report.segnalato)}. La nota resta agli atti: scrivi su cosa si basa la decisione.`}
-        </AppText>
-      </View>
-
+    // La cornice la disegna `ModalShell` (titolo «Esito e nota» e la riga di
+    // descrizione): qui c'è solo il contenuto, senza un secondo pannello dentro
+    // il pannello (F38, un solo chrome).
+    <View style={{ gap: space.md }}>
       <View style={{ gap: space.sm }}>
         <AppText variant="small" style={{ fontWeight: '600' }}>
           Esito
@@ -92,6 +82,6 @@ export function ReportReviewSheet({
         />
         <AppButton label="Annulla" variant="secondary" onPress={onCancel} disabled={busy} />
       </View>
-    </Card>
+    </View>
   );
 }

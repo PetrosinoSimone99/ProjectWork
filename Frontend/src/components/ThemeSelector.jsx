@@ -1,5 +1,5 @@
 import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from '@/components/AppText';
 import { PREFERENZA_TEMA } from '@/theme/theme-store';
 import { useThemePreference } from '@/theme/theme-context';
@@ -52,7 +52,7 @@ export function ThemeSelector() {
               backgroundColor: isSelected ? t.serviceBg : pressed ? t.border : 'transparent',
             })}
           >
-            <Ionicons
+            <AppIcon
               name={opzione.icona}
               size={18}
               color={isSelected ? t.primary : t.textSecondary}

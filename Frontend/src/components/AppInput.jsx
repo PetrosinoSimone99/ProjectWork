@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
@@ -90,7 +90,7 @@ export function AppInput({
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Ionicons
+            <AppIcon
               name={hidden ? 'eye-outline' : 'eye-off-outline'}
               size={20}
               color={t.textSecondary}
