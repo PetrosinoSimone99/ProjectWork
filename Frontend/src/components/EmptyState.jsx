@@ -1,8 +1,8 @@
 import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
-import { space, useTokens } from '@/theme/tokens';
+import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
  * I tre stati «niente da mostrare», con una forma diversa ciascuno (dal 5
@@ -57,7 +57,7 @@ export function EmptyState({
         style={{
           width: 56,
           height: 56,
-          borderRadius: 999,
+          borderRadius: radius.pill,
           backgroundColor: t.surface,
           borderWidth: 1,
           borderColor: t.borderInput,
@@ -65,7 +65,8 @@ export function EmptyState({
           justifyContent: 'center',
         }}
       >
-        <Ionicons name={icon} size={26} color={t.textSecondary} />
+        {/* Icona decorativa: nessun `label`, quindi nascosta agli AT (F22). */}
+        <AppIcon name={icon} size={26} color={t.textSecondary} />
       </View>
       <AppText variant="heading" style={{ textAlign: 'center' }}>
         {title}

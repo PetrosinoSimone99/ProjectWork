@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ApiError } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getHomeCatalog } from '@/api';
 import { contaFiltri, nuoviFiltri } from '@/services/offer-request';
 import { useRefresh } from '@/hooks/useRefresh';
@@ -109,7 +109,7 @@ export function useServiceCatalog({ token, utenteId }) {
         // Il contenuto precedente resta a schermo (l'attesa e l'errore lo dicono
         // il pulsante «Filtra» e il Banner): una schermata che sparisce per un
         // ricarico fallito è peggio di un dato vecchio e un avviso.
-        const messaggio = err instanceof ApiError ? err.message : 'Errore imprevisto. Riprova.';
+        const messaggio = err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE;
         if (inCoda) {
           setErroreAltri(messaggio);
         } else {
@@ -156,17 +156,26 @@ export function useServiceCatalog({ token, utenteId }) {
    * Categoria, regione e provincia: scelte discrete, quindi chiedono subito.
    * Cambiare regione azzera la provincia (cascata): le province della regione
    * vecchia non hanno senso nella nuova. Una sola richiesta, mai due.
+   *
+   * Come `cambiaModalita`, la richiesta parte dai filtri **applicati**, non
+   * dalla bozza (audit UX F06): una scelta discreta non deve applicare di
+   * nascosto il testo digitato e mai confermato con «Filtra». La bozza riceve
+   * solo la scelta fatta, per restare coerente con ciò che è a schermo.
    */
   const cambiaScelta = useCallback(
     (campo, valore) => {
       const prossimi =
         campo === 'regione'
-          ? { ...filtri, regione: valore, provincia: '' }
-          : { ...filtri, [campo]: valore };
-      setFiltri(prossimi);
+          ? { ...filtriApplicatiRef.current, regione: valore, provincia: '' }
+          : { ...filtriApplicatiRef.current, [campo]: valore };
+      setFiltri((correnti) =>
+        campo === 'regione'
+          ? { ...correnti, regione: valore, provincia: '' }
+          : { ...correnti, [campo]: valore },
+      );
       void esegui(prossimi);
     },
-    [esegui, filtri],
+    [esegui],
   );
 
   /** Invio o pulsante «Filtra»: richiede con i filtri correnti, tornando a pagina 1. */
@@ -174,12 +183,17 @@ export function useServiceCatalog({ token, utenteId }) {
     void esegui(filtri);
   }, [esegui, filtri]);
 
-  /** La X nel campo di testo: azzera solo il testo e riapplica gli altri filtri. */
+  /**
+   * La X nel campo di testo: azzera **solo** il testo e riapplica gli altri
+   * filtri. Riparte dai filtri applicati (audit UX F05/F06): categoria, area e
+   * modalità viaggiano esattamente come sono a schermo, quindi il tasto non
+   * le azzera e non ci infila dentro scelte mai confermate.
+   */
   const azzeraTesto = useCallback(() => {
-    const prossimi = { ...filtri, testo: '' };
+    const prossimi = { ...filtriApplicatiRef.current, testo: '' };
     setFiltri(prossimi);
     void esegui(prossimi);
-  }, [esegui, filtri]);
+  }, [esegui]);
 
   /** «Azzera filtri»: svuota tutto e richiede il catalogo intero, da pagina 1. */
   const azzeraFiltri = useCallback(() => {

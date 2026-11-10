@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { TAB_ROUTES } from '@/navigation/tab-routes';
@@ -66,7 +66,11 @@ const OMBRA_PANNELLO = {
  *
  * Rotta attiva: `usePathname()`, con corrispondenza esatta al `path` della
  * rotta. Una rotta fuori dalle 5 (es. `/chat`, `/scambi`) lascia il menu integro
- * e **nessuna** voce evidenziata.
+ * e **nessuna** voce evidenziata; in quel caso pallino e testata del pannello lo
+ * dicono invece di tacere. Sulle 5 la sezione attuale compare **nell'etichetta
+ * del pallino** e nella **testata del pannello** (audit UX F40), così la
+ * divergenza dalla barra nativa resta leggibile: si vede sempre in che sezione
+ * si è senza dover leggere il titolo della schermata.
  *
  * Stati UI espliciti: `chiuso`, `inApertura`/`inChiusura` (la tendina resta
  * montata finché la chiusura non è finita), voce `hover`/`press`/`focus`/`attiva`.
@@ -85,6 +89,10 @@ export function WebNavMenu() {
   const percorso = usePathname();
   const movimentoRidotto = useReducedMotion();
   const isWeb = Platform.OS === 'web';
+
+  // La sezione da dichiarare nel pallino e nella testata del pannello (F40):
+  // corrispondenza esatta, come per l'evidenziazione delle voci.
+  const rottaAttiva = TAB_ROUTES.find((rotta) => percorso === rotta.path) ?? null;
 
   const [aperto, setAperto] = useState(false);
   const [visibile, setVisibile] = useState(false);
@@ -282,7 +290,8 @@ export function WebNavMenu() {
           focusable
           accessibilityRole="button"
           accessibilityLabel={
-            aperto ? 'Chiudi il menu di navigazione' : 'Apri il menu di navigazione'
+            (aperto ? 'Chiudi il menu di navigazione' : 'Apri il menu di navigazione') +
+            (rottaAttiva ? `, sezione attuale: ${rottaAttiva.title}` : '')
           }
           accessibilityState={{ expanded: aperto }}
           aria-expanded={aperto}
@@ -299,14 +308,12 @@ export function WebNavMenu() {
         >
           {/* TODO(logo): qui arriverà l'immagine del logo; il cerchio 48×48 con
               radius.pill resta, cambia solo il figlio. */}
-          <Ionicons name="apps" size={DIMENSIONE_ICONA_PALLINO} color={t.onPrimary} />
+          <AppIcon name="apps" size={DIMENSIONE_ICONA_PALLINO} color={t.onPrimary} />
         </Pressable>
       </Animated.View>
 
       {visibile ? (
         <Animated.View
-          accessibilityRole="menu"
-          accessibilityLabel="Menu di navigazione"
           pointerEvents={aperto ? 'auto' : 'none'}
           style={[
             styles.pannello,
@@ -333,80 +340,91 @@ export function WebNavMenu() {
             },
           ]}
         >
-          {TAB_ROUTES.map((rotta, indice) => {
-            const titolo = rotta.title;
-            const attiva = percorso === rotta.path;
-            const inHover = voceInHover === rotta.name;
-            const colore = attiva ? t.primary : inHover ? t.text : t.textSecondary;
-            const valoreVoce = valoriVoci[indice];
-            const icona = (
-              <Ionicons name={rotta.icona} size={DIMENSIONE_ICONA_VOCE} color={colore} />
-            );
+          {/* Testata del pannello: la sezione attuale, non solo il titolo
+              della schermata (F40). Il ruolo `menu` resta sulle voci. */}
+          <AppText
+            variant="small"
+            tone="secondary"
+            style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}
+          >
+            {rottaAttiva ? `Sezione attuale: ${rottaAttiva.title}` : 'Nessuna sezione attiva'}
+          </AppText>
+          <View accessibilityRole="menu" accessibilityLabel="Menu di navigazione">
+            {TAB_ROUTES.map((rotta, indice) => {
+              const titolo = rotta.title;
+              const attiva = percorso === rotta.path;
+              const inHover = voceInHover === rotta.name;
+              const colore = attiva ? t.primary : inHover ? t.text : t.textSecondary;
+              const valoreVoce = valoriVoci[indice];
+              const icona = (
+                <AppIcon name={rotta.icona} size={DIMENSIONE_ICONA_VOCE} color={colore} />
+              );
 
-            return (
-              <Animated.View
-                key={rotta.name}
-                style={{
-                  opacity: valoreVoce,
-                  transform: [
-                    {
-                      translateY: valoreVoce.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [SPOSTAMENTO_VOCE, 0],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <Pressable
-                  ref={(nodo) => {
-                    riferimentiVoci.current[indice] = nodo;
+              return (
+                <Animated.View
+                  key={rotta.name}
+                  style={{
+                    opacity: valoreVoce,
+                    transform: [
+                      {
+                        translateY: valoreVoce.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [SPOSTAMENTO_VOCE, 0],
+                        }),
+                      },
+                    ],
                   }}
-                  focusable
-                  accessibilityRole="menuitem"
-                  accessibilityLabel={titolo}
-                  accessibilityState={{ selected: attiva }}
-                  aria-selected={attiva}
-                  onPress={() => {
-                    chiudi();
-                    if (!attiva) {
-                      router.navigate(rotta.path);
-                    }
-                  }}
-                  onHoverIn={() => setVoceInHover(rotta.name)}
-                  onHoverOut={() =>
-                    setVoceInHover((corrente) => (corrente === rotta.name ? null : corrente))
-                  }
-                  style={({ pressed }) => [
-                    styles.voce,
-                    {
-                      backgroundColor: attiva || inHover ? t.serviceBg : 'transparent',
-                      transform: [
-                        { scale: pressed && !movimentoRidotto ? SCALA_VOCE_PREMUTA : 1 },
-                      ],
-                    },
-                  ]}
                 >
-                  {({ pressed }) => (
-                    <View
-                      style={[
-                        styles.voceContenuto,
-                        { opacity: pressed ? OPACITA_VOCE_PREMUTA : 1 },
-                      ]}
-                    >
-                      {icona}
-                      <AppText
-                        variant="body"
-                        style={{ color: colore, fontWeight: attiva ? '700' : '500', flex: 1 }}
+                  <Pressable
+                    ref={(nodo) => {
+                      riferimentiVoci.current[indice] = nodo;
+                    }}
+                    focusable
+                    accessibilityRole="menuitem"
+                    accessibilityLabel={titolo}
+                    accessibilityState={{ selected: attiva }}
+                    aria-selected={attiva}
+                    onPress={() => {
+                      chiudi();
+                      if (!attiva) {
+                        router.navigate(rotta.path);
+                      }
+                    }}
+                    onHoverIn={() => setVoceInHover(rotta.name)}
+                    onHoverOut={() =>
+                      setVoceInHover((corrente) => (corrente === rotta.name ? null : corrente))
+                    }
+                    style={({ pressed }) => [
+                      styles.voce,
+                      {
+                        backgroundColor: attiva || inHover ? t.serviceBg : 'transparent',
+                        transform: [
+                          { scale: pressed && !movimentoRidotto ? SCALA_VOCE_PREMUTA : 1 },
+                        ],
+                      },
+                    ]}
+                  >
+                    {({ pressed }) => (
+                      <View
+                        style={[
+                          styles.voceContenuto,
+                          { opacity: pressed ? OPACITA_VOCE_PREMUTA : 1 },
+                        ]}
                       >
-                        {titolo}
-                      </AppText>
-                    </View>
-                  )}
-                </Pressable>
-              </Animated.View>
-            );
-          })}
+                        {icona}
+                        <AppText
+                          variant="body"
+                          style={{ color: colore, fontWeight: attiva ? '700' : '500', flex: 1 }}
+                        >
+                          {titolo}
+                        </AppText>
+                      </View>
+                    )}
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+          </View>
         </Animated.View>
       ) : null}
     </View>
@@ -442,7 +460,9 @@ const styles = StyleSheet.create({
     transformOrigin: 'top right',
   },
   voce: {
-    height: ALTEZZA_VOCE,
+    // `minHeight` e non `height`: il testo di una voce può crescere (dynamic
+    // type, audit UX F23) senza che l'etichetta venga tagliata.
+    minHeight: ALTEZZA_VOCE,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,

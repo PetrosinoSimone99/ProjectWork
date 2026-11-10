@@ -1,11 +1,20 @@
 import { Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formatIsoDate } from '@/services/dates';
 import { etichettaModalita, nomePersona } from '@/services/offer-request';
 import { localitaPerDisplay } from '@/services/italian-regions';
 import { space, useTokens } from '@/theme/tokens';
+
+/**
+ * Misura di lettura della card (audit UX F36): a 1440 px la colonna del
+ * catalogo è `layout.maxCatalogo` (1024) e la descrizione corre a 95-110
+ * caratteri per riga. La card si ferma a questa larghezza, così la colonna di
+ * testo interna (larghezza meno i due padding di `space.lg`) resta sui 680 px,
+ * dentro l'intervallo 640-720 px; la colonna della schermata resta larga.
+ */
+const LARGHEZZA_MAX_CARD = 680 + 2 * space.lg;
 
 /**
  * La card di un servizio del catalogo della home: categorie (una o più),
@@ -46,7 +55,7 @@ export function ServiceCard({ servizio, onPress }) {
       onPress={onPress}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
-      <Card>
+      <Card style={{ maxWidth: LARGHEZZA_MAX_CARD }}>
         <View
           style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', alignItems: 'center' }}
         >
@@ -67,11 +76,13 @@ export function ServiceCard({ servizio, onPress }) {
           )}
           <View style={{ flex: 1 }} />
           {apribile ? (
-            <Ionicons name="chevron-forward" size={16} color={t.textSecondary} />
+            <AppIcon name="chevron-forward" size={16} color={t.textSecondary} />
           ) : null}
         </View>
 
-        <AppText variant="heading" numberOfLines={2}>
+        {/* La card è un bottone: la descrizione dentro non è un titolo di
+            pagina, quindi esce dal ruolo `header` della variante (F19). */}
+        <AppText variant="heading" accessibilityRole="text" numberOfLines={2}>
           {servizio.descrizione}
         </AppText>
 
@@ -80,7 +91,7 @@ export function ServiceCard({ servizio, onPress }) {
               quindi la riga compare sempre: l'icona distingue da remoto da in
               presenza, e la parola lo dice a chi non vede l'icona. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-            <Ionicons
+            <AppIcon
               name={servizio.daRemoto ? 'videocam-outline' : 'people-outline'}
               size={14}
               color={t.textSecondary}
@@ -94,7 +105,7 @@ export function ServiceCard({ servizio, onPress }) {
               niente «N/D»). */}
           {localita ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons name="location-outline" size={14} color={t.textSecondary} />
+              <AppIcon name="location-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
                 {localitaPerDisplay(localita)}
               </AppText>
@@ -102,7 +113,7 @@ export function ServiceCard({ servizio, onPress }) {
           ) : null}
           {pubblicatoIl ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <Ionicons name="calendar-outline" size={14} color={t.textSecondary} />
+              <AppIcon name="calendar-outline" size={14} color={t.textSecondary} />
               <AppText variant="small" tone="secondary">
                 Pubblicato il {pubblicatoIl}
               </AppText>
@@ -111,7 +122,7 @@ export function ServiceCard({ servizio, onPress }) {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' }}>
-          <Ionicons name="person-outline" size={14} color={t.textSecondary} />
+          <AppIcon name="person-outline" size={14} color={t.textSecondary} />
           <AppText variant="small" tone="secondary">
             {autore}
           </AppText>

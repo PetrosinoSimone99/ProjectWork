@@ -161,12 +161,13 @@ export default function HomeScreen() {
     paginazione.pagineTotali !== null &&
     paginazione.pagina < paginazione.pagineTotali;
 
-  // Gli stati del catalogo, in ordine di precedenza. Lo spinner a schermo pieno
-  // compare **solo** quando non c'è ancora nulla: i ricarichi e i cambi di filtro
-  // tengono visibile l'ultimo contenuto.
-  let contenuto = null;
+  // Gli stati della lista vuota, in ordine di precedenza. Lo spinner a
+  // schermo pieno compare **solo** quando non c'è ancora nulla: i ricarichi e
+  // i cambi di filtro tengono visibile l'ultimo contenuto. Con un errore a
+  // schermo lo stato vuoto sarebbe fuorviante: c'è il Banner in testata.
+  let listaVuota = null;
   if (caricamento && servizi === null) {
-    contenuto = (
+    listaVuota = (
       <View style={{ alignItems: 'center', paddingVertical: space.xxl, gap: space.md }}>
         <ActivityIndicator size="large" color={t.primary} />
         <AppText variant="small" tone="secondary">
@@ -175,8 +176,7 @@ export default function HomeScreen() {
       </View>
     );
   } else if (servizi !== null && servizi.length === 0 && !errore) {
-    // Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner.
-    contenuto = haFiltri ? (
+    listaVuota = haFiltri ? (
       <EmptyState
         icon="search-outline"
         title={
@@ -198,61 +198,30 @@ export default function HomeScreen() {
         onAzione={() => void riprova()}
       />
     );
-  } else if (servizi !== null && servizi.length > 0) {
-    // Una sola sezione e una sola lista: le pagine di «Carica altri» si
-    // aggiungono allo stesso elenco, e il pulsante sta sotto la sezione.
-    contenuto = (
-      <>
-        <ServicesSection
-          titolo="Servizi"
-          voci={servizi}
-          onSelect={(servizio) => {
-            setPropostaInviataA(null);
-            setDettaglio(servizio);
-          }}
-        />
-        {ciSonoAltri ? (
-          <View style={{ alignItems: 'center', gap: space.sm }}>
-            {erroreAltri ? <Banner kind="error" message={erroreAltri} /> : null}
-            <AppButton
-              label={
-                caricamentoAltri ? 'Carico altri…' : erroreAltri ? 'Riprova' : 'Carica altri'
-              }
-              variant="secondary"
-              icon={erroreAltri && !caricamentoAltri ? 'refresh-outline' : undefined}
-              disabled={caricamentoAltri || caricamento}
-              onPress={erroreAltri ? riprova : caricaAltri}
-              style={{ alignSelf: 'center' }}
-            />
-          </View>
-        ) : null}
-      </>
-    );
   }
 
-  return (
-    // L'unica schermata larga: le card del catalogo guadagnano spazio su
-    // desktop, tutte le altre restano su `layout.maxContent`.
-    <Screen
-      scroll
-      withBottomInset={false}
-      refreshing={refreshing}
-      onRefresh={() => {
-        // An explicit pull-to-refresh retires the confirmation: a banner left
-        // over from hours ago would read as a proposal sent just now.
-        setPropostaInviataA(null);
-        onRefresh();
-      }}
-      larga
-    >
-      <ServiceDetailModal
-        servizio={dettaglio}
-        onClose={() => setDettaglio(null)}
-        onReport={apriSegnalazione}
-        onSendProposal={inviaProposta}
-        onProposalSent={propostaInviata}
+  // Coda della lista: «Carica altri» e il suo errore. Compare solo quando il
+  // backend dice che un'altra pagina c'è: con 0 o 1 pagina il pulsante non
+  // esiste, e non si inventano numeri.
+  const codaLista = ciSonoAltri ? (
+    <View style={{ alignItems: 'center', gap: space.sm }}>
+      {erroreAltri ? <Banner kind="error" message={erroreAltri} /> : null}
+      <AppButton
+        label={caricamentoAltri ? 'Carico altri…' : erroreAltri ? 'Riprova' : 'Carica altri'}
+        variant="secondary"
+        icon={erroreAltri && !caricamentoAltri ? 'refresh-outline' : undefined}
+        disabled={caricamentoAltri || caricamento}
+        onPress={erroreAltri ? riprova : caricaAltri}
+        style={{ alignSelf: 'center' }}
       />
+    </View>
+  ) : null;
 
+  // Testata della lista (`ListHeaderComponent`): titolo, esito della proposta,
+  // filtri ed errore del catalogo. Scorre insieme ai risultati; il conteggio
+  // dei risultati lo disegna `ServicesSection` sotto questa testata.
+  const testata = (
+    <View style={{ gap: space.lg }}>
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Servizi</AppText>
         <AppText variant="small" tone="secondary">
@@ -300,8 +269,42 @@ export default function HomeScreen() {
           />
         </>
       ) : null}
+    </View>
+  );
 
-      {contenuto}
+  return (
+    // L'unica schermata larga: le card del catalogo guadagnano spazio su
+    // desktop, tutte le altre restano su `layout.maxContent`. La lista è la
+    // pagina: `Screen` non scrolla (F42) e il pull-to-refresh sta sulla
+    // `FlatList` di `ServicesSection`.
+    <Screen scroll={false} withBottomInset={false} larga>
+      <ServiceDetailModal
+        servizio={dettaglio}
+        onClose={() => setDettaglio(null)}
+        onReport={apriSegnalazione}
+        onSendProposal={inviaProposta}
+        onProposalSent={propostaInviata}
+      />
+
+      <ServicesSection
+        titolo="Servizi"
+        paginazione={paginazione}
+        voci={servizi ?? []}
+        testata={testata}
+        vuoto={listaVuota}
+        coda={codaLista}
+        refreshing={refreshing}
+        onRefresh={() => {
+          // An explicit pull-to-refresh retires the confirmation: a banner left
+          // over from hours ago would read as a proposal sent just now.
+          setPropostaInviataA(null);
+          onRefresh();
+        }}
+        onSelect={(servizio) => {
+          setPropostaInviataA(null);
+          setDettaglio(servizio);
+        }}
+      />
     </Screen>
   );
 }
