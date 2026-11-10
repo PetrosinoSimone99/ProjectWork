@@ -202,3 +202,13 @@ inside it; a screen whose collection can grow MUST own its list and set
 follow the second one only when they start appending pages (recorded as open in
 the remediation file). `ConfirmModal`'s public props did not change, so the call
 sites did not have to.
+*On naming:* the shell's props are Italian (`titolo`, `chiudibile`,
+`etichettaChiudi`) while its module-level constants are English
+(`LARGHEZZA_MASSIMA` is the exception and predates this note). The rule in
+`AGENTS.md` asks for English in new code; inside this repo the React prop
+vocabulary is Italian end to end (`ConfirmModal`, `PillBar`, `Banner` all take
+Italian props), and a shell that spoke English while its six hosts did not would
+be the inconsistency. **New cross-module exports and constants are English**
+(`GENERIC_ERROR_MESSAGE`, `SESSION_EXPIRED_MESSAGE`, `messageForStatus`,
+`NETWORK_ERROR_MESSAGE`); **React props follow the component they belong to**.
+This note exists because the review flagged the mix.

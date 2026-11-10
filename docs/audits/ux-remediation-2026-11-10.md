@@ -23,7 +23,7 @@ tree and on every commit separately:
 ```text
 npx tsc --noEmit    -> clean, on each of the 7 commits (fresh worktrees)
 npx expo lint       -> clean
-npx jest            -> 37/37 tests, 2 suites
+npx jest            -> 49/49 tests, 4 suites
 ```
 
 Not run in this pass, and therefore still open in §5: the Docker stack, the Expo
@@ -81,7 +81,7 @@ re-grade a finding, it closes it.
 | F08 | 2 | closed | `ServiceDetailModal.jsx:206` (proposal is the only primary), `ModalShell.jsx:170-183` (the close is a 44 pt X), `PublicationsSection.jsx:90,116`, `profile.jsx:305` ("Esci" is a ghost) |
 | F09 | 2 | closed | `ServiceDetailModal.jsx:213-215` (blind, non-binding proposal, decided by the other person) |
 | F10 | 2 | closed | `FilterBar.jsx:46,75,85-101` (collapsed summary row, `aria-expanded`, note inside the panel) |
-| F11 | 2 | closed | `staff-users.jsx:96-97` (`q` and `accountStatus` sent to the endpoint), `:147-160` (debounce), `descrizioneElencoVuoto` (three different empty states instead of one false claim) |
+| F11 | 2 | closed | `staff-users.jsx` — `q` and `accountStatus` sent to the endpoint, filters held in a ref so `load` stays stable, one debounced request per pause (the review found and this pass fixed a double request there), and `descrizioneElencoVuoto` for three different empty states instead of one false claim |
 | F12 | 2 | closed | `agreements.jsx` bell panel: error branch is a `Banner` with `etichettaAzione="Riprova"`; the screen banner and its retry button are one element now |
 | F13 | 1 | closed | `ReportReviewSheet.jsx:42` ("Esito e nota") vs `staff.jsx:307` ("Confermare questo esito?") |
 
@@ -97,7 +97,7 @@ re-grade a finding, it closes it.
 | F19 | 2 | closed | `AppText.jsx:26-45` (title/heading/subheading/display carry `accessibilityRole="header"`), `ServicesSection.jsx:69,71`, `EntriesSection.jsx:47,49`, `PublicationsSection.jsx:153,155`, `staff.jsx:224,226`, `staff-users.jsx:302,304` (`list`/`listitem`) |
 | F20 | 3 | closed | `app/+html.jsx:14` (`<html lang="it">`), with the documented Expo Router shell |
 | F21 | 2 | closed | `ServicesSection.jsx:78` (one polite live region around the count row), `:53-59` (count and appended page written into it) |
-| F22 | 2 | closed | `AppIcon.jsx` (decorative by default: `accessible={false}`, `accessibilityElementsHidden`, `aria-hidden`, `focusable={false}`), used in `EmptyState`, `ServiceCard`, `profile`, `agreements`, `AgreementCard`, `staff`, `WebNavMenu`, `FilterBar`, `login`, `report`, `Banner` |
+| F22 | 2 | closed | `AppIcon.jsx` (decorative by default: `accessible={false}`, `accessibilityElementsHidden`, `aria-hidden`, `focusable={false}`) is now the **only** way an icon is drawn: `grep -rl Ionicons src` returns `AppIcon.jsx` alone. The review caught the first pass leaving raw `Ionicons` in three modal hosts; the whole tree is converted |
 | F23 | 2 | closed | `WebNavMenu.jsx:463-465` (`minHeight` around text), `agreements.jsx` badges (`minHeight` instead of `height`) |
 | F24 | 1 | closed | `AppButton.jsx:77` (`opacity: 0.7`): 3.29:1 light, 3.60:1 dark for the disabled label |
 
@@ -135,7 +135,42 @@ re-grade a finding, it closes it.
 | F42 | 2 | **open** | The catalog is virtualised (`ServicesSection.jsx` is a `FlatList`, `index.jsx` mounts it under `Screen scroll={false}`). The two staff lists still render their rows inside `Screen`'s scroll view. Left open on purpose: those lists are a single server page of 50 rows with no append, so they do not grow, and wrapping them in `FlatList` meant moving ~90 lines of header JSX for no state that exists today. It is a recorded gap, not a silent one |
 | F43 | 2 | closed | `useAgreements.js:52,166` (`esito` after every action), `agreements.jsx` success banner with a dismiss action |
 
-## 4. What changed in the method, so the next reading is comparable
+## 4. Fresh-context review, and what it changed
+
+The remediation was reviewed by a child agent with a fresh context, three angles
+(correctness, security and data, coherence with the brief). Verdict on the first
+pass: **no P0, three P1**, merge withheld. All three are closed above:
+
+1. **The staff search fired twice per keystroke.** `useFocusEffect` depended on
+   `load`, which depended on `query`/`statusFilter`, so every key started a
+   request and the 350 ms timer started a second identical one. Fixed by holding
+   the filters in a ref updated in an effect and passing them to `load`
+   explicitly: one request per pause (`staff-users.jsx`).
+2. **One Escape closed two nested panels.** Each `ModalShell` listened on
+   `document`, and `stopPropagation()` does not stop sibling listeners: pressing
+   Escape on the review confirmation also closed the sheet underneath and threw
+   away the outcome and the note already typed. Fixed with a module-level stack
+   of open shells: only the last one opened answers (`ModalShell.jsx`).
+3. **F22 was marked closed while three modal hosts still drew raw `Ionicons`.**
+   That contradicted the brief's own rule (a fix that cannot be verified is
+   recorded as open). Fixed by converting every remaining `Ionicons` in
+   `Frontend/src` to `AppIcon`.
+
+P2s taken: the review sheet now gets its accessible name and its chrome from the
+shell instead of punching a hole in it; the interrupted-profile draft is bound to
+its owner's username, so a second person logging in on the same runtime cannot
+see — and save — the previous one's data; the return path after a new login
+rejects `//host`; the staff search shows a live "searching" line instead of
+leaving stale rows in silence; and two pure seams got tests
+(`api/__tests__/client.test.js`, `services/__tests__/offer-request.test.js`).
+
+P2s registered and not taken: the catalog's `list` role still wraps the header
+and the footer, which ARIA would rather see outside the list — the virtualised
+list cannot be restructured without a wrapper row; and the modal stack itself has
+no component test (no component-testing library in the project, and adding one
+is a dependency decision, not a fix).
+
+## 5. What changed in the method, so the next reading is comparable
 
 - **Two findings were closed in a different way than the baseline proposed.**
   F18: the suggested hex lowered the ratio (the pressed tone had to rise). F42:
@@ -152,7 +187,7 @@ re-grade a finding, it closes it.
   baseline and this pass are therefore comparable: same formula, same evidence
   statuses, same honesty about what was not executed.
 
-## 5. Not verified — still open, and what it would take
+## 6. Not verified — still open, and what it would take
 
 Unchanged from the baseline audit §7 unless stated. These are the checks this
 pass deliberately did not run (D5):
@@ -162,16 +197,16 @@ pass deliberately did not run (D5):
 | Escape, focus and reading order on the six panels | needs a browser on the running web build | Playwright on the dev server: open each panel, press Escape, read `document.activeElement` |
 | `lang="it"` on the exported build | only the source `+html` was read | `npx expo export --platform web` and inspect `index.html` |
 | Live region audibility (filter count, appended page, save confirmation) | needs a screen reader | VoiceOver (iOS/macOS web) or TalkBack pass |
-| Session expiry end to end (401 → login → return to the screen with the draft) | needs the backend answering 401 | the baseline's `page.route` recipe, plus a save in flight |
+| Session expiry end to end (401 → login → return to the screen with the draft), i.e. F26's last mile | needs the backend answering 401, and the `(auth)` layout's own `<Redirect>` could beat the `router.replace(ritorno)` | the baseline's `page.route` recipe, plus a save in flight; if the redirect wins, F26 goes back to `open` on the return-path half |
 | 44 pt targets and 200 % text on a device | web zoom does not exercise native dynamic type | device with the system font scale at maximum |
 | Contrast after the token change | recomputed by hand from the hex values (4.75:1 dark pressed, 3.29/3.60 disabled) | a contrast checker over the rendered palette |
 | Staff `q`/`accountStatus` filters against the real endpoint | needs the stack | one search and one status pill on `/staff-users` |
 | F42 for the two staff lists | see the row in §3 | `FlatList` there when those lists start appending pages |
 
-## 6. Gate output on the final tree
+## 7. Gate output on the final tree
 
 ```text
 $ cd Frontend && npx tsc --noEmit      # clean
 $ npx expo lint                        # clean
-$ npx jest --silent                    # 2 suites, 37 tests, all passing
+$ npx jest --silent                    # 4 suites, 49 tests, all passing
 ```

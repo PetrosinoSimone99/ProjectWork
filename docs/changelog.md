@@ -10,7 +10,7 @@ documents/code touched.
 
 ### What changed
 
-1. **Seven commits close 42 of the 43 findings** of the audit of the same day:
+1. **Eight commits close 42 of the 43 findings** of the audit of the same day:
    the session loop (F26: a 401 leaves the protected screen with the reason, the
    return path and the typed text; F25: the login says the session expired), the
    error vocabulary (F27/F30/F33: the status becomes an Italian sentence with a
@@ -48,8 +48,12 @@ items was never going to be enough.
 
 ### Verification
 
-`npx tsc --noEmit`, `npx expo lint`, `npx jest` (37 tests) green on the final tree
-and on **each of the seven commits separately**, checked in fresh worktrees. The
+`npx tsc --noEmit`, `npx expo lint`, `npx jest` (49 tests, four suites) green on
+the final tree and on **each of the code commits separately**, checked in fresh
+worktrees. A fresh-context review found three P1 in the first pass — a search
+that fired twice per keystroke, one Escape closing two nested panels (and losing
+the typed note), and F22 marked closed with three hosts still drawing raw icons —
+and all three are closed before this entry was written. The
 runtime checks that need the Docker stack and a screen reader are listed as not
 verified in the remediation file, with what would verify them.
 
