@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\ServiceQueue;
+use App\Enum\QueueType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,28 +17,13 @@ class ServiceQueueRepository extends ServiceEntityRepository
         parent::__construct($registry, ServiceQueue::class);
     }
 
-//    /**
-//     * @return ServiceQueue[] Returns an array of ServiceQueue objects
-//     */
-//    public function findByExampleField($value): array
-//    {
-//        return $this->createQueryBuilder('s')
-//            ->andWhere('s.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->orderBy('s.id', 'ASC')
-//            ->setMaxResults(10)
-//            ->getQuery()
-//            ->getResult()
-//        ;
-//    }
+    public function getQueueById(int $queueId): ?ServiceQueue
+    {
+        return $this->find($queueId);
+    }
 
-//    public function findOneBySomeField($value): ?ServiceQueue
-//    {
-//        return $this->createQueryBuilder('s')
-//            ->andWhere('s.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->getQuery()
-//            ->getOneOrNullResult()
-//        ;
-//    }
+    public function getRelevantQueues(QueueType $queueType): array
+    {
+        return $this->findBy(['queueType' => $queueType, 'queueStatus' => 'OPEN']);
+    }
 }

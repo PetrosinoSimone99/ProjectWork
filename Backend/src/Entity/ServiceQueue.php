@@ -20,7 +20,7 @@ class ServiceQueue
     #[ORM\JoinColumn(name: 'user_id')]
     private ?User $user = null;
 
-    #[ORM\Column(type: 'string', enumType: QueueType::class)]
+    #[ORM\Column(name: 'type', type: 'string', enumType: QueueType::class)]
     private QueueType $queueType;
 
     #[ORM\ManyToOne(targetEntity: Service::class)]
@@ -31,19 +31,20 @@ class ServiceQueue
     private ?string $location = null;
 
     #[ORM\OneToOne(targetEntity: Agreement::class)]
-    #[ORM\JoinColumn(name: 'agreement_id')]
+    #[ORM\JoinColumn(name: 'agreement_created', referencedColumnName: 'id', nullable: true)]
     private ?Agreement $agreement = null;
 
-    #[ORM\Column(type: 'string', enumType: QueueStatus::class)]
+    #[ORM\Column(name: 'status', type: 'string', enumType: QueueStatus::class)]
     private QueueStatus $queueStatus;
 
-    public function __construct(User $user, QueueType $queueType, Service $service, ?string $location = null)
+    public function __construct(User $user, QueueType $queueType, Service $service, ?string $location, QueueStatus $queueStatus)
     {
         $this->user = $user;
         $this->queueType = $queueType;
         $this->service = $service;
         $this->location = $location;
-        $this->queueStatus = QueueStatus::OPEN;
+        $this->queueStatus = $queueStatus;
+        $this->agreement = null;
     }
 
     public function getId(): ?int
