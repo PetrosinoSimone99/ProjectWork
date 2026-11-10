@@ -163,3 +163,22 @@ multi-category home filter stays out of scope until requested — the backend
 already accepts `categoryIds[]`, so it is a UI decision, not a gap. The jest
 coverage set moves from `relevance.js` to `src/services/agreements.js`; D019
 stays as written, as an appended log does.
+
+**D022 — 2026-11-10 — UX and accessibility become two normative documents.**
+The course material on usability (ISO 9241-11, the six principles, the ten
+Nielsen heuristics, dark patterns and DSA art. 25, the four design phases, the
+usability test protocol) and on digital accessibility (POUR, the WCAG 2.1 AA
+criteria that apply to a React Native app with a web build, assistive technology
+pass, content rules, non-web documents) is distilled into `docs/ux.md` and
+`docs/accessibility.md`, both normative with MUST/SHOULD language.
+*Context:* D018 had absorbed a previous `ux.md` into `frontend.md`; the material
+is now larger than a conventions file and is used at two different moments
+(design review, accessibility audit). Partly supersets D018, which stays as
+written. WCAG 2.1 AA is adopted as the target even though no legal obligation is
+triggered: Baratto-lo is neither a public body nor above the EAA thresholds.
+*Consequences:* precedence is `AGENTS.md` > these docs and `frontend.md` >
+`impeccable`/`design-taste-frontend`, so a design skill never overrides the
+project; a screen/component change must state in its commit which checklist
+lines were verified and list the failures as known gaps; the pre-push gate is
+unchanged (no accessibility linter added, that is a separate decision with a new
+dependency); `docs/README.md` and `docs/frontend.md` link the two files.

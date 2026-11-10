@@ -13,7 +13,9 @@ created and a chat opens to settle the details.
 | --- | --- |
 | [`overview.md`](overview.md) | Product, actors, the five tabs, the proposal to agreement to chat lifecycle, glossary |
 | [`architecture.md`](architecture.md) | System shape, repository tree, data flow, auth, cross-cutting rules |
-| [`frontend.md`](frontend.md) | Frontend conventions and UX rules: stack, naming, states, hooks, theme |
+| [`frontend.md`](frontend.md) | Frontend conventions: stack, naming, states, hooks, theme, validation |
+| [`ux.md`](ux.md) | UX rules: definitions, six principles, the ten Nielsen heuristics, dark patterns, usability measurement, design process, usability test protocol, review checklist |
+| [`accessibility.md`](accessibility.md) | Accessibility rules: normative frame, POUR, the WCAG AA criteria that bind the app, assistive technology pass, content rules, verification procedure, non-web documents, checklist |
 | [`api.md`](api.md) | Endpoints that exist today, with request and response shapes |
 | [`backend-gaps.md`](backend-gaps.md) | The endpoints the frontend needs and the backend does not have yet |
 | [`database.md`](database.md) | MySQL schema (the demo dump): tables, what they encode, known gaps |
@@ -24,8 +26,10 @@ created and a chat opens to settle the details.
 ## Reading order
 
 - New to the project: `overview.md` then `architecture.md` then `setup.md`.
-- Building a screen: `frontend.md` for conventions, `api.md` for the data,
+- Building a screen: `ux.md` and `accessibility.md` first (they are
+  normative), then `frontend.md` for conventions, `api.md` for the data,
   `backend-gaps.md` to know what cannot be built yet.
+- Reviewing or testing a UI: `ux.md` checklist plus `accessibility.md` checklist.
 - Backend topics: `database.md`, then the canonical sources in
   `Context_and_DB_V2/` (`LAST_DB_TO_USE.txt`, `API docs/`).
 
@@ -36,6 +40,8 @@ created and a chat opens to settle the details.
 | Schema | the dump named in `Context_and_DB_V2/LAST_DB_TO_USE.txt` |
 | Backend behaviour | `Backend/src/Controller/**` and `Backend/tests/**` |
 | Functional requirements | `Context_and_DB_V2/new_user_stories_v2.md` |
+| UX and usability rules | `docs/ux.md` |
+| Accessibility rules | `docs/accessibility.md` |
 | Previous chain/token material | `Archive/` — rollback only, never a reference |
 
 `Archive/` holds decisions that were reversed (swipe feed, chain exchanges,

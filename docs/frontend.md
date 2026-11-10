@@ -1,4 +1,11 @@
-# Frontend conventions and UX rules
+# Frontend conventions
+
+UX and accessibility are **normative rules** with their own files:
+[`ux.md`](ux.md) (principles, Nielsen heuristics, dark patterns, usability test
+protocol, review checklist) and [`accessibility.md`](accessibility.md) (WCAG AA
+criteria, assistive technology pass, verification procedure). Both must be read
+before designing or reviewing a UI; this file only says where the code goes and
+how it is written.
 
 ## Stack
 
@@ -69,6 +76,12 @@ empty state, never fake content.
   in progress, concluded). Those rules mirror the backend's real lifecycle (the
   creator is born with `response: true`) and are the only place the sections are
   decided: a row that fits no rule is dropped, never guessed into one.
+- The three sections of the agreements tab (sent, in progress, concluded) are
+  tabs in a row, one visible at a time, each with the real count of its section
+  (`0` included: a missing badge would look like a failed load). The bell is a
+  floating button in the bottom-right corner and opens its panel **above**
+  itself as a `Modal`: a floating button has no room to grow downwards, so an
+  inline block there would be clipped or would scroll away with the page.
 
 ## Theme
 
@@ -79,10 +92,12 @@ motion preference.
 
 ## Accessibility and copy
 
-Touch targets are at least 44 pt; interactive elements carry
+Touch targets are at least 44 pt (`target.min`); interactive elements carry
 `accessibilityRole`, `accessibilityLabel` and, where relevant, `accessibilityState`.
 Copy says what happened and what the user can do next, in Italian, without
-technical details and without emoji.
+technical details and without emoji. The full rule set, with the pass/fail
+procedure and the WCAG criteria each prop answers to, is in
+[`accessibility.md`](accessibility.md).
 
 ## Validation
 

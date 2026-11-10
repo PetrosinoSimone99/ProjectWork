@@ -6,7 +6,116 @@ documents/code touched.
 
 ---
 
-## 2026-11-09 — Agreements wired in the app, relevance and remote filter delegated to the backend
+## 2026-11-10 — First full UX and accessibility audit of the frontend
+
+### What changed
+
+1. **`docs/audits/ux-audit-2026-11-10.md` is new.** Full audit of `Frontend/`
+   against `ux.md` and `accessibility.md`: method and environment, the rubric
+   with arithmetic behind every score (43 findings: 8 severity 1, 27 severity 2,
+   7 severity 3, 1 severity 4), the finding table with `file:line` evidence and
+   the evidence status of each (VERIFIED / DEDUCED), the ten improvements
+   ordered by impact over effort, the explicit "not verified" list with what
+   would verify it, and 23 screenshots in `docs/audits/screens/`.
+2. **Verdict: 3.6/10 weighted** (usability 0.8, accessibility 2.8, states and
+   copy 1.2, design system 8.1, platform 8.5). The one severity-4 finding is the
+   session-expiry dead end: a 401 clears the session, leaves the user on the
+   protected screen with a form that cannot be saved, and renders the backend's
+   `Invalid JWT Token` as UI copy. Not a conformance claim in either direction —
+   VoiceOver, TalkBack and native dynamic type were not exercised.
+3. **Both `Status` tables are replaced with measured values**, same rows, dated
+   2026-11-10 and pointing at the audit for the finding ids. Three claims that
+   had been recorded as holding do not: the 44 pt target (pills 34 pt, checkbox
+   30 pt, icon buttons 34 pt, modal close 38 pt), the screen-reader label on
+   every interactive element (every `AppInput` field has no accessible name),
+   and the polite live region as complete feedback (the catalog count and the
+   append are silent). One contrast pair fails too: `onPrimary` on
+   `primaryPressed` in the dark theme is 4.46:1.
+4. **Audited live, not only by reading.** The Docker stack, the Expo web dev
+   server and Chromium were driven for the walk: both viewports, both themes,
+   200% reflow, keyboard walk, DOM inspection, and the 401 path forced with
+   `page.route` and a forged token. No demo row was created, changed or deleted;
+   the stack was started by the session and stopped at its end.
+
+### Why
+
+`D022` made `ux.md` and `accessibility.md` normative but their status tables
+were written from a code read. The brief for this session was to test the app
+against its own rules and to state what holds, what does not, and what could not
+be checked, before the next feature work builds on unverified claims.
+
+### Documents touched
+
+`docs/audits/ux-audit-2026-11-10.md` (new), `docs/audits/screens/*` (new),
+`docs/ux.md` and `docs/accessibility.md` (`Status` section only),
+`docs/changelog.md`. No code was modified: the audit produced no fix.
+
+---
+
+
+### What changed
+
+1. **`docs/ux.md` is new and normative.** Usability and accessibility
+   definitions (ISO 9241-11, AgID, Legge 4/2004 art. 2), the six principles of
+   an effective interface with the failure signature of each, the ten Nielsen
+   heuristics with a Baratto-lo requirement and a verification method per row,
+   the dark patterns refused by design with DSA art. 25 as the legal anchor,
+   usability measurement, the four design phases as they apply here, a
+   repeatable usability test protocol (3-5 participants, think-aloud, severity
+   1-4, one-page report under `docs/briefs/<feature>/`), a review checklist, and
+   the precedence rule that a design skill never overrides the project.
+2. **`docs/accessibility.md` is new and normative.** The normative frame
+   (Legge 4/2004, legge 18/2009, DL 179/2012, direttiva 2016/2102, EAA
+   2019/882, EN 301 549, WCAG 2.1) with the honest statement that no obligation
+   is triggered for this project and that WCAG 2.1 AA is adopted anyway; POUR;
+   the AA criteria that bind a React Native app with a web build, each with the
+   mechanism and the failure signature; the assistive technology pass; content
+   rules; the per-screen verification procedure; the appendix for non-web
+   documents; a checklist.
+3. **The audit of the current app is recorded, not claimed.** Both files end
+   with a table dated 2026-11-10 stating what holds (accessibility props on
+   every interactive file, `FocusRing`, `target.min` at 44 pt, `borderInput`
+   contrast, token discipline) and what does not (dynamic type at 200% never
+   checked, `lang` missing on the web export, no announcement for the catalog
+   count and the page append, no automated check, no usability test ever run).
+
+`docs/frontend.md` now defers to those two files for UX and accessibility and
+keeps only implementation conventions; `docs/README.md` maps them, lists them
+in the reading order for building and reviewing a screen, and adds them to the
+sources of truth. The pre-push gate is unchanged.
+
+Touched: `docs/ux.md`, `docs/accessibility.md`, `docs/README.md`,
+`docs/frontend.md`, `docs/decisions.md` (D022).
+
+---
+
+## 2026-11-10 — Agreements tab: three section tabs in a row, floating bell with its panel above
+
+### What changed
+
+1. **The three sections are tabs, seen one at a time.** `agreements.jsx` no
+   longer stacks "Proposte inviate", "Accordi in corso" and "Conclusi" down the
+   page: they are three buttons in a row (`Inviate`, `In corso`, `Conclusi`),
+   each with the real count of its bucket (`0` included, so an empty section says
+   "zero" instead of hiding the badge and looking like a failed load). The tab
+   row is a `tablist` with `tab` children, the pattern `PillBar` already uses.
+2. **The bell floats in the bottom-right corner.** The big "Proposte ricevute"
+   card at the top is gone; the bell is a round button with the count of
+   proposals to answer on its badge, and it opens its panel **above itself**
+   (`Modal`, right-aligned, at most 70% of the window height, rows scrolling
+   inside). A floating button has no room to grow downwards, so the old inline
+   expansion would have been clipped or would have scrolled away. Tapping
+   outside closes the panel; the close button is the only control announced, the
+   backdrop is hidden from screen readers.
+3. **The list scrolls clear of the bell.** `Screen` gets a larger
+   `bottomSpacing` on this tab, so the last card ends above the floating button.
+
+Behaviour of the data is unchanged: the same hook, the same pure classification,
+no invented counts (no badge before the first response or without the viewer's
+username), and every section still draws its own loading, empty and error state.
+
+Touched: `Frontend/src/app/(tabs)/agreements.jsx`, `docs/frontend.md`.
+
 
 ### What changed
 
