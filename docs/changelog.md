@@ -6,6 +6,59 @@ documents/code touched.
 
 ---
 
+## 2026-11-10 — UX remediation: 3.6 to 9.9, 42 of 43 findings closed
+
+### What changed
+
+1. **Seven commits close 42 of the 43 findings** of the audit of the same day:
+   the session loop (F26: a 401 leaves the protected screen with the reason, the
+   return path and the typed text; F25: the login says the session expired), the
+   error vocabulary (F27/F30/F33: the status becomes an Italian sentence with a
+   cause and a next step, and the server text goes to the log), one modal shell
+   for six panels (F15/F16/F38: Escape on the web, focus moved in, one close
+   pattern, 44 pt), the accessible name of every form field (F14), the page
+   language (F20), the home's payload back in the first screen with a polite live
+   region (F10/F21/F32), confirmations before every irreversible action
+   (F01/F02/F03), a search that asks the server (F11), and the copy that talked
+   about the backend and about a removed swipe feed (F28).
+2. **`docs/audits/ux-remediation-2026-11-10.md` is new.** The same rubric, the
+   same severity scale and the same formula applied to the remediated tree:
+   43 rows with `closed`/`open` and the `file:line` that proves each closure, the
+   five dimensions recomputed, the arithmetic printed, and the list of what this
+   pass did not execute. **Score 9.9/10** (usability 10, accessibility 10, states
+   and copy 10, design system 10, platform 9.5), from 3.6.
+3. **F42 stays open, and the re-audit says so.** The catalog is virtualised; the
+   two staff lists still render inside the screen's scroll view, because they are
+   one fixed server page of 50 rows with no append. A recorded gap instead of a
+   silent one.
+4. **Two fixes differ from what the audit proposed.** The dark `primaryPressed`
+   had to move *up*, not down: `#3A8862` gives 3.98:1, `#42966C` gives 4.75:1
+   (F18). The "Tutte le …" row (F05) exists only where the caller asks for it,
+   because in registration that copy would be wrong.
+5. **`Status` tables of `ux.md` and `accessibility.md` are replaced** with the
+   measured post-remediation state — rows dated 2026-11-10, not appended — and
+   say explicitly what a code reading can and cannot certify.
+
+### Why
+
+The audit measured the build and produced no fix. The brief for this session was
+to bring the app to at least 8/10 on the same rubric without weakening a rule: the
+score is linear in the number of open findings, so closing the ten best-ratio
+items was never going to be enough.
+
+### Verification
+
+`npx tsc --noEmit`, `npx expo lint`, `npx jest` (37 tests) green on the final tree
+and on **each of the seven commits separately**, checked in fresh worktrees. The
+runtime checks that need the Docker stack and a screen reader are listed as not
+verified in the remediation file, with what would verify them.
+
+### Documents touched
+
+`docs/audits/ux-remediation-2026-11-10.md` (new), `docs/ux.md` and
+`docs/accessibility.md` (`Status` section), `docs/decisions.md` (D023),
+`docs/changelog.md`, `docs/briefs/ux-score-8/*`.
+
 ## 2026-11-10 — First full UX and accessibility audit of the frontend
 
 ### What changed

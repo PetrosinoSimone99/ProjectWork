@@ -190,20 +190,24 @@ commit which lines were checked, and lists the ones that fail as known gaps.
 ## Status of the app against these rules
 
 Audited on **2026-11-10** against the running app (browser walk on web, both
-viewports and both themes) and by reading `Frontend/src`; every claim below is
-counted in [`audits/ux-audit-2026-11-10.md`](audits/ux-audit-2026-11-10.md),
-where the finding ids are the evidence. Usability scored 0.8/10 on that rubric
-(3 severity-3, 9 severity-2, 1 severity-1 finding).
+viewports and both themes) and by reading `Frontend/src`, then **re-measured on
+the same day after the remediation**: every claim below is counted in
+[`audits/ux-audit-2026-11-10.md`](audits/ux-audit-2026-11-10.md) (the baseline,
+3.6/10) and in
+[`audits/ux-remediation-2026-11-10.md`](audits/ux-remediation-2026-11-10.md)
+(the second reading, 9.9/10), where the finding ids are the evidence. The
+re-measurement is a code reading with the gate green and, for anything that needs
+a running screen, it says so instead of claiming it.
 
 | Rule | Status |
 | --- | --- |
-| Explicit loading, empty, error and not-available states | Holds: `LoadingScreen`, `EmptyState` with its three variants, `Banner` + "Riprova", and the "not available" copy are present and distinct on every data screen; the two exceptions are copy, not state: "Registro non disponibile." gives no reason (`staff.jsx:255-266`, F34) and "SERVIZI · 20" is the loaded page, not the result count (`ServicesSection.jsx:28`, F32) |
-| One place per state vocabulary (chip tones) | Holds: `ToneChip` maps semantic tones; state is carried by text, not colour alone. Drift remains on one state with three names (Sospeso/disattivato/Disattiva, F31) |
-| Tokens only, no hard-coded colours in components | Holds: no hex or `rgba()` literal outside `src/theme/tokens.js`. Four `borderRadius: 999` and eleven off-scale spacing literals bypass the radius/space tokens (F39) |
-| Touch target at least 44 pt | **Does not hold**: pills 34 pt (`PillBar.jsx:45-46`), checkbox row 30 pt (`AppCheckbox.jsx:38`), icon-only "✕" 34 pt (`FilterBar.jsx:102-109`, `EntryEditor.jsx:94-103`), detail close pill 38 pt (`ServiceDetailModal.jsx:245`) — F17 |
-| Screen-reader labels on every interactive element | **Does not hold for form fields**: every `AppInput` renders its label as a sibling `AppText`, so the `TextInput` has no accessible name and no linked error (`AppInput.jsx:31-70`, F14, verified in the DOM). Buttons, toggles, tabs, radios and selectors do carry role, label and state |
-| Feedback on async changes | Partial: the `Banner` is a real polite live region on web, but the catalog count after a filter change and the appended page are not announced (F21), accept/refuse on the agreements tab succeed silently (F43), and saving the profile returns with no confirmation (F35) |
+| Explicit loading, empty, error and not-available states | Holds: `LoadingScreen`, `EmptyState` with its three variants, `Banner` + "Riprova", and the "not available" copy are present and distinct on every data screen, and the two exceptions the first audit found are closed: the operations log says why it is unavailable and offers a retry (`staff.jsx`), and "SERVIZI · N di M" comes from the pagination payload (`ServicesSection.jsx`, F32, F34) |
+| One place per state vocabulary (chip tones) | Holds: `ToneChip` maps semantic tones; state is carried by text, not colour alone. The account state has one name and one verb pair — "Sospeso", "Sospendi"/"Riattiva" — and "Esamina e chiudi" replaced the "Chiudi" that opened a review (F31) |
+| Tokens only, no hard-coded colours in components | Holds: no hex or `rgba()` literal outside `src/theme/tokens.js`, and the four `borderRadius: 999` plus the off-scale spacing literals now use `radius.pill` and `space.*` (F39) |
+| Touch target at least 44 pt | Holds: pills, the checkbox row, the icon-only buttons and the modal close are all `target.min` (`PillBar.jsx`, `AppCheckbox.jsx`, `FilterBar.jsx`, `EntryEditor.jsx`, `ModalShell.jsx`, F17). Not re-measured with a finger on a device: the rule is satisfied in code |
+| Screen-reader labels on every interactive element | Holds in code: `AppInput` forwards its visible label, links the error with `nativeID`/`aria-describedby` and marks the field invalid (F14); everything else already carried role, label and state. The assistive-technology pass that would confirm the announcement is still not run (accessibility.md §Status) |
+| Feedback on async changes | Holds for the actions the audit named: one polite live region carries the catalog count and each appended page (F21), accept/refuse/cancel on the agreements tab end with a success banner (F43), and a profile save confirms itself on return (F35). What a screen reader actually says is unverified |
 | Error states can be forced for review | Holds now, for everything except the four states that need invented data: 401 can be forced with `page.route` or a forged token, errors with a route answering 500, and both were walked. A debug-only branch is still absent by design |
-| Two most frequent tasks measured in taps | Measured: open a service and send a proposal is 2 taps natively (3 from another tab, 4 on web where the tabs are behind the menu); create an offer is 5 taps, 6-7 on web, of which 2 are the category modal that has no search while `ListSelector` does (F41). Both counts are at the floor or justified |
+| Two most frequent tasks measured in taps | Measured: open a service and send a proposal is 2 taps natively (3 from another tab, 4 on web where the tabs are behind the menu); create an offer is 5 taps, 6-7 on web, of which 2 are the category modal that now has the same search field as `ListSelector` (F41). Both counts are at the floor or justified |
 | Usability test protocol executed | Gap: no test has been run yet, no personas artefact exists; the review above is an expert heuristic evaluation, not a test with users |
 | Wireframe stage before code | Gap: briefs exist for two features, but no wireframe stage is recorded |

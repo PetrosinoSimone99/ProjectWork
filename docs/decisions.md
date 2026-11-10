@@ -182,3 +182,23 @@ project; a screen/component change must state in its commit which checklist
 lines were verified and list the failures as known gaps; the pre-push gate is
 unchanged (no accessibility linter added, that is a separate decision with a new
 dependency); `docs/README.md` and `docs/frontend.md` link the two files.
+
+**D023 — 2026-11-10 — One modal shell, and lists that own their scrolling.**
+Every panel (service detail, confirmation, category selector, region selector,
+agreements bell, staff review sheet) now goes through
+`src/components/ModalShell.jsx`: it binds Escape on the web build, moves the focus
+into the panel on open, keeps the backdrop out of the assistive tree and draws
+header, close and footer in one place. Data screens with a growing collection
+render a `FlatList` themselves and mount it under `Screen scroll={false}`.
+*Context:* the audit of the same day found four different ways to dismiss the same
+kind of panel, Escape closing nothing on the web, focus starting outside the
+dialog and a full-screen backdrop announced as a button (F15, F16, F38); and a
+catalog that grew inside one `ScrollView` (F42). Six one-off fixes would have
+reproduced the four patterns with six slightly different behaviours.
+*Consequences:* a new panel MUST use `ModalShell` instead of `<Modal>` directly,
+and a panel that needs a nested dialog renders `ConfirmModal` as its sibling, not
+inside it; a screen whose collection can grow MUST own its list and set
+`Screen scroll={false}`. The catalog follows both rules; the two staff lists still
+follow the second one only when they start appending pages (recorded as open in
+the remediation file). `ConfirmModal`'s public props did not change, so the call
+sites did not have to.

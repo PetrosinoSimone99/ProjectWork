@@ -188,20 +188,26 @@ Run with the [`ux.md`](ux.md) checklist before a UI change is called done.
 Audited on **2026-11-10** against the running app (Chromium through Playwright,
 dev server on port 8081, API on 8000, viewports 390×844 and 1440×900, light and
 dark, keyboard walk, 200% reflow, 401 forced with `page.route`) and by reading
-`Frontend/src`. Every status below is counted in
-[`audits/ux-audit-2026-11-10.md`](audits/ux-audit-2026-11-10.md); the finding
-ids are the evidence. Accessibility scored 2.8/10 on that rubric (2 severity-3,
-8 severity-2, 1 severity-1 finding). This is not a conformance claim: VoiceOver,
-TalkBack and native dynamic type were not exercised (no device in the session).
+`Frontend/src`; then **re-measured the same day after the remediation**. Every
+status below is counted in
+[`audits/ux-audit-2026-11-10.md`](audits/ux-audit-2026-11-10.md) (the baseline,
+2.8/10 for this dimension) and in
+[`audits/ux-remediation-2026-11-10.md`](audits/ux-remediation-2026-11-10.md)
+(the second reading: no accessibility finding survives a code read). This is
+**not** a conformance claim: the re-measurement is a code reading with the gate
+green, and VoiceOver, TalkBack, native dynamic type and the exported web build
+were not exercised. §Status of the remediation lists what would verify them.
 
 | Criterion | Status |
 | --- | --- |
-| 1.1.1, 4.1.2 Roles and labels | Partial: buttons, toggles, tabs, radios, selectors and both images carry role, label and state (verified in the accessibility tree), and there are no fake buttons. **Form fields do not**: `AppInput` never gives its `TextInput` an accessible name and never links its error (`AppInput.jsx:31-70`, F14, verified in the DOM). Decorative `Ionicons` are not explicitly hidden (F22, deduced). Screen titles are not headings and the card collections are not lists (F19) |
-| 1.4.3, 1.4.11 Contrast | Holds except one pair: every text and boundary pair was recomputed from the tokens in both themes and passes (`borderInput` 3.62/3.36 light, 3.35/3.77 dark; body text 16.05/13.97), but `onPrimary` on `primaryPressed` in the dark theme is **4.46:1** (`tokens.js:53`, F18). The disabled primary button sits at 1.66:1, exempt under the inactive-component exception but used as the app's way of saying "not available" (F24) |
-| 2.4.7 Focus visible | Holds: `FocusRing` injects the 2 px token outline globally; measured `outline: solid 1.6px rgb(31,107,78)` on every stop of the home keyboard walk, and no component removes it |
-| 2.5.5, 2.5.8 Target size | **Does not hold** against the project's 44 pt rule: pills 34 pt, checkbox row 30 pt, icon-only "✕" 34 pt, detail close pill 38 pt (F17). All are still above the 24 CSS px AA minimum of 2.5.8 |
-| 4.1.3 Status messages | Partial: the `Banner` is a real `aria-live="polite"` region on the web build (measured), so API errors and confirmations are announced. Not announced: the catalog count after a filter change and the appended page (F21), and the inline field errors, which are neither announced nor linked to their input (F14) |
-| 1.4.4 Resize text | Partial on the web build: at 200% there is no clipping, no overlap and no horizontal overflow (measured at a 195×422 CSS viewport), and no `maxFontSizeMultiplier` cap exists. Open on native: three text containers use a fixed `height` instead of `minHeight` and would clip under dynamic type (`WebNavMenu.jsx:444-445`, `agreements.jsx:344-345,415-416`, F23) — not exercised on a device |
-| 2.1.1, 2.1.2, 2.4.3 Keyboard and focus order | Partial, now walked: Tab reaches every action in visual order, focus is visible on every stop, and focus is trapped once inside a dialog. **Escape closes nothing** except `WebNavMenu` (F15); focus is **not moved into** a dialog on open and the full-screen backdrop is an announced button mid-sequence (F16). Focus return to the trigger was verified on the service detail only |
-| 3.1.1 Language of page | **Does not hold**: no `lang` anywhere — `app.json` has no `web.lang`, no `+html` template exists, `document.documentElement.lang` is never set (F20) |
+| 1.1.1, 4.1.2 Roles and labels | Holds in code: `AppInput` gives its `TextInput` the visible label, marks it invalid and links the error with `nativeID`/`aria-describedby` (F14); decorative icons are hidden by `AppIcon` (F22); the title variants of `AppText` are headings and the collections carry `list`/`listitem` (F19). The announcement itself needs a screen reader |
+| 1.4.3, 1.4.11 Contrast | Holds: every pair was recomputed from the tokens, and the one failure is fixed — dark `primaryPressed` `#42966C` gives 4.75:1 on `onPrimary` (F18). The disabled primary button moved from 1.66:1 to 3.29:1 light / 3.60:1 dark, so the label that says "not available" can be read (F24). Both values are hand-computed from the hex tokens, not measured on a device |
+| 2.4.7 Focus visible | Holds: `FocusRing` injects the 2 px token outline globally; no component removes it |
+| 2.5.5, 2.5.8 Target size | Holds against the project's 44 pt rule: pills, checkbox row, icon-only buttons, the filter clear and every modal close are `target.min` (F17). Satisfied in code; not measured with a finger |
+| 4.1.3 Status messages | Holds in code: the `Banner` is a real `aria-live="polite"` region, the catalog count and each appended page are written into one polite region (F21), and every write that has an outcome says it (F43, F35). What VoiceOver or TalkBack actually announce is unverified |
+| 1.4.4 Resize text | Fixed in code: the fixed `height` around text became `minHeight` (`WebNavMenu`, the agreements badges, F23), so dynamic type cannot clip a label. The native 200 % pass is still open |
+| 2.1.1, 2.1.2, 2.4.3 Keyboard and focus order | Fixed in code: `ModalShell` binds Escape on the web, moves the focus into the panel on open and keeps the backdrop out of the assistive tree, and all six panels use it (F15, F16). The browser walk of the new shell is in the remediation's not-verified table |
+| 3.1.1 Language of page | Holds in source: `app/+html.jsx` renders `<html lang="it">` (F20). Not yet checked on the exported build, which is the only place it can be confirmed |
+| Automated check | Gap: no linter or test asserts these rules; conformance rests on the manual procedure above. The gate is `expo lint` + `tsc --noEmit` + `jest`, none of which sees a role or a contrast pair |
+
 | Automated check | Gap: no linter or test asserts these rules; conformance rests on the manual procedure above |
