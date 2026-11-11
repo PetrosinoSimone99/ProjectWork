@@ -70,3 +70,76 @@ three times the cost of typing into an unrelated form field, and the frame
 budget (16 ms) is exceeded in both cases because this is the dev bundle with
 React Compiler optimisations off. The number is a dev-build number; the
 comparison between the two rows is what makes it attributable.
+
+---
+
+## Cycle 3 — the web refresh action, and F74 measured again
+
+Three captures, added here rather than rewriting the five above. Same viewport
+(390×844), same theme (`localStorage['barattolo.tema'] = 'chiaro'`), same
+method: two `networkidle` waits, then an assertion that no `/Carico|Guardo/` is
+on screen. The `browser` MCP server (Edge), never `playwright`.
+
+| New capture | Reference | What it shows |
+| --- | --- | --- |
+| `06-home-390-light-refresh.png` | `01-home-390-light.png` | the «Aggiorna» control above the header, trailing-aligned, neutral `secondary` pill — one on the screen, `minHeight` 50 px, transparent background (F72) |
+| `07-filters-typed-390-before.png` | `05-filters-open-390-light.png` | the pre-fix build (`52f386b` in a worktree on 8082): `yoga` typed and unsubmitted, the amber chip «Cerca «yoga»», the foot still «Nessun filtro attivo» |
+| `08-filters-typed-390-after.png` | `07-filters-typed-390-before.png` | the same state with the fix: the same chip and the same untouched foot, but the typing no longer reaches the catalog's state (F74) |
+
+### What the cycle-3 session asserted, not just photographed
+
+Read off the live DOM at 390, light, `mario.rossi`:
+
+1. Exactly one control whose accessible name starts with «Aggiorna» is on the
+   home, and its box is the touch floor (50 px) with no fill: the accent belongs
+   to a screen's primary action and a refresh is not one.
+2. Typing `yoga` without submitting renders the chip «Cerca «yoga»» and leaves
+   the foot at «Nessun filtro attivo» — the count still speaks about applied
+   filters only.
+3. «Cerca» applies: the foot moves to «1 filtro attivo», the chip disappears,
+   and the catalog answers «3 di 3 servizi».
+4. Enter applies too, with the same three effects, **when it arrives after the
+   last keystroke has been rendered**. Pressing it in the same tick as the last
+   character applies the previous value; that race is pre-existing — the pre-fix
+   build loses it identically — and it is recorded in
+   [`../ux-remediation-2026-11-11.md`](../ux-remediation-2026-11-11.md) §11
+   rather than fixed inside this cycle.
+5. The staff-side vocabulary of F61 is verified by unit test, not on screen: the
+   demo log still holds no operations, and writing one would modify demo data.
+
+### Console
+
+**0 errors, 1 warning** over the cycle-3 session: the pre-existing
+`"shadow*" style props are deprecated` line that every capture since cycle 1
+carries. The `ERR_EMPTY_RESPONSE` of cycle 2 did not recur: the backend container
+was already warm, and the login was polled for a token instead of waited for a
+fixed time.
+
+### F74, measured before and after
+
+Same page, same session, two servers of the same tree: `8082` runs `52f386b` in
+a git worktree (the pre-fix build), `8081` runs the working tree with the fix.
+22 real `keydown`s through `pressSequentially`, a `requestAnimationFrame` probe
+on each key, a `MutationObserver` on the 20-row list, and the «Nome» field of
+«Modifica profilo» as the control.
+
+| Where the typing happens | Per-key frame latency | Mutations inside the rows |
+| --- | --- | --- |
+| «Nome» in «Modifica profilo» (control) | 7–20.8 ms, median 11.6 | none (no list on that screen) |
+| catalog filter field, **before** the fix | 16.6–37.6 ms, median 25.3 | 0 |
+| catalog filter field, **after** the fix | 7.6–21.8 ms, median **10.3** | 0 |
+
+Two things this measurement corrected, both written into the remediation row:
+
+- **The absolute number drifts between sessions.** Cycle 2 measured 49–73 ms per
+  key on the same pre-fix code that today measures 16.6–37.6 ms: the dev bundle
+  is not a stable instrument, so only a same-session comparison against the
+  control is attributable. The finding stands (the field cost roughly twice the
+  control, today and then) and the fix removes it (median 10.3 against the
+  control's 11.6).
+- **The «~6 mutations per key» were the filter card's own churn**, not the
+  rows: the observer watched the list's whole subtree, and the header (the chip,
+  the field, the count line) lives inside it. Counting the rows alone gives zero
+  mutations both before and after, because a React re-render that produces the
+  same DOM writes nothing. The cost was work, not DOM — which is exactly why the
+  frame probe is the metric here and the mutation count is not.
