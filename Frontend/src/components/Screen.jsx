@@ -20,11 +20,18 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
 /**
  * Contenitore di schermata: sfondo tema, safe area, tastiera che non copre i campi.
  *
- * Su schermi larghi (web da desktop) il contenuto resta centrato con una
- * larghezza massima (`layout.maxContent`, 560): le righe di form non si
- * allargano per tutto lo schermo. `larga` alza il tetto a `layout.maxCatalogo`
- * (1024) per la sola schermata con il catalogo dei servizi. `alignSelf: center`
- * centra il blocco — senza, resterebbe attaccato a sinistra.
+ * **Un solo telaio** (direzione UX «A», audit UX F80). Non c'è più una
+ * schermata larga e dieci strette con due regole diverse: c'è una colonna sola,
+ * centrata, con due misure di lettura — `layout.maxContent` (560) per moduli e
+ * testi, `layout.maxCatalogo` (720) per la sola schermata che si scorre a
+ * colpo d'occhio, il catalogo. Le card riempiono la colonna: nessun elemento
+ * dentro ha una larghezza propria, quindi il bordo destro è uno.
+ *
+ * **Tre battute** (audit UX F81): 32 fra sezioni di primo livello — è il `gap`
+ * qui sotto — 16 fra blocchi dentro una sezione, 12 dentro una card (`Card`).
+ * Il 32 esiste già come `space.xxl`: il ritmo non ha bisogno di un token nuovo,
+ * solo di essere usato per il mestiere giusto invece del 16 che faceva sia
+ * l'uno sia l'altro.
  *
  * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useRefresh`)
  * per il pull-to-refresh, attivo solo su mobile.
@@ -34,9 +41,9 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * sopra l'home indicator resta un vuoto troppo alto.
  *
  * Sul web, quando la finestra è così stretta che la colonna del contenuto entra
- * nella fascia del pallino di `WebNavMenu` (`fasciaPallinoMenuWeb`, in
+ * nella fascia della barra di `WebNavMenu` (`fasciaPallinoMenuWeb`, in
  * alto a destra), quella fascia viene riservata con un padding in più: il titolo
- * non finisce sotto il pallino. Da nativo non cambia niente.
+ * non finisce sotto la barra. Da nativo non cambia niente.
  */
 export function Screen({
   children,
@@ -53,13 +60,14 @@ export function Screen({
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const aggiornamentoAttivo = SUPPORTA_AGGIORNAMENTO && typeof onRefresh === 'function';
   const safeAreaBottomPadding = withBottomInset && !keyboardVisible ? insets.bottom : 0;
-  // Larghezza massima del contenuto: senza, a 1280 la casella di ricerca
-  // allarga a tutto lo schermo e «Filtra» scappa al capo opposto. Solo le
-  // schermate lunghe (catalogo) la allargano; tutte le altre restano centrate.
+  // Larghezza massima del contenuto: le due misure di lettura, non due layout.
+  // Senza un tetto, a 1280 la casella di ricerca allarga a tutto lo schermo e
+  // «Cerca» scappa al capo opposto; il catalogo si ferma a 720 perché è una
+  // superficie da scorrere, non perché sia un'altra schermata.
   const larghezzaMassima = larga ? layout.maxCatalogo : layout.maxContent;
-  // La colonna è centrata: il suo bordo destro entra nella fascia del pallino
-  // quando la finestra è più stretta del tetto di colonna aumentato della fascia
-  // su entrambi i lati. Allora il contenuto scende sotto la fascia.
+  // La colonna è centrata: il suo bordo destro entra nella fascia della barra
+  // del menu quando la finestra è più stretta del tetto di colonna aumentato
+  // della fascia su entrambi i lati. Allora il contenuto scende sotto la fascia.
   const riservaMenuWeb =
     Platform.OS === 'web' &&
     larghezzaFinestra < larghezzaMassima + 2 * fasciaPallinoMenuWeb;
@@ -80,11 +88,12 @@ export function Screen({
 
   // Stessi padding, gap e larghezza massima nei due rami; cambiano solo le
   // proprietà di flessibilità: la ScrollView riempie con `flexGrow`, la View
-  // fissa con `flex: 1`.
+  // fissa con `flex: 1`. Il `gap` è la battuta fra sezioni di primo livello (32):
+  // è la sola misura che separa due blocchi che non si appartengono.
   const riempimento = {
     padding: space.lg,
     paddingBottom: bottomSpacing,
-    gap: space.lg,
+    gap: space.xxl,
     maxWidth: larghezzaMassima,
     width: '100%',
     alignSelf: 'center',

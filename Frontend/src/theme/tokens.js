@@ -89,22 +89,32 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 export const ombra = '#000000';
 
 /**
- * Fascia che il pallino del menu **web** (`WebNavMenu`) occupa in alto a
- * destra: il lato del pallino (48) più il suo margine dal bordo (`space.lg`), 64.
- * Il pallino è `position: fixed` sopra il contenuto, quindi chi sta in alto a
+ * Fascia che la barra del menu **web** (`WebNavMenu`) occupa in alto a destra:
+ * l'altezza della barra (48) più il suo margine dal bordo (`space.lg`), 64.
+ * La barra è `position: fixed` sopra il contenuto, quindi chi sta in alto a
  * destra — il contenuto di `Screen` e gli avvisi in cima di `app/_layout.jsx` —
  * deve tenersi fuori da questa fascia, altrimenti resta coperto. È la stessa
- * misura di `DIMENSIONE_PALLINO` in `WebNavMenu`: se cambia là, cambia
- * anche qui.
+ * misura di `ALTEZZA_BARRA` in `WebNavMenu`: se cambia là, cambia anche qui.
+ *
+ * Il nome resta legato alla misura storica del pallino: la direzione UX del
+ * 2026-11-11 ha sostituito il disco con una barra, e l'altezza non è cambiata,
+ * quindi nemmeno questo valore.
  */
 export const fasciaPallinoMenuWeb = 48 + space.lg;
 
 /**
  * Larghezze massime del layout su schermi larghi. Solo web le applica:
- * `Screen` centra il contenuto su 560, il catalogo della home sale a 1024.
+ * `Screen` centra il contenuto su 560; il catalogo della home sale a 720, che è
+ * una misura di lettura (una riga di 19 px sta in ~60 caratteri) e non una
+ * scelta di larghezza. Le card riempiono la colonna, quindi il bordo destro di
+ * una card e quello della colonna sono lo stesso bordo (audit UX F80).
  * Su mobile la larghezza non supera mai il tetto, quindi il layout non cambia.
+ *
+ * Il valore del catalogo era 1024: a quella larghezza la card si fermava a 712
+ * e lasciava 260 px di colonna vuota, cioè tre bordi destri diversi in una
+ * schermata sola.
  */
-export const layout = { maxContent: 560, maxCatalogo: 1024 };
+export const layout = { maxContent: 560, maxCatalogo: 720 };
 
 /**
  * Token del tema attivo: segue la preferenza scelta dall'utente (Profilo ->
