@@ -20,7 +20,7 @@ import {
   passwordError,
   requiredError,
 } from '@/validation';
-import { Screen } from '@/components/Screen';
+import { AuthShell } from '@/components/AuthShell';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
@@ -74,8 +74,7 @@ const SEZIONI = [
     titolo: 'Cosa offri',
     introduzione:
       'Scegli la categoria e spiega in due righe cosa fai. Serve almeno una voce qui e una in «Cosa cerchi».',
-    etichettaAggiungi: "Aggiungi un'altra offerta",
-    testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
+    etichettaAggiungi: "Aggiungi un'offerta",
   },
   {
     chiave: 'ricerche',
@@ -83,8 +82,7 @@ const SEZIONI = [
     titolo: 'Cosa cerchi',
     introduzione:
       'Scegli la categoria di quello che ti serve e racconta in due righe cosa devi risolvere.',
-    etichettaAggiungi: "Aggiungi un'altra ricerca",
-    testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} ricerche.`,
+    etichettaAggiungi: 'Aggiungi una ricerca',
   },
 ];
 
@@ -337,7 +335,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <Screen scroll withBottomInset>
+    <AuthShell>
       <View style={{ gap: space.xs }}>
         <AppText variant="title">Crea il tuo profilo</AppText>
         <AppText variant="small" tone="secondary">
@@ -475,6 +473,6 @@ export default function RegisterScreen() {
           </AppText>
         </Link>
       </View>
-    </Screen>
+    </AuthShell>
   );
 }
