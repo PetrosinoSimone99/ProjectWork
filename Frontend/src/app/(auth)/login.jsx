@@ -3,14 +3,13 @@ import { View } from 'react-native';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
-import { AppIcon } from '@/components/AppIcon';
-import { Screen } from '@/components/Screen';
+import { AuthShell } from '@/components/AuthShell';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { requiredError } from '@/validation';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 /**
  * Login: username and password only.
@@ -26,12 +25,15 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * with no explanation (F25) — the reason now comes from `useAuth` and says what
  * happened. And the return path: the screen remembers where the user was
  * (`ritorno`) so re-logging in does not start the task over (F26).
+ *
+ * The masthead is not this screen's: it comes from `AuthShell`, which the
+ * registration shares, and the form sits in the middle of the window instead of
+ * hanging under the safe area with empty space below it (audit UX F90).
  */
 export default function LoginScreen() {
   const { signIn, motivoUscita, congedaMotivo } = useAuth();
   const router = useRouter();
   const { ritorno } = useLocalSearchParams();
-  const t = useTokens();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
@@ -66,32 +68,8 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen scroll>
-      <View style={{ alignItems: 'center', gap: space.md, paddingTop: space.xl }}>
-        <View
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: radius.pill,
-            backgroundColor: t.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <AppIcon name="swap-horizontal" size={30} color={t.onPrimary} />
-        </View>
-        <AppText variant="title">Baratto-lo</AppText>
-        <AppText
-          variant="small"
-          tone="secondary"
-          style={{ textAlign: 'center', maxWidth: 300 }}
-        >
-          Scambia servizi con la tua comunità: offri ciò che sai fare, trova chi cerca
-          quello che offri.
-        </AppText>
-      </View>
-
-      <View style={{ gap: space.md, marginTop: space.xl }}>
+    <AuthShell centrata>
+      <View style={{ gap: space.md }}>
         {motivoUscita ? (
           <Banner
             kind="info"
@@ -147,6 +125,6 @@ export default function LoginScreen() {
           </AppText>
         </Link>
       </View>
-    </Screen>
+    </AuthShell>
   );
 }
