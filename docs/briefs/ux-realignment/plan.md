@@ -18,11 +18,11 @@ for execution; the chat summary is not.
 
 ## Blocks
 
-- [ ] 0. Remove the duplicated plus from the add-publication CTA: drop `+` from `label="+ Aggiungi"`, keep `icon="add"` (AppButton already renders the glyph next to the text, `AppButton.jsx:58-63`) | files: Frontend/src/components/PublicationsSection.jsx | done: `grep -rn 'icon="add"' src` and `grep -rnE 'label=\{?["`][^"`]*\+' src` both return no CTA with a literal plus; gate green (`npx expo lint`, `npx tsc --noEmit`); one commit `fix: drop the duplicated plus from the add-publication CTA` | Stato: TODO
-- [ ] 1. Cold audit, read-only, one shared output file: Lane A (static, impeccable), Lane B (visual critique, taste), Lane C (captures, Playwright, run by the parent) | files: docs/audits/ux-audit-2026-11-11.md (new), docs/audits/screens-2026-11-11/ (new) | done: findings table with `file:line` and an evidence status (`VERIFIED`/`DEDUCED`/`NOT VERIFIABLE`) per row; §2 score table computed with the baseline formula `10 − (0.2·n1 + 0.5·n2 + 1.5·n3 + 3·n4)`, on the same five dimensions and weights as `ux-audit-2026-11-10.md` §2, so the two documents are row-comparable; matrix screen × state × theme captured at 390×844, 360×800, 1280×800 in light and dark | Stato: TODO
-- [ ] 2. Triage of findings into mechanical vs directional | files: docs/audits/ux-remediation-2026-11-11.md (new) | done: every finding from block 1 classified; mechanical rows carry the fix written out as `file:line` → exact change, no "improve X"; directional rows carry the design question they pose and nothing else; the triage row carries the file estimate counted, not guessed (`N modified + M new`), and the count is re-derived from the mechanical rows, not from this plan | Stato: TODO
-- [ ] 3. Visual direction over the directional findings only (conditional, see Ramp-out) | files: docs/briefs/ux-realignment/direction.md (new), `C:\Users\Andrea\AppData\Local\Temp\baratto-ux-direction\app\**` (outside the repo) | done: 3 directions proposed with palette and type frozen (`--keep palette,type`), one chosen and motivated in 10 lines, and a frozen "files to touch" list that block 4 may not extend; Andrea approves in chat before block 4 | Stato: TODO
-- [ ] 4. Implementation of the chosen direction (conditional, see Ramp-out) | files: Frontend/src/theme/tokens.js only if a role is genuinely missing, plus the files frozen in `direction.md`, drawn from the declared pool below, hard cap 8 | done: every touched screen passes `npx expo lint` and `npx tsc --noEmit`; diff contains no inline style that a token could express and no per-screen copy of a shared rule; commits of 2-3 files each | Stato: TODO
+- [x] 0. Remove the duplicated plus from the add-publication CTA: drop `+` from `label="+ Aggiungi"`, keep `icon="add"` (AppButton already renders the glyph next to the text, `AppButton.jsx:58-63`) | files: Frontend/src/components/PublicationsSection.jsx | done: `grep -rn 'icon="add"' src` and `grep -rnE 'label=\{?["`][^"`]*\+' src` both return no CTA with a literal plus; gate green (`npx expo lint`, `npx tsc --noEmit`); one commit `fix: drop the duplicated plus from the add-publication CTA` | Stato: DONE
+- [x] 1. Cold audit, read-only, one shared output file: Lane A (static, impeccable), Lane B (visual critique, taste), Lane C (captures, Playwright, run by the parent) | files: docs/audits/ux-audit-2026-11-11.md (new), docs/audits/screens-2026-11-11/ (new) | done: findings table with `file:line` and an evidence status (`VERIFIED`/`DEDUCED`/`NOT VERIFIABLE`) per row; §2 score table computed with the baseline formula `10 − (0.2·n1 + 0.5·n2 + 1.5·n3 + 3·n4)`, on the same five dimensions and weights as `ux-audit-2026-11-10.md` §2, so the two documents are row-comparable; matrix screen × state × theme captured at 390×844, 360×800, 1280×800 in light and dark | Stato: DONE
+- [x] 2. Triage of findings into mechanical vs directional | files: docs/audits/ux-remediation-2026-11-11.md (new) | done: every finding from block 1 classified; mechanical rows carry the fix written out as `file:line` → exact change, no "improve X"; directional rows carry the design question they pose and nothing else; the triage row carries the file estimate counted, not guessed (`N modified + M new`), and the count is re-derived from the mechanical rows, not from this plan | Stato: DONE
+- [x] 3. Visual direction over the directional findings only (conditional, see Ramp-out) | files: docs/briefs/ux-realignment/direction.md (new), `C:\Users\Andrea\AppData\Local\Temp\baratto-ux-direction\app\**` (outside the repo) | done: 3 directions proposed with palette and type frozen (`--keep palette,type`), one chosen and motivated in 10 lines, and a frozen "files to touch" list that block 4 may not extend; Andrea approves in chat before block 4 | Stato: DONE
+- [ ] 4. Implementation of the chosen direction (conditional, see Ramp-out) | files: Frontend/src/theme/tokens.js only if a role is genuinely missing, plus the files frozen in `direction.md`, drawn from the declared pool below, hard cap 8 | done: every touched screen passes `npx expo lint` and `npx tsc --noEmit`; diff contains no inline style that a token could express and no per-screen copy of a shared rule; commits of 2-3 files each | Stato: DONE — approved in chat 2026-11-11
 - [ ] 4'. Mechanical-only fallback (only if block 2 finds zero directional findings) | files: exactly the files named by the mechanical rows of the remediation doc | done: every mechanical finding closed, each commit green on its own, remediation row flipped to `closed` in the same commit | Stato: TODO
 - [ ] 5. Verification with Playwright on the real states (conditional: needs block 4 or 4' to have a visual effect) | files: docs/audits/screens-2026-11-11-after/ (new) | done: before/after on the same states and viewports, side by side, plus the browser console captured with no new RN-web warning introduced by the cycle | Stato: TODO
 - [ ] 6. Close: changelog, remediation status per finding, `docs/DESIGN.md` derived from `tokens.js` | files: docs/changelog.md, docs/audits/ux-remediation-2026-11-11.md, docs/DESIGN.md (new) | done: changelog has one entry per block; every remediation row carries a final status; `docs/DESIGN.md` states roles and rules read out of `tokens.js` with no value restated and points at the file as the source of truth; `grep` for any hex or numeric token value inside `DESIGN.md` returns only pointers, not copies | Stato: TODO
@@ -113,3 +113,22 @@ as the change. Never `git add -A`. Push to `andrea-frontend` only.
   score would mean the auditor is counting differently, not that the app got
   worse. Method differences are recorded in §6, the way the 2026-11-10 document
   does.
+
+## Amendment — approved 2026-11-11
+
+The triage (block 2) counted 29 mechanical rows across 29 files, more than this
+plan's block 4 ceiling of 8, so block 4 runs in three parts and the ramp-out is
+unchanged:
+
+| Part | What | Files | Status |
+| --- | --- | --- | --- |
+| 4a | wave 1, the "loss and truth" rows: F44, F46, F49, F50, F54, F56, F57, F58, F60, F87, F91, F92 (12 closed; F61 to wave 3, F90 to 4b) | 19 | **DONE in six commits** |
+| 4b | the direction of `direction.md`, nine files frozen there | 9 | TODO — needs a fresh context |
+| 4c | the rest of wave 2 (F51, F52, F53, F70, F71, F83, F85) | 9 | TODO |
+| 5 | before/after with Playwright | `screens-2026-11-11-after/` | TODO — waits for 4b/4c |
+| 6 | changelog (written), remediation status (written), `docs/DESIGN.md` (new) | 3 | TODO — `DESIGN.md` waits for 4b |
+
+Wave 3 stays deferred with its condition written in the remediation doc: F61
+(needs the backend's action vocabulary), F72 (needs an affordance decision), F73
+(needs the page contract), F74 (needs a measurement), F94 (blocked on the console
+stack).

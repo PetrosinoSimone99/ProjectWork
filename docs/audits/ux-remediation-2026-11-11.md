@@ -216,3 +216,31 @@ updated at each block, so it starts honest.
 | F92 cap line contradicts the count | 2 | mechanical | 1 | open |
 | F93 the clamped sentence vs the repeated category | 2 | directional | — | open |
 | F94 react-native-web overlay in the error state | 2 | mechanical | 3 | open (blocked: console stack) |
+
+## 8. Status after block 4a (wave 1) — 2026-11-11
+
+Wave 1 was written in six commits, each green on `npx expo lint` and
+`npx tsc --noEmit` before the commit:
+`14f4f76` (F44, F57), `e61cf7a` (F56, F92), `1db4e43` (F58, F91), `4a37e99`
+(F49, F50, F54), `303a944` (F46, F87), `720ba5a` (F60).
+
+| Finding | Status | Where |
+| --- | --- | --- |
+| F44 review note survives its own confirm | **closed** | `staff.jsx` — the confirm's cancel restores the sheet from the copy it already holds |
+| F46 four success banners dismiss | **closed** | `(tabs)/index.jsx`, `(tabs)/offer-and-request.jsx`, `staff.jsx`, `staff-users.jsx` — «Ho capito» like `agreements.jsx` |
+| F49 banner states its kind four times | **closed** | `Banner.jsx` — the 3 px left rule is gone, the 1 px frame stays |
+| F50 catalog row announced only by its description | **closed** | `ServiceCard.jsx` — the accessible name now carries category, mode, place, date and author |
+| F54 close control names itself twice | **closed** | `ModalShell.jsx` — the icon is decorative again |
+| F56 failed request drawn as an empty list | **closed** | `PublicationsSection.jsx` + `(tabs)/offer-and-request.jsx` — the section receives the error it was guessing about |
+| F57 reports error claimed as a missing endpoint | **closed** | `staff.jsx` — two requests, two outcomes; `isEndpointUnavailable` keeps 404/501 as "not available" |
+| F58 login transition had two owners, draft owner `null` | **closed** | `(auth)/_layout.jsx` (redirect removed), `edit-profile.jsx` (the last user is remembered before the session drops) |
+| F60 `l&apos;account` printed literally | **closed** | `(auth)/register.jsx` |
+| F87 retry detached from the failure | **closed** | `(tabs)/index.jsx` — inside the banner, like the other three error surfaces |
+| F91 dead session lands with no explanation | **closed** | `auth-context.jsx` — the boot path sets the same reason the 401 path sets |
+| F92 cap line contradicted the count | **closed** | `PublicationsSection.jsx` + `services/offer-request.js` (`testoLimiteVoci`) |
+| F61 operations log prints raw backend values | **moved to wave 3** | the label map needs the backend's action vocabulary, which this cycle never read; printing a guessed vocabulary would be worse than printing the raw value |
+| F90 the auth pair has no shared shell | **moved to 4b** | the shared masthead is `PageHeader`'s job and `PageHeader` is 4b's first file; doing it twice would create the drift the direction exists to remove |
+
+12 of the 14 wave-1 findings are closed, 2 are re-homed with the reason
+written above. Nothing in the 12 changed a token value, an interaction or a
+component contract: the mechanical half of this cycle is invisible by design.

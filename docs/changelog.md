@@ -6,6 +6,72 @@ documents/code touched.
 
 ---
 
+## 2026-11-11 — UX realignment cycle: block 0 to 4a
+
+### What changed
+
+1. **Realignment cycle opened with a plan and a brief**
+   (`docs/briefs/ux-realignment/`), class L: audit, triage, direction,
+   implementation, verification, closure. Refinement, not a redesign: the token
+   palette, the contrasts, the radius scale and `target.min` are frozen.
+2. **Block 0 — the duplicated plus.** `PublicationsSection` rendered
+   `label="+ Aggiungi"` next to `icon="add"`, so the CTA read `+ + Aggiungi`.
+   The label is now `Aggiungi` and the glyph comes from the icon alone.
+3. **Block 1 — new audit, `docs/audits/ux-audit-2026-11-11.md`.** 38 findings on
+   the same five dimensions and the same formula as 2026-11-10, with 37 captures
+   in `docs/audits/screens-2026-11-11/` (real backend, light and dark, 390x844 /
+   360x800 / 1280x800). **6.8/10**, and the document explains why that number is
+   not "worse than 9.9": the previous 9.9 was a code-evidence re-measurement that
+   did not open the app, and every visual row below is only visible on a screen.
+4. **Block 2 — triage, `docs/audits/ux-remediation-2026-11-11.md`.** 29
+   mechanical findings with the fix written out, 9 directional ones with the
+   design question each poses, 29 files counted, split into three waves.
+5. **Block 3 — direction, `docs/briefs/ux-realignment/direction.md`.** Three
+   directions proposed, one chosen (one column, one beat), ten lines of
+   motivation, the nine directional questions answered one by one, and the nine
+   files block 4b may touch frozen in the document.
+6. **Block 4a — wave 1 written: 12 of 14 findings closed in six commits.** The
+   review note that a "No, torna indietro" destroyed (F44), the failed request
+   drawn as "you published nothing" (F56), the reports error claiming a missing
+   endpoint (F57), the login transition with two owners and a draft whose owner
+   was always `null` (F58), the dead session landing on a login with no
+   explanation (F91), the catalog row announcing only its description (F50), the
+   detached retry (F87), the banner that stated its kind four times (F49), the
+   close control named twice (F54), the four banners that never dismissed (F46),
+   the cap line contradicting the count (F92), the literal `&apos;` (F60).
+
+### Why
+
+The app was measured, not assumed. Thirteen of the eighteen visual findings in
+the audit are composition defects that no code read had ever produced, and the
+two severity-3 findings destroy something the user wrote or leave the user
+without a reason. The mechanical half of the cycle fixes what misinforms or
+destroys; the direction half is written down before a single component moves,
+so the same question is answered once instead of once per file.
+
+### Touched
+
+`Frontend/src/app/staff.jsx`, `Frontend/src/app/staff-users.jsx`,
+`Frontend/src/app/(tabs)/index.jsx`, `Frontend/src/app/(tabs)/offer-and-request.jsx`,
+`Frontend/src/app/(auth)/register.jsx`, `Frontend/src/app/(auth)/_layout.jsx`,
+`Frontend/src/app/edit-profile.jsx`, `Frontend/src/auth/auth-context.jsx`,
+`Frontend/src/components/PublicationsSection.jsx`,
+`Frontend/src/components/ServiceCard.jsx`, `Frontend/src/components/ModalShell.jsx`,
+`Frontend/src/components/Banner.jsx`, `Frontend/src/services/offer-request.js`,
+`docs/audits/ux-audit-2026-11-11.md`,
+`docs/audits/ux-remediation-2026-11-11.md`, `docs/audits/screens-2026-11-11/**`,
+`docs/briefs/ux-realignment/**`.
+
+### Attention (backend maintainer)
+
+Two notes from the cycle. `EXPO_PUBLIC_DATI_FINTI` no longer exists in the
+frontend (removed 2026-11-07 per decisions.md D011) but `AGENTS.md` still
+describes it: the doc is stale, the code is right. And the operations log prints
+the backend's raw `action`/`target.type` values with no label map (F61, open):
+if the backend has a canonical vocabulary for those, it is worth sending one.
+
+---
+
 ## 2026-11-10 — UX remediation: 3.6 to 9.9, 42 of 43 findings closed
 
 ### What changed
