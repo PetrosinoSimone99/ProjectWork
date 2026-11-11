@@ -238,6 +238,11 @@ export default function HomeScreen() {
               ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
               : 'Proposta inviata. La trovi in Accordi.'
           }
+          // Un messaggio di successo che resta fino alla prossima scrittura non è
+          // più una notizia: si chiude come gli altri (audit F46).
+          etichettaAzione="Ho capito"
+          iconaAzione="checkmark-outline"
+          onAzione={() => setPropostaInviataA(null)}
         />
       ) : null}
 
@@ -258,16 +263,15 @@ export default function HomeScreen() {
       />
 
       {errore ? (
-        <>
-          <Banner kind="error" message={errore} />
-          <AppButton
-            label="Riprova"
-            variant="secondary"
-            icon="refresh-outline"
-            onPress={riprova}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </>
+        // Il ritentativo vive dentro il messaggio che ha fallito: separato, a
+        // 16 px di distanza, si legge come un comando che non c'entra (F87).
+        <Banner
+          kind="error"
+          message={errore}
+          etichettaAzione="Riprova"
+          iconaAzione="refresh-outline"
+          onAzione={riprova}
+        />
       ) : null}
     </View>
   );

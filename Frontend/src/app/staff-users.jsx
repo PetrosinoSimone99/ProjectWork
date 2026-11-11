@@ -306,7 +306,17 @@ export default function StaffUsersScreen() {
         </View>
       ) : null}
 
-      {message ? <Banner kind="success" message={message} /> : null}
+      {message ? (
+        <Banner
+          kind="success"
+          message={message}
+          // Chiudibile: un esito che resta fino alla scrittura successiva non si
+          // legge più (audit F46).
+          etichettaAzione="Ho capito"
+          iconaAzione="checkmark-outline"
+          onAzione={() => setMessage(null)}
+        />
+      ) : null}
       {actionError ? <Banner kind="error" message={actionError} /> : null}
 
       {users !== null && visible.length === 0 ? (

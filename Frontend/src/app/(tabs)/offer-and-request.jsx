@@ -424,7 +424,17 @@ export default function OfferAndRequestScreen() {
         <AppText variant="small" tone="secondary">{INTRODUZIONE}</AppText>
       </View>
 
-      {esito ? <Banner kind="success" message={esito} /> : null}
+      {esito ? (
+        <Banner
+          kind="success"
+          message={esito}
+          // Il successo si chiude: resta finché non arriva la prossima scrittura
+          // altrimenti è arredamento, non una notizia (audit F46).
+          etichettaAzione="Ho capito"
+          iconaAzione="checkmark-outline"
+          onAzione={() => setEsito(null)}
+        />
+      ) : null}
 
       {categoriePronte ? null : (
         <Card>

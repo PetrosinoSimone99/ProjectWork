@@ -227,7 +227,17 @@ export default function StaffScreen() {
         />
       ) : null}
 
-      {message ? <Banner kind="success" message={message} /> : null}
+      {message ? (
+        <Banner
+          kind="success"
+          message={message}
+          // Chiudibile: un esito che resta a schermo fino alla scrittura
+          // successiva non si legge più (audit F46).
+          etichettaAzione="Ho capito"
+          iconaAzione="checkmark-outline"
+          onAzione={() => setMessage(null)}
+        />
+      ) : null}
       {actionError ? <Banner kind="error" message={actionError} /> : null}
 
       {reports !== null && list.length === 0 ? (
