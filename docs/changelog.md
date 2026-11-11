@@ -6,6 +6,71 @@ documents/code touched.
 
 ---
 
+## 2026-11-11 — UX realignment cycle 2: the five owed, and one voice per type
+
+### What changed
+
+1. **The four findings cycle 1 answered but never shipped.** F45 and F84 in
+   `FilterBar.jsx`: no «Filtra» label is left in `src`, «Cerca» lives inside the
+   field it governs, the typed-but-unapplied text is the amber chip
+   «Cerca «testo»», and the always-visible foot reads «N filtri attivi ·
+   Azzera» with the count coming from applied filters only. F59 in
+   `edit-profile.jsx`: a broken image URL blocks its own field and offers
+   «Rimuovi immagine», while name, surname, location and bio save and the broken
+   URL never travels. F90 in `AuthShell.jsx` + the auth pair: one masthead, one
+   alignment, the login form centred instead of hanging under the safe area.
+2. **The profile borrow the direction owed.** `(tabs)/profile.jsx` is one sheet
+   divided by 1px rules — identity, data, «Modifica profilo», «Area staff» (role
+   only), «Aspetto», session line — instead of five cards of identical weight.
+   «Esci» stays outside as a ghost button.
+3. **Product rule: one offer and one request per user, not five and five.**
+   `LIMITE_VOCI` goes to 1 (`6de86dd`) and every string derives from it:
+   `SOSTANTIVI_VOCE` makes the cap read «1 offerta» / «1 ricerca», the counter
+   keeps its ratio at the cap («1 di 1»), and an account over the cap reads how
+   many rows to remove instead of «eliminane una delle N». Rows are never
+   deleted: the cap blocks additions only. Suspended voices still occupy their
+   place, because the client feeds the cap the whole list of that type.
+   Affordances that add a voice disappear once the voice exists
+   (`EntriesSection`, `PublicationsSection`, registration).
+4. **Wave 3 closed on its own evidence.** F61 prints the operations log with the
+   backend's vocabulary (`Backend/src/Entity/StaffOperationLog.php:19-20`).
+   F73 is `N/A`: every staff list asks for one page with a fixed `limit`, so
+   nothing queues. F74 is measured (49–73 ms per keystroke against a 23–31 ms
+   control) and owes a fix in a file this cycle did not scope. F94 is closed on
+   the captured console. F72 is `N/A` by decision, with its condition written.
+5. **Verification.** Five captures at 390 light in
+   `docs/audits/screens-2026-11-11-final/`, each paired with its "before"; the
+   full assertions and the console are in that directory's README.
+
+### Why
+
+Cycle 1 closed with four findings whose answer existed and whose file no block
+owned, one composition borrow the direction never spent, and five wave-3 rows
+deferred on missing facts. Cycle 2 spent them, and took the one product decision
+that had been waiting: a person should have one thing they offer and one thing
+they search.
+
+### Touched
+
+`Frontend/src/components/{FilterBar,AuthShell,EntriesSection,PublicationsSection,EntryEditor}.jsx`,
+`Frontend/src/app/(auth)/{login,register}.jsx`, `Frontend/src/app/(tabs)/profile.jsx`,
+`Frontend/src/app/{edit-profile,staff}.jsx`,
+`Frontend/src/services/{offer-request,staff}.js`,
+`Frontend/src/services/__tests__/offer-request.test.js`,
+`docs/changelog.md`, `docs/audits/ux-remediation-2026-11-11.md`,
+`docs/audits/screens-2026-11-11-final/`, `docs/briefs/ux-realignment/*`,
+`.gitignore` (browser MCP log directory).
+
+### Attention (backend maintainer)
+
+`Backend/` was read and never edited. The one-per-type cap has **no server
+counterpart** — `grep -rn LIMITE_VOCI Backend/` returns nothing — exactly as the
+previous cap of five had none. If the backend should enforce it, that is a
+backend decision and the client constant becomes the mirror of it, not the
+source.
+
+---
+
 ## 2026-11-11 — UX realignment cycle: blocks 4b to 6
 
 ### What changed
