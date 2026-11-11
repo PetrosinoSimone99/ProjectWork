@@ -6,6 +6,7 @@ import { AppText } from './AppText';
 import { Card } from './Card';
 import { CategorySelector } from './CategorySelector';
 import { ListSelector } from './ListSelector';
+import { ToneChip } from './ToneChip';
 import {
   contaFiltri,
   etichettaValoreModalita,
@@ -16,8 +17,9 @@ import { REGIONI, provincePerRegione } from '@/services/italian-regions';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
- * Sotto questa larghezza il campo di ricerca e «Filtra» vanno su due righe:
- * affiancati su 390px il placeholder veniva tagliato dal pulsante (P62).
+ * Sotto questa larghezza le righe della barra si impilano: su 390px la riga di
+ * ricerca e la riga delle tendine stanno su righe separate, con i campi larghi
+ * quanto il contenitore (P62).
  */
 const SOGLIA_LAYOUT_STRETTO = 480;
 
@@ -32,24 +34,28 @@ const SOGLIA_LAYOUT_STRETTO = 480;
  * dal dataset statico.
  *
  * Quando ogni controllo fa partire la richiesta:
- * - **testo** con Invio o con il pulsante «Filtra»: non si fa una richiesta per
- *   tasto premuto, altrimenti ogni lettera produrrebbe una richiesta e una
- *   raffica di risposte da scartare;
+ * - **testo** con Invio o con «Cerca», il controllo dentro il campo stesso che
+ *   governa: non si fa una richiesta per tasto premuto, altrimenti ogni lettera
+ *   produrrebbe una richiesta e una raffica di risposte da scartare. Finché il
+ *   testo digitato differisce da quello applicato, un chip di attesa nel posto
+ *   sempre visibile dice che la ricerca non è ancora partita;
  * - **categoria, regione, provincia e modalità** al tocco: sono scelte discrete
  *   e non hanno costo. L'azzeramento di provincia al cambio regione lo fa
  *   l'hook.
  *
- * Il pulsante di azzeramento compare **solo** quando qualcosa è attivo, e non
- * sparisce mai quando serve. La X nel campo di testo azzera **solo** il testo e
- * riapplica gli altri filtri: è diversa da «Azzera filtri», che svuota tutto.
+ * Il piede è **sempre visibile**, fuori dal pannello: con i filtri attivi dice
+ * «N filtri attivi · Azzera» e l'unico «Azzera» della card svuota tutto; senza
+ * filtri dice «Nessun filtro attivo». La X nel campo di testo azzera **solo**
+ * il testo e riapplica gli altri filtri: è diversa da «Azzera», che svuota
+ * tutto.
  *
- * Il pannello è **compresso di default** in una riga di riepilogo («Filtri ·
- * N attivi», audit UX F10): su 390×844 il pannello aperto occupava il primo
+ * Il pannello è **compresso di default** in una riga di riepilogo («Filtri» con
+ * la freccia, audit UX F10): su 390×844 il pannello aperto occupava il primo
  * viewport intero e il primo risultato restava sotto la piega. Controlli e
- * nota stanno dentro il pannello espanso; il conteggio della riga parla dei
- * filtri **applicati**, cioè di quelli che hanno prodotto i risultati a
- * schermo. Il tasto di espansione è un bottone con `expanded` esplicito, e
- * l'unico conteggio della card è nel riepilogo.
+ * nota stanno dentro il pannello espanso; il conteggio sta solo nel piede,
+ * parla dei filtri **applicati**, cioè di quelli che hanno prodotto i risultati
+ * a schermo, e digitare non lo muove. Il tasto di espansione è un bottone con
+ * `expanded` esplicito.
  */
 export function FilterBar({
   filtri,
@@ -81,8 +87,8 @@ export function FilterBar({
 
   return (
     <Card style={style}>
-      {/* Riga di riepilogo sempre visibile: quanti filtri sono applicati e
-          apertura/chiusura del pannello (F10). */}
+      {/* Riga di riepilogo sempre visibile: solo «Filtri» e apertura/chiusura
+          del pannello; il conteggio sta nel piede (F10). */}
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: pannelloAperto }}
@@ -97,7 +103,7 @@ export function FilterBar({
         }}
       >
         <AppText variant="body" style={{ fontWeight: '700' }}>
-          {numeroFiltri === 1 ? 'Filtri · 1 attivo' : `Filtri · ${numeroFiltri} attivi`}
+          Filtri
         </AppText>
         <AppIcon
           name={pannelloAperto ? 'chevron-up' : 'chevron-down'}
@@ -105,6 +111,13 @@ export function FilterBar({
           color={t.textSecondary}
         />
       </Pressable>
+
+      {/* Il testo digitato ma non applicato sta **fuori** dal pannello: è
+          visibile anche a pannello chiuso e dice che la ricerca non è partita;
+          il conteggio del piede conta i filtri applicati e non si muove (F45). */}
+      {testoAttivo && filtri.testo.trim() !== filtriApplicati.testo.trim() ? (
+        <ToneChip tono="accent">{`Cerca «${filtri.testo.trim()}»`}</ToneChip>
+      ) : null}
 
       {pannelloAperto ? (
         <>
@@ -115,56 +128,14 @@ export function FilterBar({
               alignItems: layoutStretto ? 'stretch' : 'center',
             }}
           >
-            <View
-              style={{
-                flex: flessibile,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: space.sm,
-                backgroundColor: t.surface,
-                borderColor: t.borderInput,
-                borderWidth: 1,
-                borderRadius: radius.pill,
-                paddingHorizontal: space.lg,
-              }}
-            >
-              <AppIcon name="search-outline" size={16} color={t.textSecondary} />
-              <TextInput
-                style={{ flex: 1, minHeight: 50, fontSize: 15, color: t.text }}
-                value={filtri.testo}
-                onChangeText={(valore) => onCambiaTesto('testo', valore)}
-                placeholder="es. ripetizioni, giardinaggio…"
-                placeholderTextColor={t.textSecondary}
-                onSubmitEditing={onApplica}
-                returnKeyType="search"
-                autoCapitalize="none"
-                accessibilityLabel="Cerca nei servizi offerti"
-              />
-              {testoAttivo ? (
-                // La X azzera **solo** il testo e riapplica gli altri filtri:
-                // è il contrario di «Azzera filtri» (F05).
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancella il testo e riapplica i filtri"
-                  onPress={onAzzeraTesto}
-                  // 44 pt: l'icona da 18 con `hitSlop` arrivava a 34 (audit UX F17).
-                  style={{
-                    minWidth: target.min,
-                    minHeight: target.min,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AppIcon name="close-circle" size={18} color={t.textSecondary} />
-                </Pressable>
-              ) : null}
-            </View>
-            <AppButton
-              label="Filtra"
-              icon="search"
-              onPress={onApplica}
-              loading={filtrando}
-              accessibilityLabel="Applica i filtri"
+            <SearchField
+              testo={filtri.testo}
+              testoAttivo={testoAttivo}
+              flexibile={flessibile}
+              filtrando={filtrando}
+              onCambiaTesto={onCambiaTesto}
+              onApplica={onApplica}
+              onAzzeraTesto={onAzzeraTesto}
             />
           </View>
 
@@ -239,21 +210,152 @@ export function FilterBar({
               )}
             </View>
           )}
-
-          {numeroFiltri > 0 ? (
-            <AppButton
-              label="Azzera filtri"
-              variant="ghost"
-              icon="close-outline"
-              onPress={onAzzera}
-              accessibilityLabel="Azzera tutti i filtri"
-              style={{ alignSelf: 'flex-start' }}
-            />
-          ) : null}
         </>
       ) : null}
+
+      <FilterFooter numeroFiltri={numeroFiltri} onAzzera={onAzzera} />
     </Card>
   );
+}
+
+/**
+ * La pillola del campo di testo: ricerca, la X (azzera **solo** il testo) e
+ * «Cerca» (applica) stanno tutti dentro la stessa pillola, così il controllo
+ * che parte è nel campo che governa (F84) e, mentre `filtrando` è vero, è
+ * disabilitato davvero invece di fingere uno stato.
+ */
+function SearchField({
+  testo,
+  testoAttivo,
+  flexibile,
+  filtrando,
+  onCambiaTesto,
+  onApplica,
+  onAzzeraTesto,
+}) {
+  const t = useTokens();
+  return (
+    <View
+      style={{
+        flex: flexibile,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space.sm,
+        backgroundColor: t.surface,
+        borderColor: t.borderInput,
+        borderWidth: 1,
+        borderRadius: radius.pill,
+        paddingHorizontal: space.lg,
+      }}
+    >
+      <AppIcon name="search-outline" size={16} color={t.textSecondary} />
+      <TextInput
+        style={{ flex: 1, minHeight: 50, fontSize: 15, color: t.text }}
+        value={testo}
+        onChangeText={(valore) => onCambiaTesto('testo', valore)}
+        placeholder="es. ripetizioni, giardinaggio…"
+        placeholderTextColor={t.textSecondary}
+        onSubmitEditing={onApplica}
+        returnKeyType="search"
+        autoCapitalize="none"
+        accessibilityLabel="Cerca nei servizi offerti"
+      />
+      {testoAttivo ? (
+        // La X azzera **solo** il testo e riapplica gli altri filtri:
+        // è il contrario di «Azzera», che dal piede svuota tutto (F05).
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cancella il testo e riapplica i filtri"
+          onPress={onAzzeraTesto}
+          // 44 pt: l'icona da 18 con `hitSlop` arrivava a 34 (audit UX F17).
+          style={{
+            minWidth: target.min,
+            minHeight: target.min,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <AppIcon name="close-circle" size={18} color={t.textSecondary} />
+        </Pressable>
+      ) : null}
+      {/* «Cerca» sta dentro il campo che governa, accanto alla X: fa partire la
+          richiesta come il vecchio pulsante esterno e, finché `filtrando` è
+          vero, è davvero disabilitato invece di fingere uno stato (F84). */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Applica la ricerca"
+        accessibilityState={{ disabled: filtrando }}
+        aria-disabled={filtrando}
+        disabled={filtrando}
+        onPress={onApplica}
+        // Stile statico come la X accanto: l'unica variabile è `filtrando`,
+        // che attenua il controllo disabilitato (0.7, come AppButton).
+        style={{
+          minWidth: target.min,
+          minHeight: target.min,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: filtrando ? 0.7 : 1,
+        }}
+      >
+        <AppText variant="label" tone="primary">
+          Cerca
+        </AppText>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * Il piede, **sempre visibile**, fuori dal pannello (risposta 2 del lock): qui
+ * sta l'unico conteggio della card e l'unico «Azzera», e il conteggio parla dei
+ * filtri applicati: digitare non lo muove.
+ */
+function FilterFooter({ numeroFiltri, onAzzera }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: space.sm,
+        minHeight: target.min,
+      }}
+    >
+      <AppText variant="small" tone="secondary">
+        {etichettaPiede(numeroFiltri)}
+      </AppText>
+      {numeroFiltri > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Azzera tutti i filtri"
+          onPress={onAzzera}
+          style={({ pressed }) => ({
+            minWidth: target.min,
+            minHeight: target.min,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <AppText tone="primary" style={{ fontWeight: '600' }}>
+            Azzera
+          </AppText>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** La riga del piede: i filtri **applicati** soltanto; il «·» annuncia l'«Azzera» accanto. */
+function etichettaPiede(quanti) {
+  if (quanti === 0) {
+    return 'Nessun filtro attivo';
+  }
+  if (quanti === 1) {
+    return '1 filtro attivo ·';
+  }
+  return `${quanti} filtri attivi ·`;
 }
 
 /** Il messaggio delle categorie non disponibili, diverso da quello di registrazione. */
