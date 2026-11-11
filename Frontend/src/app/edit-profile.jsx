@@ -215,7 +215,15 @@ export default function EditProfileScreen() {
   if (form.bio.trim() !== (initial.bio ?? '')) {
     changes.bio = form.bio;
   }
-  if (form.immagineProfilo.trim() !== (initial.immagineProfilo ?? '')) {
+  // F59: while the preview has failed, the image key is dropped, so a broken
+  // URL never travels and the profile keeps the image it had. Residual window,
+  // accepted in Cycle 2's lock answer 4: a URL typed and saved before the
+  // preview's onError has fired can still travel once — the shape check in
+  // src/validation is what still runs, not this guard.
+  if (
+    !photoLoadFailed &&
+    form.immagineProfilo.trim() !== (initial.immagineProfilo ?? '')
+  ) {
     changes.immagineProfilo = form.immagineProfilo;
   }
   const dirty = Object.keys(changes).length > 0;
@@ -236,8 +244,7 @@ export default function EditProfileScreen() {
     !provinceError &&
     !locationError &&
     !bioError &&
-    !photoError &&
-    !photoLoadFailed;
+    !photoError;
 
   function validate() {
     const errors = {
@@ -439,7 +446,7 @@ export default function EditProfileScreen() {
 
           {photoUrl !== '' ? (
             <AppButton
-              label="Togli l'immagine"
+              label="Rimuovi immagine"
               variant="ghost"
               icon="close-outline"
               disabled={saving}
