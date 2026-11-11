@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/client';
 import {
   claimStaffReport,
   listStaffOperations,
@@ -50,6 +50,10 @@ export default function StaffScreen() {
   const [filter, setFilter] = useState(null);
   const [reports, setReports] = useState(null);
   const [operations, setOperations] = useState(null);
+  // Il registro ha il suo esito: con un `Promise.all` un guasto delle
+  // segnalazioni faceva dire alla scheda del registro che l'endpoint non
+  // esiste, cioè il contrario di quello che era successo (audit UX F57).
+  const [operationError, setOperationError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -70,21 +74,37 @@ export default function StaffScreen() {
     const seq = ++requestRef.current;
     setLoading(true);
     try {
-      const [reportPage, operationPage] = await Promise.all([
-        listStaffReports(token, { status: filter, limit: 50 }),
-        listStaffOperations(token, { limit: 10 }),
+      // Due richieste indipendenti: ognuna porta il proprio esito, così una che
+      // cade non riscrive il significato dell'altra (audit UX F57).
+      const [reportResult, operationResult] = await Promise.all([
+        listStaffReports(token, { status: filter, limit: 50 }).then(
+          (page) => ({ page }),
+          (err) => ({ err }),
+        ),
+        listStaffOperations(token, { limit: 10 }).then(
+          (page) => ({ page }),
+          (err) => ({ err }),
+        ),
       ]);
       if (seq !== requestRef.current) {
         return;
       }
-      setReports(reportPage.segnalazioni);
-      setOperations(operationPage.operazioni);
-      setError(null);
-    } catch (err) {
-      if (seq !== requestRef.current) {
-        return;
+      if (reportResult.err) {
+        setError(
+          reportResult.err instanceof ApiError
+            ? reportResult.err.message
+            : GENERIC_ERROR_MESSAGE,
+        );
+      } else {
+        setReports(reportResult.page.segnalazioni);
+        setError(null);
       }
-      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      if (operationResult.err) {
+        setOperationError(operationResult.err);
+      } else {
+        setOperations(operationResult.page.operazioni);
+        setOperationError(null);
+      }
     } finally {
       if (seq === requestRef.current) {
         setLoading(false);
@@ -246,44 +266,12 @@ export default function StaffScreen() {
         <AppText variant="small" tone="secondary">
           Le ultime azioni fatte dallo staff, nell&apos;ordine in cui sono state registrate.
         </AppText>
-        {operations === null ? (
-          loading ? (
-            <AppText variant="small" tone="secondary">
-              Carico il registro…
-            </AppText>
-          ) : (
-            // Non è un guasto e non è un elenco vuoto: è un dato che non arriva,
-            // e la frase deve dirlo (audit UX F34).
-            <EmptyState
-              variante="non-disponibile"
-              icon="time-outline"
-              title="Registro non disponibile"
-              description="Il servizio non restituisce il registro delle operazioni: le segnalazioni e gli utenti qui sopra funzionano lo stesso."
-              etichettaAzione="Riprova"
-              onAzione={() => void load()}
-            />
-          )
-        ) : operations.length === 0 ? (
-          <AppText variant="small" tone="secondary">
-            Nessuna operazione registrata.
-          </AppText>
-        ) : (
-          operations.map((operation) => (
-            <View
-              key={operation.id}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
-            >
-              <AppIcon name="time-outline" size={15} color={t.textSecondary} />
-              <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-                {`${operation.azione ?? 'Azione'} · ${operation.bersaglio ?? ''} ${
-                  operation.bersaglioId ?? ''
-                } · ${operation.staff?.username ?? 'staff'} · ${
-                  formatIsoDate(operation.creataIl) ?? 'data non disponibile'
-                }`}
-              </AppText>
-            </View>
-          ))
-        )}
+        <OperationsLog
+          operations={operations}
+          error={operationError}
+          loading={loading}
+          onRetry={load}
+        />
       </Card>
 
       <ModalShell
@@ -330,8 +318,81 @@ export default function StaffScreen() {
         varianteConferma="danger"
         loading={busy?.action === 'review'}
         onConferma={() => void confirmReview()}
-        onAnnulla={() => setConfirm(null)}
+        // "No, torna indietro" deve tornare alla scheda, non distruggerla: la
+        // bozza sopravvive nel `confirm` e qui si rimette in scena (audit F44).
+        onAnnulla={() => {
+          setReview(confirm);
+          setConfirm(null);
+        }}
       />
     </Screen>
   );
+}
+
+/**
+ * Il registro delle operazioni: sola lettura, con il suo esito.
+ *
+ * Un guasto si dice come un guasto e porta la sua via d'uscita; solo un endpoint
+ * assente (404/501) è "non disponibile". Prima di F57 le due richieste
+ * condividevano un `Promise.all`, quindi un guasto delle segnalazioni faceva
+ * scrivere qui che il servizio non restituisce il registro (audit UX F57).
+ */
+function OperationsLog({ operations, error, loading, onRetry }) {
+  const t = useTokens();
+
+  if (operations === null) {
+    if (loading) {
+      return (
+        <AppText variant="small" tone="secondary">
+          Carico il registro…
+        </AppText>
+      );
+    }
+    if (isEndpointUnavailable(error)) {
+      return (
+        <EmptyState
+          variante="non-disponibile"
+          icon="time-outline"
+          title="Registro non disponibile"
+          description="Il servizio non restituisce il registro delle operazioni: le segnalazioni e gli utenti qui sopra funzionano lo stesso."
+          etichettaAzione="Riprova"
+          onAzione={() => void onRetry()}
+        />
+      );
+    }
+    return (
+      <EmptyState
+        icon="alert-circle-outline"
+        title="Registro non caricato"
+        description={
+          error instanceof ApiError
+            ? `${error.message} Le segnalazioni qui sopra restano valide.`
+            : `${GENERIC_ERROR_MESSAGE} Le segnalazioni qui sopra restano valide.`
+        }
+        etichettaAzione="Riprova"
+        onAzione={() => void onRetry()}
+      />
+    );
+  }
+
+  if (operations.length === 0) {
+    return (
+      <AppText variant="small" tone="secondary">
+        Nessuna operazione registrata.
+      </AppText>
+    );
+  }
+
+  return operations.map((operation) => (
+    <View key={operation.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+      <AppIcon name="time-outline" size={15} color={t.textSecondary} />
+      <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
+        {`${operation.azione ?? 'Azione'} · ${operation.bersaglio ?? ''} ${
+          operation.bersaglioId ?? ''
+        } · ${operation.staff?.username ?? 'staff'} · ${
+          formatIsoDate(operation.creataIl) ?? 'data non disponibile'
+        }`}
+      </AppText>
+    </View>
+  ));
 }
