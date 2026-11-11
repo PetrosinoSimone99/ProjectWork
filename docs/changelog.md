@@ -37,7 +37,14 @@ documents/code touched.
    prototype-key case and the two empty paths (`159cd77`, 20 tests). The demo
    log holds no rows and writing one would modify demo data, which the cycle
    forbids.
-4. **Verification.** Three captures at 390 light in
+4. **The review's one P1, fixed in the file that owns the draft.**
+   «Azzera filtri» in the empty state calls the hook directly, so after the F74
+   change the field kept the old term while the chip announced a search that was
+   no longer running. `FilterBar` now lets the draft follow the applied text when
+   that becomes empty (render-phase adjustment: the effect form trips
+   `react-hooks/set-state-in-effect`). Everything else the review raised is P2
+   and is recorded in the plan's review section, not taken.
+5. **Verification.** Three captures at 390 light in
    `docs/audits/screens-2026-11-11-final/` — the home with «Aggiorna», the
    typed filters before and after — each paired with its reference; the
    assertions, the console and both measurement tables are in that directory's
@@ -70,6 +77,8 @@ lists and the map disagree. A new backend action needs the map extended: the
 fallback prints the raw value rather than hiding the row.
 
 ---
+
+## 2026-11-11 — UX realignment cycle 2: the five owed, and one voice per type
 
 ### What changed
 
