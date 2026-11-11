@@ -22,10 +22,10 @@ for execution; the chat summary is not.
 - [x] 1. Cold audit, read-only, one shared output file: Lane A (static, impeccable), Lane B (visual critique, taste), Lane C (captures, Playwright, run by the parent) | files: docs/audits/ux-audit-2026-11-11.md (new), docs/audits/screens-2026-11-11/ (new) | done: findings table with `file:line` and an evidence status (`VERIFIED`/`DEDUCED`/`NOT VERIFIABLE`) per row; §2 score table computed with the baseline formula `10 − (0.2·n1 + 0.5·n2 + 1.5·n3 + 3·n4)`, on the same five dimensions and weights as `ux-audit-2026-11-10.md` §2, so the two documents are row-comparable; matrix screen × state × theme captured at 390×844, 360×800, 1280×800 in light and dark | Stato: DONE
 - [x] 2. Triage of findings into mechanical vs directional | files: docs/audits/ux-remediation-2026-11-11.md (new) | done: every finding from block 1 classified; mechanical rows carry the fix written out as `file:line` → exact change, no "improve X"; directional rows carry the design question they pose and nothing else; the triage row carries the file estimate counted, not guessed (`N modified + M new`), and the count is re-derived from the mechanical rows, not from this plan | Stato: DONE
 - [x] 3. Visual direction over the directional findings only (conditional, see Ramp-out) | files: docs/briefs/ux-realignment/direction.md (new), `C:\Users\Andrea\AppData\Local\Temp\baratto-ux-direction\app\**` (outside the repo) | done: 3 directions proposed with palette and type frozen (`--keep palette,type`), one chosen and motivated in 10 lines, and a frozen "files to touch" list that block 4 may not extend; Andrea approves in chat before block 4 | Stato: DONE
-- [ ] 4. Implementation of the chosen direction (conditional, see Ramp-out) | files: Frontend/src/theme/tokens.js only if a role is genuinely missing, plus the files frozen in `direction.md`, drawn from the declared pool below, hard cap 8 | done: every touched screen passes `npx expo lint` and `npx tsc --noEmit`; diff contains no inline style that a token could express and no per-screen copy of a shared rule; commits of 2-3 files each | Stato: DONE — approved in chat 2026-11-11
-- [ ] 4'. Mechanical-only fallback (only if block 2 finds zero directional findings) | files: exactly the files named by the mechanical rows of the remediation doc | done: every mechanical finding closed, each commit green on its own, remediation row flipped to `closed` in the same commit | Stato: TODO
-- [ ] 5. Verification with Playwright on the real states (conditional: needs block 4 or 4' to have a visual effect) | files: docs/audits/screens-2026-11-11-after/ (new) | done: before/after on the same states and viewports, side by side, plus the browser console captured with no new RN-web warning introduced by the cycle | Stato: TODO
-- [ ] 6. Close: changelog, remediation status per finding, `docs/DESIGN.md` derived from `tokens.js` | files: docs/changelog.md, docs/audits/ux-remediation-2026-11-11.md, docs/DESIGN.md (new) | done: changelog has one entry per block; every remediation row carries a final status; `docs/DESIGN.md` states roles and rules read out of `tokens.js` with no value restated and points at the file as the source of truth; `grep` for any hex or numeric token value inside `DESIGN.md` returns only pointers, not copies | Stato: TODO
+- [x] 4. Implementation of the chosen direction (conditional, see Ramp-out) | files: Frontend/src/theme/tokens.js only if a role is genuinely missing, plus the files frozen in `direction.md`, drawn from the declared pool below, hard cap 8 | done: every touched screen passes `npx expo lint` and `npx tsc --noEmit`; diff contains no inline style that a token could express and no per-screen copy of a shared rule; commits of 2-3 files each | Stato: DONE — nine files, four commits, 2026-11-11 (see the amendment)
+- [x] 4'. Mechanical-only fallback (only if block 2 finds zero directional findings) | files: exactly the files named by the mechanical rows of the remediation doc | done: every mechanical finding closed, each commit green on its own, remediation row flipped to `closed` in the same commit | Stato: NOT TRIGGERED — block 2 found nine directional rows
+- [x] 5. Verification with Playwright on the real states (conditional: needs block 4 or 4' to have a visual effect) | files: docs/audits/screens-2026-11-11-after/ (new) | done: before/after on the same states and viewports, side by side, plus the browser console captured with no new RN-web warning introduced by the cycle | Stato: DONE — ten captures, names paired with the before set, console: zero errors and one pre-existing `shadow*` deprecation
+- [x] 6. Close: changelog, remediation status per finding, `docs/DESIGN.md` derived from `tokens.js` | files: docs/changelog.md, docs/audits/ux-remediation-2026-11-11.md, docs/DESIGN.md (new) | done: changelog has one entry per block; every remediation row carries a final status; `docs/DESIGN.md` states roles and rules read out of `tokens.js` with no value restated and points at the file as the source of truth; `grep` for any hex or numeric token value inside `DESIGN.md` returns only pointers, not copies | Stato: DONE — `grep -nE '#[0-9A-Fa-f]{3,8}' docs/DESIGN.md` returns nothing and the only digits left are list markers
 
 ### Declared pool for block 4 (nothing outside it, cap 8 touched)
 
@@ -122,11 +122,11 @@ unchanged:
 
 | Part | What | Files | Status |
 | --- | --- | --- | --- |
-| 4a | wave 1, the "loss and truth" rows: F44, F46, F49, F50, F54, F56, F57, F58, F60, F87, F91, F92 (12 closed; F61 to wave 3, F90 to 4b) | 19 | **DONE in six commits** |
-| 4b | the direction of `direction.md`, nine files frozen there | 9 | TODO — needs a fresh context |
-| 4c | the rest of wave 2 (F51, F52, F53, F70, F71, F83, F85) | 9 | TODO |
-| 5 | before/after with Playwright | `screens-2026-11-11-after/` | TODO — waits for 4b/4c |
-| 6 | changelog (written), remediation status (written), `docs/DESIGN.md` (new) | 3 | TODO — `DESIGN.md` waits for 4b |
+| 4a | wave 1, the "loss and truth" rows: F44, F46, F49, F50, F54, F56, F57, F58, F60, F87, F91, F92 (12 closed; F61 to wave 3) | 19 | **DONE in six commits** |
+| 4b | the direction of `direction.md`, nine files frozen there | 9 | **DONE in four commits** (`36fd3e5`, `aa450ab`, `0af567d`, `8047a74`) — the commit range is 9 files, checked, not claimed |
+| 4c | the rest of wave 2 (F51, F52, F53, F70, F71, F83, F85) | 15 | **DONE in six commits** (`92e79df`, `cca31e4`, `331c524`, `0b80b6b`, `a60f4dd`, `22febf7`): the seven rows, plus the call sites F47 and F48 could not be finished without, plus the two files §10 names |
+| 5 | before/after with Playwright | `screens-2026-11-11-after/` | **DONE** — ten captures + README pairing them |
+| 6 | changelog, remediation status, `docs/DESIGN.md` | 3 | **DONE** |
 
 Wave 3 stays deferred with its condition written in the remediation doc: F61
 (needs the backend's action vocabulary), F72 (needs an affordance decision), F73
@@ -135,15 +135,30 @@ stack).
 
 ## How to resume (read this first)
 
-State on disk, nothing else needed: blocks 0, 1, 2, 3 and 4a are committed;
-the tree is clean apart from the untracked `.playwright-mcp/` (browser session
-logs, never to be committed). Next action is **4b**.
+State on disk, nothing else needed: blocks 0, 1, 2, 3, 4a, 4b, 4c, 5 and 6 are
+committed; the tree is clean apart from the untracked `.playwright-mcp/` (browser
+session logs, never to be committed). The cycle is closed except for the items
+in the next paragraph.
 
-Order of work: 4b (the direction, 9 files frozen in
-[`direction.md`](direction.md)) → 4c (F51, F52, F53, F70, F71, F83, F85) → 5
-(before/after captures in `docs/audits/screens-2026-11-11-after/`) → 6
-(changelog already written, remediation §8 already written, `docs/DESIGN.md`
-still to create, derived from `tokens.js`).
+What is left, and it is not this cycle's work to guess at:
+
+- **Four findings whose answer exists but whose file never entered a block**: F45
+  and F84 (`components/FilterBar.jsx`), F59 (`app/edit-profile.jsx`), F90
+  (`(auth)/login.jsx`, `(auth)/register.jsx`). Remediation §10 says what each
+  answer is; each needs a file the direction froze out of 4b and 4c was not
+  scoped for.
+- **One composition statement the direction borrows and did not spend**: the
+  profile as one sheet with bands instead of five peer cards. Only its type
+  roles and its avatar changed.
+- **Wave 3**, unchanged and deferred with its conditions: F61, F72, F73, F74,
+  F94.
+- **`origin/main` is still 3 commits ahead** (Backend only, zero Frontend
+  impact). No merge performed: that is a separate commit on Andrea's word.
+
+The next session, in order, if Andrea wants them: F45+F84 in one commit (one
+file, one decision, both rows), then F59, then F90, then the profile sheet, then
+wave 3 as each condition unblocks. Each is small enough to be its own block with
+its own gate.
 
 Environment, in this order, or the session loses half an hour to it:
 
@@ -165,6 +180,17 @@ Environment, in this order, or the session loses half an hour to it:
 6. Session: `localStorage['barattolo.token']` and `['barattolo.utente']`. A
    401 clears both; the login POST travels through the single-threaded PHP
    server, so poll for the token instead of waiting a fixed time.
+7. **A capture needs two waits, not one.** The app renders, fetches, and renders
+   again when the session resolves, so a screenshot taken after a single
+   `networkidle` catches the second spinner. Wait for network idle twice, then
+   assert that no loading line (`/Carico|Guardo/`) is on screen. A `waitForFunction`
+   on body text alone passes before the app mounts, when the body is still
+   empty — this cost three capture runs on 2026-11-11.
+8. **The catalog and `/staff/users` are permission-scoped**: `mario.rossi` sees
+   the catalog, a non-staff session gets 403 on the users list by design. Use
+   `staff.anna` for the staff area.
+9. Long capture scripts time out at the MCP tool boundary even though they keep
+   running and finish writing files: check the file timestamps before re-running.
 
 Gates before every commit: `cd Frontend && npx expo lint && npx tsc --noEmit`
 (both clean at every commit so far; `tsc` gates syntax and imports only, per

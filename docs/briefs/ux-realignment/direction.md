@@ -148,3 +148,30 @@ install and one extra stop, not a silent substitution.
 This document is the only thing standing between block 3 and block 4. It is
 approved by Andrea in chat, or it is changed; block 4 does not start on a
 `TODO`.
+
+## What block 4 did with this direction — 2026-11-11
+
+Written after the fact, so a reader does not have to diff the tree to know which
+of the answers above are in the app.
+
+**Shipped.** The one frame and the one measure (`tokens.js`, `Screen`), the
+three beats, `PageHeader` and the home on it, the card anatomy, the empty state,
+the neutral web bar, the ringed initials, `radiogroup` for the choice tracks, the
+panel that scrolls its body only, the action columns, the type scale at its five
+roles with `label` added, and the heading depths. Nine files in 4b exactly as
+frozen (`36fd3e5`, `aa450ab`, `0af567d`, `8047a74`) and fifteen in 4c.
+
+**Owed.** Four answers need a file this document never froze and the plan never
+scoped a block for: F45 and F84 (`FilterBar`), F59 (`edit-profile`), F90 (the
+auth pair). One composition borrow has the same shape: the profile as one sheet
+with bands instead of five peer cards — only its type roles and its avatar
+changed. They are listed with their exact answers in
+[`ux-remediation-2026-11-11.md`](../../audits/ux-remediation-2026-11-11.md) §10
+and in the plan's closing note.
+
+**One correction to the file table above.** `AppText` could not lose its two
+retired role names inside the frozen nine: the call sites that named them live
+in `(tabs)/profile.jsx` and `StaffUserCard.jsx`. The names were therefore kept as
+aliases in 4b and removed in 4c together with those two files, in the same
+commit. The alternative — deleting the roles while their call sites were still
+alive — would have rendered text with no measure at all.

@@ -6,6 +6,61 @@ documents/code touched.
 
 ---
 
+## 2026-11-11 — UX realignment cycle: blocks 4b to 6
+
+### What changed
+
+1. **Block 4b — the direction, nine files, four commits.** One frame and one
+   measure (`layout.maxCatalogo` becomes a reading measure, so a card fills its
+   column and the screen has one right edge instead of three), three spacing
+   beats, a new `PageHeader` that owns every title block, one card anatomy with
+   the person's sentence as the headline and the category inline, one empty-state
+   anatomy with an action only when a real one exists, a neutral web bar in place
+   of the accent disc, and the type scale cut to five roles plus `label`.
+2. **Block 4c — wave 2, fifteen files, six commits.** Heading depths
+   (`aria-level`), `role="main"` and `role="navigation"`, polite live regions on
+   the loading surfaces, a panel that caps at 85 % of the window and scrolls only
+   its body with the primary action pinned outside it, confirm commands that
+   stack before they truncate, one trailing action column per card, choice
+   tracks that are `radiogroup`/`radio` on one scroll row, and the removed
+   aliases of the type scale.
+3. **Block 5 — verification, `docs/audits/screens-2026-11-11-after/`.** Ten
+   captures on the real backend and the real web build, named to pair with the
+   before set, plus a DOM check of the semantics that a picture cannot show:
+   one `main`, one `navigation`, one level-1 heading, one live region on `/`, and
+   a `radiogroup` with three `radio` children and no `tab` left on `/agreements`.
+   Console: zero errors, one pre-existing react-native-web deprecation about
+   `shadow*` props.
+4. **Block 6 — closure.** `docs/DESIGN.md` is new: roles and rules read out of
+   `tokens.js`, with no value restated (checked by grep, not by eye).
+   `docs/audits/ux-remediation-2026-11-11.md` §9 carries the final status of all
+   38 findings and §10 lists the four whose answer exists in the direction but
+   whose file fell outside both blocks: F45 and F84 (`FilterBar`), F59
+   (`edit-profile`), F90 (the auth pair), plus the profile-sheet borrow.
+
+### Why
+
+The cycle's objective was a refinement, not a redesign: the palette, the
+contrasts, the radius scale and the touch floor were frozen from the start and
+none of them moved. What moved was composition — where things sit, how many
+times the accent is spent per screen, what an empty state is allowed to promise —
+which is what the audit's collapsed dimension was measuring.
+
+### Documents touched
+
+`docs/DESIGN.md` (new), `docs/changelog.md`, `docs/briefs/ux-realignment/plan.md`,
+`docs/briefs/ux-realignment/direction.md`,
+`docs/audits/ux-remediation-2026-11-11.md`,
+`docs/audits/screens-2026-11-11-after/` (new, ten captures and a README).
+
+### Not done, on purpose
+
+Wave 3 (F61, F72, F73, F74, F94) keeps its unblocking conditions. `origin/main`
+is still 3 commits ahead, Backend only: the merge is a separate commit and needs
+Andrea's word.
+
+---
+
 ## 2026-11-11 — UX realignment cycle: block 0 to 4a
 
 ### What changed
