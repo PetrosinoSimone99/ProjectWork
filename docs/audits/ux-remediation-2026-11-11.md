@@ -158,7 +158,7 @@ files. The honest split, which block 4 now has to carry in two parts:
 
 **The scope question this triage puts to Andrea**: wave 1 is 19 files, more than
 double the ceiling the plan set for block 4. Either block 4 runs as 4a (wave 1)
-+ 4b (the direction, wave 2), which is the recommendation because wave 1 owes
+plus 4b (the direction, wave 2), which is the recommendation because wave 1 owes
 nothing to the direction, or wave 1 is cut to the four rows that lose
 information (F44, F56, F58, F91) and the other ten move to the next cycle.
 
@@ -263,7 +263,7 @@ where a row had been re-homed by §8.
 | Finding | Status | Where |
 | --- | --- | --- |
 | F44 review note survives its own confirm | **closed** (4a) | `staff.jsx` |
-| F45 typed-but-unapplied filter text | **open — answered, not shipped** | see §10 |
+| F45 typed-but-unapplied filter text | **closed** (cycle 2) | `FilterBar.jsx` — the unapplied text is the amber chip «Cerca «testo»» in the always-visible area; the foot counts applied filters only (`15fd529`) |
 | F46 four success banners dismiss | **closed** (4a) | four screens |
 | F47 seven type roles for four jobs | **closed** | `AppText.jsx` — the two retired names are gone from the component and from every call site |
 | F48 `caption` carrying prose | **closed** | `AppText.jsx` adds `label`; the two prose lines in `ServiceDetailModal` and the profile's image error moved onto it |
@@ -277,33 +277,34 @@ where a row had been re-homed by §8.
 | F56 failed request drawn as an empty list | **closed** (4a) | `PublicationsSection.jsx` |
 | F57 reports error claimed as a missing endpoint | **closed** (4a) | `staff.jsx` |
 | F58 login transition had two owners | **closed** (4a) | `(auth)/_layout.jsx`, `edit-profile.jsx` |
-| F59 broken avatar blocks an unrelated save | **open — answered, not shipped** | see §10 |
+| F59 broken avatar blocks an unrelated save | **closed** (cycle 2) | `edit-profile.jsx` — `photoLoadFailed` leaves `valid`, drops the image key from the payload and offers «Rimuovi immagine»; name, surname, location and bio save (`4274fab`) |
 | F60 `l&apos;account` printed literally | **closed** (4a) | `(auth)/register.jsx` |
-| F61 operations log prints raw backend values | **open** (wave 3) | needs the backend's action vocabulary |
+| F61 operations log prints raw backend values | **closed** (cycle 2) | `services/staff.js` — the 8 actions and 4 target types of `Backend/src/Entity/StaffOperationLog.php:19-20` in Italian, raw value as the fallback; verified against the constants, the demo log has no rows (`02a7412`) |
 | F70 panel has no scroll region | **closed** | `ModalShell.jsx` — 85 % cap, only the body scrolls; `ServiceDetailModal` moved its action and the sentence explaining it into the footer |
 | F71 confirm actions do not stack | **closed** | `ConfirmModal.jsx` (< 480 window), `AppButton.jsx` (`numberOfLines`) |
-| F72 no refresh on web | **open** (wave 3) | needs the affordance decision |
-| F73 staff lists not virtualised | **open** (wave 3) | needs the page contract |
-| F74 catalog re-renders on every keystroke | **open** (wave 3) | needs a measurement |
+| F72 no refresh on web | **N/A** (cycle 2) | decided in cycle 2 lock 1: reopens when a web refresh affordance gets a placement rule in `PageHeader` covering all four pull-to-refresh screens; adding it to one screen would be the drift this cycle removes |
+| F73 staff lists not virtualised | **N/A** (cycle 2) | answered from the contract: `docs/api.md:48-51` paginates with `page`/`limit` and a maximum, and every staff list asks for **one** page with a fixed limit (`staff.jsx:80-84` 50/10, `staff-users.jsx:106` 50). Nothing queues, so there is nothing to virtualise. Reopens the day a screen requests page 2 or lifts the limit |
+| F74 catalog re-renders on every keystroke | **N/A** (cycle 2, measured) | measured at 390 light: 22 real keydowns give 49–73 ms per frame and ~6 DOM mutations per key inside the 20-row list, against 23–31 ms for the same typing in the «Nome» field of «Modifica profilo». The catalog does re-render per keystroke. The fix needs a file this cycle did not scope (`ServiceCard` memo or the draft text moved into `FilterBar`), so it is owed, not silently taken. Reopens with that fix |
 | F80 no page frame at 1280 | **closed** | `tokens.js` (catalog measure), `Screen.jsx`, `ServiceCard.jsx` — one right edge |
 | F81 one flat vertical rhythm | **closed** | `Screen.jsx` gap is the section beat; `Card.jsx` already held the card beat |
 | F82 no card anatomy | **closed** | `ServiceCard.jsx` — headline, one meta line, one trailing action |
 | F83 action rows wrap and go ragged | **closed** | `EntryCard.jsx`, `StaffUserCard.jsx`, `AppButton.jsx` |
-| F84 the filter primary promises the wrong scope | **open — answered, not shipped** | see §10 |
+| F84 the filter primary promises the wrong scope | **closed** (cycle 2) | `FilterBar.jsx` — no «Filtra» label is left in `src`; «Cerca» lives inside the field it governs, every discrete control applies itself, the foot reads «N filtri attivi · Azzera» (`15fd529`) |
 | F85 three choice devices, `PillBar` wraps | **closed** | `PillBar.jsx` — one scroll row, radio semantics; `ThemeSelector` stays a picker by the direction's written exception |
 | F86 five empty-state treatments | **closed** | `EmptyState.jsx` — one anatomy, action only when real, icon optional |
 | F87 retry detached from the failure | **closed** (4a) | `(tabs)/index.jsx` |
 | F88 the accent is spent on chrome | **closed** | `WebNavMenu.jsx` (neutral bar), `(tabs)/profile.jsx` (ringed initials); the bell keeps its fill by the direction's answer |
 | F89 no page header, subtitle used as a manual | **closed** | `PageHeader.jsx` (new), `(tabs)/index.jsx` |
-| F90 the auth pair has no shared shell | **open — answered, not shipped** | see §10 |
+| F90 the auth pair has no shared shell | **closed** (cycle 2) | `AuthShell.jsx` owns the masthead for `login` and `register`; the login form is centred instead of hanging under the safe area (`fc2d22b`, `1bf25c0`) |
 | F91 dead session lands with no explanation | **closed** (4a) | `auth/auth-context.jsx` |
 | F92 cap line contradicted the count | **closed** (4a) | `PublicationsSection.jsx`, `services/offer-request.js` |
 | F93 the clamped sentence vs the repeated category | **closed** | `ServiceCard.jsx` |
-| F94 react-native-web overlay in the error state | **open** (wave 3) | blocked on the console stack |
+| F94 react-native-web overlay in the error state | **closed** (cycle 2) | the console was captured in the real error state (catalog timeout): one app warning `[api] richiesta non raggiunta … signal is aborted`, the pre-existing `shadow*` deprecation, and no `react-native-web` overlay or frame. Nothing to attribute, so nothing to fix |
 
-**29 closed, 9 open** (4 answered in principle but not shipped, 5 deferred with
-their unblocking condition). §7 and §8 are kept as written: they are the record
-of what was true at the time.
+**29 closed, 9 open** at the end of cycle 1 (4 answered in principle but not
+shipped, 5 deferred with their unblocking condition). §7 and §8 are kept as
+written: they are the record of what was true at the time. Cycle 2 closed the
+four that were owed and answered the five wave-3 rows: see §11.
 
 ## 10. The direction answered these and the files did not follow
 
@@ -324,3 +325,54 @@ direction C that "the profile stops being five peer cards; identity and settings
 become one sheet with bands", and the frozen file list never contained the
 profile's body. Only its type roles and its avatar changed here. Recorded as an
 owed statement, not as a delivered one.
+
+## 11. Cycle 2 — the five owed, and one product rule — 2026-11-11
+
+Cycle 2 did two things: it shipped what cycle 1 had answered but never written,
+and it applied a product rule Andrea decided that day.
+
+### The five owed findings
+
+| Finding | Commit | What landed |
+| --- | --- | --- |
+| F45 | `15fd529` | typed-but-unapplied text is a chip, not silence |
+| F84 | `15fd529` | each control applies itself; «Cerca» moved into the field; the foot counts |
+| F59 | `4274fab` | a broken image blocks its own field, and never travels |
+| F90 | `fc2d22b`, `1bf25c0` | one `AuthShell` for the pair, login centred |
+| the profile borrow | `dcbb174` | five peer cards became one sheet with bands |
+
+### The product rule: one offer and one request
+
+Before: at most five voices per type. Now: **one**, and the rule is what the
+name says — one thing you offer and one thing you search.
+
+- The knob is `LIMITE_VOCI = 1` in `Frontend/src/services/offer-request.js`
+  (`6de86dd`). It is client-side, as the five was: `grep -rn LIMITE_VOCI
+  Backend/` returns nothing, so **no server enforcement was added** and none
+  should be assumed. If the backend ever imposes the cap, that constant becomes
+  the copy to read from the contract.
+- The copy is derived, never typed twice: `SOSTANTIVI_VOCE` gives the singular
+  and the plural per type, so the cap sentence reads «1 offerta» / «1 ricerca»
+  and the counter keeps working as a ratio («1 di 1») at the cap.
+- Over the cap nothing is deleted. An account that already holds 7 offers keeps
+  them and reads «Massimo raggiunto: hai 7 offerte, il massimo è 1. Eliminane 6
+  per aggiungerne un'altra.» — the number to remove, computed from what is on
+  screen.
+- A suspended voice still occupies its place: the cap is fed the whole list of
+  that type and `(tabs)/offer-and-request.jsx:207-208` has never filtered by
+  state. That is the rule working, not an accident.
+- The affordance that adds a voice is not rendered once the voice exists
+  (`EntriesSection.jsx`, `PublicationsSection.jsx`), and registration shows one
+  editor per type with no «Aggiungi un'altra» (`47db87c`, `1bf25c0`).
+- Tests derive from the constant and assert the new behaviour, including the
+  over-cap branch: `src/services/__tests__/offer-request.test.js`, 10 passing.
+
+### Wave 3, each row closed on its own evidence
+
+F61 closed from the backend's own vocabulary; F73 answered by the page contract
+and the fixed single-page `limit`; F74 measured (and owed as a fix, in the row
+above); F94 closed on the captured console; F72 is the one decision this cycle
+made explicitly — `N/A`, with the condition written instead of an affordance
+added at the end of a cycle.
+
+Evidence: [`screens-2026-11-11-final/`](screens-2026-11-11-final/README.md).
