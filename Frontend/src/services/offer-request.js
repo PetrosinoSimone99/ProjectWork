@@ -44,9 +44,14 @@ export const SOSTANTIVI_VOCE = {
   [TIPI_VOCE.RICERCA]: { singolare: 'ricerca', plurale: 'ricerche' },
 };
 
-/** Il sostantivo che regge il numero davanti: «1 offerta», «3 offerte». */
+/**
+ * Il sostantivo che regge il numero davanti: «1 offerta», «3 offerte».
+ * Un tipo che il dizionario non conosce cade sul generico «voce»: non sarà la
+ * parola più precisa, ma è un sostantivo — meglio di una frase che chiama
+ * «offerta» qualcosa che non lo è.
+ */
 function sostantivoVoce(tipo, quanti) {
-  const nomi = SOSTANTIVI_VOCE[tipo] ?? SOSTANTIVI_VOCE[TIPI_VOCE.OFFERTA];
+  const nomi = SOSTANTIVI_VOCE[tipo] ?? { singolare: 'voce', plurale: 'voci' };
   return quanti === 1 ? nomi.singolare : nomi.plurale;
 }
 
@@ -177,12 +182,13 @@ export function testoConteggioVoci(voci) {
  * La frase del limite raggiunto, costruita sul numero che l'utente ha davanti.
  *
  * Con più voci del tetto — voci pubblicate prima che il limite esistesse, o da
- * un altro percorso — «Hai raggiunto il massimo di 5 offerte» accanto a «7 voci»
- * si contraddice da solo (audit UX F92): qui la frase nomina il conteggio e dice
- * cosa fare, invece di stampare la costante. Con un tetto di 1 «eliminane una»
- * sarebbe aritmeticamente falso (da 3 ne vanno tolte 2), quindi la frase dice
- * quante ne servono per tornare a una: è anche l'unico modo che ha chi ha più
- * voci di sapere che non gli viene cancellato niente.
+ * un altro percorso — la frase costruita sulla costante («Hai raggiunto il
+ * massimo di …») accanto a un conteggio più alto si contraddice da sola (audit
+ * UX F92): qui la frase nomina il conteggio e dice cosa fare, invece di stampare
+ * la costante. Con un tetto di 1 «eliminane una» sarebbe aritmeticamente falso
+ * (da 3 ne vanno tolte 2), quindi la frase dice quante ne servono per tornare a
+ * una: è anche l'unico modo che ha chi ha più voci di sapere che non gli viene
+ * cancellato niente.
  */
 export function testoLimiteVoci(voci, tipo) {
   const quanti = voci.length;

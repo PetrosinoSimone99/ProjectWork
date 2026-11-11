@@ -101,12 +101,19 @@ export const OPERATION_TARGET_LABELS = {
   SERVICE: 'servizio',
 };
 
-/** The readable action, or the raw value when the backend has a newer one. */
+/**
+ * The readable action, or the raw value when the backend has a newer one.
+ *
+ * The lookup is `Object.hasOwn` and not a bare index: an object literal answers
+ * to `constructor` and `toString` through its prototype, so a value the backend
+ * happens to spell that way would come back as a function, which React refuses
+ * to render.
+ */
 export function operationActionLabel(azione) {
   if (typeof azione !== 'string' || azione === '') {
     return 'Azione';
   }
-  return OPERATION_ACTION_LABELS[azione] ?? azione;
+  return Object.hasOwn(OPERATION_ACTION_LABELS, azione) ? OPERATION_ACTION_LABELS[azione] : azione;
 }
 
 /** The readable target type, or the raw value; empty stays empty, with no gap. */
@@ -114,5 +121,7 @@ export function operationTargetLabel(bersaglio) {
   if (typeof bersaglio !== 'string' || bersaglio === '') {
     return '';
   }
-  return OPERATION_TARGET_LABELS[bersaglio] ?? bersaglio;
+  return Object.hasOwn(OPERATION_TARGET_LABELS, bersaglio)
+    ? OPERATION_TARGET_LABELS[bersaglio]
+    : bersaglio;
 }
