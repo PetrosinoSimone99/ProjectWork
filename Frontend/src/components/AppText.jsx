@@ -39,23 +39,35 @@ const VARIANTS = {
 const HEADING_VARIANTS = new Set(['title', 'heading']);
 
 /**
+ * La profondità predefinita di ogni ruolo che è un titolo: il titolo di una
+ * schermata è la radice della sua pagina, un titolo di sezione sta un passo
+ * sotto.
+ */
+const LIVELLO_PREDEFINITO = { title: 1, heading: 2 };
+
+/**
  * Testo con gerarchia e colore del tema già applicati.
  *
  * `accessibilityRole` si può sempre sovrascrivere dal chiamante: una variante
  * `heading` usata per una riga che non apre niente (`accessibilityRole: 'text'`) non deve diventare un titolo.
  *
- * `level` dichiara la profondità del titolo (audit UX F51): 1 per il titolo della
- * schermata, 2 per una sezione dentro di essa, 3 per il titolo di una card. Il
- * ruolo `header` da solo dice che una riga è un titolo ma non dice di cosa, e
- * uno screen reader non può ricostruire la gerarchia. Viaggia su `aria-level`
+ * `level` dichiara la profondità del titolo (audit UX F51), e il default segue
+ * il ruolo invece di essere uno solo per tutti: un `title` è la radice della sua
+ * pagina (1), un `heading` sta un passo sotto (2). Prima il default era 2 per
+ * ogni ruolo, quindi ogni schermata che non passava `level={1}` non aveva nessun
+ * titolo di primo livello, e sette rotte su dieci ne erano senza. Il ruolo
+ * `header` da solo dice che una riga è un titolo ma non dice di cosa, e uno
+ * screen reader non può ricostruire la gerarchia. Viaggia su `aria-level`
  * — la sola proprietà che react-native-web e il nativo leggono allo stesso modo
- * — e vale solo sulle varianti che sono un titolo. Default 2: quasi tutti i
- * titoli dell'app stanno dentro un titolo di schermata.
+ * — e vale solo sulle varianti che sono un titolo. Chi ha bisogno di una
+ * profondità diversa dalla sua (il titolo di un pannello è la radice del suo
+ * dialogo) la dichiara.
  */
-export function AppText({ variant = 'body', tone = 'default', level = 2, style, ...props }) {
+export function AppText({ variant = 'body', tone = 'default', level, style, ...props }) {
   const t = useTokens();
   const ruolo = VARIANTS[variant] ? variant : 'body';
   const eTitolo = HEADING_VARIANTS.has(ruolo);
+  const livello = level ?? LIVELLO_PREDEFINITO[ruolo] ?? 2;
   const colors = {
     default: t.text,
     secondary: t.textSecondary,
@@ -67,7 +79,7 @@ export function AppText({ variant = 'body', tone = 'default', level = 2, style, 
   return (
     <Text
       accessibilityRole={eTitolo ? 'header' : undefined}
-      aria-level={eTitolo ? level : undefined}
+      aria-level={eTitolo ? livello : undefined}
       style={[VARIANTS[ruolo], { color: colors[tone] }, style]}
       {...props}
     />

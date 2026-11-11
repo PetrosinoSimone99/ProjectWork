@@ -18,9 +18,15 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * appeso sotto la safe area con il vuoto sotto, e la schermata sembrava tagliata
  * a metà. La registrazione è lunga e scorre dall'alto, quindi non lo passa.
  *
+ * `wordmarkAsTitle` dichiara chi possiede il titolo della pagina: sul login non
+ * c'è nessun altro titolo, quindi il marchio **è** il titolo della schermata;
+ * sulla registrazione il titolo è «Crea il tuo profilo» e il marchio è
+ * arredamento ripetuto, che non deve entrare nell'indice dei titoli (due H1
+ * sulla stessa pagina).
+ *
  * Il guscio non conosce né sessione né errori: il contenuto è dei chiamanti.
  */
-export function AuthShell({ children, scroll = true, centrata = false }) {
+export function AuthShell({ children, scroll = true, centrata = false, wordmarkAsTitle = false }) {
   const t = useTokens();
 
   return (
@@ -38,7 +44,12 @@ export function AuthShell({ children, scroll = true, centrata = false }) {
         >
           <AppIcon name="swap-horizontal" size={30} color={t.onPrimary} />
         </View>
-        <AppText variant="title">Baratto-lo</AppText>
+        <AppText
+          variant="title"
+          {...(wordmarkAsTitle ? { level: 1 } : { accessibilityRole: 'text' })}
+        >
+          Baratto-lo
+        </AppText>
         <AppText
           variant="small"
           tone="secondary"

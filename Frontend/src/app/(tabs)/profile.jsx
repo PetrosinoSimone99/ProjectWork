@@ -206,7 +206,7 @@ export default function ProfileScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <AppText variant="title" tone="primary">
+                <AppText variant="title" tone="primary" accessibilityRole="text">
                   {iniziali}
                 </AppText>
               </View>

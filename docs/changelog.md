@@ -6,6 +6,53 @@ documents/code touched.
 
 ---
 
+## 2026-11-11 — One first-level title per screen, from the role (critique P1)
+
+### What changed
+
+1. **`AppText`'s heading depth now follows the role.** `level` defaulted to 2
+   for every variant, so a screen title that did not pass `level={1}` announced
+   as a section inside nothing — and seven of twelve routes had no `H1` at all,
+   while `/profile` opened with `H2 "MR"`, the avatar's initials. `title` now
+   defaults to 1, `heading` to 2; a caller that genuinely differs (a panel
+   title, which roots its own dialog) still states `level`.
+   `print` was not involved; no call site had to change to keep its current
+   depth.
+2. **Repeated chrome stopped being a heading.** The `AuthShell` wordmark is no
+   longer a heading on `/register`, where the page's title is
+   «Crea il tuo profilo»; it stays the `H1` on `/login`, the only screen with no
+   title of its own (`wordmarkAsTitle`). The profile's initials carry
+   `accessibilityRole="text"`.
+3. **Measured in the browser, all twelve routes**: `/` Servizi · `/match` Match
+   automatico · `/offer-and-request` Offro e cerco · `/agreements` Accordi ·
+   `/profile` Mario Rossi (initials no longer a heading) · `/edit-profile`
+   Modifica profilo · `/report` Segnala alla staff · `/staff` Area staff ·
+   `/staff-users` Utenti · `/login` Baratto-lo · `/register` Crea il tuo profilo ·
+   `/nope` Pagina non trovata. Exactly one `H1` each, sections one step down.
+
+### Why
+
+`docs/DESIGN.md` § Type states the rule that the screen title is the root of its
+page; a default of 2 made the rule unenforceable from the component and turned
+every omission into a silent accessibility defect (WCAG 1.3.1). F51 introduced
+the `level` prop and closed as a mechanism; the call sites were never migrated.
+
+### Touched
+
+`Frontend/src/components/AppText.jsx`, `Frontend/src/components/AuthShell.jsx`,
+`Frontend/src/app/(auth)/login.jsx`, `Frontend/src/app/(tabs)/profile.jsx`,
+`docs/DESIGN.md` § Type.
+
+### Left open, with evidence
+
+While measuring, `/staff` and `/staff-users` mounted for `mario.rossi`
+(`ROLE_USER`, not staff) and rendered the moderation shell over three `403`s
+from `/api/staff/*`. The backend enforces the role; the frontend has no route
+guard, so the user sees «Area staff» and a failed log instead of being sent
+away. Not part of this change.
+
+---
+
 ## 2026-11-11 — Login enters the app on the web (critique P0)
 
 ### What changed

@@ -74,7 +74,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <AuthShell centrata>
+    <AuthShell centrata wordmarkAsTitle>
       <View style={{ gap: space.md }}>
         {motivoUscita ? (
           <Banner

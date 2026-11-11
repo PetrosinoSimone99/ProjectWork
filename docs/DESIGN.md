@@ -98,6 +98,15 @@ page, a section inside it is one step down, and a panel's title is the root of
 its own dialog. A heading without a depth tells assistive technology that
 something is a title but not of what.
 
+Depth follows the role, it is not a value each caller repeats: `title` is level
+1, `heading` is level 2, and only a caller that genuinely differs (a panel's
+title, which roots its own dialog) states `level`. The defaults used to be one
+number for every role, which meant every screen that forgot the prop silently
+had no first-level title at all — seven of twelve routes were in that state.
+Anything that is repeated chrome rather than the screen's own title (the
+wordmark on the registration, the avatar's initials) is not a heading at all:
+two first-level titles on one page are worse than none.
+
 ## Refresh
 
 The pull gesture is native and does not exist on the web. There, a screen that
