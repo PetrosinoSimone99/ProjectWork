@@ -132,3 +132,41 @@ Wave 3 stays deferred with its condition written in the remediation doc: F61
 (needs the backend's action vocabulary), F72 (needs an affordance decision), F73
 (needs the page contract), F74 (needs a measurement), F94 (blocked on the console
 stack).
+
+## How to resume (read this first)
+
+State on disk, nothing else needed: blocks 0, 1, 2, 3 and 4a are committed;
+the tree is clean apart from the untracked `.playwright-mcp/` (browser session
+logs, never to be committed). Next action is **4b**.
+
+Order of work: 4b (the direction, 9 files frozen in
+[`direction.md`](direction.md)) → 4c (F51, F52, F53, F70, F71, F83, F85) → 5
+(before/after captures in `docs/audits/screens-2026-11-11-after/`) → 6
+(changelog already written, remediation §8 already written, `docs/DESIGN.md`
+still to create, derived from `tokens.js`).
+
+Environment, in this order, or the session loses half an hour to it:
+
+1. Backend: `docker ps` must show `backend-backend-1` and `backend-database-1`
+   on port 8000. The PHP dev server is single-threaded: the first request after
+   a boot takes seconds, and a fixed `waitForTimeout` captures a spinner instead
+   of a screen. Logins: `mario.rossi` / `demo` (user), `staff.anna` / `demo`
+   (user + staff).
+2. Web build: `cd Frontend && npx expo start --web --port 8081`.
+3. **There is no fake-data mode.** `EXPO_PUBLIC_DATI_FINTI` has zero hits in the
+   tree; the mechanism was deleted on 2026-11-07 (`docs/decisions.md` D011).
+   Captures use the real backend and must not modify a demo row.
+4. **Browser: use the `browser` MCP server, not `playwright`.** The `playwright`
+   server wants a Chrome binary that this machine does not have and fails at
+   init; `browser` is the same package on the MS Edge channel and works.
+5. Theme: the app resolves it from `localStorage['barattolo.tema']`
+   (`chiaro` / `scuro` / `sistema`) at startup. `emulateMedia({colorScheme})`
+   alone does not change it, and the captures will silently all come out dark.
+6. Session: `localStorage['barattolo.token']` and `['barattolo.utente']`. A
+   401 clears both; the login POST travels through the single-threaded PHP
+   server, so poll for the token instead of waiting a fixed time.
+
+Gates before every commit: `cd Frontend && npx expo lint && npx tsc --noEmit`
+(both clean at every commit so far; `tsc` gates syntax and imports only, per
+`docs/decisions.md` D010). Commits of 2-3 files, conventional, English, docs in
+the same commit.
