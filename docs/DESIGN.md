@@ -98,6 +98,22 @@ page, a section inside it is one step down, and a panel's title is the root of
 its own dialog. A heading without a depth tells assistive technology that
 something is a title but not of what.
 
+## Refresh
+
+The pull gesture is native and does not exist on the web. There, a screen that
+owns a refresh shows it as **one** control, `Aggiorna`, in the top trailing
+corner of the column — above the header and outside the scroll, so it does not
+scroll away and every refreshable screen puts it in the same place.
+
+It is neutral: `secondary`, never the filled accent, because refreshing is not
+the screen's primary action. It takes `target.min`, and while the request is in
+flight it is disabled and spinning, so the state is explicit rather than a
+second tap on a control that already ran. Native screens keep the gesture and
+show no button.
+
+The rule lives in `Screen`, which already receives the pair: no screen composes
+its own refresh control, and a screen that has nothing to refresh has none.
+
 ## Composition rules
 
 - **One header.** Every screen's title block is `PageHeader`: an optional
@@ -134,6 +150,7 @@ theme to pick a literal.
 | a type role or its job | `components/AppText.jsx` |
 | the card surface | `components/Card.jsx` |
 | the screen frame, its measures and its rhythm | `components/Screen.jsx` |
+| the web refresh control, and where it sits | `components/Screen.jsx` |
 | the title block | `components/PageHeader.jsx` |
 | the panel shell | `components/ModalShell.jsx` |
 

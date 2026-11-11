@@ -231,9 +231,10 @@ export default function HomeScreen() {
   //
   // Il titolo passa da `PageHeader` (direzione UX «A», audit UX F89) e la frase
   // sotto dice cosa la schermata contiene, non come si usa: l'istruzione sta
-  // nello stato vuoto, dove serve. Sulla home non c'è nessuna azione primaria
-  // — il ricaricamento esplicito su web è F72, ancora deferito — quindi la
-  // testata non ne inventa una.
+  // nello stato vuoto, dove serve. Sulla home non c'è nessuna azione primaria,
+  // quindi la testata non ne inventa una: il refresh esplicito del web è il
+  // controllo che `Screen` disegna sopra il contenuto (F72), non un comando
+  // dentro la carta dei filtri.
   const testata = (
     <View style={{ gap: space.lg }}>
       <PageHeader
@@ -286,12 +287,27 @@ export default function HomeScreen() {
     </View>
   );
 
+  // Pull-to-refresh da nativo e «Aggiorna» dal web fanno la stessa cosa: la
+  // lista si ricarica e la conferma di una proposta inviata ore fa si ritira,
+  // perché lasciata lì leggerebbe come appena spedita.
+  function aggiornaCatalogo() {
+    setPropostaInviataA(null);
+    void onRefresh();
+  }
+
   return (
     // La colonna del catalogo: `larga` non è un'altra schermata, è la misura di
     // lettura di una superficie da scorrere (720). La lista è la pagina: `Screen`
     // non scrolla (F42) e il pull-to-refresh sta sulla `FlatList` di
-    // `ServicesSection`.
-    <Screen scroll={false} withBottomInset={false} larga>
+    // `ServicesSection`. La stessa coppia passa anche a `Screen`, che sul web la
+    // rende come unico controllo «Aggiorna» sopra il contenuto (F72).
+    <Screen
+      scroll={false}
+      withBottomInset={false}
+      larga
+      refreshing={refreshing}
+      onRefresh={aggiornaCatalogo}
+    >
       <ServiceDetailModal
         servizio={dettaglio}
         onClose={() => setDettaglio(null)}
@@ -308,12 +324,7 @@ export default function HomeScreen() {
         vuoto={listaVuota}
         coda={codaLista}
         refreshing={refreshing}
-        onRefresh={() => {
-          // An explicit pull-to-refresh retires the confirmation: a banner left
-          // over from hours ago would read as a proposal sent just now.
-          setPropostaInviataA(null);
-          onRefresh();
-        }}
+        onRefresh={aggiornaCatalogo}
         onSelect={(servizio) => {
           setPropostaInviataA(null);
           setDettaglio(servizio);

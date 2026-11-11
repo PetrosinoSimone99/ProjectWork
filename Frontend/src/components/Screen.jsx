@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppButton } from './AppButton';
 import { fasciaPallinoMenuWeb, layout, space, useTokens } from '@/theme/tokens';
 
 /** Il pull-to-refresh è un gesto nativo: sul web la ScrollView lo ignorerebbe. */
@@ -33,8 +34,9 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * solo di essere usato per il mestiere giusto invece del 16 che faceva sia
  * l'uno sia l'altro.
  *
- * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useRefresh`)
- * per il pull-to-refresh, attivo solo su mobile.
+ * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useRefresh`):
+ * da nativo resta il gesto di pull-to-refresh, sul web la stessa coppia
+ * accende una riga «Aggiorna» sopra il contenuto, fuori dalla ScrollView.
  *
  * `bottomSpacing` è lo spazio sotto il contenuto, misurato dentro la safe area:
  * le schermate con una barra ancorata in fondo (chat) lo riducono, altrimenti
@@ -59,6 +61,8 @@ export function Screen({
   const { width: larghezzaFinestra } = useWindowDimensions();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const aggiornamentoAttivo = SUPPORTA_AGGIORNAMENTO && typeof onRefresh === 'function';
+  // Regola web: controllo esplicito sopra il contenuto, da nativo il gesto.
+  const aggiornamentoWeb = Platform.OS === 'web' && typeof onRefresh === 'function';
   const safeAreaBottomPadding = withBottomInset && !keyboardVisible ? insets.bottom : 0;
   // Larghezza massima del contenuto: le due misure di lettura, non due layout.
   // Senza un tetto, a 1280 la casella di ricerca allarga a tutto lo schermo e
@@ -142,6 +146,30 @@ export function Screen({
           paddingBottom: safeAreaBottomPadding,
         }}
       >
+        {aggiornamentoWeb && (
+          <View
+            style={{
+              paddingHorizontal: space.lg,
+              paddingTop: space.lg,
+              paddingBottom: space.lg,
+              maxWidth: larghezzaMassima,
+              width: '100%',
+              alignSelf: 'center',
+              alignItems: 'flex-end',
+              gap: space.sm,
+            }}
+          >
+            <AppButton
+              variant="secondary"
+              icon="refresh-outline"
+              label="Aggiorna"
+              onPress={onRefresh}
+              disabled={refreshing}
+              loading={refreshing}
+              accessibilityLabel="Aggiorna i dati della schermata"
+            />
+          </View>
+        )}
         {content}
       </View>
     </KeyboardAvoidingView>
