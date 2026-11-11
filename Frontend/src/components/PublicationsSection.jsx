@@ -5,7 +5,6 @@ import { EntryCard } from './EntryCard';
 import { EmptyState } from './EmptyState';
 import { EntryForm } from './EntryForm';
 import {
-  LIMITE_VOCI,
   TIPI_VOCE,
   limiteRaggiunto,
   testoConteggioVoci,
@@ -26,8 +25,6 @@ export const SEZIONI_PUBBLICAZIONI = [
     spiegazione:
       'Sono i servizi che sai fare: con la categoria giusta gli altri ti trovano nella home.',
     etichettaAggiungi: "Aggiungi un'offerta",
-    sostantivoLimite: 'offerte',
-    testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
     vuoto: {
       icona: 'pricetags-outline',
       titolo: 'Non hai pubblicato nessuna offerta',
@@ -41,8 +38,6 @@ export const SEZIONI_PUBBLICAZIONI = [
     titolo: 'Cosa cerco',
     spiegazione: 'Sono le cose che ti servono: dicono al sistema chi può scambiare con te.',
     etichettaAggiungi: 'Aggiungi una ricerca',
-    sostantivoLimite: 'ricerche',
-    testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} ricerche.`,
     vuoto: {
       icona: 'help-circle-outline',
       titolo: 'Non hai pubblicato nessuna ricerca',
@@ -127,8 +122,9 @@ export function PublicationsSection({
           <AppText variant="small" tone="secondary">
             {/* Il conteggio può superare il tetto (voci pubblicate prima del
                 limite o da un altro percorso): la frase parte dal numero che
-                l'utente ha davanti, non dalla costante (audit F92). */}
-            {testoLimiteVoci(voci, sezione.sostantivoLimite)}
+                l'utente ha davanti, non dalla costante (audit F92), e prende il
+                sostantivo dal tipo perché il tetto è di una voce per tipo. */}
+            {testoLimiteVoci(voci, sezione.tipo)}
           </AppText>
         ) : null}
         {categoriePronte ? null : (

@@ -21,8 +21,34 @@ export const TIPI_VOCE = { OFFERTA: 'OFFERTA', RICERCA: 'RICERCA' };
  */
 export const LIMITE_MANSIONE = 150;
 
-/** Massimo di voci per tipo in registrazione (decisione del titolare, 16 settembre 2026). */
-export const LIMITE_VOCI = 5;
+/**
+ * Un'offerta e una ricerca per persona (regola di prodotto, 2026-11-11):
+ * prima erano cinque per tipo. È l'unica manopola della regola e vale per
+ * entrambi i tipi, che tengono liste e tetti separati.
+ *
+ * Oggi il tetto vive **solo qui**, come ci viveva il cinque: `Backend/` non
+ * dichiara nessun limite di voci (verificato con `grep`), quindi non c'è un
+ * secondo posto da tenere allineato e nessun controllo lato server da
+ * aggiungere. Se un giorno il backend lo impone, questa costante diventa la
+ * copia da leggere dal contratto, non un valore da indovinare.
+ */
+export const LIMITE_VOCI = 1;
+
+/**
+ * Come si chiama una voce del tipo indicato, al singolare e al plurale.
+ * Con un tetto di 1 la differenza non è un dettaglio di stile: «1 offerte»
+ * è sbagliato, e la frase del limite non può più stampare la costante nuda.
+ */
+export const SOSTANTIVI_VOCE = {
+  [TIPI_VOCE.OFFERTA]: { singolare: 'offerta', plurale: 'offerte' },
+  [TIPI_VOCE.RICERCA]: { singolare: 'ricerca', plurale: 'ricerche' },
+};
+
+/** Il sostantivo che regge il numero davanti: «1 offerta», «3 offerte». */
+function sostantivoVoce(tipo, quanti) {
+  const nomi = SOSTANTIVI_VOCE[tipo] ?? SOSTANTIVI_VOCE[TIPI_VOCE.OFFERTA];
+  return quanti === 1 ? nomi.singolare : nomi.plurale;
+}
 
 /**
  * Limite della località dell'annuncio.
@@ -125,6 +151,12 @@ export function rimuoviVoce(voci, chiave) {
  * superare `LIMITE_VOCI` (voci pubblicate prima del tetto o da un altro
  * client), quindi il tetto blocca chi **aggiunge**, non chi elenca: la
  * schermata deve dire il vero su entrambe le cose.
+ *
+ * Conta anche le voci sospese, ed è la regola che si vuole: con «1 cosa che
+ * cerchi e 1 che offri» sospendere non libera un posto. Non serve un filtro
+ * sullo stato — chi chiama passa l'elenco completo del tipo
+ * (`(tabs)/offer-and-request.jsx` divide per tipo e mai per stato), e questo
+ * è il motivo per cui la regola vale già senza codice in più.
  */
 export function limiteRaggiunto(voci) {
   return voci.length >= LIMITE_VOCI;
@@ -147,14 +179,19 @@ export function testoConteggioVoci(voci) {
  * Con più voci del tetto — voci pubblicate prima che il limite esistesse, o da
  * un altro percorso — «Hai raggiunto il massimo di 5 offerte» accanto a «7 voci»
  * si contraddice da solo (audit UX F92): qui la frase nomina il conteggio e dice
- * cosa fare, invece di stampare la costante.
+ * cosa fare, invece di stampare la costante. Con un tetto di 1 «eliminane una»
+ * sarebbe aritmeticamente falso (da 3 ne vanno tolte 2), quindi la frase dice
+ * quante ne servono per tornare a una: è anche l'unico modo che ha chi ha più
+ * voci di sapere che non gli viene cancellato niente.
  */
-export function testoLimiteVoci(voci, sostantivo) {
+export function testoLimiteVoci(voci, tipo) {
   const quanti = voci.length;
   if (quanti > LIMITE_VOCI) {
-    return `Massimo raggiunto: sospendine o eliminane una delle ${quanti} ${sostantivo}.`;
+    const daRimuovere = quanti - LIMITE_VOCI;
+    const altre = LIMITE_VOCI === 1 ? "un'altra" : 'altre';
+    return `Massimo raggiunto: hai ${quanti} ${sostantivoVoce(tipo, quanti)}, il massimo è ${LIMITE_VOCI}. Eliminane ${daRimuovere} per aggiungerne ${altre}.`;
   }
-  return `Hai raggiunto il massimo di ${LIMITE_VOCI} ${sostantivo}.`;
+  return `Hai raggiunto il massimo di ${LIMITE_VOCI} ${sostantivoVoce(tipo, LIMITE_VOCI)}.`;
 }
 
 /**
