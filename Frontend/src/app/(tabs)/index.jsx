@@ -128,7 +128,6 @@ export default function HomeScreen() {
     erroreAltri,
     filtri,
     filtriApplicati,
-    cambiaTesto,
     cambiaScelta,
     cambiaModalita,
     applicaFiltri,
@@ -264,7 +263,6 @@ export default function HomeScreen() {
         categorie={categorie}
         statoCategorie={statoCategorie}
         erroreCategorie={erroreCategorie}
-        onCambiaTesto={cambiaTesto}
         onCambiaScelta={cambiaScelta}
         onCambiaModalita={cambiaModalita}
         onApplica={applicaFiltri}

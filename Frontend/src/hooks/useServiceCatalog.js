@@ -24,7 +24,7 @@ import { useRefresh } from '@/hooks/useRefresh';
  *    incolla alla lista nuova.
  * 2. **La ricarica al focus non cancella risultati filtrati**: si ricarica solo
  *    quando **nessun filtro è applicato**. La condizione si legge dal ref dei
- *    filtri *applicati* — non dalla bozza — così cambiare i filtri non riavvia
+ *    filtri *applicati* — non dai filtri correnti — così cambiare i filtri non riavvia
  *    l'effetto e non nasce un doppio fetch.
  * 3. **`filtriApplicati` si aggiorna solo quando una risposta viene applicata**,
  *    non quando una richiesta parte: descrive quello che c'è a schermo.
@@ -147,19 +147,14 @@ export function useServiceCatalog({ token, utenteId }) {
     }, [esegui]),
   );
 
-  /** Testo: cambia la bozza senza fare richieste (si applica con Invio o «Filtra»). */
-  const cambiaTesto = useCallback((campo, valore) => {
-    setFiltri((correnti) => ({ ...correnti, [campo]: valore }));
-  }, []);
-
   /**
    * Categoria, regione e provincia: scelte discrete, quindi chiedono subito.
    * Cambiare regione azzera la provincia (cascata): le province della regione
    * vecchia non hanno senso nella nuova. Una sola richiesta, mai due.
    *
    * Come `cambiaModalita`, la richiesta parte dai filtri **applicati**, non
-   * dalla bozza (audit UX F06): una scelta discreta non deve applicare di
-   * nascosto il testo digitato e mai confermato con «Filtra». La bozza riceve
+   * dai correnti (audit UX F06): una scelta discreta non deve applicare di
+   * nascosto il testo digitato e mai confermato con «Cerca». `filtri` riceve
    * solo la scelta fatta, per restare coerente con ciò che è a schermo.
    */
   const cambiaScelta = useCallback(
@@ -178,20 +173,24 @@ export function useServiceCatalog({ token, utenteId }) {
     [esegui],
   );
 
-  /** Invio o pulsante «Filtra»: richiede con i filtri correnti, tornando a pagina 1. */
-  const applicaFiltri = useCallback(() => {
-    void esegui(filtri);
+  /**
+   * Invio o pulsante «Cerca»: richiede con i filtri correnti più il testo
+   * arrivato dalla barra, tornando a pagina 1. Il testo non passa da `filtri`:
+   * lo possiede `FilterBar`, così ogni tasto non ri-renderizza il catalogo.
+   */
+  const applicaFiltri = useCallback((testo) => {
+    void esegui({ ...filtri, testo });
   }, [esegui, filtri]);
 
   /**
    * La X nel campo di testo: azzera **solo** il testo e riapplica gli altri
    * filtri. Riparte dai filtri applicati (audit UX F05/F06): categoria, area e
    * modalità viaggiano esattamente come sono a schermo, quindi il tasto non
-   * le azzera e non ci infila dentro scelte mai confermate.
+   * le azzera e non ci infila dentro scelte mai confermate. Su `filtri` non
+   * scrive: il testo non vive più qui.
    */
   const azzeraTesto = useCallback(() => {
     const prossimi = { ...filtriApplicatiRef.current, testo: '' };
-    setFiltri(prossimi);
     void esegui(prossimi);
   }, [esegui]);
 
@@ -207,9 +206,9 @@ export function useServiceCatalog({ token, utenteId }) {
    * regione e provincia). `filtriDaQuery` la traduce in `isRemote=true|false`:
    * la lista visibile la decide il backend, pagine comprese.
    *
-   * La richiesta parte dai filtri **applicati**, non dalla bozza: il testo
-   * digitato e non confermato viaggia solo con Invio o «Filtra», e una modalità
-   * non deve applicarlo di nascosto. La bozza riceve la modalità per restare
+   * La richiesta parte dai filtri **applicati**, non dai correnti: il testo
+   * digitato e non confermato viaggia solo con Invio o «Cerca», e una modalità
+   * non deve applicarlo di nascosto. `filtri` riceve la modalità per restare
    * coerente con ciò che è a schermo.
    */
   const cambiaModalita = useCallback(
@@ -254,7 +253,6 @@ export function useServiceCatalog({ token, utenteId }) {
     erroreAltri,
     filtri,
     filtriApplicati,
-    cambiaTesto,
     cambiaScelta,
     cambiaModalita,
     applicaFiltri,

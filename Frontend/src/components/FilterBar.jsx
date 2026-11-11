@@ -28,6 +28,8 @@ const SOGLIA_LAYOUT_STRETTO = 480;
  * provincia) e **modalità** (Tutti / solo da remoto / solo in presenza).
  * I filtri e le callback arrivano dall'hook (`useServiceCatalog`), così quello
  * che c'è nella barra è anche quello che produce la lista — una sola verità.
+ * Eccezione: la bozza del testo vive qui (`bozzaTesto`), così ogni tasto
+ * ri-renderizza solo la barra e non il catalogo (F74).
  * La modalità va al server come le altre scelte discrete (`isRemote=true|false`):
  * è il backend a decidere quali righe entrano in pagina. Anche la **località a
  * testo libero non c'è più**: era un errore di sicurezza, ora sono due tendine
@@ -63,7 +65,6 @@ export function FilterBar({
   categorie,
   statoCategorie,
   erroreCategorie,
-  onCambiaTesto,
   onCambiaScelta,
   onCambiaModalita,
   onApplica,
@@ -76,9 +77,25 @@ export function FilterBar({
   const t = useTokens();
   const numeroFiltri = contaFiltri(filtriApplicati);
   const categoriePronte = statoCategorie === 'pronto';
-  const testoAttivo = filtri.testo.trim() !== '';
   const layoutStretto = useWindowDimensions().width < SOGLIA_LAYOUT_STRETTO;
   const [pannelloAperto, setPannelloAperto] = useState(false);
+  // La bozza del testo sta qui: ogni tasto ri-renderizza solo la barra,
+  // non l'intero catalogo (F74).
+  const [bozzaTesto, setBozzaTesto] = useState('');
+  const testoAttivo = bozzaTesto.trim() !== '';
+
+  // Invio e «Cerca» applicano la bozza: al padre arriva il testo, non un campo.
+  const applicaBozza = () => onApplica(bozzaTesto);
+  // La X svuota la bozza qui e chiede al padre di riapplicare senza il testo.
+  const svuotaBozza = () => {
+    setBozzaTesto('');
+    onAzzeraTesto();
+  };
+  // «Azzera» del piede: la bozza si svuota insieme a tutto, poi tocca al padre.
+  const azzeraTutto = () => {
+    setBozzaTesto('');
+    onAzzera();
+  };
 
   // Sotto la soglia le righe si impilano e i campi diventano larghi quanto il
   // contenitore: valori calcolati una volta sola per tutte le righe.
@@ -115,8 +132,8 @@ export function FilterBar({
       {/* Il testo digitato ma non applicato sta **fuori** dal pannello: è
           visibile anche a pannello chiuso e dice che la ricerca non è partita;
           il conteggio del piede conta i filtri applicati e non si muove (F45). */}
-      {testoAttivo && filtri.testo.trim() !== filtriApplicati.testo.trim() ? (
-        <ToneChip tono="accent">{`Cerca «${filtri.testo.trim()}»`}</ToneChip>
+      {testoAttivo && bozzaTesto.trim() !== filtriApplicati.testo.trim() ? (
+        <ToneChip tono="accent">{`Cerca «${bozzaTesto.trim()}»`}</ToneChip>
       ) : null}
 
       {pannelloAperto ? (
@@ -129,13 +146,13 @@ export function FilterBar({
             }}
           >
             <SearchField
-              testo={filtri.testo}
+              testo={bozzaTesto}
               testoAttivo={testoAttivo}
               flexibile={flessibile}
               filtrando={filtrando}
-              onCambiaTesto={onCambiaTesto}
-              onApplica={onApplica}
-              onAzzeraTesto={onAzzeraTesto}
+              onCambiaBozza={setBozzaTesto}
+              onApplica={applicaBozza}
+              onAzzeraTesto={svuotaBozza}
             />
           </View>
 
@@ -213,7 +230,7 @@ export function FilterBar({
         </>
       ) : null}
 
-      <FilterFooter numeroFiltri={numeroFiltri} onAzzera={onAzzera} />
+      <FilterFooter numeroFiltri={numeroFiltri} onAzzera={azzeraTutto} />
     </Card>
   );
 }
@@ -229,7 +246,7 @@ function SearchField({
   testoAttivo,
   flexibile,
   filtrando,
-  onCambiaTesto,
+  onCambiaBozza,
   onApplica,
   onAzzeraTesto,
 }) {
@@ -252,7 +269,7 @@ function SearchField({
       <TextInput
         style={{ flex: 1, minHeight: 50, fontSize: 15, color: t.text }}
         value={testo}
-        onChangeText={(valore) => onCambiaTesto('testo', valore)}
+        onChangeText={onCambiaBozza}
         placeholder="es. ripetizioni, giardinaggio…"
         placeholderTextColor={t.textSecondary}
         onSubmitEditing={onApplica}
