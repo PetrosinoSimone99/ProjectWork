@@ -45,10 +45,24 @@ export function ServiceCard({ servizio, onPress }) {
   const pubblicatoIl = formatIsoDate(servizio.pubblicatoIl);
   const localita = servizio.localita ?? servizio.offerente?.localita;
 
+  // Un `button` rende presentazionali i suoi discendenti: con la sola
+  // descrizione nel nome accessibile, categoria, modalità, luogo, data e autore
+  // — cioè tutto quello che la riga mostra — non venivano annunciati (F50).
+  const nomeAccessibile = [
+    categorie?.length ? categorie.map((categoria) => categoria.nome).join(', ') : null,
+    servizio.descrizione,
+    etichettaModalita(servizio.daRemoto),
+    localita ? localitaPerDisplay(localita) : null,
+    pubblicatoIl ? `pubblicato il ${pubblicatoIl}` : null,
+    autore,
+  ]
+    .filter(Boolean)
+    .join('. ');
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Apri il servizio: ${servizio.descrizione}`}
+      accessibilityLabel={`Apri il servizio: ${nomeAccessibile}`}
       accessibilityState={{ disabled: !apribile }}
       aria-disabled={!apribile}
       disabled={!apribile}

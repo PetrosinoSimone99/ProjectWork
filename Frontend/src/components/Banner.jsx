@@ -45,12 +45,12 @@ export function Banner({
         backgroundColor: palette.bg,
         borderColor: palette.border,
         borderWidth: 1,
-        borderLeftWidth: 3,
         borderRadius: radius.input,
         padding: space.md,
       }}
     >
-      <AppIcon name={ICONS[kind]} size={18} color={palette.text} style={{ marginTop: 1 }} />      <AppText variant="small" style={{ color: palette.text, flex: 1 }}>
+      <AppIcon name={ICONS[kind]} size={18} color={palette.text} style={{ marginTop: 1 }} />
+      <AppText variant="small" style={{ color: palette.text, flex: 1 }}>
         {message}
       </AppText>
       {etichettaAzione && onAzione ? (

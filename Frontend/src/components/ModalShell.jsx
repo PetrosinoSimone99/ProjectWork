@@ -218,7 +218,10 @@ export function ModalShell({
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <AppIcon name="close" size={20} color={t.textSecondary} label={etichettaChiudi} />
+              {/* L'icona è decorativa: il nome sta sul `Pressable` che riceve il
+                  tocco. Con lo stesso `label` su entrambi il controllo si
+                  annunciava due volte (audit F54). */}
+              <AppIcon name="close" size={20} color={t.textSecondary} />
             </Pressable>
           </View>
 
