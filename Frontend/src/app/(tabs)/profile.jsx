@@ -15,7 +15,7 @@ import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ThemeSelector } from '@/components/ThemeSelector';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * «Profilo»: i dati della sessione (nome, username, ruolo) **più** email,
@@ -173,155 +173,157 @@ export default function ProfileScreen() {
         </View>
       ) : null}
 
-      <View style={{ alignItems: 'center', gap: space.md, paddingTop: space.md }}>
-        {/* The pasted photo URL, when the image loads. When it does not, the
-            initials stay and the line below says it explicitly: a broken image
-            is a state, not something to hide. */}
-        {mostraImmagine ? (
-          <Image
-            source={{ uri: immagine }}
-            accessibilityLabel="Immagine del profilo"
-            onError={() => setImmagineRotta(true)}
-            style={{ width: 84, height: 84, borderRadius: radius.pill }}
-          />
-        ) : (
-          <View
-            // Iniziali con l'anello, non con il disco pieno (direzione UX, F88):
-            // l'accento resta all'azione primaria della schermata, e questa
-            // schermata non ne ha una. Il cerchio dice chi sei, non cosa fare.
-            style={{
-              width: 84,
-              height: 84,
-              borderRadius: radius.pill,
-              backgroundColor: t.surface,
-              borderWidth: 1,
-              borderColor: t.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AppText variant="title" tone="primary">
-              {iniziali}
-            </AppText>
+      {/* Un foglio solo, diviso in bande da una riga di 1 px: identità, dati,
+          le due voci che portano altrove, l'aspetto e la sessione. Cinque card
+          di pari peso erano il segnale più chiaro che la schermata non avesse
+          gerarchia (direzione UX, prestito C: F82/F88). */}
+      <Card style={{ padding: 0, gap: 0 }}>
+        <Banda>
+          <View style={{ alignItems: 'center', gap: space.md }}>
+            {/* The pasted photo URL, when the image loads. When it does not, the
+                initials stay and the line below says it explicitly: a broken
+                image is a state, not something to hide. */}
+            {mostraImmagine ? (
+              <Image
+                source={{ uri: immagine }}
+                accessibilityLabel="Immagine del profilo"
+                onError={() => setImmagineRotta(true)}
+                style={{ width: 84, height: 84, borderRadius: radius.pill }}
+              />
+            ) : (
+              <View
+                // Iniziali con l'anello, non con il disco pieno (direzione UX, F88):
+                // l'accento resta all'azione primaria della schermata, e questa
+                // schermata non ne ha una. Il cerchio dice chi sei, non cosa fare.
+                style={{
+                  width: 84,
+                  height: 84,
+                  borderRadius: radius.pill,
+                  backgroundColor: t.surface,
+                  borderWidth: 1,
+                  borderColor: t.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppText variant="title" tone="primary">
+                  {iniziali}
+                </AppText>
+              </View>
+            )}
+            {immagine !== null && immagineRotta ? (
+              <AppText variant="label" tone="danger" style={{ textAlign: 'center' }}>
+                L&apos;immagine del profilo non si carica: controlla l&apos;indirizzo in «Modifica
+                profilo».
+              </AppText>
+            ) : null}
+            <View style={{ alignItems: 'center', gap: space.xs }}>
+              <AppText variant="title" level={1}>
+                {displayName}
+              </AppText>
+              {utente.username ? (
+                <AppText variant="small" tone="secondary">
+                  @{utente.username}
+                </AppText>
+              ) : null}
+              {/* Il ruolo non è un'etichetta per chiunque: «USER» sotto il proprio
+                  nome è un enum interno, non informazione (audit UX F29). Lo staff
+                  invece ha bisogno di sapere di esserlo. */}
+              {isStaff ? (
+                <AppText variant="small" tone="secondary">
+                  {ruolo === 'ADMIN' ? 'Amministrazione' : 'Staff'}
+                </AppText>
+              ) : null}
+            </View>
           </View>
-        )}
-        {immagine !== null && immagineRotta ? (
-          <AppText variant="label" tone="danger" style={{ textAlign: 'center' }}>
-            L&apos;immagine del profilo non si carica: controlla l&apos;indirizzo in «Modifica
-            profilo».
-          </AppText>
-        ) : null}
-        <View style={{ alignItems: 'center', gap: space.xs }}>
-          <AppText variant="title" level={1}>
-            {displayName}
-          </AppText>
-          {utente.username ? (
-            <AppText variant="small" tone="secondary">
-              @{utente.username}
-            </AppText>
-          ) : null}
-          {/* Il ruolo non è un'etichetta per chiunque: «USER» sotto il proprio
-              nome è un enum interno, non informazione (audit UX F29). Lo staff
-              invece ha bisogno di sapere di esserlo. */}
-          {isStaff ? (
-            <AppText variant="small" tone="secondary">
-              {ruolo === 'ADMIN' ? 'Amministrazione' : 'Staff'}
-            </AppText>
-          ) : null}
-        </View>
-      </View>
+        </Banda>
 
-      {/* Anagrafica dal server: l'email è l'unico dato che solo questo
-          endpoint dà; la bio assente si dichiara, non si nasconde. */}
-      <Card>
-        <View style={{ gap: space.sm }}>
+        {/* Anagrafica dal server: l'email è l'unico dato che solo questo
+            endpoint dà; la bio assente si dichiara, non si nasconde. */}
+        <Banda>
           <AppText variant="heading">Il tuo profilo</AppText>
-          {email ? (
-            <RigaProfilo icona="mail-outline" etichetta="Email" valore={email} />
-          ) : null}
-          {localita ? (
+          <View style={{ gap: space.sm }}>
+            {email ? (
+              <RigaProfilo icona="mail-outline" etichetta="Email" valore={email} />
+            ) : null}
+            {localita ? (
+              <RigaProfilo
+                icona="location-outline"
+                etichetta="Località"
+                valore={localitaPerDisplay(localita)}
+              />
+            ) : null}
             <RigaProfilo
-              icona="location-outline"
-              etichetta="Località"
-              valore={localitaPerDisplay(localita)}
+              icona="document-text-outline"
+              etichetta="Bio"
+              valore={bio ?? 'Nessuna bio.'}
             />
-          ) : null}
-          <RigaProfilo
-            icona="document-text-outline"
-            etichetta="Bio"
-            valore={bio ?? 'Nessuna bio.'}
-          />
-        </View>
-      </Card>
-
-      {/* La modifica ha una schermata a sé: la card si limita ad aprirla,
-          così come fa la card «I miei token». */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Apri la schermata Modifica profilo"
-        onPress={() => router.push('/edit-profile')}
-        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-      >
-        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <AppIcon name="pencil-outline" size={20} color={t.primary} />
-          <View style={{ flex: 1, gap: space.xs }}>
-            <AppText variant="heading">
-              Modifica profilo
-            </AppText>
-            <AppText variant="small" tone="secondary">
-              Cambia nome, cognome, località, bio e immagine: sono i dati che gli altri
-              vedono quando ti contattano.
-            </AppText>
           </View>
-          <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
-        </Card>
-      </Pressable>
+        </Banda>
 
-      <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <AppIcon name="time-outline" size={18} color={t.textSecondary} />
-          <AppText variant="small" tone="secondary">
-            {expiresAt
-              ? `Sessione valida fino alle ${formatOrarioScadenza(expiresAt * 1000)}`
-              : 'Scadenza della sessione non disponibile.'}
-          </AppText>
-        </View>
-      </Card>
-
-      {/* L'area staff non è una sesta tab: compare qui **solo** per chi ha il
-          ruolo. La UI nasconde, il backend protegge. */}
-      {isStaff ? (
+        {/* La modifica ha una schermata a sé: la banda si limita ad aprirla. */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Apri la schermata Area staff"
-          onPress={() => router.push('/staff')}
+          accessibilityLabel="Apri la schermata Modifica profilo"
+          onPress={() => router.push('/edit-profile')}
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
-          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <AppIcon name="shield-checkmark-outline" size={20} color={t.primary} />
+          <Banda riga>
+            <AppIcon name="pencil-outline" size={20} color={t.primary} />
             <View style={{ flex: 1, gap: space.xs }}>
-              <AppText variant="heading">
-                Area staff
-              </AppText>
+              <AppText variant="heading">Modifica profilo</AppText>
               <AppText variant="small" tone="secondary">
-                Esamina le segnalazioni e chiudile con un esito.
+                Cambia nome, cognome, località, bio e immagine: sono i dati che gli altri
+                vedono quando ti contattano.
               </AppText>
             </View>
             <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
-          </Card>
+          </Banda>
         </Pressable>
-      ) : null}
 
-      <Card>
-        <View style={{ gap: space.xs }}>
+        {/* L'area staff non è una sesta tab: compare qui **solo** per chi ha il
+            ruolo. La UI nasconde, il backend protegge. */}
+        {isStaff ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Apri la schermata Area staff"
+            onPress={() => router.push('/staff')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+          >
+            <Banda riga>
+              <AppIcon name="shield-checkmark-outline" size={20} color={t.primary} />
+              <View style={{ flex: 1, gap: space.xs }}>
+                <AppText variant="heading">Area staff</AppText>
+                <AppText variant="small" tone="secondary">
+                  Esamina le segnalazioni e chiudile con un esito.
+                </AppText>
+              </View>
+              <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
+            </Banda>
+          </Pressable>
+        ) : null}
+
+        <Banda>
           <AppText variant="heading">Aspetto</AppText>
           <AppText variant="small" tone="secondary">
             L'opzione Sistema segue il tema del dispositivo. La scelta resta salvata su questo
             dispositivo.
           </AppText>
-        </View>
-        <ThemeSelector />
+          <ThemeSelector />
+        </Banda>
+
+        {/* La sessione è l'ultima banda: è un dato di stato, non un comando, e
+            chiude il foglio senza competere con niente. */}
+        <Banda ultima riga>
+          <AppIcon name="time-outline" size={18} color={t.textSecondary} />
+          <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
+            {expiresAt
+              ? `Sessione valida fino alle ${formatOrarioScadenza(expiresAt * 1000)}`
+              : 'Scadenza della sessione non disponibile.'}
+          </AppText>
+        </Banda>
       </Card>
+
 
       {/* «Esci» era il controllo più rumoroso del profilo (audit UX F08): è
           un'uscita, non il compito della schermata. Resta riconoscibile
@@ -337,7 +339,43 @@ export default function ProfileScreen() {
   );
 }
 
-/** Una riga della card «Il tuo profilo»: icona, etichetta, valore. */
+/**
+ * Una banda del foglio del profilo: il foglio è **uno**, e le sue parti sono
+ * separate da una riga di 1 px, non da un'altra card. Cinque card di pari peso
+ * dicevano che niente era più importante di qualcos'altro.
+ *
+ * `riga` è per le bande che sono un comando: tornano orizzontali e prendono
+ * l'altezza minima di un bersaglio toccabile. `ultima` spegne la riga di
+ * chiusura, così il foglio non finisce con un bordo in più.
+ */
+function Banda({ children, ultima = false, riga = false }) {
+  const t = useTokens();
+  return (
+    <View
+      style={[
+        {
+          paddingHorizontal: space.lg,
+          paddingVertical: space.md,
+          gap: space.sm,
+          borderBottomWidth: ultima ? 0 : 1,
+          borderBottomColor: t.border,
+        },
+        riga
+          ? {
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.md,
+              minHeight: target.min,
+            }
+          : null,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** Una riga della banda «Il tuo profilo»: icona, etichetta, valore. */
 function RigaProfilo({ icona, etichetta, valore }) {
   const t = useTokens();
   return (
