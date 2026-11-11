@@ -54,7 +54,12 @@ export function AppButton({
           {icon ? (
             <AppIcon name={icon} size={17} color={palette.text} style={styles.icon} />
           ) : null}
-          <AppText style={{ color: palette.text, fontWeight: '600' }}>{label}</AppText>
+          {/* Una riga sola (audit UX F71/F83): un'etichetta che va a capo dentro
+              una pillola alta 50 sembra un altro bottone. Se non ci sta, si
+              accorcia — la scelta di impilare i comandi la fa chi li dispone. */}
+          <AppText numberOfLines={1} style={{ color: palette.text, fontWeight: '600' }}>
+            {label}
+          </AppText>
         </>
       )}
     </Pressable>

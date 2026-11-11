@@ -5,6 +5,8 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { AppIcon } from './AppIcon';
@@ -20,6 +22,13 @@ const ALLINEAMENTO = {
 
 /** La larghezza del pannello non supera mai la colonna di `Screen` (560). */
 const LARGHEZZA_MASSIMA = 560;
+
+/**
+ * Quota massima dell'altezza della finestra che il pannello può occupare (audit
+ * UX F70): oltre, il pannello non lascia vedere che sotto c'è una pagina, e il
+ * fuori non si distingue più dall'interfaccia. Il resto lo scorre il corpo.
+ */
+const QUOTA_ALTEZZA_PANNELLO = 0.85;
 
 /**
  * Gli shell aperti, in ordine di apertura.
@@ -50,6 +59,9 @@ const pilaAperta = [];
  *   dialogo per le tecnologie assistive; `descrizione` è la riga sotto;
  * - `footer` è la riga delle azioni (di solito due `AppButton`); senza footer
  *   il pannello ha solo l'intestazione e il contenuto;
+ * - il pannello non supera l'85 % dell'altezza della finestra e **solo il corpo
+ *   scorre** (audit UX F70): intestazione e azioni restano ferme, così il
+ *   comando non scappa via insieme al testo che si sta leggendo;
  * - `align` sceglie il punto di appoggio, `pannelloStyle`/`contenitoreStyle`
  *   coprono i casi che devono ancora posizionarsi da soli (la campanella, che
  *   si apre sopra il proprio pulsante);
@@ -71,6 +83,7 @@ export function ModalShell({
   contenitoreStyle,
 }) {
   const t = useTokens();
+  const { height: altezzaFinestra } = useWindowDimensions();
   const idIstanza = `pannello-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const idTitolo = `${idIstanza}-titolo`;
   const pannelloRef = useRef(null);
@@ -178,6 +191,7 @@ export function ModalShell({
             {
               width: '100%',
               maxWidth: larghezzaMassima,
+              maxHeight: altezzaFinestra * QUOTA_ALTEZZA_PANNELLO,
               backgroundColor: t.surface,
               borderColor: t.border,
               borderWidth: 1,
@@ -191,7 +205,9 @@ export function ModalShell({
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
             <View style={{ flex: 1, gap: space.xs }}>
               {titolo ? (
-                <AppText variant="heading" nativeID={idTitolo}>
+                // `level={1}`: il pannello è un contesto a sé, il suo titolo è
+                // la radice della gerarchia dentro il dialogo (F51).
+                <AppText variant="heading" level={1} nativeID={idTitolo}>
                   {titolo}
                 </AppText>
               ) : null}
@@ -225,7 +241,17 @@ export function ModalShell({
             </Pressable>
           </View>
 
-          {children}
+          {/* Il corpo è l'unica parte che scorre: `flexShrink` gli permette di
+              cedere altezza quando il contenuto supera `maxHeight`, mentre
+              intestazione e footer restano dove sono (F70). Il `gap` interno
+              tiene la distanza fra i figli che prima dava il pannello. */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ gap: space.md }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {children}
+          </ScrollView>
 
           {footer ? <View style={{ gap: space.sm }}>{footer}</View> : null}
         </View>

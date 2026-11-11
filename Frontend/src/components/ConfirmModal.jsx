@@ -1,8 +1,17 @@
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { ModalShell } from './ModalShell';
 import { space } from '@/theme/tokens';
+
+/**
+ * Sotto questa larghezza di finestra i due comandi non stanno affiancati con le
+ * loro etichette intere («No, torna indietro» + «Conferma»): impilare è meglio
+ * che troncare, ed è la stessa soglia che usa `FilterBar` per lo stesso motivo
+ * (audit UX F71). Sopra, i due pulsanti restano nella riga che ci si aspetta da
+ * un dialogo di conferma.
+ */
+const SOGLIA_IMPILAMENTO = 480;
 
 /**
  * Conferma di un'azione distruttiva (annulla, contesta).
@@ -39,6 +48,8 @@ export function ConfirmModal({
   children = null,
   confermaDisabilitata = false,
 }) {
+  const impila = useWindowDimensions().width < SOGLIA_IMPILAMENTO;
+
   return (
     <ModalShell
       visible={visible}
@@ -48,13 +59,16 @@ export function ConfirmModal({
       // X, Escape e sfondo spenti, come lo sfondo di prima.
       chiudibile={!loading}
       footer={
-        <View style={{ flexDirection: 'row', gap: space.sm }}>
+        // Su finestra stretta i due comandi vanno in colonna: l'ordine di lettura
+        // resta quello di prima — prima l'uscita, poi la conferma — e nessuna
+        // etichetta viene troncata (F71).
+        <View style={{ flexDirection: impila ? 'column' : 'row', gap: space.sm }}>
           <AppButton
             label={etichettaAnnulla}
             variant="secondary"
             onPress={onAnnulla}
             disabled={loading}
-            style={{ flex: 1 }}
+            style={{ flex: impila ? undefined : 1 }}
           />
           <AppButton
             label={etichettaConferma}
@@ -62,7 +76,7 @@ export function ConfirmModal({
             onPress={onConferma}
             loading={loading}
             disabled={confermaDisabilitata}
-            style={{ flex: 1 }}
+            style={{ flex: impila ? undefined : 1 }}
           />
         </View>
       }

@@ -43,6 +43,9 @@ export function StaffUserCard({ user, callerId, busy = false, onPromote, onStatu
     target === ACCOUNT_STATUSES.INACTIVE
       ? `Sospendi l'account di ${name}`
       : `Riattiva l'account di ${name}`;
+  // Sospendere toglie l'accesso: è l'unica azione distruttiva della card, e per
+  // questo ha una riga sua (F83).
+  const statusEliminativo = target === ACCOUNT_STATUSES.INACTIVE;
 
   return (
     <Card>
@@ -50,7 +53,7 @@ export function StaffUserCard({ user, callerId, busy = false, onPromote, onStatu
         style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space.sm }}
       >
         <View style={{ flexShrink: 1, gap: space.xs }}>
-          <AppText variant="subheading">{name}</AppText>
+          <AppText variant="heading">{name}</AppText>
           <AppText variant="small" tone="secondary">
             {user.username ? `@${user.username}` : 'Username non disponibile'}
           </AppText>
@@ -66,28 +69,45 @@ export function StaffUserCard({ user, callerId, busy = false, onPromote, onStatu
       </View>
 
       {promote || status ? (
-        <View style={{ flexDirection: 'row', gap: space.sm }}>
-          {promote ? (
-            <AppButton
-              label="Rendi staff"
-              variant="secondary"
-              icon="shield-checkmark-outline"
-              disabled={busy}
-              loading={busy}
-              onPress={onPromote}
-              accessibilityLabel={`Rendi staff ${name}`}
-              style={{ flex: 1 }}
-            />
-          ) : null}
-          {status ? (
+        // Una colonna di azioni, non un flusso che va a capo (audit UX F83):
+        // «Rendi staff» e «Riattiva» dividono una riga, «Sospendi» — che toglie
+        // l'accesso — ha sempre la sua. A 360 la coppia non si sfilacciava per
+        // caso ma per spazio rimasto; ora la regola è la stessa a ogni larghezza.
+        <View style={{ gap: space.sm }}>
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            {promote ? (
+              <AppButton
+                label="Rendi staff"
+                variant="secondary"
+                icon="shield-checkmark-outline"
+                disabled={busy}
+                loading={busy}
+                onPress={onPromote}
+                accessibilityLabel={`Rendi staff ${name}`}
+                style={{ flex: 1 }}
+              />
+            ) : null}
+            {status && !statusEliminativo ? (
+              <AppButton
+                label={statusLabel}
+                variant="secondary"
+                icon="checkmark-circle-outline"
+                disabled={busy}
+                onPress={onStatusChange}
+                accessibilityLabel={statusAria}
+                style={{ flex: 1 }}
+              />
+            ) : null}
+          </View>
+          {status && statusEliminativo ? (
             <AppButton
               label={statusLabel}
-              variant={target === ACCOUNT_STATUSES.INACTIVE ? 'danger' : 'secondary'}
-              icon={target === ACCOUNT_STATUSES.INACTIVE ? 'power-outline' : 'checkmark-circle-outline'}
+              variant="danger"
+              icon="power-outline"
               disabled={busy}
               onPress={onStatusChange}
               accessibilityLabel={statusAria}
-              style={{ flex: 1 }}
+              style={{ alignSelf: 'flex-start' }}
             />
           ) : null}
         </View>

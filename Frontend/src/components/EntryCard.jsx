@@ -117,26 +117,34 @@ export function EntryCard({
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
-        <AppButton
-          label="Modifica"
-          variant="secondary"
-          icon="create-outline"
-          disabled={bloccato}
-          onPress={() => onModifica(voce)}
-          accessibilityLabel={`Modifica ${articolo}: ${testoVoce}`}
-        />
-        {mostraStato ? (
+      {/* Le azioni stanno in una colonna (audit UX F83): le due reversibili
+          dividono una riga, quella che distrugge ha la sua per regola. Prima le
+          tre pillole andavano a capo secondo lo spazio rimasto, quindi a 360 la
+          riga diventava due righe diverse da una card all'altra. */}
+      <View style={{ gap: space.sm }}>
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
           <AppButton
-            label={azioneStato}
+            label="Modifica"
             variant="secondary"
-            icon={sospesa ? 'eye-outline' : 'eye-off-outline'}
+            icon="create-outline"
             disabled={bloccato}
-            loading={azioneInCorso === 'stato'}
-            onPress={() => onCambiaStato(voce)}
-            accessibilityLabel={`${azioneStato} ${articolo}: ${testoVoce}`}
+            onPress={() => onModifica(voce)}
+            accessibilityLabel={`Modifica ${articolo}: ${testoVoce}`}
+            style={{ flex: 1 }}
           />
-        ) : null}
+          {mostraStato ? (
+            <AppButton
+              label={azioneStato}
+              variant="secondary"
+              icon={sospesa ? 'eye-outline' : 'eye-off-outline'}
+              disabled={bloccato}
+              loading={azioneInCorso === 'stato'}
+              onPress={() => onCambiaStato(voce)}
+              accessibilityLabel={`${azioneStato} ${articolo}: ${testoVoce}`}
+              style={{ flex: 1 }}
+            />
+          ) : null}
+        </View>
         <AppButton
           label="Elimina"
           variant="danger"
@@ -145,6 +153,7 @@ export function EntryCard({
           loading={azioneInCorso === 'elimina'}
           onPress={() => onElimina(voce)}
           accessibilityLabel={`Elimina ${articolo}: ${testoVoce}`}
+          style={{ alignSelf: 'flex-start' }}
         />
       </View>
     </Card>
