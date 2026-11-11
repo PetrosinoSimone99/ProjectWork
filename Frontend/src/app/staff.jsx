@@ -198,7 +198,9 @@ export default function StaffScreen() {
     <Screen scroll withBottomInset={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <BackButton />
-        <AppText variant="title">Area staff</AppText>
+        <AppText variant="title" level={1}>
+          Area staff
+        </AppText>
       </View>
 
       <AppButton

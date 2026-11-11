@@ -214,7 +214,10 @@ export function ServiceDetailModal({
               La proposta è alla cieca, non vincolante: la decide l'altra persona.
             </AppText>
             {erroreVisibile ? (
-              <AppText variant="caption" tone="danger" style={{ textAlign: 'center' }}>
+              // Prosa, non una pillola: `label` invece di `caption` (audit UX
+              // F48). `caption` è maiuscolo e spaziato, e un messaggio d'errore
+              // in maiuscolo si legge come un'etichetta di interfaccia.
+              <AppText variant="label" tone="danger" style={{ textAlign: 'center' }}>
                 {erroreVisibile}
               </AppText>
             ) : null}
@@ -228,7 +231,7 @@ export function ServiceDetailModal({
               onPress={() => onReport?.(servizio)}
               accessibilityLabel={`Segnala ${name} alla staff`}
             />
-            <AppText variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+            <AppText variant="label" tone="secondary" style={{ textAlign: 'center' }}>
               La segnalazione arriva alla staff, che la esamina e decide.
             </AppText>
           </View>

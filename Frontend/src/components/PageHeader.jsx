@@ -66,7 +66,9 @@ export function PageHeader({
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
         <View style={{ flex: 1, gap: space.xs }}>
           {/* `title` è l'unico `header` di primo livello della schermata. */}
-          <AppText variant="title">{titolo}</AppText>
+          <AppText variant="title" level={1}>
+            {titolo}
+          </AppText>
           {frase ? (
             <AppText variant="small" tone="secondary">
               {frase}

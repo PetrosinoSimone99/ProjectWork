@@ -14,6 +14,10 @@ import { useTokens } from '@/theme/tokens';
  *
  * - `title` 28/700 — il titolo di una schermata, uno per schermata.
  * - `heading` 19/700 — il titolo di una sezione o di una card.
+ *
+ * I due ruoli che c'erano in più non ci sono più: `display` (30) è diventato
+ * `title` e `subheading` (17) è stato assorbito da `heading`, in tutti i punti
+ * di chiamata. Una misura in meno è una decisione in meno.
  * - `body` 15 — il testo corrente.
  * - `small` 13 — la riga secondaria: dati sotto un titolo, meta di una card.
  * - `label` 12/600 — una parola che etichetta qualcosa senza urlare: occhiello
@@ -31,17 +35,6 @@ const VARIANTS = {
   caption: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
 };
 
-/**
- * Ruoli ritirati da F47 (`display` 30 → `title`, `subheading` 17 → `heading`).
- *
- * Restano qui come alias finché i loro punti di chiamata non si spostano
- * (`(tabs)/profile.jsx`, `StaffUserCard.jsx`): rimuovere il ruolo e lasciare la
- * chiamata viva renderebbe il testo senza misura, che è peggio di un nome in
- * più. Il nome sparisce nella stessa modifica che ripulisce le chiamate — il
- * ruolo effettivo, nel frattempo, è già quello nuovo.
- */
-const RUOLI_RITIRATI = { display: 'title', subheading: 'heading' };
-
 /** Le varianti che sono un titolo: ruolo `header` di default (WCAG 1.3.1). */
 const HEADING_VARIANTS = new Set(['title', 'heading']);
 
@@ -50,10 +43,19 @@ const HEADING_VARIANTS = new Set(['title', 'heading']);
  *
  * `accessibilityRole` si può sempre sovrascrivere dal chiamante: una variante
  * `heading` usata per una riga che non apre niente (`accessibilityRole: 'text'`) non deve diventare un titolo.
+ *
+ * `level` dichiara la profondità del titolo (audit UX F51): 1 per il titolo della
+ * schermata, 2 per una sezione dentro di essa, 3 per il titolo di una card. Il
+ * ruolo `header` da solo dice che una riga è un titolo ma non dice di cosa, e
+ * uno screen reader non può ricostruire la gerarchia. Viaggia su `aria-level`
+ * — la sola proprietà che react-native-web e il nativo leggono allo stesso modo
+ * — e vale solo sulle varianti che sono un titolo. Default 2: quasi tutti i
+ * titoli dell'app stanno dentro un titolo di schermata.
  */
-export function AppText({ variant = 'body', tone = 'default', style, ...props }) {
+export function AppText({ variant = 'body', tone = 'default', level = 2, style, ...props }) {
   const t = useTokens();
-  const ruolo = VARIANTS[variant] ? variant : (RUOLI_RITIRATI[variant] ?? 'body');
+  const ruolo = VARIANTS[variant] ? variant : 'body';
+  const eTitolo = HEADING_VARIANTS.has(ruolo);
   const colors = {
     default: t.text,
     secondary: t.textSecondary,
@@ -64,7 +66,8 @@ export function AppText({ variant = 'body', tone = 'default', style, ...props })
   };
   return (
     <Text
-      accessibilityRole={HEADING_VARIANTS.has(ruolo) ? 'header' : undefined}
+      accessibilityRole={eTitolo ? 'header' : undefined}
+      aria-level={eTitolo ? level : undefined}
       style={[VARIANTS[ruolo], { color: colors[tone] }, style]}
       {...props}
     />

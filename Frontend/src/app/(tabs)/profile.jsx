@@ -195,19 +195,19 @@ export default function ProfileScreen() {
               justifyContent: 'center',
             }}
           >
-            <AppText variant="display" tone="onPrimary">
+            <AppText variant="title" tone="onPrimary">
               {iniziali}
             </AppText>
           </View>
         )}
         {immagine !== null && immagineRotta ? (
-          <AppText variant="caption" tone="danger" style={{ textAlign: 'center' }}>
+          <AppText variant="label" tone="danger" style={{ textAlign: 'center' }}>
             L&apos;immagine del profilo non si carica: controlla l&apos;indirizzo in «Modifica
             profilo».
           </AppText>
         ) : null}
         <View style={{ alignItems: 'center', gap: space.xs }}>
-          <AppText variant="title">
+          <AppText variant="title" level={1}>
             {displayName}
           </AppText>
           {utente.username ? (
@@ -260,7 +260,7 @@ export default function ProfileScreen() {
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           <AppIcon name="pencil-outline" size={20} color={t.primary} />
           <View style={{ flex: 1, gap: space.xs }}>
-            <AppText variant="subheading">
+            <AppText variant="heading">
               Modifica profilo
             </AppText>
             <AppText variant="small" tone="secondary">
@@ -295,7 +295,7 @@ export default function ProfileScreen() {
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <AppIcon name="shield-checkmark-outline" size={20} color={t.primary} />
             <View style={{ flex: 1, gap: space.xs }}>
-              <AppText variant="subheading">
+              <AppText variant="heading">
                 Area staff
               </AppText>
               <AppText variant="small" tone="secondary">
