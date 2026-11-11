@@ -460,7 +460,7 @@ export default function RegisterScreen() {
           <AppText variant="small" tone="secondary">
             {categoriePronte
               ? "Per attivare il pulsante completa i dati obbligatori e aggiungi almeno una voce per sezione."
-              : 'Aspetto le categorie dal servizio: senza non posso creare l&apos;account.'}
+              : "Aspetto le categorie dal servizio: senza non posso creare l'account."}
           </AppText>
         )}
       </View>
