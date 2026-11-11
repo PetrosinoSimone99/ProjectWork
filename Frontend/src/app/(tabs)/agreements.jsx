@@ -92,7 +92,13 @@ const BELL_PANEL_HEIGHT_RATIO = 0.7;
 function RigaCaricamento({ testo }) {
   const t = useTokens();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm }}>
+    <View
+      // Regione viva (audit UX F53): la riga dice che si sta caricando, e chi
+      // non vede lo spinner deve sentirselo dire.
+      accessibilityLiveRegion="polite"
+      aria-live="polite"
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm }}
+    >
       <ActivityIndicator size="small" color={t.primary} />
       <AppText variant="small" tone="secondary">
         {testo}
@@ -196,7 +202,9 @@ export default function AgreementsScreen() {
         bottomSpacing={BELL_SIZE + BELL_MARGIN * 2}
       >
         <View style={{ gap: space.xs }}>
-          <AppText variant="title">Accordi</AppText>
+          <AppText variant="title" level={1}>
+            Accordi
+          </AppText>
           <AppText variant="small" tone="secondary">
             Gli scambi nati da una proposta accettata. Le proposte ricevute si accettano o si
             rifiutano dalla campanella in basso a destra.
@@ -297,16 +305,22 @@ export default function AgreementsScreen() {
 }
 
 /**
- * The three sections as buttons in a row: one is selected, each carries the
- * count of its section. A `tablist` with `tab` children, like `PillBar`, so the
- * pattern for a short set of choices is the same across the app.
+ * The three sections as pills in one track: one is selected, each carries the
+ * count of its section.
+ *
+ * A `radiogroup` with `radio` children (audit F55), not a `tablist`: the three
+ * sections are mutually exclusive views of one list, and a tablist would promise
+ * a `tabpanel` per tab that does not exist. Same pattern as `ThemeSelector` and
+ * `PillBar`, and the state rides both channels — `accessibilityState.checked`
+ * for native, `aria-checked` for web — because `react-native-web` reads only the
+ * `aria-*` ones.
  */
 function SectionTabs({ sections, activeKey, counts, onChange }) {
   const t = useTokens();
 
   return (
     <View
-      accessibilityRole="tablist"
+      accessibilityRole="radiogroup"
       accessibilityLabel="Sezioni degli accordi"
       style={{
         flexDirection: 'row',
@@ -324,10 +338,10 @@ function SectionTabs({ sections, activeKey, counts, onChange }) {
         return (
           <Pressable
             key={voce.key}
-            accessibilityRole="tab"
+            accessibilityRole="radio"
             accessibilityLabel={tabLabel(voce, conteggio)}
-            accessibilityState={{ selected: attiva }}
-            aria-selected={attiva}
+            accessibilityState={{ checked: attiva }}
+            aria-checked={attiva}
             onPress={() => onChange(voce.key)}
             style={({ pressed }) => ({
               flex: 1,

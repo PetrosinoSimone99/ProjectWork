@@ -1,4 +1,4 @@
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
 import { AppText } from './AppText';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
@@ -11,9 +11,22 @@ import { radius, space, target, useTokens } from '@/theme/tokens';
  * «nessun filtro», ed è la scelta di partenza delle barre di filtro. Il confronto
  * è stretto (`===`) proprio per distinguere `null` dai valori veri.
  *
- * È una riga di pillole e non una tendina perché le scelte sono poche e si
- * leggono tutte insieme; la pillola attiva è anche l'unico posto in cui il colore
- * primario dice qualcosa, e l'etichetta accessibile è la stessa parola scritta.
+ * Tre decisioni, tutte dell'audit (F55, F85) e della direzione UX «A»:
+ *
+ * 1. **È un `radiogroup`, non una `tablist`** (F55). Le pillole non cambiano
+ *    pannello: scelgono un valore fra alternative mutuamente esclusive, che è
+ *    esattamente ciò che `radio` dichiara. La `tablist` prometteva un `tabpanel`
+ *    che non esisteva. È lo stesso pattern di `ThemeSelector`.
+ * 2. **Scorre in orizzontale invece di andare a capo** (F85): cinque stati che a
+ *    390 px si spezzavano 4+1 ora restano una riga sola che si trascina, e a
+ *    1280 stanno comunque tutti in fila. Una riga spezzata faceva sembrare due
+ *    gruppi quello che è una scelta sola.
+ * 3. Lo stato viaggia su due canali con lo stesso valore — `accessibilityState={{ checked }}`
+ *    **e** `aria-checked` — perché su web `react-native-web` ignora
+ *    `accessibilityState` e legge solo gli attributi `aria-*`.
+ *
+ * La pillola attiva è anche l'unico posto in cui il colore primario dice
+ * qualcosa, e l'etichetta accessibile è la stessa parola scritta.
  */
 export function PillBar({
   scelte,
@@ -26,20 +39,24 @@ export function PillBar({
   const t = useTokens();
 
   return (
-    <View
-      accessibilityRole="tablist"
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
-      style={[{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }, style]}
+      style={style}
+      contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
     >
       {scelte.map((scelta) => {
         const attivo = valore === scelta.valore;
         return (
           <Pressable
             key={scelta.etichetta}
-            accessibilityRole="tab"
+            accessibilityRole="radio"
             accessibilityLabel={scelta.etichetta}
-            accessibilityState={{ selected: attivo, disabled }}
-            aria-selected={attivo}
+            accessibilityState={{ checked: attivo, disabled }}
+            aria-checked={attivo}
             disabled={disabled}
             onPress={() => onChange(scelta.valore)}
             style={({ pressed }) => ({
@@ -64,6 +81,6 @@ export function PillBar({
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
