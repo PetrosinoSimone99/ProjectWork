@@ -72,3 +72,47 @@ export function validateReview({ outcome, note } = {}) {
   }
   return errors;
 }
+
+/**
+ * The operations log's vocabulary, read out of the backend instead of guessed.
+ *
+ * `Backend/src/Entity/StaffOperationLog.php:19` declares the eight actions and
+ * `:20` the four target types. The log printed the raw value
+ * (`SERVICE_RESTORED · SERVICE 12 · staff.anna`), which is an internal enum
+ * dressed up as a sentence (audit UX F61). The keys below are those constants
+ * verbatim: no new vocabulary was invented here, and a value the backend adds
+ * later falls back to itself rather than disappearing from the history.
+ */
+export const OPERATION_ACTION_LABELS = {
+  USER_STATUS_CHANGED: "Stato dell'account cambiato",
+  USER_PROMOTED: 'Ruolo staff assegnato',
+  REPORT_CLAIMED: 'Segnalazione presa in carico',
+  REPORT_REVIEWED: 'Segnalazione chiusa',
+  TOKEN_CREATED: 'Token creato',
+  TOKEN_EXPIRATION_CHANGED: 'Scadenza del token cambiata',
+  TOKEN_DELETED: 'Token eliminato',
+  SERVICE_RESTORED: 'Servizio ripristinato',
+};
+
+export const OPERATION_TARGET_LABELS = {
+  USER: 'utente',
+  REPORT: 'segnalazione',
+  TOKEN: 'token',
+  SERVICE: 'servizio',
+};
+
+/** The readable action, or the raw value when the backend has a newer one. */
+export function operationActionLabel(azione) {
+  if (typeof azione !== 'string' || azione === '') {
+    return 'Azione';
+  }
+  return OPERATION_ACTION_LABELS[azione] ?? azione;
+}
+
+/** The readable target type, or the raw value; empty stays empty, with no gap. */
+export function operationTargetLabel(bersaglio) {
+  if (typeof bersaglio !== 'string' || bersaglio === '') {
+    return '';
+  }
+  return OPERATION_TARGET_LABELS[bersaglio] ?? bersaglio;
+}

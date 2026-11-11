@@ -24,7 +24,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
 import { formatIsoDate } from '@/services/dates';
-import { REVIEW_LABELS, emptyReview, validateReview } from '@/services/staff';
+import { REVIEW_LABELS, emptyReview, operationActionLabel, operationTargetLabel, validateReview } from '@/services/staff';
 import { statusLabel } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
@@ -399,9 +399,9 @@ function OperationsLog({ operations, error, loading, onRetry }) {
     <View key={operation.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
       <AppIcon name="time-outline" size={15} color={t.textSecondary} />
       <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-        {`${operation.azione ?? 'Azione'} · ${operation.bersaglio ?? ''} ${
-          operation.bersaglioId ?? ''
-        } · ${operation.staff?.username ?? 'staff'} · ${
+        {`${operationActionLabel(operation.azione)} · ${operationTargetLabel(
+          operation.bersaglio,
+        )} ${operation.bersaglioId ?? ''} · ${operation.staff?.username ?? 'staff'} · ${
           formatIsoDate(operation.creataIl) ?? 'data non disponibile'
         }`}
       </AppText>
