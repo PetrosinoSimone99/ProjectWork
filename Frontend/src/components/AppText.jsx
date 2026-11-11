@@ -9,19 +9,41 @@ import { useTokens } from '@/theme/tokens';
  * varianti che aprono una sezione di contenuto sono anche `header`, così la
  * gerarchia disegnata ha un corrispondente programmatico e uno screen reader
  * può saltare da un titolo all'altro (WCAG 1.3.1, audit UX F19).
+ *
+ * Sei ruoli, dopo la direzione UX del 2026-11-11 (audit UX F47, F48):
+ *
+ * - `title` 28/700 — il titolo di una schermata, uno per schermata.
+ * - `heading` 19/700 — il titolo di una sezione o di una card.
+ * - `body` 15 — il testo corrente.
+ * - `small` 13 — la riga secondaria: dati sotto un titolo, meta di una card.
+ * - `label` 12/600 — una parola che etichetta qualcosa senza urlare: occhiello
+ *   di una testata, prosa breve in un modulo. È il ruolo che l'audit chiedeva
+ *   per i testi che stavano in `caption` senza essere pillole (F48).
+ * - `caption` 11/700 maiuscolo spaziato — solo per pillole, chip e la riga di
+ *   conteggio: è un'etichetta di interfaccia, non un testo da leggere.
  */
 const VARIANTS = {
-  display: { fontSize: 30, fontWeight: '700', letterSpacing: -0.6, lineHeight: 36 },
   title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5, lineHeight: 34 },
   heading: { fontSize: 19, fontWeight: '700', letterSpacing: -0.2, lineHeight: 25 },
-  subheading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.1, lineHeight: 23 },
   body: { fontSize: 15, lineHeight: 22 },
   small: { fontSize: 13, lineHeight: 18 },
+  label: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
   caption: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
 };
 
+/**
+ * Ruoli ritirati da F47 (`display` 30 → `title`, `subheading` 17 → `heading`).
+ *
+ * Restano qui come alias finché i loro punti di chiamata non si spostano
+ * (`(tabs)/profile.jsx`, `StaffUserCard.jsx`): rimuovere il ruolo e lasciare la
+ * chiamata viva renderebbe il testo senza misura, che è peggio di un nome in
+ * più. Il nome sparisce nella stessa modifica che ripulisce le chiamate — il
+ * ruolo effettivo, nel frattempo, è già quello nuovo.
+ */
+const RUOLI_RITIRATI = { display: 'title', subheading: 'heading' };
+
 /** Le varianti che sono un titolo: ruolo `header` di default (WCAG 1.3.1). */
-const HEADING_VARIANTS = new Set(['display', 'title', 'heading', 'subheading']);
+const HEADING_VARIANTS = new Set(['title', 'heading']);
 
 /**
  * Testo con gerarchia e colore del tema già applicati.
@@ -31,6 +53,7 @@ const HEADING_VARIANTS = new Set(['display', 'title', 'heading', 'subheading']);
  */
 export function AppText({ variant = 'body', tone = 'default', style, ...props }) {
   const t = useTokens();
+  const ruolo = VARIANTS[variant] ? variant : (RUOLI_RITIRATI[variant] ?? 'body');
   const colors = {
     default: t.text,
     secondary: t.textSecondary,
@@ -41,8 +64,8 @@ export function AppText({ variant = 'body', tone = 'default', style, ...props })
   };
   return (
     <Text
-      accessibilityRole={HEADING_VARIANTS.has(variant) ? 'header' : undefined}
-      style={[VARIANTS[variant], { color: colors[tone] }, style]}
+      accessibilityRole={HEADING_VARIANTS.has(ruolo) ? 'header' : undefined}
+      style={[VARIANTS[ruolo], { color: colors[tone] }, style]}
       {...props}
     />
   );
