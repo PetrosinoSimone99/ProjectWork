@@ -84,7 +84,7 @@ on screen. The `browser` MCP server (Edge), never `playwright`.
 | --- | --- | --- |
 | `06-home-390-light-refresh.png` | `01-home-390-light.png` | the «Aggiorna» control above the header, trailing-aligned, neutral `secondary` pill — one on the screen, `minHeight` 50 px, transparent background (F72) |
 | `07-filters-typed-390-before.png` | `05-filters-open-390-light.png` | the pre-fix build (`52f386b` in a worktree on 8082): `yoga` typed and unsubmitted, the amber chip «Cerca «yoga»», the foot still «Nessun filtro attivo» |
-| `08-filters-typed-390-after.png` | `07-filters-typed-390-before.png` | the same state with the fix: the same chip and the same untouched foot, but the typing no longer reaches the catalog's state (F74) |
+| `08-filters-typed-390-after.png` | `07-filters-typed-390-before.png` | the same state with the fix. The two files are **byte-identical on purpose**: F74 changes what a keystroke costs, not what the screen looks like, so the evidence is the frame table below, not this pair |
 
 ### What the cycle-3 session asserted, not just photographed
 
@@ -122,6 +122,10 @@ a git worktree (the pre-fix build), `8081` runs the working tree with the fix.
 22 real `keydown`s through `pressSequentially`, a `requestAnimationFrame` probe
 on each key, a `MutationObserver` on the 20-row list, and the «Nome» field of
 «Modifica profilo» as the control.
+
+The pair of captures above is deliberately indistinguishable: a fix to per-key
+cost does not move a pixel, and claiming otherwise with two pictures would be
+the kind of evidence this document is supposed to refuse.
 
 | Where the typing happens | Per-key frame latency | Mutations inside the rows |
 | --- | --- | --- |
