@@ -8,6 +8,7 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { FilterBar } from '@/components/FilterBar';
 import { EmptyState } from '@/components/EmptyState';
+import { PageHeader } from '@/components/PageHeader';
 import { ServiceDetailModal } from '@/components/ServiceDetailModal';
 import { ServicesSection } from '@/components/ServicesSection';
 import { Screen } from '@/components/Screen';
@@ -218,17 +219,20 @@ export default function HomeScreen() {
   ) : null;
 
   // Testata della lista (`ListHeaderComponent`): titolo, esito della proposta,
-  // filtri ed errore del catalogo. Scorre insieme ai risultati; il conteggio
-  // dei risultati lo disegna `ServicesSection` sotto questa testata.
+  // filtri ed errore del catalogo. Scorre insieme ai risultati; la riga dei
+  // risultati la disegna `ServicesSection` sotto questa testata.
+  //
+  // Il titolo passa da `PageHeader` (direzione UX «A», audit UX F89) e la frase
+  // sotto dice cosa la schermata contiene, non come si usa: l'istruzione sta
+  // nello stato vuoto, dove serve. Sulla home non c'è nessuna azione primaria
+  // — il ricaricamento esplicito su web è F72, ancora deferito — quindi la
+  // testata non ne inventa una.
   const testata = (
     <View style={{ gap: space.lg }}>
-      <View style={{ gap: space.xs }}>
-        <AppText variant="title">Servizi</AppText>
-        <AppText variant="small" tone="secondary">
-          I servizi pubblicati dagli altri: filtra per testo, categoria, area e
-          modalità.
-        </AppText>
-      </View>
+      <PageHeader
+        titolo="Servizi"
+        frase="I servizi che gli altri hanno pubblicato: cosa offrono, dove e in che modo."
+      />
 
       {propostaInviataA !== null ? (
         <Banner
@@ -277,10 +281,10 @@ export default function HomeScreen() {
   );
 
   return (
-    // L'unica schermata larga: le card del catalogo guadagnano spazio su
-    // desktop, tutte le altre restano su `layout.maxContent`. La lista è la
-    // pagina: `Screen` non scrolla (F42) e il pull-to-refresh sta sulla
-    // `FlatList` di `ServicesSection`.
+    // La colonna del catalogo: `larga` non è un'altra schermata, è la misura di
+    // lettura di una superficie da scorrere (720). La lista è la pagina: `Screen`
+    // non scrolla (F42) e il pull-to-refresh sta sulla `FlatList` di
+    // `ServicesSection`.
     <Screen scroll={false} withBottomInset={false} larga>
       <ServiceDetailModal
         servizio={dettaglio}
