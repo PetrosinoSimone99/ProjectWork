@@ -111,7 +111,7 @@ export function PublicationsSection({
             credere che la funzione sia rotta. Resta primario solo nella prima
             sezione, perché su una schermata un solo comando è il più forte. */}
         <AppButton
-          label="+ Aggiungi"
+          label="Aggiungi"
           icon="add"
           variant={varianteAggiungi}
           disabled={pieno || !categoriePronte}
