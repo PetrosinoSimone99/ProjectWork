@@ -186,16 +186,21 @@ export default function ProfileScreen() {
           />
         ) : (
           <View
+            // Iniziali con l'anello, non con il disco pieno (direzione UX, F88):
+            // l'accento resta all'azione primaria della schermata, e questa
+            // schermata non ne ha una. Il cerchio dice chi sei, non cosa fare.
             style={{
               width: 84,
               height: 84,
               borderRadius: radius.pill,
-              backgroundColor: t.primary,
+              backgroundColor: t.surface,
+              borderWidth: 1,
+              borderColor: t.primary,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <AppText variant="title" tone="onPrimary">
+            <AppText variant="title" tone="primary">
               {iniziali}
             </AppText>
           </View>
