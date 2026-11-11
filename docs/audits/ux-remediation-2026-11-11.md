@@ -244,3 +244,83 @@ Wave 1 was written in six commits, each green on `npx expo lint` and
 12 of the 14 wave-1 findings are closed, 2 are re-homed with the reason
 written above. Nothing in the 12 changed a token value, an interaction or a
 component contract: the mechanical half of this cycle is invisible by design.
+
+## 9. Status after blocks 4b, 4c and 5 — 2026-11-11
+
+Blocks 4b and 4c were written in ten commits, each green on `npx expo lint` and
+`npx tsc --noEmit` before it was made:
+`36fd3e5`, `aa450ab`, `0af567d`, `8047a74` (4b, the direction) →
+`92e79df`, `cca31e4`, `331c524`, `0b80b6b`, `a60f4dd`, `22febf7` (4c, wave 2).
+Block 5 is `docs/audits/screens-2026-11-11-after/` with ten captures and a
+README pairing each one with its "before".
+
+4b touched the nine files frozen in `direction.md` and nothing else — the count
+was verified against the commit range (`9 files changed`), not asserted. 4c
+touched fifteen files: the seven wave-2 rows it was scoped for, plus the call
+sites that F47 and F48 could not be finished without, plus the two places
+where a row had been re-homed by §8.
+
+| Finding | Status | Where |
+| --- | --- | --- |
+| F44 review note survives its own confirm | **closed** (4a) | `staff.jsx` |
+| F45 typed-but-unapplied filter text | **open — answered, not shipped** | see §10 |
+| F46 four success banners dismiss | **closed** (4a) | four screens |
+| F47 seven type roles for four jobs | **closed** | `AppText.jsx` — the two retired names are gone from the component and from every call site |
+| F48 `caption` carrying prose | **closed** | `AppText.jsx` adds `label`; the two prose lines in `ServiceDetailModal` and the profile's image error moved onto it |
+| F49 banner states its kind four times | **closed** (4a) | `Banner.jsx` |
+| F50 catalog row announces only its description | **closed** (4a) | `ServiceCard.jsx` |
+| F51 headings without levels | **closed** | `AppText.jsx` emits `aria-level`; `PageHeader`, agreements, staff, profile and the panel title pass their depth |
+| F52 no `main`, no `navigation` on web | **closed** | `Screen.jsx`, `WebNavMenu.jsx`; verified on the rendered DOM |
+| F53 loading outside any live region | **closed** | `LoadingScreen.jsx`, `index.jsx`, `agreements.jsx` — both channels |
+| F54 close control names itself twice | **closed** (4a) | `ModalShell.jsx` |
+| F55 tab pattern without `tabpanel` | **closed** | `PillBar.jsx`, `agreements.jsx` — `radiogroup`/`radio`, no `tab` left in the tree |
+| F56 failed request drawn as an empty list | **closed** (4a) | `PublicationsSection.jsx` |
+| F57 reports error claimed as a missing endpoint | **closed** (4a) | `staff.jsx` |
+| F58 login transition had two owners | **closed** (4a) | `(auth)/_layout.jsx`, `edit-profile.jsx` |
+| F59 broken avatar blocks an unrelated save | **open — answered, not shipped** | see §10 |
+| F60 `l&apos;account` printed literally | **closed** (4a) | `(auth)/register.jsx` |
+| F61 operations log prints raw backend values | **open** (wave 3) | needs the backend's action vocabulary |
+| F70 panel has no scroll region | **closed** | `ModalShell.jsx` — 85 % cap, only the body scrolls; `ServiceDetailModal` moved its action and the sentence explaining it into the footer |
+| F71 confirm actions do not stack | **closed** | `ConfirmModal.jsx` (< 480 window), `AppButton.jsx` (`numberOfLines`) |
+| F72 no refresh on web | **open** (wave 3) | needs the affordance decision |
+| F73 staff lists not virtualised | **open** (wave 3) | needs the page contract |
+| F74 catalog re-renders on every keystroke | **open** (wave 3) | needs a measurement |
+| F80 no page frame at 1280 | **closed** | `tokens.js` (catalog measure), `Screen.jsx`, `ServiceCard.jsx` — one right edge |
+| F81 one flat vertical rhythm | **closed** | `Screen.jsx` gap is the section beat; `Card.jsx` already held the card beat |
+| F82 no card anatomy | **closed** | `ServiceCard.jsx` — headline, one meta line, one trailing action |
+| F83 action rows wrap and go ragged | **closed** | `EntryCard.jsx`, `StaffUserCard.jsx`, `AppButton.jsx` |
+| F84 the filter primary promises the wrong scope | **open — answered, not shipped** | see §10 |
+| F85 three choice devices, `PillBar` wraps | **closed** | `PillBar.jsx` — one scroll row, radio semantics; `ThemeSelector` stays a picker by the direction's written exception |
+| F86 five empty-state treatments | **closed** | `EmptyState.jsx` — one anatomy, action only when real, icon optional |
+| F87 retry detached from the failure | **closed** (4a) | `(tabs)/index.jsx` |
+| F88 the accent is spent on chrome | **closed** | `WebNavMenu.jsx` (neutral bar), `(tabs)/profile.jsx` (ringed initials); the bell keeps its fill by the direction's answer |
+| F89 no page header, subtitle used as a manual | **closed** | `PageHeader.jsx` (new), `(tabs)/index.jsx` |
+| F90 the auth pair has no shared shell | **open — answered, not shipped** | see §10 |
+| F91 dead session lands with no explanation | **closed** (4a) | `auth/auth-context.jsx` |
+| F92 cap line contradicted the count | **closed** (4a) | `PublicationsSection.jsx`, `services/offer-request.js` |
+| F93 the clamped sentence vs the repeated category | **closed** | `ServiceCard.jsx` |
+| F94 react-native-web overlay in the error state | **open** (wave 3) | blocked on the console stack |
+
+**29 closed, 9 open** (4 answered in principle but not shipped, 5 deferred with
+their unblocking condition). §7 and §8 are kept as written: they are the record
+of what was true at the time.
+
+## 10. The direction answered these and the files did not follow
+
+Four directional findings got their answer in `direction.md` and no commit,
+because the file that owns each one was outside the nine frozen for 4b and
+outside the seven rows 4c was scoped for. They are listed here instead of being
+quietly marked closed or quietly widened into a block that never sized them:
+
+| Finding | The answer the direction gives | The file that owes it |
+| --- | --- | --- |
+| F45 | the pending state disappears: the text field's unapplied search shows as a chip that is not yet applied, and the summary counts applied chips only | `components/FilterBar.jsx` |
+| F59 | a broken image blocks its own field and offers "Rimuovi immagine"; the rest of the form still saves | `app/edit-profile.jsx` |
+| F84 | each control applies itself; "Filtra" becomes "Cerca" inside the field it governs; the foot shows "N filtri attivi · Azzera" | `components/FilterBar.jsx` |
+| F90 | one auth shell: same alignment, same masthead, the login's form centred instead of anchored under the safe area | `app/(auth)/login.jsx`, `app/(auth)/register.jsx` |
+
+One composition statement has the same shape: the direction borrows from
+direction C that "the profile stops being five peer cards; identity and settings
+become one sheet with bands", and the frozen file list never contained the
+profile's body. Only its type roles and its avatar changed here. Recorded as an
+owed statement, not as a delivered one.
