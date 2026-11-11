@@ -370,3 +370,30 @@ only to `andrea-frontend`, never `git add -A`, never `main`.
 **The one stop is the approval of this plan.** Approving it also adopts the
 single lock answer in the brief — F72's placement in `Screen.jsx` — and nothing
 else asks for a word.
+
+### Review — cycle 3
+
+One `reviewer` on `52f386b..95d3d28`, three angles. Verdict: **NO MERGE** with
+one P1 open, which is now closed; the rest were P2 and are recorded, not taken.
+
+- **P1 (closed).** `EmptyState`'s «Azzera filtri» (`(tabs)/index.jsx`) calls
+  `azzeraFiltri` on the hook directly, so it never reached the bar's own reset:
+  after F74 the field kept the old term and the chip announced a search that was
+  no longer running, while the two «Azzera» surfaces looked identical to the
+  user. Fixed in the file that owns the draft (`FilterBar.jsx`): the draft
+  follows the applied text when that becomes empty — React's render-phase
+  adjustment, not an effect, because `react-hooks/set-state-in-effect` rejects
+  the effect form here. Verified on the real path: search `zzzqqq` → «Nessun
+  risultato per “zzzqqq”» → «Azzera filtri» → field empty, chip gone, foot
+  «Nessun filtro attivo», «20 di 197 servizi»; typing still leaves the foot
+  alone, and «Cerca» still applies.
+- **P2, not taken.** `applicaFiltri` reads `filtri` while its three siblings read
+  the applied ref (no wrong state today; it wants a comment in the cycle that
+  revisits the filter contract). The X refetches with nothing to clear, and Enter
+  bypasses the disabled «Cerca» (both cycle-2 behaviour, absorbed by the sequence
+  guard). Two over-specified sentences in `DESIGN.md` § Refresh. The brief's
+  "zero DOM mutations" criterion cannot separate the builds — the capture README
+  says so in the measurement section.
+- **P2, taken because this cycle broke it.** The cycle-2 changelog heading was
+  lost when cycle 3's entry was inserted above it. Restored.
+

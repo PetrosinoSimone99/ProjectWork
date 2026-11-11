@@ -91,11 +91,28 @@ export function FilterBar({
     setBozzaTesto('');
     onAzzeraTesto();
   };
-  // «Azzera» del piede: la bozza si svuota insieme a tutto, poi tocca al padre.
+  // «Azzera filtri» del piede: la bozza si svuota insieme a tutto, poi tocca al padre.
   const azzeraTutto = () => {
     setBozzaTesto('');
     onAzzera();
   };
+
+  // Non tutti i reset passano da qui: «Azzera filtri» dello stato vuoto chiama
+  // l'hook direttamente (`(tabs)/index.jsx`), quindi la bozza segue il testo
+  // **applicato** quando questo torna vuoto — altrimenti il campo resterebbe con
+  // una ricerca che non è più in corso e il chip la annuncerebbe come in attesa.
+  // È l'aggiustamento di stato in render documentato da React, non un effetto:
+  // digitare non lo attraversa (il testo applicato non cambia) e una scelta
+  // discreta non lo tocca per la stessa ragione.
+  const [testoApplicatoPrecedente, setTestoApplicatoPrecedente] = useState(
+    filtriApplicati.testo,
+  );
+  if (filtriApplicati.testo !== testoApplicatoPrecedente) {
+    setTestoApplicatoPrecedente(filtriApplicati.testo);
+    if (filtriApplicati.testo === '') {
+      setBozzaTesto('');
+    }
+  }
 
   // Sotto la soglia le righe si impilano e i campi diventano larghi quanto il
   // contenitore: valori calcolati una volta sola per tutte le righe.
