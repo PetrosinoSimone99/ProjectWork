@@ -6,6 +6,37 @@ documents/code touched.
 
 ---
 
+## 2026-11-11 — Login enters the app on the web (critique P0)
+
+### What changed
+
+1. **`login.jsx` always navigates after a successful sign-in.** The screen only
+   called `router.replace(ritorno)`, and only when `ritorno` was a valid
+   internal path; every deliberate visit to `/login` has no `ritorno`, so
+   nothing navigated. The root `Stack` swaps `(auth)` for `(tabs)`
+   declaratively (`app/_layout.jsx:74-79`), which carries the screen on native
+   but leaves the web URL at `/login`: the token was stored and the app's own
+   navigation bar rendered **above** the still-mounted login form. The F58 fix
+   removed the auth layout's `<Redirect>` (killing the two-owner race) and left
+   the exit without an owner — closed in code, open in behaviour. Destination
+   now defaults to `/`; the `ritorno` path is unchanged.
+
+2. **Verified live, both directions.** `/login` → the catalog at `/` with
+   `barattolo.token` stored; `/login?ritorno=/report` → `/report`, so the F26
+   return path still works. `npx expo lint` and `npx tsc --noEmit` clean.
+
+### Why
+
+`docs/DESIGN.md` and the UX rubric assume an authenticated user reaches the
+app; the critique that opened this session (`24/40`, one P0) found the primary
+task unreachable from the interface itself on the only runnable surface.
+
+### Touched
+
+`Frontend/src/app/(auth)/login.jsx`.
+
+---
+
 ## 2026-11-11 — UX realignment cycle 3: F74, F72, F61 closed
 
 ### What changed

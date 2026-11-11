@@ -53,13 +53,19 @@ export default function LoginScreen() {
     setError(null);
     try {
       await signIn(username.trim(), password);
-      // On success the root navigator switches to the tabs by itself; if the
-      // user was thrown out of a screen, they land back on it.
-      // Solo un percorso interno: `//host` è un URL protocol-relative e non deve
-      // diventare una destinazione.
-      if (typeof ritorno === 'string' && !ritorno.startsWith('//') && ritorno.startsWith('/')) {
-        router.replace(ritorno);
-      }
+      // Il login ha sempre una destinazione: `ritorno` quando è un percorso
+      // interno (`//host` è un URL protocol-relative e non deve diventare una
+      // destinazione), altrimenti la home.
+      //
+      // Non basta contare sullo `Stack` radice che scambia (auth) con (tabs):
+      // da nativo quel cambio porta con sé la schermata, sul web l'URL resta
+      // `/login` e chi si è appena autenticato continua a vedere il modulo.
+      // Una sola navigazione, un solo proprietario.
+      const destinazione =
+        typeof ritorno === 'string' && ritorno.startsWith('/') && !ritorno.startsWith('//')
+          ? ritorno
+          : '/';
+      router.replace(destinazione);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
