@@ -44,7 +44,12 @@ export function AuthProvider({ children }) {
         if (stored && isTokenValid(stored.token)) {
           setSession(stored);
         } else if (stored) {
+          // Il token salvato c'era e non è più valido: è la stessa cosa di un
+          // 401, quindi la schermata di accesso deve poterlo dire. Prima questo
+          // ramo azzerava in silenzio e l'utente finiva su un login identico a
+          // una visita volontaria (audit F91).
           void clearSession();
+          setMotivoUscita(SESSION_EXPIRED_MESSAGE);
         }
       })
       .catch((error) => {

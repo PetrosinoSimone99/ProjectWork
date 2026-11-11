@@ -102,6 +102,16 @@ export default function EditProfileScreen() {
   const [form, setForm] = useState(() => ripresa?.form ?? formVuoto());
   const [initial, setInitial] = useState(() => ripresa?.initial ?? {});
   const bozzaRipresa = useRef(Boolean(ripresa));
+  // L'ultimo utente visto: quando la sessione cade l'effetto qui sotto lavora
+  // con `utente === null`, quindi il proprietario della bozza va ricordato
+  // prima, altrimenti è sempre `null` e il lettore non può mai riconoscerla
+  // (audit F58, seconda metà di F26).
+  const ultimoUtente = useRef(utente);
+  useEffect(() => {
+    if (utente) {
+      ultimoUtente.current = utente;
+    }
+  }, [utente]);
   const [legacyLocation, setLegacyLocation] = useState(null);
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -166,7 +176,12 @@ export default function EditProfileScreen() {
     if (utente) {
       return;
     }
-    bozzaInterrotta = { proprietario: utente?.username ?? null, form, initial, legacyLocation };
+    bozzaInterrotta = {
+      proprietario: (utente ?? ultimoUtente.current)?.username ?? null,
+      form,
+      initial,
+      legacyLocation,
+    };
     router.replace({ pathname: '/login', params: { ritorno: '/edit-profile' } });
   }, [utente, form, initial, legacyLocation, router]);
 
