@@ -103,6 +103,20 @@ export const ombra = '#000000';
 export const fasciaPallinoMenuWeb = 48 + space.lg;
 
 /**
+ * Larghezza massima della barra del menu **web** (nome + «Aggiorna» + «Menu»),
+ * arrotondata per eccesso: misura la regola con cui `Screen` decide se riservare
+ * la fascia in cima.
+ *
+ * La regola era tarata sull'altezza della barra (64) quando la barra conteneva
+ * solo nome e menu. Ora che contiene anche il refresh della schermata è lei a
+ * poter finire sopra la colonna: si riserva quando il margine che resta fra il
+ * bordo della colonna e quello della finestra è più stretto della barra, perché
+ * sotto quella soglia la barra entra nella colonna e sopra non ci arriva mai.
+ * Se cambia la barra, cambia anche questo numero, e la soglia si sposta da sola.
+ */
+export const larghezzaBarraMenuWeb = 320;
+
+/**
  * Larghezze massime del layout su schermi larghi. Solo web le applica:
  * `Screen` centra il contenuto su 560; il catalogo della home sale a 720, che è
  * una misura di lettura (una riga di 19 px sta in ~60 caratteri) e non una

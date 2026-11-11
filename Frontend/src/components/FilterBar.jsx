@@ -121,8 +121,13 @@ export function FilterBar({
 
   return (
     <Card style={style}>
-      {/* Riga di riepilogo sempre visibile: solo «Filtri» e apertura/chiusura
-          del pannello; il conteggio sta nel piede (F10). */}
+      {/* Riga di riepilogo sempre visibile: «Filtri» e apertura/chiusura del
+          pannello, con lo stato dei filtri sulla stessa riga quando non ce ne
+          sono. Prima lo stato viveva in un piede tutto suo: due righe da 44 pt
+          in una card che ne dichiarava l'assenza, cioè 108 pt di viewport per
+          dire «niente» (critica, P2: il primo servizio cominciava a metà
+          schermata). Il conteggio dei filtri **applicati** resta nel piede,
+          accanto ad «Azzera», quando c'è qualcosa da contare (F10). */}
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: pannelloAperto }}
@@ -139,11 +144,18 @@ export function FilterBar({
         <AppText variant="body" style={{ fontWeight: '700' }}>
           Filtri
         </AppText>
-        <AppIcon
-          name={pannelloAperto ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={t.textSecondary}
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          {numeroFiltri === 0 ? (
+            <AppText variant="small" tone="secondary">
+              Nessun filtro attivo
+            </AppText>
+          ) : null}
+          <AppIcon
+            name={pannelloAperto ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={t.textSecondary}
+          />
+        </View>
       </Pressable>
 
       {/* Il testo digitato ma non applicato sta **fuori** dal pannello: è
@@ -247,7 +259,12 @@ export function FilterBar({
         </>
       ) : null}
 
-      <FilterFooter numeroFiltri={numeroFiltri} onAzzera={azzeraTutto} />
+      {/* Il piede esiste solo quando c'è qualcosa da contare: senza filtri
+          l'unica informazione è «Nessun filtro attivo», che sta già nella riga
+          di riepilogo. */}
+      {numeroFiltri > 0 ? (
+        <FilterFooter numeroFiltri={numeroFiltri} onAzzera={azzeraTutto} />
+      ) : null}
     </Card>
   );
 }
@@ -383,9 +400,6 @@ function FilterFooter({ numeroFiltri, onAzzera }) {
 
 /** La riga del piede: i filtri **applicati** soltanto; il «·» annuncia l'«Azzera» accanto. */
 function etichettaPiede(quanti) {
-  if (quanti === 0) {
-    return 'Nessun filtro attivo';
-  }
   if (quanti === 1) {
     return '1 filtro attivo ·';
   }

@@ -110,18 +110,28 @@ two first-level titles on one page are worse than none.
 ## Refresh
 
 The pull gesture is native and does not exist on the web. There, a screen that
-owns a refresh shows it as **one** control, `Aggiorna`, in the top trailing
-corner of the column — above the header and outside the scroll, so it does not
-scroll away and every refreshable screen puts it in the same place.
+owns a refresh shows it as **one** control, `Aggiorna`, inside the web chrome
+bar next to `Menu` — fixed, above the content and outside the scroll, so it
+does not scroll away and every refreshable screen puts it in the same place.
 
-It is neutral: `secondary`, never the filled accent, because refreshing is not
-the screen's primary action. It takes `target.min`, and while the request is in
-flight it is disabled and spinning, so the state is explicit rather than a
-second tap on a control that already ran. Native screens keep the gesture and
-show no button.
+It is neutral: it lives in the neutral bar with no accent of its own, because
+refreshing is not the screen's primary action. It takes `target.min`, and while
+the request is in flight it is disabled and spinning, so the state is explicit
+rather than a second tap on a control that already ran. Native screens keep the
+gesture and show no button.
 
-The rule lives in `Screen`, which already receives the pair: no screen composes
-its own refresh control, and a screen that has nothing to refresh has none.
+One owner per layer: the screen **publishes** the pair it already receives
+(`hooks/web-chrome`), the bar draws it. No screen composes its own refresh
+control, and a screen that has nothing to refresh publishes nothing — the bar
+then shows its name and the menu alone.
+
+The bar is anchored to the window, not to the column. That is a decision, not
+leftover: chrome is one object at one edge, and the content is a column at
+another. What the column does pay for is the reserve: when the gap left between
+the column's edge and the window's is narrower than the bar
+(`larghezzaBarraMenuWeb`), the bar would sit over the column, so the content
+starts below it (`Screen`'s `riservaMenuWeb`). Above that width the bar clears
+the column and the header starts at the top of the window.
 
 ## Composition rules
 

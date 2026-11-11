@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from './AppIcon';import { AppText } from './AppText';
+import { useChromeWeb } from '@/hooks/web-chrome';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { TAB_ROUTES } from '@/navigation/tab-routes';
 import { ombra, radius, space, useTokens } from '@/theme/tokens';
@@ -104,9 +114,20 @@ export function WebNavMenu() {
   // corrispondenza esatta, come per l'evidenziazione delle voci.
   const rottaAttiva = TAB_ROUTES.find((rotta) => percorso === rotta.path) ?? null;
 
+  // Il chrome pubblicato dalla schermata in focus (`hooks/web-chrome`): il
+  // refresh da offrire, se ne ha uno. Senza schermata che pubblichi (le rotte
+  // di accesso non lo fanno) la barra resta nome + menu, come prima.
+  const chrome = useChromeWeb();
+  const { width: larghezzaFinestra } = useWindowDimensions();
+  // Sotto i 380 px il nome dell'app, «Aggiorna» e «Menu» non stanno nella
+  // stessa pillola: il refresh resta (è un comando) e perde la parola, che torna
+  // a essere solo `accessibilityLabel`.
+  const etichettaAggiorna = larghezzaFinestra >= 380;
+
   const [aperto, setAperto] = useState(false);
   const [visibile, setVisibile] = useState(false);
   const [controlloInHover, setControlloInHover] = useState(false);
+  const [aggiornaInHover, setAggiornaInHover] = useState(false);
   const [voceInHover, setVoceInHover] = useState(null);
 
   // `useState` e non `useRef().current`: i valori animati si leggono **durante
@@ -299,8 +320,9 @@ export function WebNavMenu() {
       accessibilityLabel="Navigazione principale"
       style={[styles.contenitore, { top: insets.top + space.lg, right: space.lg }]}
     >
-      {/* La barra: il nome dell'app e il controllo che apre la tendina. Neutra
-          (superficie + bordo), nessun accento: F88. L'altezza è fissa (48) perché
+      {/* La barra: il nome dell'app, il refresh della schermata in focus (se
+          ne ha uno) e il controllo che apre la tendina. Neutra (superficie +
+          bordo), nessun accento: F88. L'altezza è fissa (48) perché
           `fasciaPallinoMenuWeb` riserva esattamente questa misura in cima al
           contenuto: qui non si stringe e non si allarga. */}
       <View
@@ -313,6 +335,44 @@ export function WebNavMenu() {
         <AppText variant="body" style={{ color: t.text, fontWeight: '700' }}>
           Baratto-lo
         </AppText>
+
+        {/* Il refresh della schermata in focus. Stesso mestiere del controllo
+            «Menu» accanto: un comando dentro la barra, neutro, alto 40. Prima
+            stava in una banda tutta sua sopra il contenuto, che costava 82 pt
+            su ogni schermata e finiva con un bordo destro diverso da quello
+            della colonna. Mentre la richiesta è in volo è disabilitato e gira,
+            così lo stato è esplicito invece di essere un secondo tap. */}
+        {chrome?.onRefresh ? (
+          <Pressable
+            focusable
+            accessibilityRole="button"
+            accessibilityLabel="Aggiorna i dati della schermata"
+            accessibilityState={{ disabled: chrome.refreshing, busy: chrome.refreshing }}
+            aria-busy={chrome.refreshing}
+            disabled={chrome.refreshing}
+            onPress={chrome.onRefresh}
+            onHoverIn={() => setAggiornaInHover(true)}
+            onHoverOut={() => setAggiornaInHover(false)}
+            style={({ pressed }) => [
+              styles.controllo,
+              {
+                backgroundColor: pressed || aggiornaInHover ? t.background : 'transparent',
+                cursor: chrome.refreshing ? 'default' : 'pointer',
+              },
+            ]}
+          >
+            {chrome.refreshing ? (
+              <ActivityIndicator size="small" color={t.textSecondary} />
+            ) : (
+              <AppIcon name="refresh-outline" size={DIMENSIONE_ICONA_CONTROLLO} color={t.text} />
+            )}
+            {etichettaAggiorna ? (
+              <AppText variant="small" style={{ color: t.text, fontWeight: '600' }}>
+                Aggiorna
+              </AppText>
+            ) : null}
+          </Pressable>
+        ) : null}
 
         <Animated.View style={{ transform: [{ scale: scalaControllo }] }}>
           <Pressable
@@ -470,8 +530,11 @@ export function WebNavMenu() {
 }
 
 const styles = StyleSheet.create({
-  // Ancorato al viewport (non alla colonna del contenuto): a 320 come a 1920 sta
-  // a `space.lg` dal bordo destro della finestra.
+  // Il chrome resta ancorato **al viewport**: a 320 come a 1920 sta a
+  // `space.lg` dal bordo destro della finestra, e su finestre strette il
+  // contenuto gli riserva la fascia in cima (`fasciaPallinoMenuWeb`). Il refresh
+  // della schermata sta **dentro** questa barra: così c'è un solo bordo di
+  // chrome invece di due (la barra al viewport e una banda alla colonna).
   contenitore: {
     position: 'fixed',
     zIndex: 100,

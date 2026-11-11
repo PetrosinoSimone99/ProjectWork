@@ -6,6 +6,70 @@ documents/code touched.
 
 ---
 
+## 2026-11-11 — One chrome bar, and the top of the screen comes back (critique P2)
+
+### What changed
+
+1. **The web refresh left its own band and moved into the chrome bar.**
+   `Screen` no longer draws an `Aggiorna` row above the content: it publishes
+   the pair it already receives (`hooks/web-chrome`: a module store, read with
+   `useSyncExternalStore`, published on focus so the screen in front always owns
+   it) and `WebNavMenu` draws it next to `Menu`, in the same neutral pill. The
+   band cost `16 + 50 + 16 = 82` on every screen, put a second right edge next to
+   the column's, and on a phone pushed the first service to `y≈437` of 844.
+   `DESIGN.md` § Refresh is rewritten: the rule (one control, outside the scroll,
+   same place everywhere) is unchanged; the owner of the pixels changed.
+
+2. **The reserve rule now measures the bar, not its height.** With `Aggiorna`
+   inside, the bar can reach over the column: `Screen` reserves the top band when
+   the gap between the column's edge and the window's is narrower than
+   `larghezzaBarraMenuWeb` (new token, 320). Constant, not measured at runtime:
+   the threshold is `maxWidth + 2 × (320 + 16)`, so 1392 for the catalog — laptops
+   reserve 64 pt, wide desktops do not reserve anything. Section warnings
+   (`_layout.jsx`) hold the same width.
+
+3. **The filter card is one row when there is nothing to filter by.**
+   `Nessun filtro attivo` moved from a footer row of its own onto the summary
+   row (`FilterBar`), and the footer — count plus `Azzera` — renders only when at
+   least one filter is applied. The closed card went from 108 to 68 pt.
+
+### Measured (Chromium, light, catalog, logged in as `mario.rossi`)
+
+| Viewport | First service card | Before | After |
+| --- | --- | --- | --- |
+| 390×844 | `y` | ≈437 | **298** |
+| 1280×900 | `y` | ≈358 | **280** |
+| 1440×900 | `y` | ≈358 | **216** |
+| 1920×1000 | `y` | ≈360 | **216** |
+
+Bar and header do not overlap at any of the four widths, by construction: above
+the threshold the bar clears the column, below it the column starts under the
+bar. Verified that a screen **without** a refresh (`/report`) shows name and menu
+only, that a filter in use restores the footer (`1 filtro attivo ·` + `Azzera` +
+`7 di 7 servizi`), and that `Azzera` returns the row to `Nessun filtro attivo`.
+Dark theme re-checked on the bar and the loading state.
+
+### Why
+
+The critique's P2: the chrome was anchored to the window while the content was a
+column, and the band paid 82 pt for a control that a bar already at the top of
+the screen could carry.
+
+### Touched
+
+`Frontend/src/hooks/web-chrome.js` (new), `components/Screen.jsx`,
+`components/WebNavMenu.jsx`, `components/FilterBar.jsx`, `app/_layout.jsx`,
+`theme/tokens.js`, `docs/DESIGN.md` § Refresh.
+
+### Still open
+
+- The scrollbar rail is the browser's own, next to the column and over the empty
+  canvas. Theming it means exposing the palette as CSS variables, because
+  `+html.jsx` cannot import `light`/`dark` from `tokens.js`; not done here.
+- `/staff` and `/staff-users` still mount for a non-staff user (previous entry).
+
+---
+
 ## 2026-11-11 — One first-level title per screen, from the role (critique P1)
 
 ### What changed

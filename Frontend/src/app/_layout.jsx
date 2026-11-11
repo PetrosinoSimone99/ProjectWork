@@ -8,7 +8,7 @@ import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { WebNavMenu } from '@/components/WebNavMenu';
 import { useSessionExpiry } from '@/hooks/useSessionExpiry';
-import { fasciaPallinoMenuWeb, space } from '@/theme/tokens';
+import { larghezzaBarraMenuWeb, space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
 
 /**
@@ -54,15 +54,15 @@ function RootNavigator() {
       {utente ? <WebNavMenu /> : null}
       {/* La safe area la aggiunge il contenitore degli avvisi, non lo `Stack`:
           senza avvisi lo `Stack` resta a filo schermo e ogni schermata mette il
-          suo margine. Sul web il bordo destro si tiene fuori dalla fascia del
-          pallino del menu (`fasciaPallinoMenuWeb`): l'avviso è a tutta
-          larghezza e altrimenti il suo testo finirebbe sotto il pallino. */}
+          suo margine. Sul web il bordo destro si tiene fuori dalla barra del
+          menu (`larghezzaBarraMenuWeb`): l'avviso è a tutta larghezza e
+          altrimenti il suo testo finirebbe sotto la barra. */}
       {mostraAvvisi ? (
         <View
           style={{
             paddingTop: insets.top,
             paddingLeft: space.lg,
-            paddingRight: Platform.OS === 'web' ? fasciaPallinoMenuWeb : space.lg,
+            paddingRight: Platform.OS === 'web' ? larghezzaBarraMenuWeb : space.lg,
             paddingBottom: space.sm,
             gap: space.sm,
           }}

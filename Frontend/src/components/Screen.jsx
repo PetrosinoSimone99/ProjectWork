@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -8,9 +8,16 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppButton } from './AppButton';
-import { fasciaPallinoMenuWeb, layout, space, useTokens } from '@/theme/tokens';
+import {
+  fasciaPallinoMenuWeb,
+  larghezzaBarraMenuWeb,
+  layout,
+  space,
+  useTokens,
+} from '@/theme/tokens';
+import { annunciaChromeWeb } from '@/hooks/web-chrome';
 
 /** Il pull-to-refresh è un gesto nativo: sul web la ScrollView lo ignorerebbe. */
 const SUPPORTA_AGGIORNAMENTO = Platform.OS !== 'web';
@@ -35,17 +42,20 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * l'uno sia l'altro.
  *
  * Con `scroll` accetta `refreshing` + `onRefresh` (dalla hook `useRefresh`):
- * da nativo resta il gesto di pull-to-refresh, sul web la stessa coppia
- * accende una riga «Aggiorna» sopra il contenuto, fuori dalla ScrollView.
+ * da nativo resta il gesto di pull-to-refresh; sul web la stessa coppia viene
+ * **pubblicata** al chrome (`hooks/web-chrome`) e disegnata dalla barra del
+ * menu, accanto al menu, con il bordo destro della colonna. Prima la disegnava
+ * qui una banda riga sopra il contenuto: 82 pt su ogni schermata, un secondo
+ * bordo destro, e su mobile il primo servizio a metà viewport.
  *
  * `bottomSpacing` è lo spazio sotto il contenuto, misurato dentro la safe area:
  * le schermate con una barra ancorata in fondo (chat) lo riducono, altrimenti
  * sopra l'home indicator resta un vuoto troppo alto.
  *
- * Sul web, quando la finestra è così stretta che la colonna del contenuto entra
- * nella fascia della barra di `WebNavMenu` (`fasciaPallinoMenuWeb`, in
- * alto a destra), quella fascia viene riservata con un padding in più: il titolo
- * non finisce sotto la barra. Da nativo non cambia niente.
+ * Sul web, quando la finestra è così stretta che la barra di `WebNavMenu`
+ * entrerebbe nella colonna del contenuto, quella fascia viene riservata con un
+ * padding in più: il titolo non finisce sotto la barra. Da nativo non cambia
+ * niente.
  */
 export function Screen({
   children,
@@ -72,9 +82,33 @@ export function Screen({
   // La colonna è centrata: il suo bordo destro entra nella fascia della barra
   // del menu quando la finestra è più stretta del tetto di colonna aumentato
   // della fascia su entrambi i lati. Allora il contenuto scende sotto la fascia.
+  // La colonna è centrata: la fascia della barra del menu va riservata quando il
+  // margine che resta fra il bordo della colonna e quello della finestra è più
+  // stretto della barra stessa — sotto quella soglia la barra entra nella
+  // colonna (e finisce sopra il titolo), sopra non ci arriva mai. La misura è la
+  // larghezza della barra, non la sua altezza: da quando la barra contiene anche
+  // il refresh della schermata, è lei a decidere dove finisce il contenuto.
   const riservaMenuWeb =
     Platform.OS === 'web' &&
-    larghezzaFinestra < larghezzaMassima + 2 * fasciaPallinoMenuWeb;
+    larghezzaFinestra < larghezzaMassima + 2 * (larghezzaBarraMenuWeb + space.lg);
+
+  // Il chrome del web (la barra del menu) disegna il refresh accanto al menu:
+  // la schermata in focus dice cosa offrire. `useFocusEffect` e non `useEffect`:
+  // lo stack tiene montate più schermate, e chi perde il focus deve ritirare la
+  // propria pubblicazione altrimenti la barra mostra il refresh di una
+  // schermata che non è più quella davanti.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'web') {
+        return undefined;
+      }
+      annunciaChromeWeb({
+        onRefresh: aggiornamentoWeb ? onRefresh : null,
+        refreshing,
+      });
+      return () => annunciaChromeWeb(null);
+    }, [aggiornamentoWeb, onRefresh, refreshing]),
+  );
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener(KEYBOARD_SHOW_EVENT, () => {
@@ -146,30 +180,6 @@ export function Screen({
           paddingBottom: safeAreaBottomPadding,
         }}
       >
-        {aggiornamentoWeb && (
-          <View
-            style={{
-              paddingHorizontal: space.lg,
-              paddingTop: space.lg,
-              paddingBottom: space.lg,
-              maxWidth: larghezzaMassima,
-              width: '100%',
-              alignSelf: 'center',
-              alignItems: 'flex-end',
-              gap: space.sm,
-            }}
-          >
-            <AppButton
-              variant="secondary"
-              icon="refresh-outline"
-              label="Aggiorna"
-              onPress={onRefresh}
-              disabled={refreshing}
-              loading={refreshing}
-              accessibilityLabel="Aggiorna i dati della schermata"
-            />
-          </View>
-        )}
         {content}
       </View>
     </KeyboardAvoidingView>
