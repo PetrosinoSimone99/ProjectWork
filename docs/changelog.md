@@ -6,7 +6,70 @@ documents/code touched.
 
 ---
 
-## 2026-11-11 — UX realignment cycle 2: the five owed, and one voice per type
+## 2026-11-11 — UX realignment cycle 3: F74, F72, F61 closed
+
+### What changed
+
+1. **F74 — the catalog stops re-rendering on every keystroke.** The draft text
+   left the catalog's state: `FilterBar` owns the string and
+   `useServiceCatalog` receives it only when a search is applied
+   (`3a9b7df`). Re-measured with the method the finding was measured with (22
+   real keydowns, one `requestAnimationFrame` probe per key, 390 light, the
+   pre-fix build in a worktree and the fixed build compared in one session):
+   **16.6–37.6 ms, median 25.3 → 7.6–21.8 ms, median 10.3**, against a control
+   «Nome» at 7–20.8 ms, median 11.6. Two corrections to what cycle 2 wrote: the
+   49–73 ms of that session was the same pre-fix code (the dev bundle is not a
+   stable instrument, so only same-session deltas are attributable), and the
+   «~6 mutations per key» were the filter card's own churn inside the list's
+   subtree — the 20 rows mutate **0** times before and after. No `memo` was
+   added: the measurement reached the control, so that block closed `N/A`.
+2. **F72 — the web has a refresh action, and it lives in one place.**
+   `Screen` renders one neutral «Aggiorna» control above the content and
+   outside the scroll, for every screen that already owns `useRefresh`; native
+   keeps the gesture and shows nothing (`b8bbe28`). The home forwards the same
+   pair it hands to its `FlatList`. The placement rule is in `DESIGN.md`
+   § Refresh, next to the accent and border rules, together with why the
+   control is `secondary` and not the filled accent.
+3. **F61 — the operations log's vocabulary is pinned by a test.**
+   `services/__tests__/staff.test.js` asserts the eight actions and four target
+   types of `Backend/src/Entity/StaffOperationLog.php:19-20` from two literal
+   lists, plus the value the backend adds later (returned raw), the
+   prototype-key case and the two empty paths (`159cd77`, 20 tests). The demo
+   log holds no rows and writing one would modify demo data, which the cycle
+   forbids.
+4. **Verification.** Three captures at 390 light in
+   `docs/audits/screens-2026-11-11-final/` — the home with «Aggiorna», the
+   typed filters before and after — each paired with its reference; the
+   assertions, the console and both measurement tables are in that directory's
+   README.
+
+### Why
+
+Cycle 2 closed wave 3 row by row and left three of them with a condition
+instead of a fix: F74 needed a measurement and a file it had not scoped, F72
+needed a placement decision, F61 needed evidence that did not depend on a demo
+row. Cycle 3 pays all three, and records one pre-existing defect it met on the
+way (Enter pressed in the same tick as the last character applies the previous
+value) instead of folding it into this cycle.
+
+### Touched
+
+`Frontend/src/components/{FilterBar,Screen}.jsx`,
+`Frontend/src/hooks/useServiceCatalog.js`,
+`Frontend/src/app/(tabs)/index.jsx`,
+`Frontend/src/services/__tests__/staff.test.js`,
+`docs/DESIGN.md`, `docs/audits/ux-remediation-2026-11-11.md`,
+`docs/audits/screens-2026-11-11-final/`, `docs/briefs/ux-realignment/*`.
+
+### Attention (backend maintainer)
+
+`Backend/` was read and never edited; nothing about the API contract changed.
+The staff vocabulary in `services/staff.js` is still a hand-copied mirror of
+`StaffOperationLog::ACTIONS`/`TARGET_TYPES`, now with a test that fails when the
+lists and the map disagree. A new backend action needs the map extended: the
+fallback prints the raw value rather than hiding the row.
+
+---
 
 ### What changed
 

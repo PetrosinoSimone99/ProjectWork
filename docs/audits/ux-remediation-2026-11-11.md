@@ -279,12 +279,12 @@ where a row had been re-homed by §8.
 | F58 login transition had two owners | **closed** (4a) | `(auth)/_layout.jsx`, `edit-profile.jsx` |
 | F59 broken avatar blocks an unrelated save | **closed** (cycle 2) | `edit-profile.jsx` — `photoLoadFailed` leaves `valid`, drops the image key from the payload and offers «Rimuovi immagine»; name, surname, location and bio save (`4274fab`) |
 | F60 `l&apos;account` printed literally | **closed** (4a) | `(auth)/register.jsx` |
-| F61 operations log prints raw backend values | **closed** (cycle 2) | `services/staff.js` — the 8 actions and 4 target types of `Backend/src/Entity/StaffOperationLog.php:19-20` in Italian, raw value as the fallback; verified against the constants, the demo log has no rows (`02a7412`) |
+| F61 operations log prints raw backend values | **closed** (cycle 2, test in cycle 3) | `services/staff.js` — the 8 actions and 4 target types of `Backend/src/Entity/StaffOperationLog.php:19-20` in Italian, raw value as the fallback (`02a7412`). Cycle 2 verified the map against the constants and never against a run: the demo log holds no rows. `services/__tests__/staff.test.js` now pins it — one assertion per backend value from two literal lists, a key-set assertion, the unknown value coming back raw, the prototype-key case and the two empty paths (20 tests, cycle 3 `159cd77`) |
 | F70 panel has no scroll region | **closed** | `ModalShell.jsx` — 85 % cap, only the body scrolls; `ServiceDetailModal` moved its action and the sentence explaining it into the footer |
 | F71 confirm actions do not stack | **closed** | `ConfirmModal.jsx` (< 480 window), `AppButton.jsx` (`numberOfLines`) |
-| F72 no refresh on web | **N/A** (cycle 2) | decided in cycle 2 lock 1: reopens when a web refresh affordance gets a placement rule in `PageHeader` covering all four pull-to-refresh screens; adding it to one screen would be the drift this cycle removes |
+| F72 no refresh on web | **closed** (cycle 3) | the placement rule it was waiting for exists: `Screen` renders one neutral «Aggiorna» control above the content, outside the scroll, for every screen that already owns `useRefresh` — so all four get it and none composes its own; native keeps the gesture and shows no button. `DESIGN.md` § Refresh holds the rule. Landed with the home's pair forwarded to `Screen` (`b8bbe28`); capture `screens-2026-11-11-final/06-home-390-light-refresh.png` |
 | F73 staff lists not virtualised | **N/A** (cycle 2) | answered from the contract: `docs/api.md:48-51` paginates with `page`/`limit` and a maximum, and every staff list asks for **one** page with a fixed limit (`staff.jsx:80-84` 50/10, `staff-users.jsx:106` 50). Nothing queues, so there is nothing to virtualise. Reopens the day a screen requests page 2 or lifts the limit |
-| F74 catalog re-renders on every keystroke | **N/A** (cycle 2, measured) | measured at 390 light: 22 real keydowns give 49–73 ms per frame and ~6 DOM mutations per key inside the 20-row list, against 23–31 ms for the same typing in the «Nome» field of «Modifica profilo». The catalog does re-render per keystroke. The fix needs a file this cycle did not scope (`ServiceCard` memo or the draft text moved into `FilterBar`), so it is owed, not silently taken. Reopens with that fix |
+| F74 catalog re-renders on every keystroke | **closed** (cycle 3, measured) | the draft text left the catalog's state: `FilterBar` owns the string and `useServiceCatalog` receives it only when a search is applied (`3a9b7df`). Re-measured the same way (22 real keydowns, `requestAnimationFrame` per key, 390 light, both builds of the same tree in one session): the filter field went from **16.6–37.6 ms, median 25.3** to **7.6–21.8 ms, median 10.3**, against a control «Nome» at 7–20.8 ms, median 11.6. Two corrections to the row above, both earned: the 49–73 ms of cycle 2 was the same pre-fix code on another session (the dev bundle is not a stable instrument, so only same-session deltas are attributable), and the «~6 mutations per key» were the filter card's own churn inside the list's subtree — counting the 20 rows alone gives **0 before and 0 after**, because a re-render that writes the same DOM writes nothing. The cost was work, not DOM; the frame probe is the metric |
 | F80 no page frame at 1280 | **closed** | `tokens.js` (catalog measure), `Screen.jsx`, `ServiceCard.jsx` — one right edge |
 | F81 one flat vertical rhythm | **closed** | `Screen.jsx` gap is the section beat; `Card.jsx` already held the card beat |
 | F82 no card anatomy | **closed** | `ServiceCard.jsx` — headline, one meta line, one trailing action |
@@ -374,5 +374,19 @@ and the fixed single-page `limit`; F74 measured (and owed as a fix, in the row
 above); F94 closed on the captured console; F72 is the one decision this cycle
 made explicitly — `N/A`, with the condition written instead of an affordance
 added at the end of a cycle.
+
+### Cycle 3 — the three that were owed, closed on their own evidence
+
+F74 is fixed and measured twice (median 25.3 → 10.3 ms per key against a control
+at 11.6); F72 has its affordance and its placement rule, in `Screen` rather than
+`PageHeader`, for the reason the lock answer gives; F61 is pinned by a unit test
+because the demo log holds no rows and writing one would modify demo data.
+
+One observation made while verifying, recorded rather than folded in: pressing
+Enter in the filter field **in the same tick** as the last typed character
+applies the previous value. It does that on the pre-fix build too, so it is not
+a regression of this cycle. It reopens when the field's submit path is
+revisited — a deferred submit, or reading the value from the event instead of
+the render's state.
 
 Evidence: [`screens-2026-11-11-final/`](screens-2026-11-11-final/README.md).

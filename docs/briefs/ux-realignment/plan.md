@@ -145,23 +145,23 @@ sheet shipped, the one-per-type rule landed, and wave 3 is answered row by row
 in the remediation doc's §11. What that paragraph used to call owed — the four
 findings with an answer and no block, and the composition borrow — is history.
 
-What is left after both cycles, and none of it is work this plan can guess at:
+**Cycle 3 (2026-11-11) closed the three wave-3 rows that had a condition**:
+F74's fix is measured (median 25.3 → 10.3 ms per key against a control at
+11.6), F72 has its web affordance and its placement rule in `DESIGN.md` §
+Refresh, F61 is pinned by `services/__tests__/staff.test.js`. Nothing in wave 3
+is deferred any more.
 
-- **F74's fix**, measured and owed: the catalog re-renders on every keystroke at
-  49–73 ms per key against a 23–31 ms control, and the fix needs a file neither
-  cycle scoped (`ServiceCard` memo, or the draft text moved into `FilterBar`).
-- **F72's condition**, deliberately not an affordance yet: reopens when a web
-  refresh action has a placement rule in `PageHeader` for all four screens that
-  own a pull-to-refresh.
-- **Wave 3**, unchanged and deferred with its conditions: F61, F72, F73, F74,
-  F94.
+What is left, and none of it is work this plan can guess at:
+
+- **One pre-existing defect met in cycle 3, recorded not fixed**: pressing Enter
+  in the catalog's filter field in the same tick as the last typed character
+  applies the previous value (the pre-fix build does it too). Reopens when that
+  field's submit path is revisited.
 - **`origin/main` is still 3 commits ahead** (Backend only, zero Frontend
   impact). No merge performed: that is a separate commit on Andrea's word.
 
-The next session, in order, if Andrea wants them: F45+F84 in one commit (one
-file, one decision, both rows), then F59, then F90, then the profile sheet, then
-wave 3 as each condition unblocks. Each is small enough to be its own block with
-its own gate.
+No item is left "next session, in order": cycles 2 and 3 spent the queue, and a
+new one starts from the remediation doc's remaining rows rather than from here.
 
 Environment, in this order, or the session loses half an hour to it:
 
@@ -327,8 +327,8 @@ answer (F72's placement lives in `Screen.jsx`).
 - 3. F74: `memo` on the card, only if block 2's after is still above the control | files: Frontend/src/components/ServiceCard.jsx,Frontend/src/components/ServicesSection.jsx | done: if it fires, block 2 is re-measured with the same method and the number written in the same row; if block 2 already reached the control, this block closes `N/A` with that sentence and no code is touched | Stato: N/A — the after measurement is at the control (median 10.3 against 11.6), so no `memo` was added and `ServiceCard.jsx` / `ServicesSection.jsx` are untouched
 - 4. F72: one web-only refresh action, one placement rule | files: Frontend/src/components/Screen.jsx,Frontend/src/app/(tabs)/index.jsx,docs/DESIGN.md | done: on the web all four screens that own `useRefresh` render exactly one «Aggiorna» control (`AppButton variant="secondary" icon="refresh-outline"`), disabled and loading while `refreshing`, at `target.min`, in a trailing-aligned row above the content and outside the scroll; native renders none (`Platform.OS === 'web'`); the three screens that already pass the pair to `Screen` are untouched, the home now passes it too; `DESIGN.md` gains the rule in one paragraph and restates no value (`grep -nE '#[0-9A-Fa-f]{3,8}' docs/DESIGN.md` still returns nothing); gate green. Execution note: the row also carries `paddingBottom: space.lg`, so the control and the title are 32 apart (16 + the content's own 16) — the lane that raised it was right, my first wording left 16 and contradicted its own consequence | Stato: DONE — `b8bbe28`, three files; the control is one `AppButton` in `Screen`, the home passes the pair, native renders none
 - 5. F61: deterministic unit test for the two label functions | files: Frontend/src/services/__tests__/staff.test.js (new) | done: `npx jest src/services/__tests__/staff.test.js` green with one assertion per backend value (8 actions, 4 targets) derived from two literal lists cited to `Backend/src/Entity/StaffOperationLog.php:19-20`, a key-set assertion that fails if the map grows past those lists, the unknown action returning the raw string, the unknown target returning the raw string, and the `''`/`undefined` paths (`'Azione'` / `''`); `Backend/` untouched and not read at test time | Stato: DONE — 20 tests green
-- 6. Verification capture: home 390 light with the refresh action | files: docs/audits/screens-2026-11-11-final/06-home-390-light-refresh.png (new),docs/audits/screens-2026-11-11-final/README.md | done: `browser` MCP, two `networkidle` then an assertion that no `/Carico|Guardo/` is on screen and that the «Aggiorna» control is present, theme from `localStorage['barattolo.tema'] = 'chiaro'`, session `mario.rossi`/`demo`, PHP polled instead of a fixed wait; the README pairs it with `01-home-390-light.png` and says what changed; the five existing captures are not rewritten | Stato: TODO
-- 7. Close: changelog plus the three remediation rows | files: docs/changelog.md,docs/audits/ux-remediation-2026-11-11.md | done: F72 and F74 read `closed (cycle 3)` with the commit and their evidence (the rule and the four screens / the two numbers), F61's row keeps `closed` and gains the test path with a note that it was never `N/A`, §11's closing paragraph and the "How to resume" above match what the tree now holds, changelog has one entry for cycle 3, and `grep 'Stato: TODO'` over this file returns nothing | Stato: TODO
+- 6. Verification capture: home 390 light with the refresh action | files: docs/audits/screens-2026-11-11-final/06-home-390-light-refresh.png (new),docs/audits/screens-2026-11-11-final/README.md | done: `browser` MCP, two `networkidle` then an assertion that no `/Carico|Guardo/` is on screen and that the «Aggiorna» control is present, theme from `localStorage['barattolo.tema'] = 'chiaro'`, session `mario.rossi`/`demo`, PHP polled instead of a fixed wait; the README pairs it with `01-home-390-light.png` and says what changed; the five existing captures are not rewritten | Stato: DONE — `06-home-390-light-refresh.png`, one «Aggiorna» control at the touch floor with no fill, console 0 errors / 1 pre-existing warning; `07`/`08` are the typed-filter pair the measurement produced
+- 7. Close: changelog plus the three remediation rows | files: docs/changelog.md,docs/audits/ux-remediation-2026-11-11.md | done: F72 and F74 read `closed (cycle 3)` with the commit and their evidence (the rule and the four screens / the two numbers), F61's row keeps `closed` and gains the test path with a note that it was never `N/A`, §11's closing paragraph and the "How to resume" above match what the tree now holds, changelog has one entry for cycle 3, and `grep 'Stato: TODO'` over this file returns nothing | Stato: DONE — `docs/audits/ux-remediation-2026-11-11.md`, `docs/changelog.md`, this file and `README.md`
 
 ### Lanes — cycle 3
 
