@@ -8,7 +8,11 @@ import { space } from '@/theme/tokens';
 
 /**
  * Una delle due sezioni ripetibili di «cosa offro» / «cosa cerco»: titolo,
- * spiegazione, da 1 a `LIMITE_VOCI` voci e il pulsante che ne aggiunge una.
+ * spiegazione, l'editor della voce e, **solo se la voce non c'è**, il pulsante
+ * che la crea. La regola di prodotto (2026-11-11) è una voce per tipo: finché
+ * la voce c'è, un comando che ne aggiunge un'altra non deve esistere a schermo
+ * — disabilitato si legge come «rotto», e con un tetto di uno non c'è nessun
+ * caso in cui possa servire.
  *
  * Vive fuori dalla schermata di registrazione per due motivi: la schermata
  * resterebbe oltre la soglia di righe indicata dalle regole del progetto, e la
@@ -66,20 +70,17 @@ export function EntriesSection({
         </View>
       ) : null}
 
-      {/* Il pulsante non sparisce mai quando il limite è raggiunto: un comando che
-          scompare fa credere che la funzione sia rotta. */}
-      <AppButton
-        label={sezione.etichettaAggiungi}
-        variant="secondary"
-        icon="add-outline"
-        disabled={pieno}
-        onPress={onAggiungi}
-      />
-      {pieno ? (
-        <AppText variant="small" tone="secondary">
-          {sezione.testoLimite}
-        </AppText>
-      ) : null}
+      {/* Il comando per aggiungere sparisce quando la voce c'è: con un tetto di
+          una voce per tipo l'unico caso in cui serve è la sezione svuotata a
+          mano (`allowEmpty`), e lì il pulsante è l'unica via d'uscita. */}
+      {pieno ? null : (
+        <AppButton
+          label={sezione.etichettaAggiungi}
+          variant="secondary"
+          icon="add-outline"
+          onPress={onAggiungi}
+        />
+      )}
     </Card>
   );
 }

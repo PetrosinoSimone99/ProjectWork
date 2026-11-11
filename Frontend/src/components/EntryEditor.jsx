@@ -14,10 +14,11 @@ import { radius, space, target, useTokens } from '@/theme/tokens';
  * solo `isRemote` (`api/index.js` → `aCorpoVoci`), mai `isSuspended`: una
  * voce appena creata è pubblicata.
  *
- * È un blocco ripetibile: la schermata ne disegna da 1 a `LIMITE_VOCI` per tipo e
- * si occupa di aggiungere, togliere e validare. Qui c'è solo il disegno di una
- * voce, senza stato proprio: tutto passa da `onCambia`, così una sola funzione
- * della schermata aggiorna l'elenco in modo immutabile.
+ * È un blocco singolo, non un blocco ripetibile: la regola di prodotto
+ * (2026-11-11) è **una voce per tipo**, quindi la schermata ne disegna una sola
+ * e si occupa di crearla quando manca, di validarla e di toglierla. Qui c'è solo
+ * il disegno di una voce, senza stato proprio: tutto passa da `onCambia`, così
+ * una sola funzione della schermata aggiorna l'elenco in modo immutabile.
  *
  * I limiti e i messaggi di errore non vivono qui: arrivano da
  * `src/services/offer-request.js` (le regole) e dalla schermata (gli errori

@@ -106,18 +106,22 @@ export function PublicationsSection({
         <AppText variant="small" tone="secondary">
           {sezione.spiegazione}
         </AppText>
-        {/* Il pulsante non sparisce mai al limite: un comando che scompare fa
-            credere che la funzione sia rotta. Resta primario solo nella prima
-            sezione, perché su una schermata un solo comando è il più forte. */}
-        <AppButton
-          label="Aggiungi"
-          icon="add"
-          variant={varianteAggiungi}
-          disabled={pieno || !categoriePronte}
-          onPress={onApriNuova}
-          accessibilityLabel={sezione.etichettaAggiungi}
-          style={{ alignSelf: 'flex-start' }}
-        />
+        {/* Il comando per aggiungere sparisce quando la voce del tipo c'è
+            (regola di prodotto: una per tipo). Resta primario solo nella prima
+            sezione, perché su una schermata un solo comando è il più forte. Con
+            le categorie non pronte il comando resta a schermo e spento, perché
+            lì il motivo è temporaneo e va detto. */}
+        {pieno ? null : (
+          <AppButton
+            label="Aggiungi"
+            icon="add"
+            variant={varianteAggiungi}
+            disabled={!categoriePronte}
+            onPress={onApriNuova}
+            accessibilityLabel={sezione.etichettaAggiungi}
+            style={{ alignSelf: 'flex-start' }}
+          />
+        )}
         {pieno ? (
           <AppText variant="small" tone="secondary">
             {/* Il conteggio può superare il tetto (voci pubblicate prima del
