@@ -169,7 +169,15 @@ export default function HomeScreen() {
   let listaVuota = null;
   if (caricamento && servizi === null) {
     listaVuota = (
-      <View style={{ alignItems: 'center', paddingVertical: space.xxl, gap: space.md }}>
+      // Regione viva (audit UX F53): il primo caricamento non ha ancora nessuna
+      // riga da annunciare, quindi è lo stato a doverlo dire anche a chi non
+      // vede lo spinner. `accessibilityLiveRegion` vale da nativo, `aria-live`
+      // sul web.
+      <View
+        accessibilityLiveRegion="polite"
+        aria-live="polite"
+        style={{ alignItems: 'center', paddingVertical: space.xxl, gap: space.md }}
+      >
         <ActivityIndicator size="large" color={t.primary} />
         <AppText variant="small" tone="secondary">
           Carico i servizi…

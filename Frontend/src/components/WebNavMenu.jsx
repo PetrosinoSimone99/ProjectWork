@@ -292,6 +292,11 @@ export function WebNavMenu() {
   return (
     <View
       ref={riferimentoContenitore}
+      // `navigation`: la barra è la navigazione del web (audit UX F52). Il nome
+      // lo dice anche a chi arriva con la tastiera e sente solo i punti di
+      // riferimento.
+      role="navigation"
+      accessibilityLabel="Navigazione principale"
       style={[styles.contenitore, { top: insets.top + space.lg, right: space.lg }]}
     >
       {/* La barra: il nome dell'app e il controllo che apre la tendina. Neutra

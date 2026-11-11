@@ -101,6 +101,10 @@ export function Screen({
 
   const content = scroll ? (
     <ScrollView
+      // `main`: la terra{\`'}a del contenuto della schermata (audit UX F52). Sotto
+      // l'intestazione di pagina e prima del piè, è ci{\`'} che uno screen reader
+      // cerca quando chiede di saltare al contenuto.
+      role="main"
       style={{ flex: 1 }}
       contentContainerStyle={{ ...riempimento, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
@@ -119,7 +123,9 @@ export function Screen({
       {children}
     </ScrollView>
   ) : (
-    <View style={{ ...riempimento, flex: 1 }}>{children}</View>
+    <View role="main" style={{ ...riempimento, flex: 1 }}>
+      {children}
+    </View>
   );
 
   return (
