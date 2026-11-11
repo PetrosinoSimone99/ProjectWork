@@ -52,3 +52,6 @@ auth.json
 /Frontend/*.p12
 /Frontend/*.key
 /Frontend/*.mobileprovision
+
+# Browser verification logs (browser MCP), never committed
+/.playwright-mcp/

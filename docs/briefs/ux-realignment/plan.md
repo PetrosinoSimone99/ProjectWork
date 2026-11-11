@@ -196,3 +196,113 @@ Gates before every commit: `cd Frontend && npx expo lint && npx tsc --noEmit`
 (both clean at every commit so far; `tsc` gates syntax and imports only, per
 `docs/decisions.md` D010). Commits of 2-3 files, conventional, English, docs in
 the same commit.
+
+---
+
+## Cycle 2 — close the five, apply the one-per-type rule (2026-11-11)
+
+Contract for this cycle: [`plan-brief.md`](plan-brief.md) § "Cycle 2". Class
+**L**: 19 files touched, 7 of them new (counted in that brief, not guessed).
+`Stile: lite`. One stop: this plan.
+
+### What cycle 1 left, restated as facts read from the tree
+
+- **F45/F84** `FilterBar.jsx` still has `label="Filtra"` (line 187) and a
+  separate `Azzera filtri` button (line 249); the count lives only in the
+  collapsed row (line 108), the typed-but-unapplied text exists in the hook as
+  `filtri` vs `filtriApplicati` and is drawn nowhere.
+- **F59** `edit-profile.jsx:238` folds `!photoLoadFailed` into `valid`, and the
+  save button is `disabled={!dirty || !valid}` (line 455): one broken image
+  blocks the whole form. `changes.immagineProfilo` (line 216) travels regardless.
+- **F90** `login.jsx:76-100` owns a masthead (64 pt disc + title + tagline) and
+  `register.jsx:341-347` owns a different one (title + one line). No shared file.
+- **Profile sheet** `profile.jsx` draws five peer `Card`s (data, edit, session,
+  staff, theme) plus an identity block outside them.
+- **F61 unblocked, not blocked.** `Backend/src/Entity/StaffOperationLog.php:19`
+  declares `ACTIONS` (8 values) and `:20` `TARGET_TYPES` (4). The client prints
+  `operation.azione` raw (`staff.jsx:402`), and the normalizer passes the
+  backend string through untouched (`api/normalizers.js`, `normalizeStaffOperations`).
+  A label map built from those two constants is not a guess.
+- **F73 answered by the contract.** `docs/api.md:48-51` documents
+  `page`/`limit` for the catalog with a maximum `limit`; `staff.jsx:80-84` and
+  `staff-users.jsx:106` ask for **one** page with a fixed `limit` (50 / 10) and
+  never request page 2. The lists cannot queue today, so virtualisation has no
+  subject: see block 9, which closes it as `N/A` with the condition rewritten.
+- **F74 measurable.** `ServicesSection.jsx:72-76` renders a `FlatList` whose
+  data comes from `services`, and a keystroke only sets `filtri` in
+  `useServiceCatalog` (`cambiaTesto`, line 151) — no request. Block 9 measures
+  the cost per keystroke; 16 ms is the frame budget and therefore the threshold.
+- **F94 needs the console, nothing else.** Captured in block 9 with the
+  `browser` MCP in the error state; attribution decides between `closed` (our
+  handler) and `N/A` (upstream `react-native-web`, condition rewritten).
+- **F72 is a decision, not an observation**: lock question 1.
+
+### Part 2 — the product rule, as read off the code
+
+`LIMITE_VOCI` is the only knob and it is client-side: `grep -rn "LIMITE_VOCI"
+Backend/` returns nothing, so the backend enforces no cap today (neither did the
+five). It is passed to three places that matter:
+
+| Call site | What it is given | Does the cap see suspended voices? |
+| --- | --- | --- |
+| `EntriesSection.jsx:32` | the registration draft rows (`stato: null`) | yes by construction: a draft has no state |
+| `PublicationsSection.jsx:86` | every published row of that type | **yes**: `(tabs)/offer-and-request.jsx:207-208` filters by `tipo` only, never by `stato`, so a `SOSPESA` row still occupies its place |
+| `register.jsx:273` (`aggiungiAllaSezione`) | the registration list length | yes, same reason |
+
+So "suspending does not free a place" already holds; block 2 keeps it that way
+explicitly and the sentence stops promising otherwise.
+
+---
+
+### Blocks — cycle 2
+
+- 0. Record the lock answers and close the cycle-1 "answered, not shipped" rows in the brief, then add this section's plan as the base commit | files: docs/briefs/ux-realignment/plan.md,docs/briefs/ux-realignment/plan-brief.md | done: `grep -c 'Stato: TODO'` lists only cycle-2 blocks and the brief carries the five lock answers with their verdict; commit `docs: freeze the closing cycle's plan and lock` | Stato: TODO
+- 1. Product rule in its single source: `LIMITE_VOCI = 1`, `testoLimiteVoci` takes both substantives so it can say «1 offerta» / «1 ricerca», over-cap branch says how to get back to one, test derives from the constant and gains the over-cap case | files: Frontend/src/services/offer-request.js,Frontend/src/services/__tests__/offer-request.test.js | done: `cd Frontend && npx jest src/services/__tests__/offer-request.test.js` green including a singular assertion (`'Hai raggiunto il massimo di 1 offerta.'`), a `'1 di 1'` counter assertion and an over-cap sentence naming the count to remove; no existing assertion loosened; `npx expo lint` and `npx tsc --noEmit` green | Stato: TODO
+- 2. Part 2 affordances: the add control disappears once the voice exists, `testoLimite` copies leave `EntriesSection`/`PublicationsSection` (the function's own sentence replaces them), the EntryEditor and `aggiungiVoce` comments stop saying "da 1 a LIMITE_VOCI" | files: Frontend/src/components/EntriesSection.jsx,Frontend/src/components/PublicationsSection.jsx,Frontend/src/components/EntryEditor.jsx | done: with one offer the sections render no add affordance (`pieno` branch), still print «1 di 1»; `grep -rn 'testoLimite' Frontend/src` matches only `offer-request.js`; `grep -rn 'da 1 a' Frontend/src` empty; gate green | Stato: TODO
+- 3. Registration: with one voice per type the screen shows one editor and no «aggiungi un'altra», its own copy of the sentence follows the constant and its guard keeps blocking a second row | files: Frontend/src/app/(auth)/register.jsx | done: `grep -n 'Aggiungi un' 'Frontend/src/app/(auth)/register.jsx'` empty; the section copy comes from `offer-request.js` and not from a local template; gate green | Stato: TODO — runs inside lane 3 together with block 6, same file
+- 4. F45+F84 in one commit: each control applies itself, «Filtra» becomes «Cerca» inside the field it governs, the typed-but-unapplied text becomes a chip «Cerca «testo»», the foot shows «N filtri attivi · Azzera» and the summary counts applied filters only | files: Frontend/src/components/FilterBar.jsx | done: `grep -rn "'Filtra'\|\"Filtra\"" Frontend/src` empty and no comment still describes the removed button; typing without Enter renders the chip while `contaFiltri(filtriApplicati)` does not move (verified in block 10's filters capture); `onApplica` still reached by the in-field control and by Enter; gate green | Stato: TODO
+- 5. F59: a broken image URL blocks its own field only and offers «Rimuovi immagine»; name, surname, location and bio still save, and the broken URL never travels | files: Frontend/src/app/edit-profile.jsx | done: `photoLoadFailed` is out of `valid`, `changes` drops `immagineProfilo` while the preview fails, the remove action clears the field; manual check on the real 404 URL: name persists, image unchanged; gate green | Stato: TODO
+- 6. F90: one auth shell — the same masthead, the same alignment, the login form centred instead of hung under the safe area | files: Frontend/src/components/AuthShell.jsx,Frontend/src/app/(auth)/login.jsx,Frontend/src/app/(auth)/register.jsx | done: `grep -rn 'Baratto-lo' Frontend/src` matches the shell only; both screens import it; login's form is vertically centred at 390; gate green | Stato: TODO
+- 7. Profile becomes one sheet with bands: identity and settings divided by 1 px `t.border` rules instead of five peer cards, «Modifica profilo» stays the action, «Area staff» stays role-only, «Aspetto» and the session line become bands, «Esci» stays outside | files: Frontend/src/app/(tabs)/profile.jsx | done: one `Card` in the screen body (`grep -c '<Card'` = 1), no new literal value (only `space`, `radius`, `t.*`), staff row absent for `mario.rossi` and present for `staff.anna` in block 10's captures; gate green | Stato: TODO
+- 8. F61: the operations log prints the backend's vocabulary in words, with the raw value as the fallback for an action that is not in the list | files: Frontend/src/app/staff.jsx | done: a label map for the 8 `ACTIONS` and 4 `TARGET_TYPES` of `Backend/src/Entity/StaffOperationLog.php:19-20` lives next to `REVIEW_LABELS`, unknown values print raw; checked on `staff.anna`'s log in block 10; gate green | Stato: TODO
+- 9. Wave 3, verification only: F73 answered against `docs/api.md:48-51` + the fixed single-page `limit`; F74 measured with the browser MCP (MutationObserver mutations per keystroke and the longest task over 20 keystrokes at 390, threshold 16 ms); F94's console stack captured in the catalog error state and attributed | files: docs/audits/ux-remediation-2026-11-11.md | done: each of the three carries `closed` or `N/A` **with the measured number or the console frame** in the same row, and the rewritten condition when `N/A`; no `TODO` left anywhere in the file | Stato: TODO
+- 10. Verification captures, `browser` MCP, two `networkidle` then assert no `/Carico|Guardo/`: home 390 light, offer-and-request 390 light (the cap shows here), profile 390, registration 390, filters open 390; theme from `localStorage['barattolo.tema']`, `mario.rossi`/`demo`, `staff.anna`/`demo` for block 8's check | files: docs/audits/screens-2026-11-11-final/ (new) | done: five PNGs plus a README pairing each with its `before` file from `screens-2026-11-11/`, the console line for each capture recorded, no demo row modified | Stato: TODO
+- 11. Close: one changelog entry for cycle 2, every cycle-2 row in the remediation doc flipped with its commit, the cycle-1 "How to resume" rewritten to what is now true (four findings shipped, one borrow spent, wave 3 closed with its evidence) | files: docs/changelog.md,docs/audits/ux-remediation-2026-11-11.md,docs/briefs/ux-realignment/plan.md,docs/briefs/ux-realignment/plan-brief.md | done: `grep -rn 'massimo di 5\|LIMITE_VOCI = 5' Frontend/src docs` empty, `grep -c 'Stato: TODO'` in this file is 0, every block above has `DONE` or `N/A` with its condition | Stato: TODO
+- 12. F72 — conditional on lock answer 1 | files: Frontend/src/components/PageHeader.jsx,Frontend/src/app/(tabs)/index.jsx,Frontend/src/app/(tabs)/agreements.jsx,Frontend/src/app/(tabs)/offer-and-request.jsx,Frontend/src/app/(tabs)/profile.jsx (only if the answer is "affordance now") | done: if the answer is "defer", this block closes `N/A` with the condition and the four screens rewritten in the remediation row and no code touched; if the answer is "now", the refresh action exists on all four pull-to-refresh screens and only on web | Stato: TODO — decision in the brief, lock 1
+
+### Lanes — cycle 2
+
+Shared base written by the parent **before** any lane and committed: block 1
+(`offer-request.js` + its test), because blocks 2 and 3 read the new copy out of
+it. Mode **(b)**: shared tree, disjoint files, git forbidden to children, the
+parent commits. Before each commit `git diff --stat` must list exactly the files
+the lane declared, or the lane is cut and the difference is reported.
+
+| Lane | Blocks | Agent | Writes | Disjoint from |
+| --- | --- | --- | --- | --- |
+| 1 | 4 | `worker` | `components/FilterBar.jsx` | 2, 3, 4 |
+| 2 | 5 | `worker` | `app/edit-profile.jsx` | 1, 3, 4 |
+| 3 | 3 + 6 | `worker` | `components/AuthShell.jsx`, `app/(auth)/login.jsx`, `app/(auth)/register.jsx` | 1, 2, 4 |
+| 4 | 7 | `worker` | `app/(tabs)/profile.jsx` | 1, 2, 3 |
+
+Four lanes is above half the L ceiling of five, so they launch in **two calls of
+two** (payload under 16 KB each), never as one call of four. Parent, sequential:
+blocks 2, 8, 9, 10, 11, 12. Review: **one** `reviewer` on the whole cycle diff
+with the three angles written into its task (correctness / security and data /
+coherence with this brief), which is the fifth and last child of the budget.
+
+Each lane's task carries the contract path (`docs/briefs/ux-realignment/plan.md`,
+`plan-brief.md`), its allowed file list, the ban on git and on widening, and the
+"contradiction stop": grep every symbol this plan names before the first edit
+and report back instead of aliasing it.
+
+### Gate, commits, and the one stop
+
+Gate before every commit: `cd Frontend && npx expo lint && npx tsc --noEmit`,
+plus `npx jest src/services/__tests__/offer-request.test.js` on blocks 1-3.
+Commits of 2-3 files, conventional, English, docs in the same commit. Push only
+to `andrea-frontend`, never `git add -A`, never `main`.
+
+**The one stop is the approval of this plan.** Lanes, block order and the five
+lock answers in the brief are fixed by it; nothing else asks for a word.
+
