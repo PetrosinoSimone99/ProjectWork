@@ -309,3 +309,64 @@ to `andrea-frontend`, never `git add -A`, never `main`.
 **The one stop is the approval of this plan.** Lanes, block order and the five
 lock answers in the brief are fixed by it; nothing else asks for a word.
 
+
+---
+
+## Cycle 3 — close F74, F72, F61 (2026-11-11)
+
+Contract for this cycle: [`plan-brief.md`](plan-brief.md) § "Cycle 3". Class
+**L**: 14 files touched, 4 of them new (counted in that brief, not guessed).
+`Stile: lite`. One stop: this plan, whose approval also adopts the single lock
+answer (F72's placement lives in `Screen.jsx`).
+
+### Blocks — cycle 3
+
+- 0. Record the cycle-3 contract and this section, then add them as the base commit | files: docs/briefs/ux-realignment/plan-brief.md,docs/briefs/ux-realignment/plan.md | done: both files carry a Cycle 3 section, the lock question is recorded with its adopted answer, and no cycle-1/cycle-2 block is left `TODO`; commit `docs: freeze cycle 3's contract and plan` | Stato: TODO
+- 1. F74: the typed text leaves the catalog state — `FilterBar` owns the draft string, the hook keeps only what is applied | files: Frontend/src/components/FilterBar.jsx,Frontend/src/hooks/useServiceCatalog.js | done: `grep -n 'filtri\.testo' Frontend/src/hooks/useServiceCatalog.js` returns nothing and `grep -n 'onCambiaTesto' Frontend/src/hooks/useServiceCatalog.js` returns nothing; typing 5 characters leaves `filtriApplicati` untouched and the pending chip «Cerca «…»» still renders; Enter/«Cerca» applies the typed text, the X clears only the text and reapplies the others, «Azzera» clears the field with the rest; `npx expo lint`, `npx tsc --noEmit` and `npx jest src/services/__tests__` green | Stato: TODO
+- 2. F74: measure with the same method as the «before» — 22 real keydowns, one `requestAnimationFrame` probe per key, a `MutationObserver` on the 20-row list, control field «Nome» in «Modifica profilo» | files: docs/audits/screens-2026-11-11-final/README.md,docs/audits/screens-2026-11-11-final/07-filters-typed-390-before.png (new),docs/audits/screens-2026-11-11-final/08-filters-typed-390-after.png (new) | done: the README's F74 table carries four numbers (control before/after, filter field before/after) taken in the same session on the same build, and the list mutations for the filter field are **0**; if the after latency is not at or below the control's 23–31 ms, block 1 is reverted (`git revert`) and the row states both numbers instead of keeping the fix | Stato: TODO
+- 3. F74: `memo` on the card, only if block 2's after is still above the control | files: Frontend/src/components/ServiceCard.jsx,Frontend/src/components/ServicesSection.jsx | done: if it fires, block 2 is re-measured with the same method and the number written in the same row; if block 2 already reached the control, this block closes `N/A` with that sentence and no code is touched | Stato: TODO
+- 4. F72: one web-only refresh action, one placement rule | files: Frontend/src/components/Screen.jsx,Frontend/src/app/(tabs)/index.jsx,docs/DESIGN.md | done: on the web all four screens that own `useRefresh` render exactly one «Aggiorna» control (`AppButton variant="secondary" icon="refresh-outline"`), disabled and loading while `refreshing`, at `target.min`, in a trailing-aligned row above the content and outside the scroll; native renders none (`Platform.OS === 'web'`); the three screens that already pass the pair to `Screen` are untouched, the home now passes it too; `DESIGN.md` gains the rule in one paragraph and restates no value (`grep -nE '#[0-9A-Fa-f]{3,8}' docs/DESIGN.md` still returns nothing); gate green | Stato: TODO
+- 5. F61: deterministic unit test for the two label functions | files: Frontend/src/services/__tests__/staff.test.js (new) | done: `npx jest src/services/__tests__/staff.test.js` green with one assertion per backend value (8 actions, 4 targets) derived from two literal lists cited to `Backend/src/Entity/StaffOperationLog.php:19-20`, a key-set assertion that fails if the map grows past those lists, the unknown action returning the raw string, the unknown target returning the raw string, and the `''`/`undefined` paths (`'Azione'` / `''`); `Backend/` untouched and not read at test time | Stato: TODO
+- 6. Verification capture: home 390 light with the refresh action | files: docs/audits/screens-2026-11-11-final/06-home-390-light-refresh.png (new),docs/audits/screens-2026-11-11-final/README.md | done: `browser` MCP, two `networkidle` then an assertion that no `/Carico|Guardo/` is on screen and that the «Aggiorna» control is present, theme from `localStorage['barattolo.tema'] = 'chiaro'`, session `mario.rossi`/`demo`, PHP polled instead of a fixed wait; the README pairs it with `01-home-390-light.png` and says what changed; the five existing captures are not rewritten | Stato: TODO
+- 7. Close: changelog plus the three remediation rows | files: docs/changelog.md,docs/audits/ux-remediation-2026-11-11.md | done: F72 and F74 read `closed (cycle 3)` with the commit and their evidence (the rule and the four screens / the two numbers), F61's row keeps `closed` and gains the test path with a note that it was never `N/A`, §11's closing paragraph and the "How to resume" above match what the tree now holds, changelog has one entry for cycle 3, and `grep 'Stato: TODO'` over this file returns nothing | Stato: TODO
+
+### Lanes — cycle 3
+
+Shared, written and committed by the parent in block 0 before any lane: both
+`docs/briefs/ux-realignment/*` files. Mode **(b)**: shared tree, disjoint files,
+**git forbidden to the lanes**, the parent commits. Before each commit
+`git diff --stat` must list exactly the files its lane declared, or the lane is
+cut and the difference is reported.
+
+| Lane | Block | Agent | Writes | Disjoint from |
+| --- | --- | --- | --- | --- |
+| 1 | 1 (+ 3 on resume) | `worker` | `components/FilterBar.jsx`, `hooks/useServiceCatalog.js` | 2 |
+| 2 | 4 (the `Screen.jsx` half) | `worker` | `components/Screen.jsx` | 1 |
+
+Two lanes, under half the L ceiling of five, launched in **one** `subagent`
+call with `tasks: [...]`, payload under 16 KB, `timeoutMs` passed explicitly.
+While they run the parent writes block 5 (the test, a disjoint new file) — the
+pipeline is discovery-of-the-next-block, not waiting.
+
+Parent, sequential: blocks 0, 2 (browser MCP is single-session, so it cannot be a
+lane), 4's `index.jsx` + `DESIGN.md` half and the integration after both lanes,
+6, 7. **One** `reviewer` on the whole cycle diff is the third and last child,
+with the three angles written into its task (correctness / security and data /
+coherence with this plan).
+
+Each lane's task carries the contract paths, its allowed file list, the ban on
+git and on widening, and the contradiction stop: grep every symbol this plan
+names before the first edit and report back instead of aliasing it. `PATH:riga`
+provenance for what lives in the tree; `SPECIFICA DEL PADRE` for block 3's
+wording.
+
+### Gate, commits, and the one stop
+
+Gate before every commit: `cd Frontend && npx expo lint && npx tsc --noEmit`,
+plus `npx jest src/services/__tests__` (26 tests green today, 3.0 s). Commits of
+2-3 files, conventional, English, docs in the same commit as the change. Push
+only to `andrea-frontend`, never `git add -A`, never `main`.
+
+**The one stop is the approval of this plan.** Approving it also adopts the
+single lock answer in the brief — F72's placement in `Screen.jsx` — and nothing
+else asks for a word.

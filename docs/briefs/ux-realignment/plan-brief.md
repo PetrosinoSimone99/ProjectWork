@@ -184,3 +184,117 @@ No scope widening: a point that needs a file outside the lists above is declared
 and closed `N/A`, not silently added. `Backend/`, `Context_and_DB_V2/`,
 `Archive/` read-only. No merge of `origin/main`. No push to `main`.
 
+
+---
+
+## Cycle 3 — close F74, F72, F61 (2026-11-11)
+
+### Objective
+
+Close the three wave-3 rows that now have a decision, a fix and an unverified
+map: make the catalog stop re-rendering on every keystroke (F74), give the web a
+refresh action under one placement rule (F72), and verify F61's label map with a
+deterministic unit test instead of a live demo row. No new feature, no new
+dependency, no new font, no token value moved.
+
+### Counted, not guessed
+
+14 files touched, **4 of them new**: 4 modified code files
+(`components/FilterBar.jsx`, `hooks/useServiceCatalog.js`,
+`components/Screen.jsx`, `app/(tabs)/index.jsx`), 1 new test file
+(`services/__tests__/staff.test.js`), 6 modified docs (`plan.md`,
+`plan-brief.md`, `DESIGN.md`, `ux-remediation-2026-11-11.md`, `changelog.md`,
+`screens-2026-11-11-final/README.md`), 3 new PNGs. Class L, 3 children (2 lanes,
+1 reviewer), **1 stop: this plan**. `ServiceCard.jsx` + `ServicesSection.jsx`
+sit outside the count: they are block 3, conditional on the measurement.
+
+### Facts measured this session (2026-11-11)
+
+- Branch `andrea-frontend`, tree clean, HEAD `a820676`, 0/0 against
+  `origin/andrea-frontend`. Versus `origin/main`: 3 behind, Backend only. **No
+  merge performed.**
+- **F61 is not `N/A`**: `ux-remediation-2026-11-11.md:282` reads
+  `closed (cycle 2)`. It was closed against
+  `Backend/src/Entity/StaffOperationLog.php:19-20` and never against a test, and
+  the demo log holds no rows, so nothing has ever exercised
+  `operationActionLabel` (`services/staff.js:112`) or `operationTargetLabel`
+  (`:120`) at run time. Cycle 3 does not reopen the row: it makes the evidence
+  deterministic.
+- **F72 and F74 are `N/A`** (`:285`, `:287`) with their reopening conditions
+  written, and both conditions now hold: F74's fix is measurable, F72's is a
+  placement rule.
+- **Only one of the four refresh screens uses `PageHeader`**:
+  `(tabs)/index.jsx:240`. `offer-and-request.jsx:423` and `agreements.jsx:205`
+  hand-roll the same `View gap xs` + title + sentence block, and
+  `profile.jsx:221` puts the name inside the identity band — profile has no page
+  header at all. The home's `PageHeader` is also inside the `FlatList`'s
+  `ListHeaderComponent`, so an action placed there scrolls away.
+- **`Screen.jsx` is the one thing all four already share**, and it already
+  receives `refreshing`/`onRefresh` from three of them (`Screen.jsx:33-34`, used
+  at `offer-and-request.jsx:422`, `agreements.jsx:197-199`,
+  `profile.jsx:106`); the home hands the same pair to `ServicesSection` for the
+  `FlatList`, so `index.jsx` gains one prop.
+- **F74's cause is state, not the card**: a keystroke runs only `cambiaTesto`
+  (`useServiceCatalog.js:151`), which sets `filtri` — the draft the catalog
+  state owns — so every letter re-renders the hook, the screen and the 20-row
+  list with no request involved.
+- `npx jest src/services/__tests__` today: 2 files, 26 tests, green in 3.0 s.
+  The gate for this cycle adds that command to lint and `tsc`.
+
+### Closed decisions (not reopenable)
+
+1. F74 is fixed by taking the draft text out of the catalog state, not by a memo
+   alone: the state that changes on a keystroke is what re-renders the list, and
+   a `memo` on the card would leave the re-render in place and hide only its
+   cost. The memo is block 3, conditional on the measurement.
+2. If the after-measurement does not reach the control's range, block 1 is
+   reverted and the row says so with both numbers. A fix that does not move the
+   number is not kept "because it is cleaner".
+3. F72's action is one control in one component, neutral (`variant="secondary"`,
+   no filled accent): refresh is not the primary action of any of the four
+   screens, and the accent-limit rule in `DESIGN.md` keeps applying.
+4. F61 is a unit test on the two pure functions, with the backend's 8 + 4 values
+   written into the test as literals and cited to
+   `Backend/src/Entity/StaffOperationLog.php:19-20`. `Backend/` stays read-only
+   and is not parsed at test time: a test that reads PHP to assert a JS map fails
+   for a reason that has nothing to do with the label.
+5. No demo row is written and no operation is logged: the demo database stays as
+   it is (cycle 2's rule, unchanged).
+
+### Lock — one question
+
+1. **Where the web refresh action lives.** Recommendation: **`Screen.jsx`**, one
+   trailing-aligned row above the content, rendered only when
+   `Platform.OS === 'web'` and `typeof onRefresh === 'function'`, disabled and
+   loading while `refreshing`; the home passes the pair it already hands to
+   `ServicesSection`. Reasons, all read off the tree: it is the only component
+   the four screens already share; it already receives the pair; it sits outside
+   the scroll, so the action does not scroll away; it needs zero per-screen
+   composition. The alternative — `PageHeader`'s `azione` slot — cannot cover
+   the four without three screens adopting `PageHeader` (a composition change
+   with its own visual consequence) and without giving `profile` a header it
+   does not have; on the home it would scroll away. `DESIGN.md` gets the rule
+   either way. "Approvato" adopts this recommendation.
+
+### Success criteria — cycle 3
+
+- Typing in the catalog field produces zero DOM mutations inside the result list
+  and a per-key frame latency at or below the «Nome» control's 23–31 ms.
+- On the web each of the four refresh screens shows exactly one «Aggiorna»
+  control, neutral, at `target.min`, disabled while refreshing; native shows
+  none.
+- `npx jest src/services/__tests__/staff.test.js` is green and covers 8 actions,
+  4 targets and the unknown-value fallback that returns the raw string.
+- `docs/DESIGN.md` states the placement rule in one paragraph and restates no
+  value.
+- The remediation rows read `closed` with their evidence: two numbers for F74,
+  the rule and the four screens for F72, the test path for F61.
+- New captures: home 390 light with the action, filters open 390 before and
+  after, two `networkidle` each, no `/Carico|Guardo/` on screen.
+
+### Exclusions
+
+`Backend/`, `Context_and_DB_V2/`, `Archive/` read-only. No merge of
+`origin/main`. No push to `main`. No new dependency, no new font, no token value
+moved. A point that needs a file outside the list above is declared and closed
+`N/A` with its condition rewritten, never silently added.
