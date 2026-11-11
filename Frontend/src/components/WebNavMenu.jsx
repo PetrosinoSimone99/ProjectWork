@@ -2,16 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppIcon } from './AppIcon';
-import { AppText } from './AppText';
+import { AppIcon } from './AppIcon';import { AppText } from './AppText';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { TAB_ROUTES } from '@/navigation/tab-routes';
 import { ombra, radius, space, useTokens } from '@/theme/tokens';
 
-// Misure della spec (design-spec.md del piano 2026-10-15-navigazione-web-menu):
-// niente numeri magici sparsi nel codice.
-const DIMENSIONE_PALLINO = 48;
-const DIMENSIONE_ICONA_PALLINO = 24;
+// Misure della spec (design-spec.md del piano 2026-10-15-navigazione-web-menu)
+// e della direzione UX del 2026-11-11: niente numeri magici sparsi nel codice.
+// `ALTEZZA_BARRA` è anche la misura che `fasciaPallinoMenuWeb` in `theme/tokens`
+// riserva in cima al contenuto: se cambia qui, cambia anche là.
+const ALTEZZA_BARRA = 48;
+const DIMENSIONE_ICONA_CONTROLLO = 18;
 const DIMENSIONE_ICONA_VOCE = 22;
 const LARGHEZZA_PANNELLO = 224;
 const ALTEZZA_VOCE = 48;
@@ -24,7 +25,7 @@ const DURATA_APERTURA_RIDOTTA = 100;
 const DURATA_CHIUSURA_RIDOTTA = 80;
 
 const DURATA_PRESS = 80;
-const SCALA_PALLINO_PREMUTO = 0.94;
+const SCALA_CONTROLLO_PREMUTO = 0.94;
 const SCALA_VOCE_PREMUTA = 0.98;
 const OPACITA_VOCE_PREMUTA = 0.7;
 
@@ -34,16 +35,17 @@ const SCALA_APERTURA = 0.96;
 
 const EASING_APERTURA = Easing.bezier(0.16, 1, 0.3, 1);
 const MOLLA_PANNELLO = { stiffness: 240, damping: 26, mass: 0.8 };
-const MOLLA_PALLINO = { stiffness: 300, damping: 22 };
+const MOLLA_CONTROLLO = { stiffness: 300, damping: 22 };
 
-// Ombra leggera del pallino e più ampia del pannello; il colore è il token
+// L'ombra della barra resta leggera: la barra ha già un bordo di 1 px che la
+// stacca dal contenuto, l'ombra dice solo che le sta sopra. Colore: il token
 // `ombra` (uno solo, uguale nei due temi).
-const OMBRA_PALLINO = {
+const OMBRA_BARRA = {
   shadowColor: ombra,
-  shadowOpacity: 0.18,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 4 },
-  elevation: 4,
+  shadowOpacity: 0.12,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 3,
 };
 const OMBRA_PANNELLO = {
   shadowColor: ombra,
@@ -54,8 +56,16 @@ const OMBRA_PANNELLO = {
 };
 
 /**
- * Il menu di navigazione del **web**: pallino fisso in alto a destra (placeholder
- * del logo futuro, `// TODO(logo)`) che apre una tendina con le 5 schermate.
+ * Il menu di navigazione del **web**: una barra neutra fissa in alto a destra
+ * — il nome dell'app e il controllo «Menu» — che apre una tendina con le 5
+ * schermate.
+ *
+ * La barra è **neutra** di proposito (direzione UX «A», audit UX F88): l'accento
+ * `primary` resta alla sola azione primaria della schermata e alle marche di
+ * dato che classificano (pillola di categoria, stato). Prima era un disco pieno
+ * d'accento, e sulla stessa schermata c'erano quattro dischi che lo reclamavano
+ * — menu, campanella, marchio, avatar — senza che nessuno fosse l'azione
+ * principale. Il menu non è un'azione del contenuto: è impalcatura.
  *
  * Una sola fonte per titoli e icone: la lista `TAB_ROUTES` di
  * `src/navigation/tab-routes.js`, la stessa con cui `(tabs)/_layout.jsx`
@@ -66,11 +76,11 @@ const OMBRA_PANNELLO = {
  *
  * Rotta attiva: `usePathname()`, con corrispondenza esatta al `path` della
  * rotta. Una rotta fuori dalle 5 (es. `/chat`, `/scambi`) lascia il menu integro
- * e **nessuna** voce evidenziata; in quel caso pallino e testata del pannello lo
- * dicono invece di tacere. Sulle 5 la sezione attuale compare **nell'etichetta
- * del pallino** e nella **testata del pannello** (audit UX F40), così la
- * divergenza dalla barra nativa resta leggibile: si vede sempre in che sezione
- * si è senza dover leggere il titolo della schermata.
+ * e **nessuna** voce evidenziata; in quel caso la barra e la testata del pannello
+ * lo dicono invece di tacere. Sulle 5 la sezione attuale compare **nel nome
+ * accessibile del controllo** e nella **testata del pannello** (audit UX F40),
+ * così la divergenza dalla barra nativa resta leggibile: si vede sempre in che
+ * sezione si è senza dover leggere il titolo della schermata.
  *
  * Stati UI espliciti: `chiuso`, `inApertura`/`inChiusura` (la tendina resta
  * montata finché la chiusura non è finita), voce `hover`/`press`/`focus`/`attiva`.
@@ -78,7 +88,7 @@ const OMBRA_PANNELLO = {
  * non c'è nessun dato asincrono da attendere né da poter fallire.
  *
  * Accessibilità: `accessibilityState` + `aria-*` (su web `react-native-web`
- * legge solo `aria-*`), `Esc` chiude e riporta il focus al pallino, click fuori
+ * legge solo `aria-*`), `Esc` chiude e riporta il focus al controllo, click fuori
  * chiude, ↑/↓ scorrono le voci con wrap, l'anello di focus è quello globale di
  * `FocusRing`. Il movimento usa `Animated` (nessuna dipendenza nuova) e con
  * «Riduci movimento» passa alla sola opacità.
@@ -90,13 +100,13 @@ export function WebNavMenu() {
   const movimentoRidotto = useReducedMotion();
   const isWeb = Platform.OS === 'web';
 
-  // La sezione da dichiarare nel pallino e nella testata del pannello (F40):
+  // La sezione da dichiarare nel controllo e nella testata del pannello (F40):
   // corrispondenza esatta, come per l'evidenziazione delle voci.
   const rottaAttiva = TAB_ROUTES.find((rotta) => percorso === rotta.path) ?? null;
 
   const [aperto, setAperto] = useState(false);
   const [visibile, setVisibile] = useState(false);
-  const [pallinoInHover, setPallinoInHover] = useState(false);
+  const [controlloInHover, setControlloInHover] = useState(false);
   const [voceInHover, setVoceInHover] = useState(null);
 
   // `useState` e non `useRef().current`: i valori animati si leggono **durante
@@ -104,7 +114,7 @@ export function WebNavMenu() {
   // un ref nel render. È lo stesso motivo di `NotificationBanner`.
   const [fadePannello] = useState(() => new Animated.Value(0));
   const [progressoPannello] = useState(() => new Animated.Value(0));
-  const [scalaPallino] = useState(() => new Animated.Value(1));
+  const [scalaControllo] = useState(() => new Animated.Value(1));
 
   const numeroRotte = TAB_ROUTES.length;
   const valoriVoci = useMemo(
@@ -113,7 +123,7 @@ export function WebNavMenu() {
   );
 
   const riferimentoContenitore = useRef(null);
-  const riferimentoPallino = useRef(null);
+  const riferimentoControllo = useRef(null);
   const riferimentiVoci = useRef([]);
   const montato = useRef(true);
   useEffect(() => () => {
@@ -186,8 +196,8 @@ export function WebNavMenu() {
       if (finished && montato.current) {
         // La tendina sta per smontarsi: si riportano a zero i valori del
         // movimento d'ingresso mentre nessuno li vede. Senza l'azzeramento della
-        // molla il pannello restava a 1 dopo la prima apertura e il «sbuca dal
-        // pallino» non si rivedeva (solo il fade). Le voci si azzerano qui e non
+        // molla il pannello restava a 1 dopo la prima apertura e il «sbuca dalla
+        // barra» non si rivedeva (solo il fade). Le voci si azzerano qui e non
         // in `apri`, così una riapertura a metà chiusura non fa saltare la lista.
         progressoPannello.setValue(0);
         valoriVoci.forEach((valore) => valore.setValue(0));
@@ -204,28 +214,28 @@ export function WebNavMenu() {
     }
   }, [aperto, apri, chiudi]);
 
-  const suPressionePallino = useCallback(() => {
+  const suPressioneControllo = useCallback(() => {
     if (movimentoRidotto) {
       return;
     }
-    Animated.timing(scalaPallino, {
-      toValue: SCALA_PALLINO_PREMUTO,
+    Animated.timing(scalaControllo, {
+      toValue: SCALA_CONTROLLO_PREMUTO,
       duration: DURATA_PRESS,
       useNativeDriver: false,
     }).start();
-  }, [movimentoRidotto, scalaPallino]);
+  }, [movimentoRidotto, scalaControllo]);
 
-  const suRilascioPallino = useCallback(() => {
+  const suRilascioControllo = useCallback(() => {
     if (movimentoRidotto) {
-      scalaPallino.setValue(1);
+      scalaControllo.setValue(1);
       return;
     }
-    Animated.spring(scalaPallino, {
+    Animated.spring(scalaControllo, {
       toValue: 1,
-      ...MOLLA_PALLINO,
+      ...MOLLA_CONTROLLO,
       useNativeDriver: false,
     }).start();
-  }, [movimentoRidotto, scalaPallino]);
+  }, [movimentoRidotto, scalaControllo]);
 
   // Esc e click fuori valgono solo con il menu aperto e solo sul web.
   useEffect(() => {
@@ -244,7 +254,7 @@ export function WebNavMenu() {
       if (evento.key === 'Escape') {
         evento.preventDefault();
         chiudi();
-        riferimentoPallino.current?.focus?.();
+        riferimentoControllo.current?.focus?.();
         return;
       }
       if (evento.key !== 'ArrowDown' && evento.key !== 'ArrowUp') {
@@ -284,33 +294,56 @@ export function WebNavMenu() {
       ref={riferimentoContenitore}
       style={[styles.contenitore, { top: insets.top + space.lg, right: space.lg }]}
     >
-      <Animated.View style={{ transform: [{ scale: scalaPallino }] }}>
-        <Pressable
-          ref={riferimentoPallino}
-          focusable
-          accessibilityRole="button"
-          accessibilityLabel={
-            (aperto ? 'Chiudi il menu di navigazione' : 'Apri il menu di navigazione') +
-            (rottaAttiva ? `, sezione attuale: ${rottaAttiva.title}` : '')
-          }
-          accessibilityState={{ expanded: aperto }}
-          aria-expanded={aperto}
-          onPress={attivaMenu}
-          onPressIn={suPressionePallino}
-          onPressOut={suRilascioPallino}
-          onHoverIn={() => setPallinoInHover(true)}
-          onHoverOut={() => setPallinoInHover(false)}
-          style={({ pressed }) => [
-            styles.pallino,
-            OMBRA_PALLINO,
-            { backgroundColor: pressed || pallinoInHover ? t.primaryPressed : t.primary },
-          ]}
-        >
-          {/* TODO(logo): qui arriverà l'immagine del logo; il cerchio 48×48 con
-              radius.pill resta, cambia solo il figlio. */}
-          <AppIcon name="apps" size={DIMENSIONE_ICONA_PALLINO} color={t.onPrimary} />
-        </Pressable>
-      </Animated.View>
+      {/* La barra: il nome dell'app e il controllo che apre la tendina. Neutra
+          (superficie + bordo), nessun accento: F88. L'altezza è fissa (48) perché
+          `fasciaPallinoMenuWeb` riserva esattamente questa misura in cima al
+          contenuto: qui non si stringe e non si allarga. */}
+      <View
+        style={[
+          styles.barra,
+          OMBRA_BARRA,
+          { backgroundColor: t.surface, borderColor: t.border },
+        ]}
+      >
+        <AppText variant="body" style={{ color: t.text, fontWeight: '700' }}>
+          Baratto-lo
+        </AppText>
+
+        <Animated.View style={{ transform: [{ scale: scalaControllo }] }}>
+          <Pressable
+            ref={riferimentoControllo}
+            focusable
+            accessibilityRole="button"
+            accessibilityLabel={
+              (aperto ? 'Chiudi il menu di navigazione' : 'Apri il menu di navigazione') +
+              (rottaAttiva ? `, sezione attuale: ${rottaAttiva.title}` : '')
+            }
+            accessibilityState={{ expanded: aperto }}
+            aria-expanded={aperto}
+            onPress={attivaMenu}
+            onPressIn={suPressioneControllo}
+            onPressOut={suRilascioControllo}
+            onHoverIn={() => setControlloInHover(true)}
+            onHoverOut={() => setControlloInHover(false)}
+            style={({ pressed }) => [
+              styles.controllo,
+              { backgroundColor: pressed || controlloInHover ? t.background : 'transparent' },
+            ]}
+          >
+            <AppIcon name="menu" size={DIMENSIONE_ICONA_CONTROLLO} color={t.text} />
+            <AppText variant="small" style={{ color: t.text, fontWeight: '600' }}>
+              Menu
+            </AppText>
+            {/* Il verso del chevron dice lo stato di apertura: è la stessa cosa
+                che dicono `accessibilityState.expanded` e `aria-expanded`. */}
+            <AppIcon
+              name={aperto ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={t.textSecondary}
+            />
+          </Pressable>
+        </Animated.View>
+      </View>
 
       {visibile ? (
         <Animated.View
@@ -439,12 +472,29 @@ const styles = StyleSheet.create({
     zIndex: 100,
     alignItems: 'flex-end',
   },
-  pallino: {
-    width: DIMENSIONE_PALLINO,
-    height: DIMENSIONE_PALLINO,
-    borderRadius: radius.pill,
+  // La barra è alta esattamente `ALTEZZA_BARRA`: è la misura che il contenuto
+  // riserva sotto di lei. La forma resta a pillola (raggio pieno) come i bottoni
+  // dell'app, il padding a sinistra è quello del contenuto, a destra quello del
+  // controllo, così il bordo del controllo e quello della barra non si toccano.
+  barra: {
+    height: ALTEZZA_BARRA,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: space.md,
+    paddingLeft: space.lg,
+    paddingRight: space.xs,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+  },
+  // Il controllo premibile dentro la barra: bersaglio alto 40, cioè il minimo
+  // utile dentro una barra da 48.
+  controllo: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
     cursor: 'pointer',
   },
   pannello: {
@@ -454,7 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     padding: space.sm,
     // La scala d'ingresso (0.96→1) cresce dall'angolo in alto a destra: è
-    // l'angolo ancorato sotto il pallino, quindi il pannello "sbuca" da lì
+    // l'angolo ancorato sotto la barra, quindi il pannello "sbuca" da lì
     // invece che dal proprio centro. Su web react-native-web lo traduce in
     // `transform-origin`.
     transformOrigin: 'top right',

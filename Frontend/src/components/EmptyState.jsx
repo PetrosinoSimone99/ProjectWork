@@ -5,44 +5,32 @@ import { AppText } from './AppText';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * I tre stati «niente da mostrare», con una forma diversa ciascuno (dal 5
- * ottobre 2026 prima erano tutti lo stesso blocco con icona al centro):
+ * Gli stati «niente da mostrare», con **una sola anatomia** (direzione UX «A»,
+ * audit UX F86): icona, titolo, una frase che dice cosa riempirebbe questo
+ * spazio, e un'azione **solo quando ne esiste una vera**.
  *
- * - `dati` (default): l'utente non ha ancora niente di suo («Non hai accordi»).
- *   Icona in cerchio, titolo, descrizione e una CTA che risolve il vuoto.
- * - `non-disponibile`: la funzione non è attiva («Gli accordi non sono ancora
- *   disponibili»). Solo una riga di testo: niente icona, niente CTA, perché
- *   non c'è nulla che l'utente possa fare da qui.
- * - `mercato`: il mercato oggi non offre nulla («Nessuno in questo momento»).
- *   Come `dati`, ma la CTA di default è «Ricarica»: la situazione può cambiare
- *   senza che l'utente pubblichi nulla.
+ * Prima erano tre forme diverse per lo stesso momento — un blocco con la CTA,
+ * un blocco senza, e una riga di testo senza niente — e la scelta spettava a chi
+ * chiamava, che la faceva undici volte in modo diverso. Ora la forma è questa e
+ * basta: cambiano solo i contenuti.
  *
- * La CTA è sempre passata da chi usa il componente (`etichettaAzione` +
- * `onAzione`): EmptyState non inventa azioni. `variante` decide solo la forma.
+ * Due regole che il componente non viola:
+ *
+ * - **Non inventa azioni.** La CTA arriva da fuori (`etichettaAzione` +
+ *   `onAzione`) e compare solo se ci sono entrambe. «Proposte inviate» ha una via
+ *   d'uscita e la mostra; il match automatico non ce l'ha, dice perché e si
+ *   ferma lì.
+ * - **Non inventa un'icona.** Chi non ne passa una ottiene la stessa anatomia
+ *   senza il disco: `icon` è facoltativa e il disco compare solo con lei.
+ *
+ * La vecchia prop `variante` (`dati` / `mercato` / `non-disponibile`) non esiste
+ * più: i punti di chiamata che la passano ancora non ottengono niente di diverso,
+ * ed è voluto — due di loro le passavano anche un'azione che la variante
+ * scartava. La prop sparisce dalle chiamate quando quei file si toccano.
  */
-export function EmptyState({
-  icon,
-  title,
-  description,
-  variante = 'dati',
-  etichettaAzione = null,
-  onAzione = null,
-}) {
+export function EmptyState({ icon = null, title, description, etichettaAzione = null, onAzione = null }) {
   const t = useTokens();
-
-  // `non-disponibile`: una riga sola, allineata come il resto del contenuto.
-  if (variante === 'non-disponibile') {
-    return (
-      <View style={{ gap: space.xs, paddingVertical: space.md }}>
-        <AppText variant="body" style={{ fontWeight: '600' }}>
-          {title}
-        </AppText>
-        <AppText variant="small" tone="secondary">
-          {description}
-        </AppText>
-      </View>
-    );
-  }
+  const conAzione = Boolean(etichettaAzione && onAzione);
 
   return (
     <View
@@ -53,32 +41,34 @@ export function EmptyState({
         paddingHorizontal: space.xl,
       }}
     >
-      <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: radius.pill,
-          backgroundColor: t.surface,
-          borderWidth: 1,
-          borderColor: t.borderInput,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {/* Icona decorativa: nessun `label`, quindi nascosta agli AT (F22). */}
-        <AppIcon name={icon} size={26} color={t.textSecondary} />
-      </View>
+      {icon ? (
+        <View
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: radius.pill,
+            backgroundColor: t.surface,
+            borderWidth: 1,
+            borderColor: t.borderInput,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Icona decorativa: nessun `label`, quindi nascosta agli AT (F22). */}
+          <AppIcon name={icon} size={26} color={t.textSecondary} />
+        </View>
+      ) : null}
       <AppText variant="heading" style={{ textAlign: 'center' }}>
         {title}
       </AppText>
       <AppText variant="small" tone="secondary" style={{ textAlign: 'center', maxWidth: 300 }}>
         {description}
       </AppText>
-      {etichettaAzione && onAzione ? (
-        // CTA primaria: è l'azione che risolve (o aggiorna) il vuoto.
+      {conAzione ? (
+        // CTA: è l'azione che risolve (o aggiorna) il vuoto. Se non c'è, lo stato
+        // vuoto lo dice con le parole e non finge un comando.
         <AppButton
           label={etichettaAzione}
-          icon={variante === 'mercato' ? 'refresh-outline' : undefined}
           onPress={onAzione}
           style={{ marginTop: space.xs }}
         />
