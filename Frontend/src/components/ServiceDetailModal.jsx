@@ -109,6 +109,24 @@ export function ServiceDetailModal({
       onClose={onClose}
       titolo="Dettaglio del servizio"
       etichettaChiudi="Chiudi il dettaglio"
+      // L'azione primaria del pannello sta fuori dal corpo che scorre (audit
+      // F70): con il testo al 200 % il comando non scappa via insieme alla
+      // descrizione, e la nota che lo spiega resta accanto a lui nel corpo.
+      footer={
+        // Nota e comando insieme: la frase spiega cosa succede premendolo, e
+        // resta appiccicata a lui invece di finire tre blocchi sopra (F70).
+        <View style={{ gap: space.sm }}>
+          <AppText variant="small" tone="secondary" style={{ textAlign: 'center' }}>
+            La proposta è alla cieca, non vincolante: la decide l'altra persona.
+          </AppText>
+          <AppButton
+            label={invio ? 'Invio…' : 'Invia proposta'}
+            icon="swap-horizontal-outline"
+            onPress={() => void inviaProposta()}
+            disabled={invioDisabilitato}
+          />
+        </View>
+      }
     >
       {servizio ? (
         <View style={{ gap: space.md }}>
@@ -202,17 +220,6 @@ export function ServiceDetailModal({
           </View>
 
           <View style={{ gap: space.sm }}>
-            <AppButton
-              label={invio ? 'Invio…' : 'Invia proposta'}
-              icon="swap-horizontal-outline"
-              onPress={() => void inviaProposta()}
-              disabled={invioDisabilitato}
-            />
-            {/* F09: the inline help at the point of doubt — a proposal is
-                blind, non-binding and decided by the other person. */}
-            <AppText variant="small" tone="secondary" style={{ textAlign: 'center' }}>
-              La proposta è alla cieca, non vincolante: la decide l'altra persona.
-            </AppText>
             {erroreVisibile ? (
               // Prosa, non una pillola: `label` invece di `caption` (audit UX
               // F48). `caption` è maiuscolo e spaziato, e un messaggio d'errore
