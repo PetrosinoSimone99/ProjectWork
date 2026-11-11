@@ -142,6 +142,22 @@ export function testoConteggioVoci(voci) {
 }
 
 /**
+ * La frase del limite raggiunto, costruita sul numero che l'utente ha davanti.
+ *
+ * Con più voci del tetto — voci pubblicate prima che il limite esistesse, o da
+ * un altro percorso — «Hai raggiunto il massimo di 5 offerte» accanto a «7 voci»
+ * si contraddice da solo (audit UX F92): qui la frase nomina il conteggio e dice
+ * cosa fare, invece di stampare la costante.
+ */
+export function testoLimiteVoci(voci, sostantivo) {
+  const quanti = voci.length;
+  if (quanti > LIMITE_VOCI) {
+    return `Massimo raggiunto: sospendine o eliminane una delle ${quanti} ${sostantivo}.`;
+  }
+  return `Hai raggiunto il massimo di ${LIMITE_VOCI} ${sostantivo}.`;
+}
+
+/**
  * Errori della singola voce, con messaggi in italiano: oggetto vuoto = voce valida.
  * Le chiavi sono i campi del modulo (`idCategoria`, `mansione`).
  *

@@ -456,6 +456,9 @@ export default function OfferAndRequestScreen() {
           voci={sezione.tipo === TIPI_VOCE.OFFERTA ? offerte : ricerche}
           categorie={categorie}
           statoCategorie={statoCategorie}
+          // Con l'elenco non caricato lo stato vuoto direbbe "non hai
+          // pubblicato niente": la sezione deve saperlo (audit F56).
+          errore={erroreElenco}
           form={form}
           fieldErrors={fieldErrors}
           erroreForm={erroreForm}

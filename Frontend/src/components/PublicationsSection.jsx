@@ -9,6 +9,7 @@ import {
   TIPI_VOCE,
   limiteRaggiunto,
   testoConteggioVoci,
+  testoLimiteVoci,
 } from '@/services/offer-request';
 import { space } from '@/theme/tokens';
 
@@ -25,6 +26,7 @@ export const SEZIONI_PUBBLICAZIONI = [
     spiegazione:
       'Sono i servizi che sai fare: con la categoria giusta gli altri ti trovano nella home.',
     etichettaAggiungi: "Aggiungi un'offerta",
+    sostantivoLimite: 'offerte',
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} offerte.`,
     vuoto: {
       icona: 'pricetags-outline',
@@ -39,6 +41,7 @@ export const SEZIONI_PUBBLICAZIONI = [
     titolo: 'Cosa cerco',
     spiegazione: 'Sono le cose che ti servono: dicono al sistema chi può scambiare con te.',
     etichettaAggiungi: 'Aggiungi una ricerca',
+    sostantivoLimite: 'ricerche',
     testoLimite: `Hai raggiunto il massimo di ${LIMITE_VOCI} ricerche.`,
     vuoto: {
       icona: 'help-circle-outline',
@@ -64,6 +67,7 @@ export function PublicationsSection({
   voci,
   categorie,
   statoCategorie,
+  errore,
   form,
   fieldErrors,
   erroreForm,
@@ -121,7 +125,10 @@ export function PublicationsSection({
         />
         {pieno ? (
           <AppText variant="small" tone="secondary">
-            {sezione.testoLimite}
+            {/* Il conteggio può superare il tetto (voci pubblicate prima del
+                limite o da un altro percorso): la frase parte dal numero che
+                l'utente ha davanti, non dalla costante (audit F92). */}
+            {testoLimiteVoci(voci, sezione.sostantivoLimite)}
           </AppText>
         ) : null}
         {categoriePronte ? null : (
@@ -170,8 +177,9 @@ export function PublicationsSection({
         </View>
       ) : null}
 
-      {/* Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner. */}
-      {voci.length === 0 && !formQui ? (
+      {/* Con un errore a schermo lo stato vuoto sarebbe fuorviante: c'è il Banner,
+          e la sezione riceve l'errore per poterlo rispettare (audit F56). */}
+      {voci.length === 0 && !formQui && !errore ? (
         <EmptyState
           variante="dati"
           icon={sezione.vuoto.icona}
