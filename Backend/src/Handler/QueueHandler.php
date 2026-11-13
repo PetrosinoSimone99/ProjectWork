@@ -8,19 +8,25 @@ use App\Entity\Service;
 use App\Entity\Category;
 use App\Message\QueueId;
 use App\Manager\ServiceQueueManager;
+use App\Manager\AgreementManager;
 use App\Enum\QueueType;
+use App\Enum\QueueStatus;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Doctrine\ORM\EntityManagerInterface;
 
 #[AsMessageHandler]
 class QueueHandler
 {
     private ServiceQueueManager $serviceQueueManager;
-    public function __construct(ServiceQueueManager $serviceQueueManager)
+    private AgreementManager $agreementManager;
+    private EntityManagerInterface $entityManager;
+    public function __construct(ServiceQueueManager $serviceQueueManager, AgreementManager $agreementManager, 
+    EntityManagerInterface $entityManager)
     {
         $this->serviceQueueManager = $serviceQueueManager;
+        $this->agreementManager = $agreementManager;
+        $this->entityManager = $entityManager;
     }
-    //Servono altri test
-    //Una volta tovato il match, creare l'accordo.
     public function __invoke(QueueId $queueId)
     {
         $userQueue = $this->serviceQueueManager->getQueueById($queueId->getId());
@@ -31,13 +37,30 @@ class QueueHandler
         });
         $userQueueKeywords = $this->extractKeywordsFromDescription(strtolower($userQueue->getService()->getDescription()), $userServiceCategory->getDescription());
         
-        foreach($relevantQueues as $queue){
-            $queueKeywords = $this->extractKeywordsFromDescription(strtolower($queue->getService()->getDescription()), $userServiceCategory->getDescription());
-            $commonKeywords = array_intersect($userQueueKeywords, $queueKeywords);
-            if(!empty($commonKeywords)){
-                echo "Queue ID: ".$userQueue->getId() . " - " . $userQueue->getService()->getDescription() . " - Category: " . $userServiceCategory->getDescription() . PHP_EOL;
-                echo "Found a match with queue ID: ".$queue->getId() . " - " . $queue->getService()->getDescription() . " - Category: " . $userServiceCategory->getDescription() . PHP_EOL;
-                echo "Common keywords: " . implode(", ", $commonKeywords) . PHP_EOL;
+        if(!empty($relevantQueues)){
+            foreach($relevantQueues as $queue){
+                $queueKeywords = $this->extractKeywordsFromDescription(strtolower($queue->getService()->getDescription()), $userServiceCategory->getDescription());
+                $commonKeywords = array_intersect($userQueueKeywords, $queueKeywords);
+                if(!empty($commonKeywords)){
+                    $provider = null;
+                    $beneficiary = null;
+                    if($userQueue->getQueueType() === QueueType::OFFER){
+                        $provider = $userQueue->getUser();
+                        $beneficiary = $queue->getUser();
+                    }
+                    if($userQueue->getQueueType() === QueueType::REQUEST){
+                        $provider = $queue->getUser();
+                        $beneficiary = $userQueue->getUser();
+                    }
+                    $agreeement = $this->agreementManager->createProvisionAgreement($provider, $beneficiary);
+                    $userQueue->setAgreement($agreeement);
+                    $queue->setAgreement($agreeement);
+                    $userQueue->setQueueStatus(QueueStatus::CLOSED);
+                    $queue->setQueueStatus(QueueStatus::CLOSED);
+                    $this->entityManager->persist($userQueue);
+                    $this->entityManager->persist($queue);
+                    $this->entityManager->flush();
+                }
             }
         }
     }
@@ -47,9 +70,9 @@ class QueueHandler
     {
         $queueType = $userQueue->getQueueType();
         if($queueType === QueueType::OFFER){
-            return $serviceQueueManager->getRelevantQueues(QueueType::REQUEST);
+            return $serviceQueueManager->getRelevantQueues(QueueType::REQUEST, $userQueue->getLocation());
         }else{
-            return $serviceQueueManager->getRelevantQueues(QueueType::OFFER);
+            return $serviceQueueManager->getRelevantQueues(QueueType::OFFER, $userQueue->getLocation());
         }
     }
     private function extractKeywordsFromDescription(string $description, string $category): array

@@ -22,8 +22,8 @@ class ServiceQueueRepository extends ServiceEntityRepository
         return $this->find($queueId);
     }
 
-    public function getRelevantQueues(QueueType $queueType): array
+    public function getRelevantQueues(QueueType $queueType, string $location): array
     {
-        return $this->findBy(['queueType' => $queueType, 'queueStatus' => 'OPEN']);
+        return $this->findBy(['queueType' => $queueType, 'queueStatus' => 'OPEN', 'location' => $location, 'agreement' => null]);
     }
 }

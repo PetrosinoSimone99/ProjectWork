@@ -25,4 +25,5 @@ class UserManager
     {
         return $this->userRepository->getUserById($userId);
     }
+
 }

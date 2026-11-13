@@ -83,6 +83,19 @@ class AgreementManager{
             }
         );
     }
+    public function createProvisionAgreement(User $provider, User $beneficiary): Agreement
+    {
+        return $this->entityManager->wrapInTransaction(
+            function ($entityManager) use ($provider, $beneficiary): Agreement {
+                $agreement = new Agreement(AgreementStatus::ACCEPTED, new DateTimeImmutable(), true);
+                $entityManager->persist($agreement);
+                $entityManager->flush();
+                $this->addAgreementParticipants($agreement, [$provider, $beneficiary], 'provision');
+
+                return $agreement;
+            }
+        );
+    }
 
     public function sendResponse(User $user, int $agreementId, bool $response){
         
@@ -141,6 +154,16 @@ class AgreementManager{
             $this->entityManager->persist($agreementProposalOther);
             $agreement->addAgreementProposal($agreementProposalUser);
             $agreement->addAgreementProposal($agreementProposalOther);
+
+            $this->entityManager->flush();
+        }
+        if($type === 'provision'){
+            $agreementProposalProvider = new AgreementProposal($agreement, $participants[0], AgreementParticipantRole::PROVIDER, true, new DateTimeImmutable());
+            $agreementProposalBeneficiary = new AgreementProposal($agreement, $participants[1], AgreementParticipantRole::BENEFICIARY, true, new DateTimeImmutable());
+            $this->entityManager->persist($agreementProposalProvider);
+            $this->entityManager->persist($agreementProposalBeneficiary);
+            $agreement->addAgreementProposal($agreementProposalProvider);
+            $agreement->addAgreementProposal($agreementProposalBeneficiary);
 
             $this->entityManager->flush();
         }
