@@ -55,8 +55,8 @@ class QueueHandler
                     $agreeement = $this->agreementManager->createProvisionAgreement($provider, $beneficiary);
                     $userQueue->setAgreement($agreeement);
                     $queue->setAgreement($agreeement);
-                    $userQueue->setQueueStatus(QueueStatus::CLOSED);
-                    $queue->setQueueStatus(QueueStatus::CLOSED);
+                    $userQueue->setQueueStatus(QueueStatus::IN_PROGRESS);
+                    $queue->setQueueStatus(QueueStatus::IN_PROGRESS);
                     $this->entityManager->persist($userQueue);
                     $this->entityManager->persist($queue);
                     $this->entityManager->flush();

@@ -37,4 +37,15 @@ class AgreementProposalRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findProposalAgreementBeneficiary(int $agreementId): ?AgreementProposal
+    {
+        return $this->createQueryBuilder('ap')
+            ->where('ap.agreement = :agreementId')
+            ->andWhere('ap.role = :role')
+            ->setParameter('agreementId', $agreementId)
+            ->setParameter('role', 'BENEFICIARY')
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
 }

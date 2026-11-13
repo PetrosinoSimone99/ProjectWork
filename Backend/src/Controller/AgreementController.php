@@ -220,7 +220,7 @@ final class AgreementController extends AbstractController
         catch(\Exception $e){
             return $this->json(['error' => [
                 'code' => 500,
-                'message' => 'Internal Server Error'
+                'message' => 'Internal Server Error' . $e->getMessage()
             ]], 500);
         }
     }

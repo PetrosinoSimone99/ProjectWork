@@ -26,4 +26,18 @@ class UserManager
         return $this->userRepository->getUserById($userId);
     }
 
+    public function deductCreditForQueue(User $user): void
+    {
+        $user->setCredits($user->getCredits() - 1);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+    }
+
+    public function refundCreditForQueue(User $user): void
+    {
+        $user->setCredits($user->getCredits() + 1);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+    }
+
 }

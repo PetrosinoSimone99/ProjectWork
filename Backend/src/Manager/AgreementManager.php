@@ -15,7 +15,7 @@ use App\Enum\AgreementDetailsStatus;
 
 use App\Manager\UserManager;
 use App\Manager\ServiceManager;
-
+use App\Manager\UseCase\CloseQueueUseCase;
 use App\Repository\AgreementRepository;
 use App\Repository\AgreementProposalRepository;
 use App\Repository\AgreementDetailsRepository;
@@ -32,15 +32,19 @@ class AgreementManager{
     private EntityManagerInterface $entityManager;
     private UserManager $userManager;
     private ServiceManager $serviceManager;
+    private CloseQueueUseCase $closeQueueUseCase;
     private AgreementRepository $agreementRepository;
     private AgreementProposalRepository $agreementProposalRepository;
     private AgreementDetailsRepository $agreementDetailsRepository;
 
     public function __construct(EntityManagerInterface $entityManager,UserManager $userManager, 
-    ServiceManager $serviceManager, AgreementRepository $agreementRepository, AgreementProposalRepository $agreementProposalRepository, AgreementDetailsRepository $agreementDetailsRepository){
+    ServiceManager $serviceManager,CloseQueueUseCase $closeQueueUseCase, 
+    AgreementRepository $agreementRepository, AgreementProposalRepository $agreementProposalRepository,
+    AgreementDetailsRepository $agreementDetailsRepository){
         $this->entityManager = $entityManager;
         $this->userManager = $userManager;
         $this->serviceManager = $serviceManager;
+        $this->closeQueueUseCase = $closeQueueUseCase;
         $this->agreementRepository = $agreementRepository;
         $this->agreementProposalRepository = $agreementProposalRepository;
         $this->agreementDetailsRepository = $agreementDetailsRepository;
@@ -142,7 +146,15 @@ class AgreementManager{
             $agreement->setAgreementStatus(AgreementStatus::CANCELLED);
             $this->entityManager->persist($agreement);
             $this->entityManager->flush();
+
+            if($agreement->getFromQueue()){
+                $agreementProposal = $this->agreementProposalRepository->findProposalAgreementBeneficiary($agreementId);
+                $this->userManager->refundCreditForQueue($agreementProposal->getUser());
+                $this->closeQueueUseCase->execute($user, $agreement);
+            }
         }
+
+        
         
     }
     //Internal only

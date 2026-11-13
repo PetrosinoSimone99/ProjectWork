@@ -47,7 +47,23 @@ final class QueueController extends AbstractController
             return $this->json(['error' => 'Not enough credits'], 400);
         }
         catch(Exception $e){
-            return $this->json(['error' => 'Internal server error: ' . $e->getMessage()], 500);
+            return $this->json(['error' => 'Internal server error'], 500);
         }
+    }
+
+    #[Route('/cancel-queue/{queueId}', name: 'cancel_queue', methods: ['POST'])]
+    public function cancelQueue(int $queueId): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User){
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+        try{
+            $this->serviceQueueManager->cancelServiceQueue($queue);
+            
+        }catch(Exception $e){
+            return $this->json(['error' => 'Internal server error'], 500);
+        }
+        return $this->json(['message' => 'Service queue cancelled successfully'], 200);
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Repository;
 
 use App\Entity\ServiceQueue;
+use App\Entity\User;
+use App\Entity\Agreement;
 use App\Enum\QueueType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -25,5 +27,10 @@ class ServiceQueueRepository extends ServiceEntityRepository
     public function getRelevantQueues(QueueType $queueType, string $location): array
     {
         return $this->findBy(['queueType' => $queueType, 'queueStatus' => 'OPEN', 'location' => $location, 'agreement' => null]);
+    }
+
+    public function getQueuesByAgreement(Agreement $agreement): ?array
+    {
+        return $this->findBy(['agreement' => $agreement]);
     }
 }
