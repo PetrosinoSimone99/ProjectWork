@@ -28,8 +28,7 @@ export const SEZIONI_PUBBLICAZIONI = [
     vuoto: {
       icona: 'pricetags-outline',
       titolo: 'Non hai pubblicato nessuna offerta',
-      descrizione:
-        'Un\'offerta è un servizio che sai fare. Seleziona «Aggiungi» per pubblicarne una.',
+      descrizione: 'Seleziona «Aggiungi» per iniziare.',
     },
   },
   {
@@ -41,8 +40,7 @@ export const SEZIONI_PUBBLICAZIONI = [
     vuoto: {
       icona: 'help-circle-outline',
       titolo: 'Non hai pubblicato nessuna ricerca',
-      descrizione:
-        'Una ricerca dice cosa ti serve. Seleziona «Aggiungi» per pubblicarne una.',
+      descrizione: 'Seleziona «Aggiungi» per iniziare.',
     },
   },
 ];

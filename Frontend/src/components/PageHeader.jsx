@@ -18,11 +18,12 @@ import { layout, space, target } from '@/theme/tokens';
  * (audit UX F3): sta nella stessa riga del titolo, ma **non lo sposta**. La
  * riga rientra nel gutter della finestra per la larghezza della freccia, così
  * il titolo resta sul bordo del corpo — l'unico bordo sinistro della
- * schermata — invece di cominciare 56 px più a destra. Il rientro vale quanto
- * gutter c'è davvero: `(finestra - misura della colonna) / 2`. A 1280 sono 360
- * px e il titolo è allineato; a 390 il gutter è zero, quindi il rientro è zero
- * e la freccia resta in flusso. Non è un secondo layout mode: è la stessa riga
- * con un margine che si esaurisce dove non c'è spazio per ospitarlo.
+ * schermata — invece di cominciare 56 px più a destra. Il rientro è
+ * `min(freccia + gap, gutter)`: a 1280 il gutter è 360 px e il rientro si ferma
+ * a 56, quindi il titolo è allineato; a 600 il gutter è 20 e il rientro segue
+ * il gutter, senza mandare la freccia fuori dallo schermo; a 390 è zero e la
+ * freccia resta in flusso. Non è un secondo layout mode: è la stessa riga con
+ * un margine che si esaurisce dove non c'è spazio per ospitarlo.
  *
  * Il `gap` della riga è `space.md`, esattamente la distanza che il rientro
  * compensa: se cambia uno deve cambiare l'altro.
@@ -87,9 +88,11 @@ export function PageHeader({
         {indietro}
         <View style={{ flex: 1, gap: space.xs }}>
           {/* `title` è l'unico `header` di primo livello della schermata. */}
-          <AppText variant="title" level={1}>
-            {titolo}
-          </AppText>
+          {titolo ? (
+            <AppText variant="title" level={1}>
+              {titolo}
+            </AppText>
+          ) : null}
           {frase ? (
             <AppText variant="small" tone="secondary">
               {frase}
