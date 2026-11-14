@@ -6,6 +6,36 @@ documents/code touched.
 
 ---
 
+## 2026-11-14 — An expired token is no longer an error message on arrival
+
+### What changed
+
+1. **The boot no longer announces an expired session.**
+   `auth/auth-context.jsx` restores the saved session at startup; when the
+   stored token was no longer valid it cleared it **and** set the same reason
+   the in-session `401` sets, so `/login` opened with "La sessione è scaduta:
+   accedi di nuovo." on top. That copy answers `F91` ("thrown out mid-task
+   with no explanation"), and at boot nothing was interrupted: someone coming
+   back to the site an hour later met an error message on a screen they had
+   just arrived at. The clear is now silent; the announcement stays where it
+   has a recipient, the `401` of an authenticated request.
+2. **`signUp` clears the exit reason** as `signIn` already did. Registration
+   started from a screen showing that banner used to carry the old reason past
+   the successful signup.
+
+`auth/__tests__/auth-context.test.js` is the first test of the provider: it
+pins all four behaviours (silent boot on an invalid token, silent restore on a
+valid one, announced `401` mid-session, cleared reason after registration), so
+the next session cannot re-introduce the noisy boot by accident.
+
+### Touched
+
+`Frontend/src/auth/auth-context.jsx`,
+`Frontend/src/auth/__tests__/auth-context.test.js` (new), `docs/changelog.md`.
+Gate green: `npx expo lint`, `npx tsc --noEmit`, `npx jest` (97 tests).
+
+---
+
 ## 2026-11-14 — Residual of the third audit: one header, one accent, one retry
 
 ### What changed

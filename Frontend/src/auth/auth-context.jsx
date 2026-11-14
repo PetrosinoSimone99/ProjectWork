@@ -44,12 +44,14 @@ export function AuthProvider({ children }) {
         if (stored && isTokenValid(stored.token)) {
           setSession(stored);
         } else if (stored) {
-          // Il token salvato c'era e non è più valido: è la stessa cosa di un
-          // 401, quindi la schermata di accesso deve poterlo dire. Prima questo
-          // ramo azzerava in silenzio e l'utente finiva su un login identico a
-          // una visita volontaria (audit F91).
+          // Il token salvato non è più valido: si esce in silenzio, senza il
+          // messaggio di scadenza. Quel messaggio risponde a `F91` — «mi hanno
+          // buttato fuori a metà lavoro e non so perché» — e all'avvio non è
+          // successo niente: nessuna richiesta interrotta, nessun dato perso.
+          // Chi torna al sito dopo un'ora trovava un avviso d'errore su una
+          // schermata appena aperta. La scadenza resta annunciata dove ha un
+          // destinatario: il `401` di una richiesta autenticata (sotto).
           void clearSession();
-          setMotivoUscita(SESSION_EXPIRED_MESSAGE);
         }
       })
       .catch((error) => {
@@ -92,6 +94,9 @@ export function AuthProvider({ children }) {
     const nextSession = { token: response.token, utente: utenteDallaRisposta(response) };
     await saveSession(nextSession);
     setSession(nextSession);
+    // Come `signIn`: una sessione nuova non deve portarsi dietro il motivo per
+    // cui è finita la precedente.
+    setMotivoUscita(null);
   }, []);
 
   const signOut = useCallback(async () => {
