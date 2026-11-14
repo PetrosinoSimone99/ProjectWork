@@ -3,6 +3,7 @@
 
 namespace App\DTO;
 
+use App\Enum\AgreementDetailsStatus;
 
 class AgreementDetailsDTO
 {
@@ -13,8 +14,9 @@ class AgreementDetailsDTO
     private readonly ?\DateTimeImmutable $startDate;
     private readonly ?\DateTimeImmutable $endDate;
     private readonly ?bool $beneficiaryAccepted;
+    private readonly ?AgreementDetailsStatus $status;
 
-    public function __construct(?string $providerUsername, ?string $serviceDescription, ?string $beneficiaryUsername, ?bool $fromRemote, ?\DateTimeImmutable $startDate, ?\DateTimeImmutable $endDate, ?bool $beneficiaryAccepted)
+    public function __construct(?string $providerUsername, ?string $serviceDescription, ?string $beneficiaryUsername, ?bool $fromRemote, ?\DateTimeImmutable $startDate, ?\DateTimeImmutable $endDate, ?bool $beneficiaryAccepted, ?AgreementDetailsStatus $status = null)
     {
         $this->providerUsername = $providerUsername;
         $this->serviceDescription = $serviceDescription;
@@ -23,6 +25,7 @@ class AgreementDetailsDTO
         $this->startDate = $startDate;
         $this->endDate = $endDate;
         $this->beneficiaryAccepted = $beneficiaryAccepted;
+        $this->status = $status;
     }
 
     public function getProviderUsername(): ?string { return $this->providerUsername; }
@@ -32,4 +35,5 @@ class AgreementDetailsDTO
     public function getStartDate(): ?\DateTimeImmutable { return $this->startDate; }
     public function getEndDate(): ?\DateTimeImmutable { return $this->endDate; }
     public function getBeneficiaryAccepted(): ?bool { return $this->beneficiaryAccepted; }
+    public function getStatus(): ?AgreementDetailsStatus { return $this->status; }
 }

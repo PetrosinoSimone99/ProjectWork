@@ -31,7 +31,7 @@ This directory contains the first Symfony backend for Baratto-lo: public registr
    chmod 600 config/jwt/private.pem
    ```
 
-4. Use the SQL dump selected by `../Context_and_DB_V2/LAST_DB_TO_USE.txt` for a fresh database. Currently this is `barattolo_v3_1_senza_swipe_chat_catene.sql`. Historical migrations target earlier schemas; do not run them or Doctrine schema-update commands over the selected dump.
+4. Use the SQL dump selected by `../Context_and_DB_V2/LAST_DB_TO_USE.txt` for a fresh database. Currently this is `barattolo_demo_20261108.sql`, with 50 categories, 30 users and 300 services. All demo accounts use password `demo`; see [demo accounts](../Context_and_DB_V2/DEMO_DATABASE.md). Historical migrations target earlier schemas; do not run them or Doctrine schema-update commands over the selected dump.
 
 5. Configure the web server. In MAMP, XAMPP, and Laragon, create a local virtual host whose document root is the `Backend/public` directory. Do not point Apache to the `Backend` directory itself. Enable Apache `mod_rewrite` and allow `.htaccess` overrides; `public/.htaccess` forwards `/api/...` routes to Symfony.
 
@@ -52,7 +52,7 @@ This directory contains the first Symfony backend for Baratto-lo: public registr
    php -S localhost:8000 -t public
    ```
 
-The selected dump is the schema reference, regardless of the local database state. It retains `tokens` and `token_redemptions`, but their API and lifecycle code have been removed. JWT authentication is unchanged. Chat endpoints and their code are retained; their chat/proposal tables are absent from this dump, so chat operations cannot work with the dump alone. No chat schema is added automatically.
+The selected dump is the schema reference, regardless of the local database state. The obsolete `tokens` and `token_redemptions` tables and their API and lifecycle code have been removed. JWT authentication is unchanged. Chat endpoints and their code are retained; their chat/proposal tables are absent from this dump, so chat operations cannot work with the dump alone. No chat schema is added automatically.
 
 ## API
 

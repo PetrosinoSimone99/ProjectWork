@@ -41,6 +41,9 @@ final class RetainedApiTest extends WebTestCase
             'POST /api/auth/register', 'POST /api/auth/login',
             'GET /api/profile', 'PATCH /api/profile', 'GET /api/categories',
             'GET /api/services', 'POST /api/services',
+            'GET /api/get-agreements', 'POST /api/create-exchange-agreement',
+            'POST /api/send-agreement-response', 'POST /api/send-agreement-details',
+            'POST /api/cancel-agreement/{agreementId}',
             'GET /api/offers/deleted', 'POST /api/offers/{id}/restore',
             'GET /api/requests/deleted', 'POST /api/requests/{id}/restore',
             'GET /api/staff/services/deleted', 'POST /api/staff/services/{id}/restore',
@@ -51,9 +54,7 @@ final class RetainedApiTest extends WebTestCase
             'GET /api/staff/reports', 'GET /api/staff/reports/{id}',
             'POST /api/staff/reports/{id}/claim', 'PATCH /api/staff/reports/{id}/review',
             'GET /api/staff/operations', 'GET /api/staff/operations/{id}',
-            'GET /api/chats/mutual-proposal/{proposalId}',
-            'GET /api/chats/group-proposal/beneficiary/{groupProposalId}',
-            'GET /api/chats/group-proposal/provider/{groupProposalId}',
+            'GET /api/chats/agreement/{agreementId}',
             'POST /api/chats/send-message/{chatId}', 'GET /api/chats/most-recent-message',
             'GET /api/chats/check-new-messages/{recentMessageId}',
         ];
@@ -65,7 +66,7 @@ final class RetainedApiTest extends WebTestCase
     public static function serviceReferences(): iterable
     {
         foreach (['OFFER' => 'offers', 'REQUEST' => 'requests'] as $type => $resource) {
-            foreach (['agreement', 'queue', 'reservation', 'closed-redemption', 'unused'] as $reference) {
+            foreach (['agreement', 'queue', 'unused'] as $reference) {
                 yield $type.' '.$reference => [$type, $resource, $reference];
             }
         }
@@ -89,13 +90,10 @@ final class RetainedApiTest extends WebTestCase
             $db->insert('agreement_details', ['agreement_id' => 1, 'provider_id' => $owner->getId(), 'beneficiary_id' => $owner->getId(), 'service_provided' => $service->getId()]);
         } elseif ($reference === 'queue') {
             $db->insert('service_queues', ['user_id' => $owner->getId(), 'type' => $type, 'service_id' => $service->getId()]);
-        } elseif (in_array($reference, ['reservation', 'closed-redemption'], true)) {
-            $db->insert('tokens', ['id' => 1, 'user_id' => $owner->getId(), 'expiration_date' => '2030-01-01 00:00:00']);
-            $db->insert('token_redemptions', ['token_id' => 1, 'service_id' => $service->getId(), 'recipient_id' => $owner->getId(), 'provider_id' => $owner->getId(), 'status' => $reference === 'reservation' ? 'PENDING' : 'COMPLETED', 'reserved_service_id' => $reference === 'reservation' ? $service->getId() : null, 'created_at' => '2026-01-01 00:00:00']);
         }
         $jwt = static::getContainer()->get(JWTTokenManagerInterface::class)->create($owner);
         $client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$jwt);
-        $blocked = in_array($reference, ['agreement', 'queue', 'reservation'], true);
+        $blocked = in_array($reference, ['agreement', 'queue'], true);
         $path = '/api/'.$resource.'/'.$service->getId();
         $client->jsonRequest('PATCH', $path, ['description' => 'Updated', 'isRemote' => true, 'isSuspended' => true, 'location' => 'Rome']);
         self::assertResponseStatusCodeSame($blocked ? 409 : 200);

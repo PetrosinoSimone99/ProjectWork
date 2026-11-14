@@ -4,11 +4,11 @@ This guide covers authentication, profiles, services, reports and staff administ
 
 ## Current database
 
-The schema reference is the dump selected by [LAST_DB_TO_USE.txt](../LAST_DB_TO_USE.txt), currently [barattolo_v3_1_senza_swipe_chat_catene.sql](../barattolo_v3_1_senza_swipe_chat_catene.sql). The local database is not the reference. Older dumps and migrations describe historical versions, not the selected schema.
+The schema reference is the dump selected by [LAST_DB_TO_USE.txt](../LAST_DB_TO_USE.txt), currently [barattolo_demo_20261108.sql](../barattolo_demo_20261108.sql). Older dumps and migrations describe historical versions, not the selected schema. The demo contains 50 categories, 30 users (including 2 staff), 200 offers and 100 requests. See [demo accounts and import instructions](../DEMO_DATABASE.md); all demo passwords are `demo`, stored as hashes.
 
-For a fresh installation only, import the selected file into a new empty database and configure your own connection and JWT keys. This maintenance change does not import anything. Do not run the historical migrations or Doctrine schema-update commands over this schema: they can recreate removed structures or alter tables that remain intentionally unmapped.
+For a fresh installation only, import the selected file into a new empty database and configure your own connection and JWT keys. Do not run the historical migrations or Doctrine schema-update commands over this schema: they can recreate removed structures or alter tables that remain intentionally unmapped.
 
-The dump retains `tokens` and `token_redemptions`. Their HTTP APIs, including staff assignment and redemption, and their lifecycle processing have been removed. These tables are not JWT storage. JWT login and authorization are unchanged. Existing staff history, including token events, remains readable.
+The dump no longer contains `tokens` or `token_redemptions`; their APIs and lifecycle processing have also been removed. JWT login and authorization are unchanged. Existing staff history, including token events, remains readable.
 
 All six chat endpoints and their code are retained. Their chat and proposal tables are absent from the selected dump, so these endpoints cannot operate with that dump alone. No replacement chat schema or new chat workflow is provided. See [chat documentation](../mini_doc_chat_endpoint.md).
 
@@ -19,7 +19,7 @@ Read `LAST_DB_TO_USE.txt` before selecting a file. For the currently selected du
 ```sql
 CREATE DATABASE barattolo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE barattolo;
-SOURCE Context_and_DB_V2/barattolo_v3_1_senza_swipe_chat_catene.sql;
+SOURCE Context_and_DB_V2/barattolo_demo_20261108.sql;
 ```
 
 Do not import over an existing database whose data must be retained. These instructions are not a verification that the dump has been imported locally.
@@ -248,9 +248,34 @@ All query parameters are optional:
 | `q` | Case-insensitive partial search in the service description | Text up to 255 characters |
 | `categoryIds` | Comma-separated category IDs | Positive integers; matching any selected category |
 | `location` | Case-insensitive partial search in the service's location | Text up to 255 characters |
-| `sort` | Creation-date ordering | `newest` (default) or `oldest` |
+| `isRemote` | Remote or in-person services | Exactly `true` or `false`; omit to include both |
+| `sort` | Creation-date ordering within each priority group | `newest` (default) or `oldest` |
 | `page` | Page to return | Positive integer, default `1` |
 | `limit` | Offers per page | Integer from `1` to `50`, default `20` |
+
+The viewer's desired categories come from their own `REQUEST` services that are
+neither suspended nor deleted, including requests created during registration.
+An offer matching any desired category comes before all remaining offers. Within
+each group, offers are ordered by creation date and then ID, both descending by
+default; `sort=oldest` makes both ascending while keeping preferred offers first.
+Without valid requests, all offers use the requested date ordering.
+
+Pagination applies to this single ordered list, so a page can contain the last
+preferred offers followed by the first remaining offers. Offers with several
+matching categories appear once and retain all their categories in the response.
+Totals count all offers matching the filters, across both groups.
+
+All filters apply to both groups and combine using AND. `categoryIds` matches any
+listed category and restricts the results; it does not change saved preferences.
+Omit it to browse all categories, including any existing uncategorized offers.
+Publishing new services still requires at least one category. Filters are not saved.
+Changing, suspending, deleting or restoring a request affects the next homepage
+request automatically. Start again at page 1 after changing filters or requests;
+pagination does not freeze the catalog against concurrent changes.
+
+For example, `GET /api/services?isRemote=true&page=1&limit=20` shows remote offers,
+with desired categories first. `GET /api/services?page=1&limit=20` shows all offers
+under the usual visibility rules. Neither request changes preferences.
 
 Example response:
 
@@ -693,7 +718,7 @@ The selected dump defines nullable services.deleted_at; no historical migration 
 
 The DELETE endpoints `/api/offers/{id}` and `/api/requests/{id}` save a UTC deletion date instead of removing rows. Success returns `204` with an empty body. Deleted services return `404` on later updates or DELETE requests and disappear from personal lists and the catalog. Availability is checked again after row locks.
 
-Services referenced by `agreement_details.service_provided`, `service_queues.service_id` or `token_redemptions.reserved_service_id` return `409` on update or deletion. Closed token redemptions without a reservation do not block edits or soft deletion. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. Restore APIs are described below; no permanent-delete API is provided.
+Services referenced by `agreement_details.service_provided` or `service_queues.service_id` return `409` on update or deletion. Categories and related data are kept. Suspension remains separate: suspended services can still appear in the owner's list, while deleted services cannot. Restore APIs are described below; no permanent-delete API is provided.
 
 ### List and restore deleted services
 
