@@ -51,6 +51,9 @@ export function ServicesSection({
   onRefresh = null,
   onSelect,
   style,
+  // React 19: `ref` è una prop come le altre e va alla `FlatList`, così la
+  // schermata può riportare la lista a offset 0 (F11).
+  ref = null,
 }) {
   const t = useTokens();
   // Stesso gate di `Screen`: il pull-to-refresh è un gesto nativo, sul web la
@@ -70,6 +73,7 @@ export function ServicesSection({
 
   return (
     <FlatList
+      ref={ref}
       style={[{ flex: 1 }, style]}
       contentContainerStyle={{ gap: space.lg, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"

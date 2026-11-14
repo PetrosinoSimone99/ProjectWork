@@ -85,7 +85,14 @@ export function FilterBar({
   const testoAttivo = bozzaTesto.trim() !== '';
 
   // Invio e «Cerca» applicano la bozza: al padre arriva il testo, non un campo.
-  const applicaBozza = () => onApplica(bozzaTesto);
+  // Con il layout stretto l'applicazione chiude anche il pannello: su 390 px
+  // confermare torna subito ai risultati; sopra la soglia resta aperto (F10).
+  const applicaBozza = () => {
+    onApplica(bozzaTesto);
+    if (layoutStretto) {
+      setPannelloAperto(false);
+    }
+  };
   // La X svuota la bozza qui e chiede al padre di riapplicare senza il testo.
   const svuotaBozza = () => {
     setBozzaTesto('');
@@ -97,10 +104,10 @@ export function FilterBar({
     onAzzera();
   };
 
-  // Non tutti i reset passano da qui: «Azzera filtri» dello stato vuoto chiama
-  // l'hook direttamente (`(tabs)/index.jsx`), quindi la bozza segue il testo
-  // **applicato** quando questo torna vuoto — altrimenti il campo resterebbe con
-  // una ricerca che non è più in corso e il chip la annuncerebbe come in attesa.
+  // La bozza segue il testo **applicato** quando questo torna vuoto da fuori:
+  // ogni reset della home passa dalla barra e svuota prima la bozza, ma se il
+  // testo applicato cambia senza passare da qui il campo resterebbe con una
+  // ricerca che non è più in corso e il chip la annuncerebbe come in attesa.
   // È l'aggiustamento di stato in render documentato da React, non un effetto:
   // digitare non lo attraversa (il testo applicato non cambia) e una scelta
   // discreta non lo tocca per la stessa ragione.

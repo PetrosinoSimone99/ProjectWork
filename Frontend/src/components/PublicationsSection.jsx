@@ -29,7 +29,7 @@ export const SEZIONI_PUBBLICAZIONI = [
       icona: 'pricetags-outline',
       titolo: 'Non hai pubblicato nessuna offerta',
       descrizione:
-        'Un\'offerta è un servizio che sai fare: con la categoria giusta gli altri ti trovano nella home. Tocca «Aggiungi» per pubblicarne una.',
+        'Un\'offerta è un servizio che sai fare. Seleziona «Aggiungi» per pubblicarne una.',
     },
   },
   {
@@ -42,7 +42,7 @@ export const SEZIONI_PUBBLICAZIONI = [
       icona: 'help-circle-outline',
       titolo: 'Non hai pubblicato nessuna ricerca',
       descrizione:
-        'Una ricerca dice cosa ti serve: è quello che permette al sistema di trovare chi può scambiare con te. Tocca «Aggiungi» per pubblicarne una.',
+        'Una ricerca dice cosa ti serve. Seleziona «Aggiungi» per pubblicarne una.',
     },
   },
 ];

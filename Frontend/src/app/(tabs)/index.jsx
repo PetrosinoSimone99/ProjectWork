@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
@@ -61,6 +61,15 @@ export default function HomeScreen() {
   // the proposal went. Opening another service (or sending another one)
   // resets it, so the line never lingers as if it were about the open panel.
   const [propostaInviataA, setPropostaInviataA] = useState(null);
+
+  // Il ref della `FlatList` (F11): quando la proposta parte la lista torna a
+  // offset 0, così testata e conferma si vedono senza scorrere.
+  const listaRef = useRef(null);
+  useEffect(() => {
+    if (propostaInviataA !== null) {
+      listaRef.current?.scrollToOffset({ offset: 0 });
+    }
+  }, [propostaInviataA]);
 
   /**
    * The send action of the detail panel (brief, decision 3):
@@ -149,9 +158,12 @@ export default function HomeScreen() {
   const filtroAreaAttivo =
     (typeof filtriApplicati.regione === 'string' && filtriApplicati.regione.trim() !== '') ||
     (typeof filtriApplicati.provincia === 'string' && filtriApplicati.provincia.trim() !== '');
-  const descrizioneVuotoFiltri =
-    `Prova a toglierne uno: ${descriviFiltri(filtriApplicati, categorie)}.` +
-    (filtroAreaAttivo ? ` ${NOTA_FILTRO_AREA}` : '');
+  const descrizioneVuotoFiltri = soloTesto
+    ? null
+    : `Prova a toglierne uno: ${descriviFiltri(filtriApplicati, categorie)}.` +
+      (filtroAreaAttivo ? ` ${NOTA_FILTRO_AREA}` : '');
+  // Con un solo filtro di testo il titolo mostra già la query: il corpo non la
+  // ripete e descriviFiltri non serve (§8.4).
 
   // «Carica altri» compare solo quando il backend dice che un'altra pagina c'è:
   // con 0 o 1 pagina il pulsante non esiste, e non si inventano numeri.
@@ -193,8 +205,6 @@ export default function HomeScreen() {
             : 'Nessun risultato per questi filtri'
         }
         description={descrizioneVuotoFiltri}
-        etichettaAzione="Azzera filtri"
-        onAzione={azzeraFiltri}
       />
     ) : (
       <EmptyState
@@ -224,9 +234,11 @@ export default function HomeScreen() {
     </View>
   ) : null;
 
-  // Testata della lista (`ListHeaderComponent`): titolo, esito della proposta,
-  // filtri ed errore del catalogo. Scorre insieme ai risultati; la riga dei
-  // risultati la disegna `ServicesSection` sotto questa testata.
+  // Testata della lista (`ListHeaderComponent`): titolo, filtri ed errore del
+  // catalogo. Scorre insieme ai risultati; la riga dei risultati la disegna
+  // `ServicesSection` sotto questa testata. La conferma della proposta non sta
+  // qui: dentro la lista virtualizzata resterebbe sotto la piega, sta sopra la
+  // lista (F11).
   //
   // Il titolo passa da `PageHeader` (direzione UX «A», audit UX F89) e la frase
   // sotto dice cosa la schermata contiene, non come si usa: l'istruzione sta
@@ -240,22 +252,6 @@ export default function HomeScreen() {
         titolo="Servizi"
         frase="I servizi che gli altri hanno pubblicato: cosa offrono, dove e in che modo."
       />
-
-      {propostaInviataA !== null ? (
-        <Banner
-          kind="success"
-          message={
-            propostaInviataA
-              ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
-              : 'Proposta inviata. La trovi in Accordi.'
-          }
-          // Un messaggio di successo che resta fino alla prossima scrittura non è
-          // più una notizia: si chiude come gli altri (audit F46).
-          etichettaAzione="Ho capito"
-          iconaAzione="checkmark-outline"
-          onAzione={() => setPropostaInviataA(null)}
-        />
-      ) : null}
 
       <FilterBar
         filtri={filtri}
@@ -315,7 +311,26 @@ export default function HomeScreen() {
         onProposalSent={propostaInviata}
       />
 
+      {/* La conferma della proposta sta fuori dalla lista (F11): sopra la
+          `FlatList` è sempre visibile, da dove che sia aperto il pannello. */}
+      {propostaInviataA !== null ? (
+        <Banner
+          kind="success"
+          message={
+            propostaInviataA
+              ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
+              : 'Proposta inviata. La trovi in Accordi.'
+          }
+          // Un messaggio di successo che resta fino alla prossima scrittura non è
+          // più una notizia: si chiude come gli altri (audit F46).
+          etichettaAzione="Ho capito"
+          iconaAzione="checkmark-outline"
+          onAzione={() => setPropostaInviataA(null)}
+        />
+      ) : null}
+
       <ServicesSection
+        ref={listaRef}
         titolo="Servizi"
         paginazione={paginazione}
         voci={servizi ?? []}
