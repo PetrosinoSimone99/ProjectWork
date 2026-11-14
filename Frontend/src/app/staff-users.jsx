@@ -307,10 +307,13 @@ export default function StaffUsersScreen() {
       ) : null}
 
       {/* Durante una ricerca lato server le righe vecchie restano: senza una
-          riga che lo dica, l'elenco sembra non rispondere al tasto premuto. */}
+          riga che lo dica, l'elenco sembra non rispondere al tasto premuto.
+          `accessibilityLiveRegion` vale da nativo, `aria-live` sul web, dove
+          react-native-web ignora il primo (audit UX F4). */}
       {loading && users !== null ? (
         <View
           accessibilityLiveRegion="polite"
+          aria-live="polite"
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
         >
           <AppText variant="small" tone="secondary">
