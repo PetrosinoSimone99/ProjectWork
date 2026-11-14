@@ -17,6 +17,7 @@ final class ServiceRestorer
         private EntityManagerInterface $em,
         private ServiceRepository $services,
         private StaffOperationLogger $history,
+        private NotificationService $notifications,
     ) {}
 
     public function restore(int $id, User $actor, ?string $type, bool $asStaff): Service
@@ -40,6 +41,10 @@ final class ServiceRestorer
             $this->em->flush();
             if ($asStaff) {
                 $this->history->record($actor, 'SERVICE_RESTORED', 'SERVICE', $id, $before, ['deletedAt' => null]);
+                // Only staff restores notify the owner; do not notify the acting staff member.
+                if ($service->getUser()->getId() !== $actor->getId()) {
+                    $this->notifications->notify($service->getUser(), 'SERVICE_RESTORED', 'Your service has been restored by staff.', ['serviceId' => $id]);
+                }
             }
             return $service;
         });

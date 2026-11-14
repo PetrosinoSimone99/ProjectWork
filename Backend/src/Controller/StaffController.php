@@ -9,6 +9,7 @@ use App\Entity\UserReport;
 use App\Repository\UserRepository;
 use App\Repository\UserReportRepository;
 use App\Service\StaffOperationLogger;
+use App\Service\NotificationService;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,7 +24,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/staff')]
 final class StaffController extends AbstractController
 {
-    public function __construct(private StaffOperationLogger $history) {}
+    public function __construct(private StaffOperationLogger $history, private NotificationService $notifications) {}
 
     #[Route('/users', name: 'api_staff_users_list', methods: ['GET'])]
     public function users(Request $request, UserRepository $users): JsonResponse
@@ -113,6 +114,10 @@ final class StaffController extends AbstractController
                 $before = $this->reviewValues($report);
                 $report->claim($staff);
                 $this->history->record($staff, 'REPORT_CLAIMED', 'REPORT', $id, $before, $this->reviewValues($report));
+                // Keep private staff notes out of the reporter's notification.
+                $this->notifications->notify($report->getReporter(), 'REPORT_CLAIMED', 'Your report is now being reviewed.', [
+                    'reportId' => $id, 'status' => UserReport::STATUS_IN_REVIEW,
+                ]);
                 return $this->json(['report' => $report->toStaffApiArray()]);
             });
         } catch (RetryableException) {
@@ -147,6 +152,12 @@ final class StaffController extends AbstractController
                 $before = $this->reviewValues($report);
                 $report->review($data['status'], $note, $staff);
                 $this->history->record($staff, 'REPORT_REVIEWED', 'REPORT', $id, $before, $this->reviewValues($report));
+                $message = $data['status'] === UserReport::STATUS_CONFIRMED
+                    ? 'Your report has been reviewed and confirmed.'
+                    : 'Your report has been reviewed and rejected.';
+                $this->notifications->notify($report->getReporter(), 'REPORT_REVIEWED', $message, [
+                    'reportId' => $id, 'status' => $data['status'],
+                ]);
                 return $this->json(['report' => $report->toStaffApiArray()]);
             });
         } catch (RetryableException) {
@@ -165,15 +176,25 @@ final class StaffController extends AbstractController
                 $isStaff = in_array(User::ROLE_STAFF, $user->getRoles(), true);
                 if ($status !== null) {
                     if ($isStaff) { return $this->error('Staff account status cannot be changed through this API.', 403); }
+                    // Repeating the current status does not create another notification.
+                    if ($user->getAccountStatus() === $status) {
+                        return $this->json(['user' => $user->toApiArray()]);
+                    }
                     $before = ['accountStatus' => $user->getAccountStatus()];
                     $user->setAccountStatus($status);
                     $this->history->record($this->getUser(), 'USER_STATUS_CHANGED', 'USER', $id, $before, ['accountStatus' => $user->getAccountStatus()]);
+                    $message = $status === User::STATUS_ACTIVE
+                        ? 'Your account has been reactivated.'
+                        : 'Your account has been deactivated.';
+                    // Inactive users can read this only after their account is reactivated.
+                    $this->notifications->notify($user, 'USER_STATUS_CHANGED', $message, ['userId' => $id, 'accountStatus' => $status]);
                 } else {
                     if (!$user->isActive()) { return $this->error('Activate the user before promoting them to staff.', 409); }
                     if (!$isStaff) {
                         $before = ['roles' => $user->getRoles()];
                         $user->setRoles(array_values(array_unique([...$user->getRoles(), User::ROLE_STAFF])));
                         $this->history->record($this->getUser(), 'USER_PROMOTED', 'USER', $id, $before, ['roles' => $user->getRoles()]);
+                        $this->notifications->notify($user, 'USER_PROMOTED', 'Your account has been promoted to staff.', ['userId' => $id]);
                     }
                 }
                 return $this->json(['user' => $user->toApiArray()]);
