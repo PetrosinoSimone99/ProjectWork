@@ -105,9 +105,10 @@ A measure is the **body**, not the page. Two frames exist, and each has exactly
 one of them:
 
 - the **page frame**. From `layout.sogliaLarga` up, the page header is the band
-  of the page: it leaves the column on both ends, reaches the ends of the
-  window and closes with a `border` rule. The web chrome bar sits on the same
-  frame, `space.lg` from the window's corner. Below the threshold there is no
+  of the page: it leaves the column on both ends, reaches the ends of the page
+  box (the ends of the window, less whatever a classic scrollbar reserves) and
+  closes with a `border` rule. The web chrome bar sits on the same frame,
+  `space.lg` from the page box's corner. Below the threshold there is no
   band — the column is the page, and the header is a stack — because a window
   that narrow has no gutters to claim.
 - the **measure**. Everything under the header — cards, forms, sections — stays

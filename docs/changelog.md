@@ -39,11 +39,17 @@ block 2).
 
 | width | header band | body column | bar right edge |
 | --- | --- | --- | --- |
-| 390 | none, title = body edge (16) | 16 → 359 | 374 |
-| 768 | none, title = body edge (32) | 32 → 720 | 752 |
-| 1024 | 8 → 1000, top edge 16 | 160 → 848 | 1008 |
-| 1280 | 8 → 1000+280, top edge 16 | 288 → 976 | 1264 |
-| 1920 | 8 → 1912, top edge 16 | 608 → 1296 | 1904 |
+| 390 | none, title on the body edge (16) | 16 → 359 | 374 |
+| 768 | none, title on the body edge (32) | 32 → 720 | 752 |
+| 1024 | 8 → 1000, page top edge 16 | 160 → 848 | 1008 |
+| 1280 | 8 → 1256, page top edge 16 | 288 → 976 | 1264 |
+| 1920 | 16 → 1904, page top edge 16 | 608 → 1296 | 1904 |
+| 1200 / 2560 | 16 → window − 16 | — | window − 16 |
+
+The band follows the **page box**, not a second constant: where the platform
+reserves a classic scrollbar the page box is that much narrower, which is why the
+1024 and 1280 rows read 8 and 24 from the window while 1920 reads 16 and 16.
+That is the scrollbar's width, not a value anybody maintains.
 
 Captures (8 PNGs, 390/768/1280/1920 × light/dark) in
 `%TEMP%\baratto-desktop-f14\`, outside the repo: they are evidence for this
