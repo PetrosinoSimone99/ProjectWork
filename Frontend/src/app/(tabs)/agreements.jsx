@@ -9,6 +9,7 @@ import { Banner } from '@/components/Banner';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { EmptyState } from '@/components/EmptyState';
 import { ModalShell } from '@/components/ModalShell';
+import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
 import { useAgreements } from '@/hooks/useAgreements';
 import { counterpartOf } from '@/services/agreements';
@@ -201,15 +202,7 @@ export default function AgreementsScreen() {
         // list has to end above it, otherwise it can never be tapped.
         bottomSpacing={BELL_SIZE + BELL_MARGIN * 2}
       >
-        <View style={{ gap: space.xs }}>
-          <AppText variant="title" level={1}>
-            Accordi
-          </AppText>
-          <AppText variant="small" tone="secondary">
-            Gli scambi nati da una proposta accettata. Le proposte ricevute si accettano o si
-            rifiutano dalla campanella in basso a destra.
-          </AppText>
-        </View>
+        <PageHeader titolo="Accordi" frase="Gli scambi nati da una proposta accettata." />
 
         {errore ? (
           // Il messaggio e il suo ritentativo sono un elemento solo: prima erano
@@ -351,12 +344,12 @@ function SectionTabs({ sections, activeKey, counts, onChange }) {
               gap: space.xs,
               paddingHorizontal: space.sm,
               borderRadius: radius.pill,
-              backgroundColor: attiva ? t.primary : pressed ? t.border : 'transparent',
+              backgroundColor: attiva ? t.serviceBg : pressed ? t.border : 'transparent',
             })}
           >
             <AppText
               variant="small"
-              style={{ color: attiva ? t.onPrimary : t.text, fontWeight: '600' }}
+              style={{ color: attiva ? t.serviceText : t.text, fontWeight: '600' }}
             >
               {voce.tab}
             </AppText>

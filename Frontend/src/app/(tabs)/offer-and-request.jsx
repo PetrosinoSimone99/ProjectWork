@@ -29,6 +29,7 @@ import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHeader } from '@/components/PageHeader';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { PublicationsSection, SEZIONI_PUBBLICAZIONI } from '@/components/PublicationsSection';
 import { DeletedServicesSection } from '@/components/DeletedServicesSection';
@@ -419,10 +420,7 @@ export default function OfferAndRequestScreen() {
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
-      <View style={{ gap: space.xs }}>
-        <AppText variant="title">Offro e cerco</AppText>
-        <AppText variant="small" tone="secondary">{INTRODUZIONE}</AppText>
-      </View>
+      <PageHeader titolo="Offro e cerco" frase={INTRODUZIONE} />
 
       {esito ? (
         <Banner
@@ -448,15 +446,14 @@ export default function OfferAndRequestScreen() {
       )}
 
       {erroreElenco ? (
-        <>
-          <Banner kind="error" message={erroreElenco} />
-          <AppButton
-            label="Riprova"
-            variant="secondary"
-            icon="refresh-outline"
-            onPress={() => void carica()}
-          />
-        </>
+        <Banner
+          kind="error"
+          message={erroreElenco}
+          etichettaAzione="Riprova"
+          iconaAzione="refresh-outline"
+          onAzione={() => void carica()}
+          caricamentoAzione={loading}
+        />
       ) : null}
 
       {SEZIONI_PUBBLICAZIONI.map((sezione) => (
