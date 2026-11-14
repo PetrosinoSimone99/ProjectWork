@@ -84,14 +84,20 @@ export function FilterBar({
   const [bozzaTesto, setBozzaTesto] = useState('');
   const testoAttivo = bozzaTesto.trim() !== '';
 
-  // Invio e «Cerca» applicano la bozza: al padre arriva il testo, non un campo.
-  // Con il layout stretto l'applicazione chiude anche il pannello: su 390 px
-  // confermare torna subito ai risultati; sopra la soglia resta aperto (F10).
-  const applicaBozza = () => {
-    onApplica(bozzaTesto);
+  // Applicare una scelta chiude il pannello sul layout stretto (F10): la ricerca
+  // è un ciclo — scegli, guarda, riscegli — e su 390 px il pannello aperto
+  // occupa tutto il primo schermo, quindi i risultati resterebbero sotto la
+  // piega a ogni giro. Sopra la soglia resta aperto: lì costa una riga.
+  const chiudiSeStretto = () => {
     if (layoutStretto) {
       setPannelloAperto(false);
     }
+  };
+
+  // Invio e «Cerca» applicano la bozza: al padre arriva il testo, non un campo.
+  const applicaBozza = () => {
+    onApplica(bozzaTesto);
+    chiudiSeStretto();
   };
   // La X svuota la bozza qui e chiede al padre di riapplicare senza il testo.
   const svuotaBozza = () => {
@@ -198,7 +204,10 @@ export function FilterBar({
             value={filtri.idCategoria}
             stato={statoCategorie}
             etichettaAzzera="Tutte le categorie"
-            onChange={(idCategoria) => onCambiaScelta('idCategoria', idCategoria)}
+            onChange={(idCategoria) => {
+              onCambiaScelta('idCategoria', idCategoria);
+              chiudiSeStretto();
+            }}
           />
 
           <View
@@ -214,7 +223,10 @@ export function FilterBar({
               opzioni={REGIONI.map((r) => r.nome)}
               valore={filtri.regione}
               etichettaAzzera="Tutte le regioni"
-              onChange={(valore) => onCambiaScelta('regione', valore)}
+              onChange={(valore) => {
+                onCambiaScelta('regione', valore);
+                chiudiSeStretto();
+              }}
               style={{ flex: flessibile }}
             />
             <ListSelector
@@ -224,7 +236,10 @@ export function FilterBar({
               valore={filtri.provincia}
               etichettaAzzera="Tutte le province"
               disabled={filtri.regione === ''}
-              onChange={(valore) => onCambiaScelta('provincia', valore)}
+              onChange={(valore) => {
+                onCambiaScelta('provincia', valore);
+                chiudiSeStretto();
+              }}
               style={{ flex: flessibile }}
             />
             <ListSelector
@@ -232,7 +247,10 @@ export function FilterBar({
               placeholder="Tutti"
               opzioni={SCELTE_FILTRO_MODALITA.map((scelta) => scelta.etichetta)}
               valore={etichettaValoreModalita(filtri.modalita)}
-              onChange={(etichetta) => onCambiaModalita(valoreDaEtichettaModalita(etichetta))}
+              onChange={(etichetta) => {
+                onCambiaModalita(valoreDaEtichettaModalita(etichetta));
+                chiudiSeStretto();
+              }}
               style={{ flex: flessibile }}
             />
           </View>
