@@ -31,9 +31,10 @@ class QueueHandler
     {
         $userQueue = $this->serviceQueueManager->getQueueById($queueId->getId());
         $userServiceCategory = $userQueue->getService()->getCategories()->first();
+        $userServiceFromRemote = $userQueue->getService()->isRemote();
         $relevantQueues = $this->getRelevantQueues($this->serviceQueueManager, $userQueue);
-        $relevantQueues = array_filter($relevantQueues, function (ServiceQueue $queue) use ($userServiceCategory) {
-            return $queue->getService()->getCategories()->contains($userServiceCategory);
+        $relevantQueues = array_filter($relevantQueues, function (ServiceQueue $queue) use ($userServiceCategory, $userServiceFromRemote) {
+            return $queue->getService()->getCategories()->contains($userServiceCategory) && $queue->getService()->isRemote() === $userServiceFromRemote;
         });
         $userQueueKeywords = $this->extractKeywordsFromDescription(strtolower($userQueue->getService()->getDescription()), $userServiceCategory->getDescription());
         
