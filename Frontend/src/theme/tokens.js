@@ -48,6 +48,7 @@ const dark = {
   borderInput: '#6E736C',
   text: '#EBEFEA',
   textSecondary: '#99A49B',
+  // 5.97:1 su `onPrimary` `#0D1F15`.
   primary: '#4EA97F',
   // 4.75:1 su `onPrimary` `#0D1F15` (era `#3E9169`, 4.46:1: sotto 4.5, WCAG 1.4.3).
   // Il pressed si scurisce, non si schiarisce: sul tema scuro è "premuto" il
@@ -72,6 +73,20 @@ const dark = {
  * bottoni e chip a pillola.
  */
 export const radius = { card: 16, input: 12, checkbox: 6, pill: 999 };
+
+/**
+ * Opacità di un controllo non disponibile.
+ *
+ * Un solo valore per tutta l'app: era 0.55 in quattro componenti, 0.7 in due e
+ * 0.4 nel cestino di una voce, cioè lo stesso stato disegnato in tre modi. Lo
+ * stato è uno, il valore è uno.
+ *
+ * 0.7 e non 0.55: è il valore che due di quei punti difendevano con una misura
+ * (a 0.7 l'etichetta di un pulsante spento resta sopra 3.3:1 nei due temi),
+ * quindi è quello che il resto dell'app adotta. L'opacità è l'unica leva: un
+ * grigio "sbagliato" darebbe un colore fuori dalla palette.
+ */
+export const opacity = { disabled: 0.7 };
 
 /**
  * Bersaglio di tocco minimo, in pt: la regola di accessibilità CT06 dice che

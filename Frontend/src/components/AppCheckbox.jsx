@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Casella di spunta con etichetta.
@@ -40,7 +40,7 @@ export function AppCheckbox({ label, value, onChange, disabled = false, style })
           paddingVertical: space.xs,
           borderRadius: radius.input,
           backgroundColor: pressed ? t.border : 'transparent',
-          opacity: disabled ? 0.55 : 1,
+          opacity: disabled ? opacity.disabled : 1,
         },
         style,
       ]}

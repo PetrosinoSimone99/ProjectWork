@@ -49,6 +49,22 @@ export function isClosed(report) {
   );
 }
 
+/**
+ * Chi può aprire l'area staff: i due ruoli che il backend riconosce
+ * (`ROLE_STAFF` e `ROLE_ADMIN`, normalizzati in `utente.ruolo`).
+ *
+ * La regola stava scritta a mano dentro `profile.jsx` e non esisteva altrove,
+ * quindi le due rotte dell'area (`/staff`, `/staff-users`) non avevano nessun
+ * controllo e chi non è staff ci arrivava per URL, leggendo il `403` del backend
+ * come errore generico (audit UX F13). Nascondere il collegamento non è
+ * proteggere: la UI qui mostra lo stato giusto, il backend continua a rifiutare.
+ */
+export function puoEntrareNellAreaStaff(utente) {
+  const ruolo =
+    typeof utente?.ruolo === 'string' ? utente.ruolo.trim().toUpperCase() : null;
+  return ruolo === 'STAFF' || ruolo === 'ADMIN';
+}
+
 /** A review in progress: no outcome, empty note, ready for the sheet. */
 export function emptyReview() {
   return { outcome: null, note: '' };

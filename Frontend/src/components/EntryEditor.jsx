@@ -5,7 +5,7 @@ import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { CategorySelector } from './CategorySelector';
 import { LIMITE_MANSIONE, TIPI_VOCE } from '@/services/offer-request';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Una voce di «cosa offro» o «cosa cerco»: categoria + mansione. La casella
@@ -105,7 +105,7 @@ export function EntryEditor({
                 minHeight: target.min,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: rimuovibile ? 1 : 0.4,
+                opacity: rimuovibile ? 1 : opacity.disabled,
               }}
             >
               <AppIcon name="trash-outline" size={18} color={t.danger} />
@@ -125,6 +125,10 @@ export function EntryEditor({
 
       <AppInput
         label="Mansione"
+        // Il nome accessibile porta la sezione: le due voci di una schermata
+        // hanno lo stesso campo visibile «Mansione», e senza questa distinzione
+        // uno screen reader ne annunciava due identici (audit UX F18).
+        accessibilityLabel={`Mansione — ${testi.titolo.toLowerCase()}`}
         value={voce.mansione}
         onChangeText={(mansione) => onCambia('mansione', mansione)}
         placeholder={testi.segnaposto}

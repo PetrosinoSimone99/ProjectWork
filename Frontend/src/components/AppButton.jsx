@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, useTokens } from '@/theme/tokens';
 
 /** Bottone pill: stati pressed/loading/disabled sempre espliciti. */
 export function AppButton({
@@ -76,9 +76,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
   },
-  // 0.7 e non 0.55: il grigio del pulsante disabilitato smetteva di dire cosa
-  // manca. A 0.7 l'etichetta resta a 3.3:1 nel tema chiaro e 3.6:1 nello scuro,
-  // sopra la soglia 3:1 del testo grande e leggibile per chiunque (audit UX F24).
-  disabled: { opacity: 0.7 },
+  // Il valore è in `theme/tokens.js` (`opacity.disabled`): era 0.7 qui e 0.55
+  // in quattro altri componenti, cioè lo stesso stato disegnato in due modi
+  // (audit UX F15).
+  disabled: { opacity: opacity.disabled },
   icon: { marginLeft: -space.xs },
 });

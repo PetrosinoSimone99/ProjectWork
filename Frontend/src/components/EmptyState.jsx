@@ -24,9 +24,10 @@ import { radius, space, useTokens } from '@/theme/tokens';
  *   senza il disco: `icon` è facoltativa e il disco compare solo con lei.
  *
  * La vecchia prop `variante` (`dati` / `mercato` / `non-disponibile`) non esiste
- * più: i punti di chiamata che la passano ancora non ottengono niente di diverso,
- * ed è voluto — due di loro le passavano anche un'azione che la variante
- * scartava. La prop sparisce dalle chiamate quando quei file si toccano.
+ * più: i punti di chiamata che la passavano non ottenevano niente di diverso, ed
+ * è voluto — due di loro le passavano anche un'azione che la variante scartava.
+ * Dalla passata di rifinitura del 2026-11-14 non la passa più nessuno dei sette
+ * (audit UX F15): una forma sola, nessun parametro che non fa niente.
  */
 export function EmptyState({ icon = null, title, description, etichettaAzione = null, onAzione = null }) {
   const t = useTokens();

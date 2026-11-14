@@ -181,7 +181,6 @@ export function PublicationsSection({
           e la sezione riceve l'errore per poterlo rispettare (audit F56). */}
       {voci.length === 0 && !formQui && !errore ? (
         <EmptyState
-          variante="dati"
           icon={sezione.vuoto.icona}
           title={sezione.vuoto.titolo}
           description={sezione.vuoto.descrizione}

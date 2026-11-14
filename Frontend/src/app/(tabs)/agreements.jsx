@@ -254,7 +254,6 @@ export default function AgreementsScreen() {
           {bucket === null ? (
             errore ? (
               <EmptyState
-                variante="non-disponibile"
                 icon={sezione.icon}
                 title="Caricamento non riuscito"
                 description="Gli accordi di questa sezione non sono arrivati: usa «Riprova» in alto."

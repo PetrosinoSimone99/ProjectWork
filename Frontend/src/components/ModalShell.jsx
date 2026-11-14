@@ -62,9 +62,10 @@ const pilaAperta = [];
  * - il pannello non supera l'85 % dell'altezza della finestra e **solo il corpo
  *   scorre** (audit UX F70): intestazione e azioni restano ferme, così il
  *   comando non scappa via insieme al testo che si sta leggendo;
- * - `align` sceglie il punto di appoggio, `pannelloStyle`/`contenitoreStyle`
- *   coprono i casi che devono ancora posizionarsi da soli (la campanella, che
- *   si apre sopra il proprio pulsante);
+ * - `align` sceglie il punto di appoggio — il pannello resta centrato in
+ *   orizzontale, `align` muove solo la verticale — `pannelloStyle` /
+ *   `contenitoreStyle` coprono i casi che devono ancora posizionarsi da soli
+ *   (la campanella, che si apre sopra il proprio pulsante);
  * - `chiudibile = false` toglie Escape, sfondo e X mentre una chiamata è in
  *   corso: il pannello non si può lasciare a metà.
  */
@@ -162,6 +163,13 @@ export function ModalShell({
             flex: 1,
             backgroundColor: t.overlay,
             justifyContent: ALLINEAMENTO[align],
+            // Il pannello è largo al massimo quanto la colonna e `width: '100%'`:
+            // senza `alignItems` il figlio si appoggia al bordo iniziale della
+            // riga, quindi su uno schermo largo il foglio restava incollato a
+            // sinistra con l'overlay vuoto a destra, fuori dalla colonna da cui
+            // era partito (audit UX F2). Chi ha un appoggio suo (la campanella)
+            // lo dichiara in `contenitoreStyle`.
+            alignItems: 'center',
             padding: space.lg,
           },
           contenitoreStyle,

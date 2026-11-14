@@ -3,7 +3,7 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { ModalShell } from './ModalShell';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Campo della categoria: un `Pressable` che apre la lista in un `ModalShell`.
@@ -97,7 +97,7 @@ export function CategorySelector({
             borderRadius: radius.input,
             backgroundColor: pressed ? t.border : t.surface,
             borderColor: error ? t.danger : t.borderInput,
-            opacity: selezionabile ? 1 : 0.55,
+            opacity: selezionabile ? 1 : opacity.disabled,
           },
         ]}
       >

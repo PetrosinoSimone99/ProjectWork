@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { listStaffUsers, promoteStaffUser, setStaffUserStatus } from '@/api';
@@ -16,6 +16,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
+import { StaffAreaGate } from '@/components/StaffAreaGate';
 import {
   ACCOUNT_STATUSES,
   ROLES,
@@ -27,6 +28,7 @@ import {
   roleLabel,
 } from '@/services/staff-users';
 import { space } from '@/theme/tokens';
+import { puoEntrareNellAreaStaff } from '@/services/staff';
 
 /**
  * "Area staff → Utenti": the list with role and account status, and the two
@@ -113,14 +115,13 @@ export default function StaffUsersScreen() {
       if (seq !== requestRef.current) {
         return;
       }
-        setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-      } finally {
-        if (seq === requestRef.current) {
-          setLoading(false);
-        }
+      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+    } finally {
+      if (seq === requestRef.current) {
+        setLoading(false);
       }
-    },
-    [token],
+    }
+  },    [token],
   );
 
   // Il primo caricamento lo fa `useFocusEffect`: qui si richiede solo quando la
@@ -205,6 +206,20 @@ export default function StaffUsersScreen() {
     setQuery('');
     setRoleFilter(null);
     setStatusFilter(null);
+  }
+
+  // Le due uscite valgono qui come su `/staff`: senza sessione si torna al
+  // login (F1), senza ruolo la sezione si dichiara riservata (F13).
+  if (!token) {
+    return <Redirect href="/login" />;
+  }
+  if (!puoEntrareNellAreaStaff(utente)) {
+    return (
+      <StaffAreaGate
+        titolo="Utenti"
+        descrizione="Gli account del progetto: chi è staff, chi è attivo e chi è sospeso."
+      />
+    );
   }
 
   if (users === null && !error) {

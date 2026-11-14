@@ -60,6 +60,22 @@ whatever its width; a thing that holds content is a card whatever its height.
 `target.min` is the floor for every pressable in both dimensions. A control that
 cannot reach it is a defect, not a density choice.
 
+That floor is about the box the finger lands on, not the size of the words on
+it: a link that lives inside a sentence is still a control, so it carries the
+floor even when its text is 13 px (`components/TextLink.jsx`). The same is true
+of the two controls inside the web chrome bar.
+
+## Browser surfaces
+
+The scrollbar, the text caret, the native dropdowns and the form controls the
+browser paints are part of the page, so they follow the active theme: one
+`color-scheme` line on the document, written from the resolved theme rather than
+from `prefers-color-scheme`, because the user can choose light on a dark system
+(`hooks/useWebColorScheme.js`). The focus ring is the other browser-painted
+surface, and it has its own rule (`components/FocusRing.jsx`): the dialog
+container is the one element excluded, since `ModalShell` focuses it
+programmatically and the ring spent the accent a second time.
+
 ## Spacing
 
 One scale (`space`), three beats. The beats are the composition, the steps are
@@ -166,12 +182,17 @@ theme to pick a literal.
 | Change | File |
 | --- | --- |
 | a colour, radius, spacing step, touch floor, measure | `theme/tokens.js` |
+| the opacity of a control that is not available | `theme/tokens.js` (`opacity.disabled`) |
 | a type role or its job | `components/AppText.jsx` |
 | the card surface | `components/Card.jsx` |
 | the screen frame, its measures and its rhythm | `components/Screen.jsx` |
 | the web refresh control, and where it sits | `components/Screen.jsx` |
 | the title block | `components/PageHeader.jsx` |
 | the panel shell | `components/ModalShell.jsx` |
+| a link inside a sentence | `components/TextLink.jsx` |
+| what a route with no role may see | `components/StaffAreaGate.jsx` |
+| the browser tab's name, per route | `navigation/screen-titles.js` |
+| the colours the browser paints itself | `hooks/useWebColorScheme.js` |
 
 If a screen needs a new value that is not in this table, the answer is a token
 role in `tokens.js` and a line here — never a literal in the screen.

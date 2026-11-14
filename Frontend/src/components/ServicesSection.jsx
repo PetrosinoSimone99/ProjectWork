@@ -85,7 +85,10 @@ export function ServicesSection({
       ListHeaderComponent={
         <View style={{ gap: space.lg }}>
           {testata}
-          <View accessibilityLiveRegion="polite">
+          {/* La riga dei risultati è la regione viva: `accessibilityLiveRegion`
+              vale da nativo, `aria-live` sul web, dove react-native-web ignora
+              il primo (audit UX F4). */}
+          <View accessibilityLiveRegion="polite" aria-live="polite">
             <PageHeader variante="sezione" frase={conteggio} />
           </View>
         </View>

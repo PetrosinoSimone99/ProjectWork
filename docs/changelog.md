@@ -6,6 +6,114 @@ documents/code touched.
 
 ---
 
+## 2026-11-14 — Polish pass: dead ends, self-broken rules, browser surfaces
+
+### What changed
+
+Eleven findings from
+[`audits/ux-audit-2026-11-13.md`](audits/ux-audit-2026-11-13.md) are closed,
+taken in the order that audit suggested (Lane 1, plus the one-line rule-breaks
+next to it). No new component was added for its own sake: three of the eleven
+were fixed by giving an existing shared component one more job.
+
+1. **A secondary route no longer pretends to load forever (F1).** `/staff`,
+   `/staff-users` and `/edit-profile` are registered for every session, so a
+   logged-out visit reached them; the screens then waited on a request that
+   never left, behind a spinner with no exit. All three now redirect to
+   `/login`, as the tabs layout already did.
+2. **A logged-in non-staff visitor is told, not failed (F13).** The role rule
+   (`STAFF` or `ADMIN`) moved out of `profile.jsx` into
+   `services/staff.js:puoEntrareNellAreaStaff`, and the two area routes draw
+   `StaffAreaGate` for everyone else: one sentence and the way back, instead of
+   the backend's `403` arriving as a generic error.
+3. **Every error and confirmation is announced on web (F4).** `Banner`, the
+   result-count row and the staff-users search row declared only
+   `accessibilityLiveRegion`, which `react-native-web` ignores: `aria-live` is
+   now beside it at all three sites, `Banner` included — that is the app's only
+   error surface, on ten routes.
+4. **Every route has a name in the browser (F16).** `document.title` was empty
+   everywhere (`ExpoRoot` disables expo-router's own title for static
+   rendering). `navigation/screen-titles.js` maps the path to the word the
+   screen already shows — the tabs from `TAB_ROUTES`, the six secondary routes
+   by hand — and `hooks/useDocumentTitle.js` writes it.
+5. **The browser's own surfaces follow the theme (F19).** One `color-scheme`
+   line on the document (`hooks/useWebColorScheme.js`) takes the scrollbar, the
+   caret, the native dropdowns and the form controls from the *resolved* theme
+   rather than from `prefers-color-scheme`: the dark theme's scrollbar track was
+   near-white against `#111613`, and the user can choose light on a dark system.
+6. **Three touch targets reached the floor (F5, F6).** The two web chrome-bar
+   controls are 44 (`minHeight` was 40); the two auth links are a real control
+   now — `TextLink` wraps the word in a 44 pt `Pressable` inside `Link asChild`,
+   where it was an 18 pt strip of text and the only exit from `/login`.
+7. **The dialog is centred and stops wearing the accent (F2, F8).** `ModalShell`
+   sets `alignItems: 'center'` on the overlay (the panel resolved to the start of
+   the flex line, so above 560 px it sat at x ≈ 16 with the overlay empty to its
+   right), and the container is excluded from the focus ring — `ModalShell`
+   focuses it programmatically, and the ring spent `primary` a second time
+   beside the panel's own primary button.
+8. **The two «Mansione» fields are two fields (F18).** `AppInput` accepts an
+   `accessibilityLabel`; `EntryEditor` names the section ("Mansione — cosa
+   offri" / "… cosa cerchi"). The visible word stays the product's own.
+9. **One value for one state (F15).** `opacity.disabled` (0.7) replaces three
+   different numbers at seven sites; `EmptyState`'s dead `variante` prop left its
+   seven call sites; `WebNavMenu`'s two imports on one line, the corrupted
+   `role="main"` comment in `Screen.jsx`, the broken indentation in
+   `staff-users.jsx`'s `catch`, and the two stale contrast notes (`tokens.js`,
+   `AppButton.jsx`) are fixed.
+
+### Why
+
+The 2026-11-13 critique scored 27/40 and said its own number was dominated by
+consistency, not by craft: every P1 was a "one convention, applied everywhere"
+item. This pass takes the ones that needed no new decision — the paths that
+block, the states that lie, and the places where `DESIGN.md` already said what
+the code did not do.
+
+What was **not** taken, deliberately: **F3** (a `PageHeader` back slot and nine
+call sites) and **F7** (four retries moved into their banner) are the same kind
+of fix but change a convention, so they need one decision first; **F9** (the
+accent spent twice on three screens), **F10**, **F12**, **F14** (no desktop
+composition) and **F17** belong to composition and copy, not to a polish pass.
+
+### Verified
+
+Live on the running web build (`npx expo start --web`), 390 and 1280, both
+themes, measured in the DOM rather than read from the source: `document.title`
+is `Accedi · Baratto-lo` / `Crea il tuo profilo · Baratto-lo` and the product
+name on an unknown path; both auth links are 44 tall and keep `role="link"` +
+`tabindex="0"`; the `Banner` carries `aria-live="polite"` with the message
+inside; the two «Mansione» fields expose distinct accessible names;
+`color-scheme` follows the stored preference (`light` while the system was dark,
+`dark` after choosing «scuro»); the injected focus rule carries the dialog
+exception. `impeccable detect --json Frontend/src` → `[]`. `npx tsc --noEmit`
+and `npx expo lint` clean, `npx jest` 93/93 with the 20 tests that pin the two
+new rules (`navigation/__tests__/screen-titles.test.js`, the role gate in
+`services/__tests__/staff.test.js`).
+
+**Not verified live:** the authenticated screens. Docker Desktop would not start
+in this session, so `/staff`, `/staff-users`, `/edit-profile`, the centred dialog
+and the dark-theme scrollbar are verified by source and by the measurements
+above, not by a capture. The staff guards in particular deserve one authenticated
+pass.
+
+### Touched
+
+`Frontend/src/app/_layout.jsx`, `(auth)/login.jsx`, `(auth)/register.jsx`,
+`(tabs)/profile.jsx`, `edit-profile.jsx`, `staff.jsx`, `staff-users.jsx`;
+`src/components/` — `AppButton`, `AppCheckbox`, `AppInput`, `Banner`,
+`CategorySelector`, `EntryEditor`, `FilterBar`, `FocusRing`, `ListSelector`,
+`ModalShell`, `PillBar`, `PublicationsSection`, `Screen`, `ServicesSection`,
+`TextLink` (new), `StaffAreaGate` (new), `WebNavMenu`, plus the `EmptyState`
+call sites in `(tabs)/index.jsx`, `(tabs)/match.jsx`, `(tabs)/agreements.jsx`,
+`report.jsx` and `staff.jsx`;
+`src/hooks/useDocumentTitle.js` (new), `src/hooks/useWebColorScheme.js` (new),
+`src/navigation/screen-titles.js` (new), `src/services/staff.js`,
+`src/theme/tokens.js`, `docs/DESIGN.md`, `docs/changelog.md`.
+
+No file under `Backend/`, `Context_and_DB_V2/` or `Archive/`.
+
+---
+
 ## 2026-11-13 — Full frontend critique, third pass (docs only)
 
 ### What changed

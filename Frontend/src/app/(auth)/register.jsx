@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { Link, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getCategories } from '@/api';
@@ -28,6 +28,7 @@ import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { EntriesSection } from '@/components/EntriesSection';
 import { ListSelector } from '@/components/ListSelector';
+import { TextLink } from '@/components/TextLink';
 import { REGIONI, formattaLocalita, provincePerRegione } from '@/services/italian-regions';
 import { space } from '@/theme/tokens';
 
@@ -463,15 +464,11 @@ export default function RegisterScreen() {
         )}
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space.xs }}>
         <AppText variant="small" tone="secondary">
           Hai già un account?
         </AppText>
-        <Link href="/login" asChild>
-          <AppText variant="small" tone="primary" style={{ fontWeight: '700' }}>
-            Accedi
-          </AppText>
-        </Link>
+        <TextLink href="/login">Accedi</TextLink>
       </View>
     </AuthShell>
   );

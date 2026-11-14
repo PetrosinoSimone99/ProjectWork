@@ -37,7 +37,12 @@ export function Banner({
 
   return (
     <View
+      // Regione viva su entrambe le piattaforme: `accessibilityLiveRegion` vale
+      // da nativo, `aria-live` sul web, dove react-native-web ignora il primo
+      // (audit UX F4). Il banner è l'unica superficie d'errore dell'app: con la
+      // sola dichiarazione nativa, sul web nessun errore veniva annunciato.
       accessibilityLiveRegion="polite"
+      aria-live="polite"
       style={{
         flexDirection: 'row',
         gap: space.sm,

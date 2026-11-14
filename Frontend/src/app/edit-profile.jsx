@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getProfile, updateProfile } from '@/api';
@@ -293,6 +293,14 @@ export default function EditProfileScreen() {
       setSaveError(message);
       setSaving(false);
     }
+  }
+
+  // Senza sessione la rotta non ha niente da modificare: il modulo vuoto si
+  // lasciava compilare e il salvataggio moriva su un errore generico (audit UX
+  // F1, stesso difetto delle due rotte staff). La rotta è registrata per ogni
+  // sessione, quindi il controllo sta qui.
+  if (!token) {
+    return <Redirect href="/login" />;
   }
 
   if (firstLoad && loading) {

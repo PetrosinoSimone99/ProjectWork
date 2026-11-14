@@ -139,8 +139,8 @@ export function Screen({
 
   const content = scroll ? (
     <ScrollView
-      // `main`: la terra{\`'}a del contenuto della schermata (audit UX F52). Sotto
-      // l'intestazione di pagina e prima del piè, è ci{\`'} che uno screen reader
+      // `main`: l'area del contenuto della schermata (audit UX F52). Sotto
+      // l'intestazione di pagina e prima del piè, è ciò che uno screen reader
       // cerca quando chiede di saltare al contenuto.
       role="main"
       style={{ flex: 1 }}

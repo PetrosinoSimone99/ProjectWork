@@ -21,6 +21,7 @@ export function AppInput({
   contatore,
   returnKeyType,
   onSubmitEditing,
+  accessibilityLabel = null,
 }) {
   const t = useTokens();
   const [focused, setFocused] = useState(false);
@@ -29,6 +30,12 @@ export function AppInput({
   // esplicito il campo veniva annunciato con il suo placeholder (audit UX F14).
   // `accessibilityLabel` copre tutte le piattaforme, `aria-describedby` lega
   // l'errore al campo sul web e `nativeID`/`id` lo rendono unico nella pagina.
+  //
+  // Il nome accessibile è la prop omonima quando c'è: due campi possono portare
+  // la stessa etichetta visibile in due sezioni diverse della stessa schermata
+  // (la «Mansione» dell'offerta e quella della richiesta, audit UX F18) e in tal
+  // caso chi ascolta deve poterli distinguere. La parola sullo schermo resta
+  // quella, perché è il vocabolario del prodotto.
   const idCampo = `campo-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const idErrore = `${idCampo}-errore`;
 
@@ -56,7 +63,7 @@ export function AppInput({
       >
         <TextInput
           style={[styles.input, { color: t.text }, multiline && styles.multiline]}
-          accessibilityLabel={label}
+          accessibilityLabel={accessibilityLabel ?? label}
           nativeID={idCampo}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? idErrore : undefined}

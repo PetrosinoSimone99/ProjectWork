@@ -1,6 +1,6 @@
 import { Pressable, ScrollView } from 'react-native';
 import { AppText } from './AppText';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Una riga di pillole selezionabili: la forma comune dei filtri e delle scelte
@@ -69,7 +69,7 @@ export function PillBar({
               borderWidth: 1,
               borderColor: attivo ? t.primary : t.borderInput,
               backgroundColor: attivo ? t.primary : pressed ? t.border : 'transparent',
-              opacity: disabled ? 0.55 : 1,
+              opacity: disabled ? opacity.disabled : 1,
             })}
           >
             <AppText

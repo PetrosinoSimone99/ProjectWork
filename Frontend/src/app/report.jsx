@@ -92,7 +92,6 @@ export default function ReportScreen() {
       {!canReport ? (
         <>
           <EmptyState
-            variante="non-disponibile"
             title="Manca la persona da segnalare"
             description="Questa schermata si apre dal dettaglio di un servizio, che porta con sé la persona da segnalare. Riapri la segnalazione da lì."
           />

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/client';
 import {
@@ -23,8 +23,9 @@ import { ModalShell } from '@/components/ModalShell';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
+import { StaffAreaGate } from '@/components/StaffAreaGate';
 import { formatIsoDate } from '@/services/dates';
-import { REVIEW_LABELS, emptyReview, operationActionLabel, operationTargetLabel, validateReview } from '@/services/staff';
+import { REVIEW_LABELS, emptyReview, operationActionLabel, operationTargetLabel, puoEntrareNellAreaStaff, validateReview } from '@/services/staff';
 import { statusLabel } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
@@ -187,6 +188,24 @@ export default function StaffScreen() {
     }
   }
 
+  // Due uscite prima di disegnare la schermata, ed è la ragione per cui la
+  // rotta gira su ogni sessione (`app/_layout.jsx`): senza sessione si torna al
+  // login, senza ruolo si dice che la sezione è riservata. Prima, senza sessione
+  // `load` usciva subito e `reports` restava `null`, cioè uno spinner che non si
+  // risolve mai e nessuna via d'uscita (audit UX F1); senza ruolo si leggeva il
+  // `403` come errore generico (F13).
+  if (!token) {
+    return <Redirect href="/login" />;
+  }
+  if (!puoEntrareNellAreaStaff(utente)) {
+    return (
+      <StaffAreaGate
+        titolo="Area staff"
+        descrizione="Le segnalazioni dei servizi, da prendere in carico e chiudere con un esito."
+      />
+    );
+  }
+
   if (reports === null && !error) {
     return <LoadingScreen label="Guardo le segnalazioni…" />;
   }
@@ -244,7 +263,6 @@ export default function StaffScreen() {
 
       {reports !== null && list.length === 0 ? (
         <EmptyState
-          variante="mercato"
           icon="shield-checkmark-outline"
           title="Niente da esaminare"
           description={emptyTextForFilter(filter)}
@@ -363,7 +381,6 @@ function OperationsLog({ operations, error, loading, onRetry }) {
     if (isEndpointUnavailable(error)) {
       return (
         <EmptyState
-          variante="non-disponibile"
           icon="time-outline"
           title="Registro non disponibile"
           description="Il servizio non restituisce il registro delle operazioni: le segnalazioni e gli utenti qui sopra funzionano lo stesso."

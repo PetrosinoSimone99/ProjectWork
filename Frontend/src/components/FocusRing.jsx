@@ -17,6 +17,14 @@ const ID_STILE = 'baratto-anello-focus';
  * È CSS puro iniettato su web (dove il focus lo disegna il browser); su native
  * non serve e il componente non disegna nulla. Il colore viene dai token: al
  * cambio di tema la regola si riscrive da sola.
+ *
+ * **Il pannello modale è l'unica eccezione, e ha una regola sua**: `ModalShell`
+ * porta il focus sul contenitore all'apertura (`tabIndex={-1}`), che è un
+ * bersaglio programmatico e non una fermata da tastiera. Con l'anello addosso il
+ * dialogo si disegnava un secondo accento `primary` attorno a tutto il pannello,
+ * accanto al suo bottone primario — il colore speso due volte sulla stessa
+ * schermata, e un anello che sembrava dire «questo pannello è selezionato»
+ * (audit UX F8). Gli elementi **dentro** il pannello tengono l'anello normale.
  */
 export function FocusRing() {
   const colore = useTokens().primary;
@@ -31,7 +39,9 @@ export function FocusRing() {
       stile.id = ID_STILE;
       document.head.appendChild(stile);
     }
-    stile.textContent = `:focus-visible { outline: 2px solid ${colore}; outline-offset: 2px; }`;
+    stile.textContent =
+      `:focus-visible { outline: 2px solid ${colore}; outline-offset: 2px; }` +
+      ' [role="dialog"]:focus, [role="dialog"]:focus-visible { outline: none; }';
   }, [colore]);
 
   return null;

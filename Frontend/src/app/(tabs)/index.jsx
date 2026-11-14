@@ -198,7 +198,6 @@ export default function HomeScreen() {
       />
     ) : (
       <EmptyState
-        variante="mercato"
         icon="pricetags-outline"
         title="Nessun servizio attivo"
         description="Quando qualcuno pubblica un servizio, lo troverai qui: per ora nessuno ne ha pubblicati."

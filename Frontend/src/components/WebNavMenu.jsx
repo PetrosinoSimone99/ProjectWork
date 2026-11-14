@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppIcon } from './AppIcon';import { AppText } from './AppText';
+import { AppIcon } from './AppIcon';
+import { AppText } from './AppText';
 import { useChromeWeb } from '@/hooks/web-chrome';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { TAB_ROUTES } from '@/navigation/tab-routes';
-import { ombra, radius, space, useTokens } from '@/theme/tokens';
+import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
 
 // Misure della spec (design-spec.md del piano 2026-10-15-navigazione-web-menu)
 // e della direzione UX del 2026-11-11: niente numeri magici sparsi nel codice.
@@ -554,10 +555,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.pill,
   },
-  // Il controllo premibile dentro la barra: bersaglio alto 40, cioè il minimo
-  // utile dentro una barra da 48.
+  // Il controllo premibile dentro la barra: bersaglio alto `target.min`, cioè
+  // 44 — che nella barra da 48 ci sta. Era 40, con la nota «il minimo utile
+  // dentro una barra da 48»: la barra è 48, quindi 44 entra, e il comando
+  // «Menu» è l'unica navigazione del web, cio
+  // è il controllo più premuto dell'app (audit UX F5, `DESIGN.md` § Touch).
   controllo: {
-    minHeight: 40,
+    minHeight: target.min,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,

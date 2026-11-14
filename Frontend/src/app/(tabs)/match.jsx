@@ -16,7 +16,6 @@ export default function MatchScreen() {
     <Screen>
       <AppText variant="title">Match automatico</AppText>
       <EmptyState
-        variante="non-disponibile"
         title="Non ancora disponibile"
         description="Il match automatico arriverà: stiamo preparando il calcolo delle compatibilità fra richieste e offerte."
       />

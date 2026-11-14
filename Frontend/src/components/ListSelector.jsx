@@ -3,7 +3,7 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { ModalShell } from './ModalShell';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Selettore a tendina generico: un `Pressable` che apre un `ModalShell` con
@@ -89,7 +89,7 @@ export function ListSelector({
           borderRadius: radius.input,
           backgroundColor: pressed ? t.border : t.surface,
           borderColor: errore ? t.danger : t.borderInput,
-          opacity: disabled ? 0.55 : 1,
+          opacity: disabled ? opacity.disabled : 1,
         })}
       >
         <AppText style={{ flex: 1, color: valore ? t.text : t.textSecondary }}>{testo}</AppText>

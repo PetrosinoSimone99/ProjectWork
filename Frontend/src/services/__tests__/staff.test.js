@@ -3,6 +3,7 @@ import {
   OPERATION_TARGET_LABELS,
   operationActionLabel,
   operationTargetLabel,
+  puoEntrareNellAreaStaff,
 } from '../staff';
 
 /**
@@ -83,5 +84,36 @@ describe('operationTargetLabel', () => {
     expect(operationTargetLabel('')).toBe('');
     expect(operationTargetLabel(undefined)).toBe('');
     expect(operationTargetLabel(null)).toBe('');
+  });
+});
+
+/**
+ * The two routes of the staff area (`/staff`, `/staff-users`) are registered for
+ * every session, so this predicate is what stands between a logged-in user with
+ * no role and a screenful of `403`s (audit UX F13).
+ */
+describe('puoEntrareNellAreaStaff', () => {
+  it.each(['STAFF', 'ADMIN'])('opens the area to the %s role', (ruolo) => {
+    expect(puoEntrareNellAreaStaff({ ruolo })).toBe(true);
+  });
+
+  it('is not fooled by the case and the padding the wire word may carry', () => {
+    expect(puoEntrareNellAreaStaff({ ruolo: ' staff ' })).toBe(true);
+    expect(puoEntrareNellAreaStaff({ ruolo: 'Admin' })).toBe(true);
+  });
+
+  it('keeps a plain user out', () => {
+    expect(puoEntrareNellAreaStaff({ ruolo: 'USER' })).toBe(false);
+  });
+
+  it('keeps out a session that carries no role at all', () => {
+    expect(puoEntrareNellAreaStaff({ ruolo: null })).toBe(false);
+    expect(puoEntrareNellAreaStaff({})).toBe(false);
+    expect(puoEntrareNellAreaStaff(null)).toBe(false);
+    expect(puoEntrareNellAreaStaff(undefined)).toBe(false);
+  });
+
+  it('does not resolve a prototype key into a role', () => {
+    expect(puoEntrareNellAreaStaff({ ruolo: 'constructor' })).toBe(false);
   });
 });

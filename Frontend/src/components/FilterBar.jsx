@@ -14,7 +14,7 @@ import {
   valoreDaEtichettaModalita,
 } from '@/services/offer-request';
 import { REGIONI, provincePerRegione } from '@/services/italian-regions';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Sotto questa larghezza le righe della barra si impilano: su 390px la riga di
@@ -346,7 +346,7 @@ function SearchField({
           minHeight: target.min,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: filtrando ? 0.7 : 1,
+          opacity: filtrando ? opacity.disabled : 1,
         }}
       >
         <AppText variant="label" tone="primary">

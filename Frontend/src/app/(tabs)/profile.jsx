@@ -6,6 +6,7 @@ import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { formatOrarioScadenza, tokenExpiresAt } from '@/auth/token-store';
 import { getProfile } from '@/api';
 import { localitaPerDisplay } from '@/services/italian-regions';
+import { puoEntrareNellAreaStaff } from '@/services/staff';
 import { useRefresh } from '@/hooks/useRefresh';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -124,8 +125,10 @@ export default function ProfileScreen() {
   const expiresAt = token ? tokenExpiresAt(token) : null;
   // Il ruolo non arriva dal profilo (P24): continua a venire dalla sessione.
   // La UI nasconde, il backend protegge — e la schermata gestisce il 403.
+  // La regola sta in `services/staff.js`: la stessa che apre (o chiude) le due
+  // rotte dell'area, così profilo e rotte non possono dire cose diverse (F13).
   const ruolo = typeof utente.ruolo === 'string' ? utente.ruolo.trim().toUpperCase() : null;
-  const isStaff = ruolo === 'STAFF' || ruolo === 'ADMIN';
+  const isStaff = puoEntrareNellAreaStaff(utente);
 
   // I campi nuovi, se il profilo è arrivato: prima del primo esito le righe
   // restano nascoste invece di mostrare segnaposto inventati.

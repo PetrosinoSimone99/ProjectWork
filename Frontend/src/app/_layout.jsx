@@ -1,5 +1,5 @@
 import { Platform, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
@@ -7,7 +7,9 @@ import { FocusRing } from '@/components/FocusRing';
 import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { WebNavMenu } from '@/components/WebNavMenu';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionExpiry } from '@/hooks/useSessionExpiry';
+import { useWebColorScheme } from '@/hooks/useWebColorScheme';
 import { larghezzaBarraMenuWeb, space } from '@/theme/tokens';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
 
@@ -16,10 +18,16 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * - nessun utente  -> gruppo (auth) con login e registrazione
  * - utente attivo  -> gruppo (tabs) con le schermate principali
  *
- * Le rotte fuori dalla barra delle tab (chat, accordi, proposta, token,
- * segnalazione, area staff e utenti dell'area staff) sono elencate a mano: senza
- * la riga giusta non sono raggiungibili con una sessione attiva, pur esistendo il
- * file.
+ * Le rotte fuori dalla barra delle tab (modifica profilo, segnalazione, area
+ * staff e utenti dell'area staff) sono elencate a mano: senza la riga giusta non
+ * sono raggiungibili con una sessione attiva, pur esistendo il file. Comparire
+ * qui **non** protegge una rotta: chi arriva senza sessione esce con il proprio
+ * redirect (audit UX F1), e chi ha una sessione senza il ruolo trova la sua via
+ * d'uscita nella schermata (F13).
+ *
+ * Il nome della pagina e i colori che il browser dipinge da sé (barra di
+ * scorrimento, cursore di testo) non li disegna nessun componente: li tiene
+ * allineati alla rotta e al tema la shell, con i due hook qui sotto (F16, F19).
  *
  * Si aspetta anche la preferenza del tema salvata, così il primo render usa già
  * il tema scelto e non c'è un cambio di colore a schermata caricata.
@@ -32,9 +40,12 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  */
 function RootNavigator() {
   const { utente, token, booting } = useAuth();
-  const { ready } = useThemePreference();
+  const { ready, schema } = useThemePreference();
   const { inScadenza, scadenzaMs } = useSessionExpiry(token);
   const insets = useSafeAreaInsets();
+  const percorso = usePathname();
+  useDocumentTitle(percorso);
+  useWebColorScheme(schema);
   // Solo con una sessione: nel ramo (auth) non c'è nessuna scadenza da dire e
   // nessuna notifica da leggere.
   const mostraAvvisi = Boolean(utente) && inScadenza;

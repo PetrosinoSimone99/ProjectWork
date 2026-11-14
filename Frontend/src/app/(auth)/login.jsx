@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { AuthShell } from '@/components/AuthShell';
@@ -8,6 +8,7 @@ import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
+import { TextLink } from '@/components/TextLink';
 import { requiredError } from '@/validation';
 import { space } from '@/theme/tokens';
 
@@ -121,15 +122,11 @@ export default function LoginScreen() {
         />
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space.xs }}>
         <AppText variant="small" tone="secondary">
           Non hai un account?
         </AppText>
-        <Link href="/register" asChild>
-          <AppText variant="small" tone="primary" style={{ fontWeight: '700' }}>
-            Registrati
-          </AppText>
-        </Link>
+        <TextLink href="/register">Registrati</TextLink>
       </View>
     </AuthShell>
   );
