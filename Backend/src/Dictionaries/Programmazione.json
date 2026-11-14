@@ -1,0 +1,11 @@
+{
+    "python": ["python"],
+    "php": ["php"],
+    "javascript": ["javascript", "js"],
+    "c#":["c#", "c sharp"],
+    "c++":["c++", "cpp"],
+    "reactnative":["reactnative", "react native"],
+    "react":["react"],
+    "java":["java"],
+    "mysql":["mysql","mariadb"]
+}

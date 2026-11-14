@@ -14,7 +14,8 @@ use App\Enum\AgreementParticipantRole;
 use App\Enum\AgreementDetailsStatus;
 
 use App\Manager\UserManager;
-
+use App\Manager\ServiceManager;
+use App\Manager\UseCase\CloseQueueUseCase;
 use App\Repository\AgreementRepository;
 use App\Repository\AgreementProposalRepository;
 use App\Repository\AgreementDetailsRepository;
@@ -30,14 +31,20 @@ use DateTimeImmutable;
 class AgreementManager{
     private EntityManagerInterface $entityManager;
     private UserManager $userManager;
+    private ServiceManager $serviceManager;
+    private CloseQueueUseCase $closeQueueUseCase;
     private AgreementRepository $agreementRepository;
     private AgreementProposalRepository $agreementProposalRepository;
     private AgreementDetailsRepository $agreementDetailsRepository;
 
     public function __construct(EntityManagerInterface $entityManager,UserManager $userManager, 
-    AgreementRepository $agreementRepository, AgreementProposalRepository $agreementProposalRepository, AgreementDetailsRepository $agreementDetailsRepository){
+    ServiceManager $serviceManager,CloseQueueUseCase $closeQueueUseCase, 
+    AgreementRepository $agreementRepository, AgreementProposalRepository $agreementProposalRepository,
+    AgreementDetailsRepository $agreementDetailsRepository){
         $this->entityManager = $entityManager;
         $this->userManager = $userManager;
+        $this->serviceManager = $serviceManager;
+        $this->closeQueueUseCase = $closeQueueUseCase;
         $this->agreementRepository = $agreementRepository;
         $this->agreementProposalRepository = $agreementProposalRepository;
         $this->agreementDetailsRepository = $agreementDetailsRepository;
@@ -83,6 +90,19 @@ class AgreementManager{
                 $entityManager->persist($agreement);
                 $entityManager->flush();
                 $this->addAgreementParticipants($agreement, [$user, $otherParticipant], 'exchange');
+            }
+        );
+    }
+    public function createProvisionAgreement(User $provider, User $beneficiary): Agreement
+    {
+        return $this->entityManager->wrapInTransaction(
+            function ($entityManager) use ($provider, $beneficiary): Agreement {
+                $agreement = new Agreement(AgreementStatus::ACCEPTED, new DateTimeImmutable(), true);
+                $entityManager->persist($agreement);
+                $entityManager->flush();
+                $this->addAgreementParticipants($agreement, [$provider, $beneficiary], 'provision');
+
+                return $agreement;
             }
         );
     }
@@ -158,7 +178,15 @@ class AgreementManager{
             $agreement->setAgreementStatus(AgreementStatus::VOID);
             $this->entityManager->persist($agreement);
             $this->entityManager->flush();
+
+            if($agreement->getFromQueue()){
+                $agreementProposal = $this->agreementProposalRepository->findProposalAgreementBeneficiary($agreementId);
+                $this->userManager->refundCreditForQueue($agreementProposal->getUser());
+                $this->closeQueueUseCase->execute($user, $agreement);
+            }
         }
+
+        
         
     }
     //Internal only
@@ -179,6 +207,16 @@ class AgreementManager{
             $this->entityManager->persist($agreementProposalOther);
             $agreement->addAgreementProposal($agreementProposalUser);
             $agreement->addAgreementProposal($agreementProposalOther);
+
+            $this->entityManager->flush();
+        }
+        if($type === 'provision'){
+            $agreementProposalProvider = new AgreementProposal($agreement, $participants[0], AgreementParticipantRole::PROVIDER, true, new DateTimeImmutable());
+            $agreementProposalBeneficiary = new AgreementProposal($agreement, $participants[1], AgreementParticipantRole::BENEFICIARY, true, new DateTimeImmutable());
+            $this->entityManager->persist($agreementProposalProvider);
+            $this->entityManager->persist($agreementProposalBeneficiary);
+            $agreement->addAgreementProposal($agreementProposalProvider);
+            $agreement->addAgreementProposal($agreementProposalBeneficiary);
 
             $this->entityManager->flush();
         }
