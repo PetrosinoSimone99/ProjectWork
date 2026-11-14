@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { AuthShell } from '@/components/AuthShell';
+import { PageHeader } from '@/components/PageHeader';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
@@ -75,7 +76,8 @@ export default function LoginScreen() {
   }
 
   return (
-    <AuthShell centrata wordmarkAsTitle>
+    <AuthShell centrata>
+      <PageHeader titolo="Accedi" />
       <View style={{ gap: space.md }}>
         {motivoUscita ? (
           <Banner

@@ -21,6 +21,7 @@ import {
   requiredError,
 } from '@/validation';
 import { AuthShell } from '@/components/AuthShell';
+import { PageHeader } from '@/components/PageHeader';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
@@ -337,12 +338,10 @@ export default function RegisterScreen() {
 
   return (
     <AuthShell>
-      <View style={{ gap: space.xs }}>
-        <AppText variant="title">Crea il tuo profilo</AppText>
-        <AppText variant="small" tone="secondary">
-          Bastano pochi dati per iniziare a scambiare servizi.
-        </AppText>
-      </View>
+      <PageHeader
+        titolo="Crea il tuo profilo"
+        frase="Bastano pochi dati per iniziare a scambiare servizi."
+      />
 
       <Card>
         <AppText variant="heading">I tuoi dati</AppText>
