@@ -33,4 +33,16 @@ class ServiceQueueRepository extends ServiceEntityRepository
     {
         return $this->findBy(['agreement' => $agreement]);
     }
+
+    public function getServiceQueuesByUser(User $user): ?array
+    {
+        return $this->createQueryBuilder('sq')
+            ->where('sq.user = :user')
+            ->andWhere('sq.queueStatus != :status')
+            ->andWhere('sq.agreement IS NULL')
+            ->setParameter('status', 'CLOSED')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+    }
 }

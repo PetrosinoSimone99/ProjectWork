@@ -7,6 +7,7 @@ use App\Entity\ServiceQueue;
 use App\Manager\ServiceManager;
 use App\Manager\UserManager;
 use App\Manager\AgreementManager;
+use App\DTO\ServiceQueueDTO;
 use App\Repository\ServiceQueueRepository;
 use App\Enum\QueueType;
 use App\Enum\QueueStatus;
@@ -37,6 +38,25 @@ class ServiceQueueManager
     public function getQueueById(int $queueId): ?ServiceQueue
     {
         return $this->serviceQueueRepository->getQueueById($queueId);
+    }
+
+    public function getServiceQueuesByUser(User $user): ?array
+    {
+        $dtos = [];
+        $queues = $this->serviceQueueRepository->getServiceQueuesByUser($user);
+        foreach ($queues as $queue) {
+            $dtos[] = new ServiceQueueDTO(
+                $queue->getId(),
+                $queue->getQueueType(),
+                $queue->getQueueStatus(),
+                $queue->getLocation(),
+                $queue->getService()->getDescription(),
+                $queue->getService()->getCategories()->first()->getDescription(),
+                $queue->getService()->isRemote(),
+                $queue->getAgreement() ? $queue->getAgreement()->getId() : null
+            );
+        }
+        return $dtos;
     }
     public function createServiceQueue(User $user, string $queueType): void
     {

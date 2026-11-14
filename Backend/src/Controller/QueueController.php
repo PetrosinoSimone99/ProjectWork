@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\DTO\ServiceQueueDTO;
 use App\Message\QueueId;
 
 use App\Manager\UserManager;
@@ -65,5 +66,23 @@ final class QueueController extends AbstractController
             return $this->json(['error' => 'Internal server error'], 500);
         }
         return $this->json(['message' => 'Service queue cancelled successfully'], 200);
+    }
+
+    #[Route('/get-queues', name: 'get_queues', methods: ['GET'])]
+    public function getQueues(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User){
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+        try{
+            $queuesDTO = $this->serviceQueueManager->getServiceQueuesByUser($user);
+            if (!$queuesDTO) {
+                return $this->json(['error' => 'Service queues not found'], 404);
+            }
+            return $this->json(['queues' => $queuesDTO], 200);
+        }catch(Exception $e){
+            return $this->json(['error' => 'Internal server error'], 500);
+        }
     }
 }
