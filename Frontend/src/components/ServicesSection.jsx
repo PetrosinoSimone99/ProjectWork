@@ -1,7 +1,7 @@
 import { FlatList, Platform, RefreshControl, View } from 'react-native';
 import { PageHeader } from './PageHeader';
 import { ServiceCard } from './ServiceCard';
-import { space, useTokens } from '@/theme/tokens';
+import { colonna, layout, space, useTokens } from '@/theme/tokens';
 
 /**
  * Il catalogo della home: la riga dei risultati, la testata della schermata e le
@@ -75,7 +75,16 @@ export function ServicesSection({
     <FlatList
       ref={ref}
       style={[{ flex: 1 }, style]}
-      contentContainerStyle={{ gap: space.lg, flexGrow: 1 }}
+      // Il nodo che scorre è la finestra, la colonna è il suo contenuto: la
+      // misura sta qui e non sull'antenato, altrimenti la barra di scorrimento
+      // si disegna sul bordo della colonna e la rotella sopra i gutter non fa
+      // niente (audit UX F14).
+      contentContainerStyle={{
+        ...colonna(layout.maxCatalogo),
+        paddingHorizontal: space.lg,
+        gap: space.lg,
+        flexGrow: 1,
+      }}
       keyboardShouldPersistTaps="handled"
       data={voci}
       keyExtractor={(servizio) => servizio.chiave}

@@ -128,11 +128,18 @@ export function Screen({
   // proprietà di flessibilità: la ScrollView riempie con `flexGrow`, la View
   // fissa con `flex: 1`. Il `gap` è la battuta fra sezioni di primo livello (32):
   // è la sola misura che separa due blocchi che non si appartengono.
+  // La misura sta sul frame — cioè sull'antenato che scorre — tranne una volta:
+  // quando la schermata delega lo scorrimento a un figlio (il catalogo). Lì il
+  // nodo che scorre deve essere la finestra, e la misura la porta il contenuto
+  // del nodo con `colonna()`, altrimenti la barra di scorrimento si disegna sul
+  // bordo della colonna e la rotella sopra i gutter non fa niente (F14).
+  const misuraSulFrame = !larga;
   const riempimento = {
-    padding: space.lg,
+    paddingHorizontal: misuraSulFrame ? space.lg : 0,
+    paddingTop: space.lg,
     paddingBottom: bottomSpacing,
     gap: space.xxl,
-    maxWidth: larghezzaMassima,
+    maxWidth: misuraSulFrame ? larghezzaMassima : undefined,
     width: '100%',
     alignSelf: 'center',
   };

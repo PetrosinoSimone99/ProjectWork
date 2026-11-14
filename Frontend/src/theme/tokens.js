@@ -146,6 +146,18 @@ export const larghezzaBarraMenuWeb = 320;
 export const layout = { maxContent: 560, maxCatalogo: 720 };
 
 /**
+ * La colonna di contenuto: una misura, centrata, senza una larghezza propria.
+ *
+ * Si applica al contenuto del nodo che scorre, non a un suo antenato. Se il
+ * tetto sta sopra lo scroll, il nodo che scorre è la colonna: la barra di
+ * scorrimento si disegna sul bordo della colonna e la rotella sopra i gutter
+ * non fa niente (audit UX F14).
+ */
+export function colonna(misura) {
+  return { width: '100%', maxWidth: misura, alignSelf: 'center' };
+}
+
+/**
  * Token del tema attivo: segue la preferenza scelta dall'utente (Profilo ->
  * Aspetto), con default "sistema".
  */

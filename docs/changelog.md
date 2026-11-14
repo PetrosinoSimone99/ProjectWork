@@ -6,6 +6,38 @@ documents/code touched.
 
 ---
 
+## 2026-11-14 — The catalog scrolls the page, not its column
+
+### What changed
+
+1. **The scrollbar of the catalog is at the window's edge.** `Screen` puts the
+   content measure on its own box, and the catalog's box was the ancestor of the
+   `FlatList`: the node that scrolled was the 720 column, so the scrollbar was
+   drawn on the column's edge (≈x 975 at 1280, ≈x 1300 at 1920) and the wheel over
+   the gutters did nothing (audit UX F14). `Screen` now gives the measure up when
+   it is `larga`, and the measure travels with the content that scrolls: the new
+   `colonna()` helper in `theme/tokens.js`, read by `ServicesSection`'s
+   `FlatList` and by the proposal-sent `Banner` in `(tabs)/index.jsx`.
+2. **Measured, not assumed** (chromium at 1280x800 and 1920x900, logged in, real
+   backend): the only scroll node of `/` is now `0 → window width` (was 720 wide);
+   a wheel over the gutter at x = 40 advances `scrollTop` 0 → 400; the card is
+   `288 → 976` at 1280 and `608 → 1296` at 1920. At 390x844 the card is
+   `16 → 359` with no change: the measure that used to sit on the ancestor is the
+   same one that now sits on the scroll content, so the phone geometry is
+   identical.
+3. **Cards gain the 15 px of scrollbar at wide sizes** (688 wide instead of 673):
+   that scrollbar used to live *inside* the 720 box, it now lives outside it, and
+   the measure means what the token says.
+
+The other branch of `Screen` was already correct and is untouched: `/profile`
+scrolls through `Screen`'s own `ScrollView`, which spans the window with the
+measure on its content container.
+
+Touched: `Frontend/src/theme/tokens.js` (`colonna`),
+`Frontend/src/components/Screen.jsx`, `Frontend/src/components/ServicesSection.jsx`,
+`Frontend/src/app/(tabs)/index.jsx`. Gate green (`expo lint`, `tsc --noEmit`,
+`jest` 97/97).
+
 ## 2026-11-14 — An expired token is no longer an error message on arrival
 
 ### What changed

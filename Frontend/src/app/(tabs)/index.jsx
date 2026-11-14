@@ -18,7 +18,7 @@ import {
   contaFiltri,
   descriviFiltri,
 } from '@/services/offer-request';
-import { space, useTokens } from '@/theme/tokens';
+import { colonna, layout, space, useTokens } from '@/theme/tokens';
 
 /**
  * Frase onesta dello stato vuoto quando il filtro area è attivo (decisione del
@@ -312,21 +312,25 @@ export default function HomeScreen() {
       />
 
       {/* La conferma della proposta sta fuori dalla lista (F11): sopra la
-          `FlatList` è sempre visibile, da dove che sia aperto il pannello. */}
+          `FlatList` è sempre visibile, da dove che sia aperto il pannello. La
+          colonna la porta lei: `Screen` non ha più un tetto su questa schermata,
+          perché il nodo che scorre è la finestra (F14). */}
       {propostaInviataA !== null ? (
-        <Banner
-          kind="success"
-          message={
-            propostaInviataA
-              ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
-              : 'Proposta inviata. La trovi in Accordi.'
-          }
-          // Un messaggio di successo che resta fino alla prossima scrittura non è
-          // più una notizia: si chiude come gli altri (audit F46).
-          etichettaAzione="Ho capito"
-          iconaAzione="checkmark-outline"
-          onAzione={() => setPropostaInviataA(null)}
-        />
+        <View style={{ ...colonna(layout.maxCatalogo), paddingHorizontal: space.lg }}>
+          <Banner
+            kind="success"
+            message={
+              propostaInviataA
+                ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
+                : 'Proposta inviata. La trovi in Accordi.'
+            }
+            // Un messaggio di successo che resta fino alla prossima scrittura non è
+            // più una notizia: si chiude come gli altri (audit F46).
+            etichettaAzione="Ho capito"
+            iconaAzione="checkmark-outline"
+            onAzione={() => setPropostaInviataA(null)}
+          />
+        </View>
       ) : null}
 
       <ServicesSection
