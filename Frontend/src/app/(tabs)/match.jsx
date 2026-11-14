@@ -1,5 +1,5 @@
-import { AppText } from '@/components/AppText';
 import { EmptyState } from '@/components/EmptyState';
+import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
 
 /**
@@ -14,7 +14,7 @@ import { Screen } from '@/components/Screen';
 export default function MatchScreen() {
   return (
     <Screen>
-      <AppText variant="title">Match automatico</AppText>
+      <PageHeader titolo="Match" />
       <EmptyState
         title="Non ancora disponibile"
         description="Il match automatico arriverà: stiamo preparando il calcolo delle compatibilità fra richieste e offerte."

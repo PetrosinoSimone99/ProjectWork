@@ -15,6 +15,7 @@ import { AppIcon } from '@/components/AppIcon';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHeader } from '@/components/PageHeader';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
@@ -154,6 +155,7 @@ export default function ProfileScreen() {
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+      <PageHeader titolo="Profilo" />
       {salvato ? (
         <Banner
           kind="success"
@@ -165,15 +167,14 @@ export default function ProfileScreen() {
       ) : null}
 
       {errore !== null ? (
-        <View style={{ gap: space.md, marginBottom: space.lg }}>
-          <Banner kind="error" message={errore} />
-          <AppButton
-            label="Riprova"
-            onPress={caricaProfilo}
-            loading={richiestaInCorso}
-            icon="refresh-outline"
-          />
-        </View>
+        <Banner
+          kind="error"
+          message={errore}
+          etichettaAzione="Riprova"
+          iconaAzione="refresh-outline"
+          onAzione={caricaProfilo}
+          caricamentoAzione={richiestaInCorso}
+        />
       ) : null}
 
       {/* Un foglio solo, diviso in bande da una riga di 1 px: identità, dati,
@@ -221,7 +222,7 @@ export default function ProfileScreen() {
               </AppText>
             ) : null}
             <View style={{ alignItems: 'center', gap: space.xs }}>
-              <AppText variant="title" level={1}>
+              <AppText variant="heading">
                 {displayName}
               </AppText>
               {utente.username ? (
