@@ -19,6 +19,7 @@ import { StaffReportCard } from '@/components/StaffReportCard';
 import { ReportReviewSheet } from '@/components/ReportReviewSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHeader } from '@/components/PageHeader';
 import { ModalShell } from '@/components/ModalShell';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
@@ -28,6 +29,7 @@ import { formatIsoDate } from '@/services/dates';
 import { REVIEW_LABELS, emptyReview, operationActionLabel, operationTargetLabel, puoEntrareNellAreaStaff, validateReview } from '@/services/staff';
 import { statusLabel } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
+import { useRefresh } from '@/hooks/useRefresh';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -122,6 +124,11 @@ export default function StaffScreen() {
     }, [load]),
   );
 
+  // Il gesto nativo e «Aggiorna» del web sono lo stesso comando (audit §8.8):
+  // prima l'unico ricaricamento era il pulsante dello stato vuoto, che esiste
+  // solo quando la lista è vuota.
+  const { refreshing, onRefresh } = useRefresh(load);
+
   async function claim(report) {
     if (actionRef.current) {
       return;
@@ -214,13 +221,12 @@ export default function StaffScreen() {
   const busyOn = (report) => busy !== null && Number(busy.id) === Number(report.id);
 
   return (
-    <Screen scroll withBottomInset={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <BackButton />
-        <AppText variant="title" level={1}>
-          Area staff
-        </AppText>
-      </View>
+    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+      <PageHeader
+        titolo="Area staff"
+        frase="Le segnalazioni dei servizi, da prendere in carico e chiudere con un esito."
+        indietro={<BackButton />}
+      />
 
       <AppButton
         label="Utenti"
@@ -230,11 +236,6 @@ export default function StaffScreen() {
         onPress={() => router.push('/staff-users')}
         style={{ alignSelf: 'flex-start' }}
       />
-
-      <AppText variant="small" tone="secondary">
-        Esamina le segnalazioni, prendile in carico e chiudile con un esito. La nota
-        dice su cosa si è basata la decisione: chiudi solo dopo aver riletto il riepilogo.
-      </AppText>
 
       <StaffStatusBar filter={filter} onChange={setFilter} disabled={loading} />
 

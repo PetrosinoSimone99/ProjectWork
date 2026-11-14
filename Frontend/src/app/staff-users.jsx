@@ -13,6 +13,7 @@ import { Card } from '@/components/Card';
 import { StaffUserCard } from '@/components/StaffUserCard';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHeader } from '@/components/PageHeader';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
@@ -27,6 +28,7 @@ import {
   nextAccountStatus,
   roleLabel,
 } from '@/services/staff-users';
+import { useRefresh } from '@/hooks/useRefresh';
 import { space } from '@/theme/tokens';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 
@@ -146,6 +148,9 @@ export default function StaffUsersScreen() {
     }, [load]),
   );
 
+  // Il gesto nativo e «Aggiorna» del web sono lo stesso comando (audit §8.8).
+  const { refreshing, onRefresh } = useRefresh(load);
+
   // Testo e stato li ha già applicati il server: qui resta il solo ruolo.
   const visible = useMemo(
     () => filterUsers(users ?? [], '', roleFilter, null),
@@ -233,11 +238,12 @@ export default function StaffUsersScreen() {
     : '';
 
   return (
-    <Screen scroll withBottomInset={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <BackButton />
-        <AppText variant="title">Utenti</AppText>
-      </View>
+    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+      <PageHeader
+        titolo="Utenti"
+        frase="Rendi staff un utente o sospendi il suo account."
+        indietro={<BackButton />}
+      />
 
       <AppButton
         label="Segnalazioni"
@@ -247,11 +253,6 @@ export default function StaffUsersScreen() {
         onPress={() => router.push('/staff')}
         style={{ alignSelf: 'flex-start' }}
       />
-
-      <AppText variant="small" tone="secondary">
-        Rendi staff un utente o sospendi il suo account. Ogni modifica riguarda un'altra
-        persona: la conferma dice cosa cambia e per chi, e l&apos;elenco si aggiorna subito dopo.
-      </AppText>
 
       <Card>
         <AppInput
@@ -295,17 +296,14 @@ export default function StaffUsersScreen() {
       </Card>
 
       {error ? (
-        <View style={{ gap: space.sm }}>
-          <Banner kind="error" message={error} />
-          <AppButton
-            label="Riprova"
-            variant="secondary"
-            icon="refresh-outline"
-            onPress={() => void load()}
-            loading={loading}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </View>
+        <Banner
+          kind="error"
+          message={error}
+          etichettaAzione="Riprova"
+          iconaAzione="refresh-outline"
+          onAzione={() => void load()}
+          caricamentoAzione={loading}
+        />
       ) : null}
 
       {/* Durante una ricerca lato server le righe vecchie restano: senza una

@@ -13,6 +13,7 @@ import { AppButton } from '@/components/AppButton';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHeader } from '@/components/PageHeader';
 import { ListSelector } from '@/components/ListSelector';
 import {
   REGIONI,
@@ -312,28 +313,21 @@ export default function EditProfileScreen() {
 
   return (
     <Screen scroll withBottomInset={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <BackButton />
-        <AppText variant="title">Modifica profilo</AppText>
-      </View>
-
-      <AppText variant="small" tone="secondary">
-        Nome, cognome, località, bio e immagine del profilo: gli altri vedono questi dati
-        quando ti contattano.
-      </AppText>
+      <PageHeader
+        titolo="Modifica profilo"
+        frase="Nome, cognome, località, bio e immagine del profilo."
+        indietro={<BackButton />}
+      />
 
       {loadError ? (
-        <View style={{ gap: space.md }}>
-          <Banner kind="error" message={loadError} />
-          <AppButton
-            label="Riprova"
-            variant="secondary"
-            icon="refresh-outline"
-            onPress={() => void loadProfile()}
-            loading={loading}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </View>
+        <Banner
+          kind="error"
+          message={loadError}
+          etichettaAzione="Riprova"
+          iconaAzione="refresh-outline"
+          onAzione={() => void loadProfile()}
+          caricamentoAzione={loading}
+        />
       ) : null}
 
       <Card>

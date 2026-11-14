@@ -13,6 +13,7 @@ import { Card } from '@/components/Card';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { EmptyState } from '@/components/EmptyState';
 import { BackButton } from '@/components/BackButton';
+import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
 import { nomePersona } from '@/services/offer-request';
 import { REPORT_REASON_MAX, reasonError } from '@/validation';
@@ -79,28 +80,19 @@ export default function ReportScreen() {
 
   return (
     <Screen scroll withBottomInset={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <BackButton />
-        <AppText variant="title">Segnala alla staff</AppText>
-      </View>
-
-      <AppText variant="small" tone="secondary">
-        La segnalazione arriva alla staff, che la esamina e decide. Racconta il fatto:
-        la decisione non è dell'app.
-      </AppText>
+      <PageHeader
+        titolo="Segnala alla staff"
+        frase="La segnalazione arriva alla staff, che la esamina e decide."
+        indietro={<BackButton />}
+      />
 
       {!canReport ? (
         <>
           <EmptyState
             title="Manca la persona da segnalare"
             description="Questa schermata si apre dal dettaglio di un servizio, che porta con sé la persona da segnalare. Riapri la segnalazione da lì."
-          />
-          <AppButton
-            label="Torna indietro"
-            variant="secondary"
-            icon="arrow-back-outline"
-            onPress={() => router.back()}
-            style={{ alignSelf: 'flex-start' }}
+            etichettaAzione="Torna indietro"
+            onAzione={() => router.back()}
           />
         </>
       ) : null}
