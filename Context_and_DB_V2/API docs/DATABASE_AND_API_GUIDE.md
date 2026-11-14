@@ -4,6 +4,66 @@ This guide covers authentication, profiles, services, reports and staff administ
 
 ## Current database
 
+The user-services endpoint below uses the schema in
+[barattolo_14112026.sql](../barattolo_14112026.sql), selected by
+`LAST_DB_TO_USE.txt`. It requires no schema changes. Older setup and demo
+descriptions elsewhere in this guide refer to the previous demo dump.
+
+## User services for the homepage detail panel
+
+Call `GET /api/users/{id}/services` when opening the homepage mini-card. Use
+`owner.id` from `GET /api/services` as the user ID, and send the viewer's JWT
+in `Authorization: Bearer <token>`.
+
+Example response (`200 OK`):
+
+```json
+{
+  "user": {
+    "id": 12,
+    "name": "Alex",
+    "surname": "Smith",
+    "username": "alex",
+    "location": "Rome",
+    "bio": null,
+    "profileImageUrl": null
+  },
+  "offers": [
+    {
+      "id": 35,
+      "type": "OFFER",
+      "description": "I can repair bicycles.",
+      "location": "Rome",
+      "isRemote": false,
+      "isSuspended": false,
+      "createdAt": "2026-11-14T10:00:00+00:00",
+      "categories": [{"id": 4, "description": "Repairs"}]
+    }
+  ],
+  "requests": []
+}
+```
+
+`requests` uses the same service fields with `type: "REQUEST"`. Both arrays
+contain all of this user's published services, excluding suspended and
+soft-deleted rows. Each array is ordered by creation date descending, then
+ID descending. There is no pagination; homepage search and category filters
+do not apply. A user without published services has empty arrays.
+
+The public profile never contains email, password, roles, credits or account
+administration fields. Service location is separate from profile location.
+
+| Status | Meaning |
+| --- | --- |
+| `200` | Active user found, including when both lists are empty |
+| `401` | JWT is missing, invalid or expired |
+| `403` | The authenticated viewer's account is inactive |
+| `404` | The selected user does not exist or is inactive |
+
+For an unavailable user, the response is `{"error":"User not found."}`.
+
+### Previous demo database notes
+
 The schema reference is the dump selected by [LAST_DB_TO_USE.txt](../LAST_DB_TO_USE.txt), currently [barattolo_demo_20261108.sql](../barattolo_demo_20261108.sql). Older dumps and migrations describe historical versions, not the selected schema. The demo contains 50 categories, 30 users (including 2 staff), 200 offers and 100 requests. See [demo accounts and import instructions](../DEMO_DATABASE.md); all demo passwords are `demo`, stored as hashes.
 
 For a fresh installation only, import the selected file into a new empty database and configure your own connection and JWT keys. Do not run the historical migrations or Doctrine schema-update commands over this schema: they can recreate removed structures or alter tables that remain intentionally unmapped.

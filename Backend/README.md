@@ -56,6 +56,13 @@ The selected dump is the schema reference, regardless of the local database stat
 
 ## API
 
+`GET /api/users/{id}/services` returns the selected active user's public profile,
+published offers and requests for the homepage detail panel. Send a JWT in the
+`Authorization: Bearer <token>` header. The response is
+`{"user": {...}, "offers": [...], "requests": [...]}`; suspended and deleted
+services are excluded. See the [API guide](../Context_and_DB_V2/API%20docs/DATABASE_AND_API_GUIDE.md#user-services-for-the-homepage-detail-panel)
+for the response fields and errors. No database migration is required.
+
 `POST /api/auth/register`
 
 ```json
