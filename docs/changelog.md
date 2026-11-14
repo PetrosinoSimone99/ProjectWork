@@ -6,6 +6,41 @@ documents/code touched.
 
 ---
 
+## 2026-11-13 — Full frontend critique, third pass (docs only)
+
+### What changed
+
+1. **New audit: [`audits/ux-audit-2026-11-13.md`](audits/ux-audit-2026-11-13.md).**
+   Dual-agent critique of `Frontend/src` on tree `c3442ba`, read against the
+   2026-11-12 captures: Nielsen 27/40, design specificity, 19 numbered findings
+   (0 × P0, 6 × P1, 13 × P2) with evidence, why-it-matters and the smallest fix
+   for each, a technical appendix (contrast, targets, live regions, focus, state
+   matrix, responsive rules), a closed-findings table, and a suggested lane order
+   for the next session.
+
+2. **`audits/screens-2026-11-12/` is now referenced** as the visual evidence of
+   record for `c3442ba`. Two of its filenames mislead and are noted in the audit
+   (§8.9): `mobile-390-profile-loaded.png` is the loading state, and
+   `desktop-1280-navmenu-kb.png` shows the service detail sheet, not the popover.
+
+### Why
+
+Three priority items from the 2026-11-11 critique are closed (login dead end,
+heading levels, refresh band), so the score moved 24 → 27. The new pass found
+that two of that critique's items were only *half* fixed (`PageHeader` is still
+used by one screen; four retries are still detached from their message; three
+live regions are still silent on web), plus two defects no previous pass had
+looked for: a logged-out secondary route renders an endless spinner, and the
+dialog is left-anchored instead of centred above 560 px.
+
+### Touched
+
+`docs/audits/ux-audit-2026-11-13.md` (new), `docs/changelog.md`. No code, no
+configuration, no `Frontend/` file. The harness snapshot of the run is at
+`.impeccable/critique/2026-11-13T16-07-00Z__frontend-src-app.md`.
+
+---
+
 ## 2026-11-11 — One chrome bar, and the top of the screen comes back (critique P2)
 
 ### What changed

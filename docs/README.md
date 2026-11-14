@@ -20,6 +20,7 @@ created and a chat opens to settle the details.
 | [`backend-gaps.md`](backend-gaps.md) | The endpoints the frontend needs and the backend does not have yet |
 | [`database.md`](database.md) | MySQL schema (the demo dump): tables, what they encode, known gaps |
 | [`setup.md`](setup.md) | Local environment: Docker Desktop stack, Expo, environment variables |
+| [`ui-triage.md`](ui-triage.md) | Open UI symptom inventory: what is verified from source, what still needs a rendered capture |
 | [`decisions.md`](decisions.md) | Decision log (ADR-light) |
 | [`changelog.md`](changelog.md) | Session-by-session history, newest first |
 
