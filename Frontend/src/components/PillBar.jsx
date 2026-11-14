@@ -25,8 +25,13 @@ import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
  *    **e** `aria-checked` — perché su web `react-native-web` ignora
  *    `accessibilityState` e legge solo gli attributi `aria-*`.
  *
- * La pillola attiva è anche l'unico posto in cui il colore primario dice
- * qualcosa, e l'etichetta accessibile è la stessa parola scritta.
+ * La pillola attiva non è un accento: è una scelta in una fila di scelte, e
+ * l'accento pieno resta alla schermata (un solo elemento `primary` per
+ * schermata, `DESIGN.md` § Colore — audit UX F9). Per questo lo stato attivo
+ * si disegna come in `ThemeSelector`: fondo `serviceBg`, testo `serviceText` in
+ * grassetto, bordo `primary`. Prima era un blocco `primary` pieno, e su
+ * `/staff-users` due barre di filtri spendevano l'accento due volte. L'etichetta
+ * accessibile è la stessa parola scritta.
  */
 export function PillBar({
   scelte,
@@ -68,13 +73,13 @@ export function PillBar({
               borderRadius: radius.pill,
               borderWidth: 1,
               borderColor: attivo ? t.primary : t.borderInput,
-              backgroundColor: attivo ? t.primary : pressed ? t.border : 'transparent',
+              backgroundColor: attivo ? t.serviceBg : pressed ? t.border : 'transparent',
               opacity: disabled ? opacity.disabled : 1,
             })}
           >
             <AppText
               variant="small"
-              style={{ color: attivo ? t.onPrimary : t.text, fontWeight: '600' }}
+              style={{ color: attivo ? t.serviceText : t.text, fontWeight: '600' }}
             >
               {scelta.etichetta}
             </AppText>
