@@ -151,10 +151,11 @@ the column and the header starts at the top of the window.
 
 ## Composition rules
 
-- **One header.** Every screen's title block is `PageHeader`: an optional
-  eyebrow, the title, and **one** sentence that says what the screen holds —
-  never how to use it. Instructions belong in the empty state, which is the
-  place where someone needs them.
+- **One header.** Every screen's title block is `PageHeader`: the title, and
+  **one** sentence that says what the screen holds — never how to use it.
+  Instructions belong in the empty state, which is the place where someone
+  needs them. A back-navigable screen passes the back control in `indietro`
+  instead of drawing its own row: the title stays on the body edge.
 - **One card anatomy.** A headline (the person's own words, allowed a real
   measure of lines), one meta line carrying the data marks inline, and at most
   one trailing action. An identity block or a settings row is not a card.

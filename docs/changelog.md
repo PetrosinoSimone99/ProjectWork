@@ -6,6 +6,99 @@ documents/code touched.
 
 ---
 
+## 2026-11-14 — Residual of the third audit: one header, one accent, one retry
+
+### What changed
+
+Twelve findings from
+[`audits/ux-audit-2026-11-13.md`](audits/ux-audit-2026-11-13.md) are closed:
+**F3, F7, F9, F10, F11, F12, F17** and §8 items 1, 2, 4, 5, 8. Contract and
+plan: [`briefs/ux-residual-2026-11-14/`](briefs/ux-residual-2026-11-14/).
+Nothing new was built except the one slot the audit asked for.
+
+1. **Every screen's title comes from `PageHeader` (F3).** Nine screens
+   hand-built the row `[back 44pt][gap][title]`, which started the H1 56 px
+   right of the body column, and two of them carried usage instructions in the
+   subtitle slot the component documents as "what the screen holds".
+   `PageHeader` gained an `indietro` slot: same row, but the row pulls left by
+   `min(56, gutter)`, so the title sits on the body edge wherever the window
+   has a gutter (exact from 672 px up) and falls back to today's offset on a
+   phone, where the gutter is zero. `occhiello` and `azione` are deleted: no
+   call site had ever used them.
+2. **The retry lives in the banner that failed (F7).** Four screens drew
+   `Banner` + a detached `AppButton`; on `/profile` the detached retry carried
+   no `variant`, so the strongest button on the screen appeared exactly when
+   loading had failed. All four now pass `etichettaAzione`/`onAzione` to the
+   banner.
+3. **One filled accent per screen (F9).** `PillBar` is the shared track behind
+   `/staff`, `/staff-users` and the staff review sheet, and it filled the
+   active pill with `primary`; `/agreements` filled its segment the same way
+   next to a filled bell. Both now mark the selection with `serviceBg`, a
+   `primary` border and primary-family text — the treatment `ThemeSelector`
+   already used. The ATTIVO chip and the bell FAB stay: they are data marks and
+   the screen's one accent.
+4. **Applying a filter closes the panel on a phone (F10).** The panel occupied
+   the whole first viewport on 390, so every iteration of "pick, look, pick
+   again" cost a scroll down and back. Every applied choice closes it below
+   480 px and leaves it open above, where it costs one row.
+5. **The proposal-sent confirmation is visible from where you send (F11).** It
+   lived in the list header of a 20-row virtualised list; it now sits above the
+   list, and the list returns to offset 0 when the proposal leaves.
+6. **One sentence per idea on `/offer-and-request` (F12).** Both empty states
+   repeated the definition already in the section hint and told a desktop user
+   to touch; they now say `Seleziona «Aggiungi» per iniziare.`
+7. **Both auth screens name the task as their H1 (F17).** `/login` made the
+   wordmark the only first-level heading, so "Accedi" existed only inside the
+   submit button; `AuthShell` no longer owns the title and `wordmarkAsTitle` is
+   gone with its single use.
+8. **The §8 leftovers.** The filtered empty state no longer offers a second
+   reset next to the always-visible footer one (§8.1) nor repeats the query its
+   title already shows (§8.4); `/report`'s empty state carries its own action
+   instead of a left-aligned secondary button outside it (§8.2); `/profile` and
+   `/match` are named in the heading index (§8.5); `/staff` and `/staff-users`
+   get pull-to-refresh and the web bar's "Aggiorna" through the existing
+   `hooks/useRefresh` (§8.8) — until now the only refresh was the empty state's
+   button, which exists only when the list is empty.
+
+### Why
+
+The audit's consistency axis (#4) was the visible symptom: the same three jobs
+— header, retry, live region — drawn two or three ways. This cycle made the
+codebase do what `DESIGN.md` already said, and updated `DESIGN.md` where it
+described surface that no longer exists (the eyebrow).
+
+### What was not taken
+
+**F14** (no desktop composition) and the **F19** surface step still need a
+direction document, not a polish pass. §8.3 (two centred notes in the detail
+sheet), §8.6 (two "Aggiungi" with different fills), §8.7 (form label role) and
+§8.9 (evidence notes) were left out of the declared scope.
+
+### Touched
+
+`Frontend/src/components/`: `PageHeader.jsx`, `PillBar.jsx`, `FilterBar.jsx`,
+`PublicationsSection.jsx`, `ServicesSection.jsx`, `AuthShell.jsx`.
+`Frontend/src/app/`: `staff.jsx`, `staff-users.jsx`, `edit-profile.jsx`,
+`report.jsx`, `(tabs)/index.jsx`, `(tabs)/agreements.jsx`,
+`(tabs)/offer-and-request.jsx`, `(tabs)/profile.jsx`, `(tabs)/match.jsx`,
+`(auth)/login.jsx`, `(auth)/register.jsx`.
+Docs: `docs/DESIGN.md`, `docs/changelog.md`,
+`docs/briefs/ux-residual-2026-11-14/`. No backend file was read into the diff
+and none was written.
+
+### Notes for the next session
+
+- `staff-users.jsx:313` still declares only `accessibilityLiveRegion` on the
+  search row: the previous cycle's entry claims that site was closed for F4.
+  Out of this cycle's scope, so not touched.
+- `components/DeletedServicesSection.jsx:46-56` still draws the pattern F7
+  removed: a `danger` message followed by a detached `AppButton` "Riprova".
+- `PageHeader`'s `indietro` assumes the standard reading measure
+  (`layout.maxContent`). No `larga` screen uses it yet; one that does would
+  need the measure passed in.
+
+---
+
 ## 2026-11-14 — Polish pass: dead ends, self-broken rules, browser surfaces
 
 ### What changed

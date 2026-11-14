@@ -71,14 +71,16 @@ fact, and each is reversible without re-doing the plan.
    committed with `PageHeader` before any lane. Without it, F9 would split
    across two lanes and touch the same control twice.
 3. **F3's `indietro` aligns the title only where a gutter exists.** Measured:
-   body padding is `space.lg` (16) and `target.min` is 44, so an in-flow arrow
-   pushes the H1 by 52. Pulling the row left by the arrow needs 52 of gutter,
-   and the gutter is `(window − 560) / 2`: it is **zero at 390 and at 600**, so
-   the title cannot reach the body edge on a phone without the arrow leaving
-   the screen. The slot therefore pulls the row left by
-   `min(52, max(0, (window − layout.maxContent)/2))`: exact alignment from
-   ~664 px up (where the finding was measured, `desktop-1280-edit-profile`),
-   today's offset on a phone, and no second layout mode or breakpoint.
+   body padding is `space.lg` (16), `target.min` is 44 and the row `gap` is
+   `space.md` (12), so an in-flow arrow pushes the H1 by 56. Pulling the row
+   left by the arrow needs 56 of gutter, and the gutter is
+   `(window − 560) / 2`: it is **zero up to 560**, 20 at 600, so the title
+   cannot reach the body edge on a phone without the arrow leaving the screen.
+   The slot therefore pulls the row left by
+   `min(56, max(0, (window − layout.maxContent)/2))`: exact alignment from
+   672 px up (where the finding was measured,
+   `desktop-1280-edit-profile`), today's offset on a phone, and no second
+   layout mode or breakpoint.
 
 ## Success criteria
 
