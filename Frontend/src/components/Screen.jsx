@@ -88,8 +88,15 @@ export function Screen({
   // colonna (e finisce sopra il titolo), sopra non ci arriva mai. La misura è la
   // larghezza della barra, non la sua altezza: da quando la barra contiene anche
   // il refresh della schermata, è lei a decidere dove finisce il contenuto.
+  //
+  // Da `layout.sogliaLarga` in su la fascia non si riserva più: la testata è la
+  // banda di pagina (`PageHeader`) e arriva ai margini della finestra, quindi la
+  // barra sta sopra la banda e non sopra il titolo. Senza questa condizione a
+  // 1280 la banda cominciava 64 px sotto il bordo mentre a 1920 cominciava dal
+  // bordo: due composizioni per la stessa regola (audit UX F14).
   const riservaMenuWeb =
     Platform.OS === 'web' &&
+    larghezzaFinestra < layout.sogliaLarga &&
     larghezzaFinestra < larghezzaMassima + 2 * (larghezzaBarraMenuWeb + space.lg);
 
   // Il chrome del web (la barra del menu) disegna il refresh accanto al menu:

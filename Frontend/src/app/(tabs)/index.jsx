@@ -251,6 +251,9 @@ export default function HomeScreen() {
       <PageHeader
         titolo="Servizi"
         frase="I servizi che gli altri hanno pubblicato: cosa offrono, dove e in che modo."
+        // La banda esce dalla colonna del catalogo, che è 720: la misura va
+        // detta, altrimenti uscirebbe di 80 px oltre la finestra (F14).
+        misura={layout.maxCatalogo}
       />
 
       <FilterBar

@@ -341,6 +341,9 @@ export default function RegisterScreen() {
       <PageHeader
         titolo="Crea il tuo profilo"
         frase="Bastano pochi dati per iniziare a scambiare servizi."
+        // Le schermate di accesso sono centrate nella finestra: una testata al
+        // telaio sarebbe una seconda composizione nella stessa pagina (F14).
+        banda={false}
       />
 
       <Card>

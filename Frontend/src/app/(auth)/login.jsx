@@ -77,7 +77,7 @@ export default function LoginScreen() {
 
   return (
     <AuthShell centrata>
-      <PageHeader titolo="Accedi" />
+      <PageHeader titolo="Accedi" banda={false} />
       <View style={{ gap: space.md }}>
         {motivoUscita ? (
           <Banner

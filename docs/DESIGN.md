@@ -101,6 +101,29 @@ Two reading measures exist and both are decisions:
 Inside either, every element fills the column. An element with a width of its
 own is how a screen ends up with several right edges.
 
+A measure is the **body**, not the page. Two frames exist, and each has exactly
+one of them:
+
+- the **page frame**. From `layout.sogliaLarga` up, the page header is the band
+  of the page: it leaves the column on both ends, reaches the ends of the
+  window and closes with a `border` rule. The web chrome bar sits on the same
+  frame, `space.lg` from the window's corner. Below the threshold there is no
+  band — the column is the page, and the header is a stack — because a window
+  that narrow has no gutters to claim.
+- the **measure**. Everything under the header — cards, forms, sections — stays
+  on the column, and the column is centred on the window.
+
+The band is one component (`PageHeader`), the measure travels as a parameter
+(`misura`), and the threshold is a token: no screen re-derives where the page
+ends. A centred screen opts out explicitly (`banda={false}`), because a centred
+form is a second composition and not a smaller page.
+
+**The scroll node is the page, never the column.** The measure belongs to the
+content that scrolls, not to an ancestor of it: clamped above the scroller, the
+node that scrolls is the column, so the scrollbar is drawn on the column's edge
+and the wheel over the gutters does nothing (audit UX F14). A screen whose
+scrolling is delegated to a child passes the measure to that child.
+
 ## Type
 
 Six roles, one job each, defined in `AppText`: a screen title, a section or card
@@ -146,8 +169,10 @@ leftover: chrome is one object at one edge, and the content is a column at
 another. What the column does pay for is the reserve: when the gap left between
 the column's edge and the window's is narrower than the bar
 (`larghezzaBarraMenuWeb`), the bar would sit over the column, so the content
-starts below it (`Screen`'s `riservaMenuWeb`). Above that width the bar clears
-the column and the header starts at the top of the window.
+starts below it (`Screen`'s `riservaMenuWeb`). Above `layout.sogliaLarga` the
+reserve stops: the header is the band of the page, so the bar sits over the
+band's outer end and never over the title, and the page starts at the window's
+top edge at every wide width.
 
 ## Composition rules
 
@@ -155,7 +180,8 @@ the column and the header starts at the top of the window.
   **one** sentence that says what the screen holds — never how to use it.
   Instructions belong in the empty state, which is the place where someone
   needs them. A back-navigable screen passes the back control in `indietro`
-  instead of drawing its own row: the title stays on the body edge.
+  instead of drawing its own row: the title stays on the body edge. On a wide
+  window the header is the page's band and the back control travels with it.
 - **One card anatomy.** A headline (the person's own words, allowed a real
   measure of lines), one meta line carrying the data marks inline, and at most
   one trailing action. An identity block or a settings row is not a card.

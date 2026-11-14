@@ -6,6 +6,57 @@ documents/code touched.
 
 ---
 
+## 2026-11-14 — The page has a frame, the body has a measure
+
+Direction: **(a) as (c)** — the gutters are used deliberately, and the page
+header is the thing that uses them (approved in
+[`docs/briefs/ux-desktop-composition/plan.md`](briefs/ux-desktop-composition/plan.md),
+block 2).
+
+### What changed
+
+1. **From `layout.sogliaLarga` (1024) up, the page header is the band of the
+   page.** `PageHeader` leaves the column on both ends by the gutter, reaches the
+   ends of the window and closes with a `border` rule; the body keeps the measure
+   and stays centred. Below the threshold nothing changes: the column is the page
+   and the header is the stack it always was.
+2. **The measure travels as a parameter**, `misura`, because the band is only
+   correct if it knows the column it is leaving: the catalog passes
+   `layout.maxCatalogo`, every reading screen keeps the default. The two auth
+   screens pass `banda={false}`: their column is centred on purpose, so a band on
+   the page frame would be a second composition inside one page.
+3. **The bar's top reserve stops at the same threshold.** `Screen` reserved 64 pt
+   above the content whenever the bar could reach the column, so at 1280 the page
+   started 64 pt lower than at 1920 — two compositions for one rule. Above
+   `layout.sogliaLarga` the bar sits over the band's outer end, never over the
+   title, and the page starts at the window's top edge at every wide width.
+4. **Why not two panes.** A ≥1024 list-plus-detail pane was option (b); it
+   reopens the catalog's interaction surface (modal → pane) and belongs to a
+   redesign, not to this audit's consistency work. Direction A had already
+   refused it in [`ux-realignment/direction.md`](briefs/ux-realignment/direction.md).
+
+### Measured (chromium, real backend, both themes)
+
+| width | header band | body column | bar right edge |
+| --- | --- | --- | --- |
+| 390 | none, title = body edge (16) | 16 → 359 | 374 |
+| 768 | none, title = body edge (32) | 32 → 720 | 752 |
+| 1024 | 8 → 1000, top edge 16 | 160 → 848 | 1008 |
+| 1280 | 8 → 1000+280, top edge 16 | 288 → 976 | 1264 |
+| 1920 | 8 → 1912, top edge 16 | 608 → 1296 | 1904 |
+
+Captures (8 PNGs, 390/768/1280/1920 × light/dark) in
+`%TEMP%\baratto-desktop-f14\`, outside the repo: they are evidence for this
+session, not tracked assets.
+
+Touched: `Frontend/src/theme/tokens.js` (`sogliaLarga`),
+`Frontend/src/components/PageHeader.jsx`,
+`Frontend/src/components/Screen.jsx` (`riservaMenuWeb`),
+`Frontend/src/app/(tabs)/index.jsx` (`misura`),
+`Frontend/src/app/(auth)/login.jsx`, `Frontend/src/app/(auth)/register.jsx`,
+`docs/DESIGN.md` § Measures / § Refresh / § Composition rules. Gate green
+(`expo lint`, `tsc --noEmit`, `jest` 97/97), `impeccable detect` clean.
+
 ## 2026-11-14 — The catalog scrolls the page, not its column
 
 ### What changed
