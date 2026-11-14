@@ -1,4 +1,4 @@
-import { useWindowDimensions, View } from 'react-native';
+import { Platform, useWindowDimensions, View } from 'react-native';
 import { AppText } from './AppText';
 import { layout, space, target, useTokens } from '@/theme/tokens';
 
@@ -48,6 +48,10 @@ import { layout, space, target, useTokens } from '@/theme/tokens';
  * `banda={false}` è per le schermate centrate (`AuthShell`), dove il modulo è
  * al centro della finestra: una testata appoggiata al telaio sarebbe una
  * seconda composizione dentro la stessa pagina.
+ *
+ * Solo **web**: la banda è una decisione presa sulle misure del browser, e un
+ * tablet a ≥ 1024 la guadagnerebbe senza che nessuno l'abbia guardato. Quando
+ * ci sarà una revisione su dispositivo, la riga da togliere è `Platform.OS`.
  */
 export function PageHeader({
   titolo = null,
@@ -94,7 +98,8 @@ export function PageHeader({
   const gutter = Math.max(0, (larghezzaFinestra - misura) / 2);
   // Da `sogliaLarga` in su la testata è la banda della pagina e non rientra di
   // una freccia: è già al telaio.
-  const conBanda = banda && larghezzaFinestra >= layout.sogliaLarga;
+  const conBanda =
+    banda && Platform.OS === 'web' && larghezzaFinestra >= layout.sogliaLarga;
   const rientroIndietro =
     indietro && !conBanda ? Math.min(target.min + space.md, gutter) : 0;
 

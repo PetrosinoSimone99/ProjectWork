@@ -11,8 +11,8 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  colonna,
   fasciaPallinoMenuWeb,
-  larghezzaBarraMenuWeb,
   layout,
   space,
   useTokens,
@@ -82,22 +82,13 @@ export function Screen({
   // La colonna è centrata: il suo bordo destro entra nella fascia della barra
   // del menu quando la finestra è più stretta del tetto di colonna aumentato
   // della fascia su entrambi i lati. Allora il contenuto scende sotto la fascia.
-  // La colonna è centrata: la fascia della barra del menu va riservata quando il
-  // margine che resta fra il bordo della colonna e quello della finestra è più
-  // stretto della barra stessa — sotto quella soglia la barra entra nella
-  // colonna (e finisce sopra il titolo), sopra non ci arriva mai. La misura è la
-  // larghezza della barra, non la sua altezza: da quando la barra contiene anche
-  // il refresh della schermata, è lei a decidere dove finisce il contenuto.
-  //
-  // Da `layout.sogliaLarga` in su la fascia non si riserva più: la testata è la
-  // banda di pagina (`PageHeader`) e arriva ai margini della finestra, quindi la
-  // barra sta sopra la banda e non sopra il titolo. Senza questa condizione a
-  // 1280 la banda cominciava 64 px sotto il bordo mentre a 1920 cominciava dal
-  // bordo: due composizioni per la stessa regola (audit UX F14).
-  const riservaMenuWeb =
-    Platform.OS === 'web' &&
-    larghezzaFinestra < layout.sogliaLarga &&
-    larghezzaFinestra < larghezzaMassima + 2 * (larghezzaBarraMenuWeb + space.lg);
+  // La fascia si riserva sotto la soglia della banda. Sopra, la testata è la
+  // banda di pagina (`PageHeader`) e la barra sta sopra la banda, mai sopra il
+  // titolo: la larghezza della barra non entra più in questa regola, perché a
+  // quelle misure tutte le colonne sono più strette della finestra meno la
+  // banda. `larghezzaBarraMenuWeb` resta la misura che usa l'avviso in cima a
+  // `app/_layout.jsx`.
+  const riservaMenuWeb = Platform.OS === 'web' && larghezzaFinestra < layout.sogliaLarga;
 
   // Il chrome del web (la barra del menu) disegna il refresh accanto al menu:
   // la schermata in focus dice cosa offrire. `useFocusEffect` e non `useEffect`:
@@ -151,6 +142,14 @@ export function Screen({
     alignSelf: 'center',
   };
 
+  // Se una schermata `larga` scorresse da sé (`scroll`), la misura starebbe sul
+  // contenuto del nodo che scorre, come nella `FlatList` di `ServicesSection`:
+  // il frame non la porta mai. Oggi nessuna schermata fa questa combinazione, e
+  // così non può farla nemmeno domani senza portarsi la misura dietro.
+  const riempimentoContenuto = larga
+    ? { ...riempimento, ...colonna(larghezzaMassima), paddingHorizontal: space.lg }
+    : riempimento;
+
   const content = scroll ? (
     <ScrollView
       // `main`: l'area del contenuto della schermata (audit UX F52). Sotto
@@ -158,7 +157,7 @@ export function Screen({
       // cerca quando chiede di saltare al contenuto.
       role="main"
       style={{ flex: 1 }}
-      contentContainerStyle={{ ...riempimento, flexGrow: 1 }}
+      contentContainerStyle={{ ...riempimentoContenuto, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         aggiornamentoAttivo ? (

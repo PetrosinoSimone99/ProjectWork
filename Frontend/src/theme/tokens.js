@@ -142,18 +142,15 @@ export const larghezzaBarraMenuWeb = 320;
  * Il valore del catalogo era 1024: a quella larghezza la card si fermava a 712
  * e lasciava 260 px di colonna vuota, cioè tre bordi destri diversi in una
  * schermata sola.
+ *
+ * `sogliaLarga` è da che larghezza la pagina ha un telaio: la testata esce dalla
+ * colonna e arriva ai margini della finestra, con la riga di chiusura in fondo,
+ * mentre il corpo resta sulla misura (direzione UX «A», audit UX F14). È la
+ * larghezza a cui una finestra ha davvero gutter da rivendicare: sotto, la
+ * colonna è la pagina e non c'è niente da spostare. Non è un secondo layout: è
+ * la stessa testata con un margine che esiste solo quando c'è spazio.
  */
 export const layout = { maxContent: 560, maxCatalogo: 720, sogliaLarga: 1024 };
-
-/**
- * Da che larghezza la pagina ha un telaio: la testata esce dalla colonna e
- * arriva ai margini della finestra, con la riga di chiusura in fondo, mentre il
- * corpo resta sulla misura (direzione UX «A», audit UX F14).
- *
- * È la larghezza a cui una finestra ha davvero gutter da rivendicare: sotto,
- * la colonna è la pagina e non c'è niente da spostare. Non è un secondo layout:
- * è la stessa testata con un margine che esiste solo quando c'è spazio.
- */
 
 /**
  * La colonna di contenuto: una misura, centrata, senza una larghezza propria.

@@ -105,12 +105,16 @@ A measure is the **body**, not the page. Two frames exist, and each has exactly
 one of them:
 
 - the **page frame**. From `layout.sogliaLarga` up, the page header is the band
-  of the page: it leaves the column on both ends, reaches the ends of the page
-  box (the ends of the window, less whatever a classic scrollbar reserves) and
-  closes with a `border` rule. The web chrome bar sits on the same frame,
-  `space.lg` from the page box's corner. Below the threshold there is no
-  band — the column is the page, and the header is a stack — because a window
-  that narrow has no gutters to claim.
+  of the page: it leaves the column on both ends, spans the page box inset by
+  `space.lg` on each end, and closes with a `border` rule. The web chrome bar
+  sits on the same frame, `space.lg` from the same corner, so the band's rule and
+  the bar's edge are one edge — unless the platform reserves a classic scrollbar,
+  which narrows the page box the band follows but not the viewport the bar is
+  anchored to: the difference is exactly that scrollbar, not a value anybody
+  maintains. Below the threshold there is no band — the column is the page, and
+  the header is a stack — because a window that narrow has no gutters to claim.
+  The band is web-only for now: it is a decision taken on browser measurements,
+  and a device at ≥ 1024 would gain it unmeasured.
 - the **measure**. Everything under the header — cards, forms, sections — stays
   on the column, and the column is centred on the window.
 
@@ -167,13 +171,11 @@ then shows its name and the menu alone.
 
 The bar is anchored to the window, not to the column. That is a decision, not
 leftover: chrome is one object at one edge, and the content is a column at
-another. What the column does pay for is the reserve: when the gap left between
-the column's edge and the window's is narrower than the bar
-(`larghezzaBarraMenuWeb`), the bar would sit over the column, so the content
-starts below it (`Screen`'s `riservaMenuWeb`). Above `layout.sogliaLarga` the
-reserve stops: the header is the band of the page, so the bar sits over the
-band's outer end and never over the title, and the page starts at the window's
-top edge at every wide width.
+another. What the column does pay for is the reserve: below `layout.sogliaLarga`
+the bar can reach over the column, so the content starts below it (`Screen`'s
+`riservaMenuWeb`). Above the threshold the reserve stops: the header is the band
+of the page, so the bar sits over the band's outer end and never over the title,
+and the page starts at the window's top edge at every wide width.
 
 ## Composition rules
 

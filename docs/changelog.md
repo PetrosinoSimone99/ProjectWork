@@ -46,10 +46,12 @@ block 2).
 | 1920 | 16 → 1904, page top edge 16 | 608 → 1296 | 1904 |
 | 1200 / 2560 | 16 → window − 16 | — | window − 16 |
 
-The band follows the **page box**, not a second constant: where the platform
-reserves a classic scrollbar the page box is that much narrower, which is why the
-1024 and 1280 rows read 8 and 24 from the window while 1920 reads 16 and 16.
-That is the scrollbar's width, not a value anybody maintains.
+The band follows the **page box**, not a second constant: it is inset `space.lg`
+inside it, the same inset the chrome bar uses, so the band's rule and the bar's
+edge coincide (1920) unless the platform reserves a classic scrollbar — the page
+box the band follows is then narrower than the viewport the fixed bar is
+anchored to, which is why the 1024 and 1280 rows read 8 and 24 from the window.
+That residual is the scrollbar's width, not a value anybody maintains.
 
 Captures (8 PNGs, 390/768/1280/1920 × light/dark) in
 `%TEMP%\baratto-desktop-f14\`, outside the repo: they are evidence for this
