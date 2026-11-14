@@ -5,8 +5,9 @@ This guide covers authentication, profiles, services, reports and staff administ
 ## Current database
 
 The user-services endpoint below uses the schema in
-[barattolo_14112026.sql](../barattolo_14112026.sql), selected by
-`LAST_DB_TO_USE.txt`. It requires no schema changes. Older setup and demo
+[barattolo_14112026_notifications.sql](../barattolo_14112026_notifications.sql), selected by
+`LAST_DB_TO_USE.txt`. Notifications add one table to the previous schema. See
+[notification endpoints and SQL upgrade instructions](../NOTIFICATIONS.md). Older setup and demo
 descriptions elsewhere in this guide refer to the previous demo dump.
 
 ## User services for the homepage detail panel
@@ -64,13 +65,13 @@ For an unavailable user, the response is `{"error":"User not found."}`.
 
 ### Previous demo database notes
 
-The schema reference is the dump selected by [LAST_DB_TO_USE.txt](../LAST_DB_TO_USE.txt), currently [barattolo_demo_20261108.sql](../barattolo_demo_20261108.sql). Older dumps and migrations describe historical versions, not the selected schema. The demo contains 50 categories, 30 users (including 2 staff), 200 offers and 100 requests. See [demo accounts and import instructions](../DEMO_DATABASE.md); all demo passwords are `demo`, stored as hashes.
+The previous demo, [barattolo_demo_20261108.sql](../barattolo_demo_20261108.sql), contains 50 categories, 30 users (including 2 staff), 200 offers and 100 requests. It is not the selected dump. See [demo accounts](../DEMO_DATABASE.md) for historical demo details. The current dump contains structure only, including agreement, chat, queue and notification tables.
 
 For a fresh installation only, import the selected file into a new empty database and configure your own connection and JWT keys. Do not run the historical migrations or Doctrine schema-update commands over this schema: they can recreate removed structures or alter tables that remain intentionally unmapped.
 
 The dump no longer contains `tokens` or `token_redemptions`; their APIs and lifecycle processing have also been removed. JWT login and authorization are unchanged. Existing staff history, including token events, remains readable.
 
-All six chat endpoints and their code are retained. Their chat and proposal tables are absent from the selected dump, so these endpoints cannot operate with that dump alone. No replacement chat schema or new chat workflow is provided. See [chat documentation](../mini_doc_chat_endpoint.md).
+Chat code is retained, and the current dump includes the agreement and chat tables. See [chat documentation](../mini_doc_chat_endpoint.md) for the existing endpoints. Adding notifications does not change chat behavior.
 
 ### Import for a fresh setup
 
@@ -79,7 +80,7 @@ Read `LAST_DB_TO_USE.txt` before selecting a file. For the currently selected du
 ```sql
 CREATE DATABASE barattolo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE barattolo;
-SOURCE Context_and_DB_V2/barattolo_demo_20261108.sql;
+SOURCE Context_and_DB_V2/barattolo_14112026_notifications.sql;
 ```
 
 Do not import over an existing database whose data must be retained. These instructions are not a verification that the dump has been imported locally.

@@ -1,1 +1,1 @@
-barattolo_14112026.sql
+barattolo_14112026_notifications.sql
