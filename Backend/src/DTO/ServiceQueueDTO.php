@@ -2,19 +2,21 @@
 
 namespace App\DTO;
 
+use App\Enum\QueueType;
+use App\Enum\QueueStatus;
 
-class ServiceQueuesDTO
+class ServiceQueueDTO
 {
     private readonly int $id;
-    private readonly string $queueType;
-    private readonly string $queueStatus;
+    private readonly QueueType $queueType;
+    private readonly QueueStatus $queueStatus;
     private readonly string $location;
     private readonly string $serviceDescription;
     private readonly string $serviceCategory;
     private readonly bool $serviceIsRemote;
     private readonly ?int $agreementId;
 
-    public function __construct(int $id, string $queueType, string $queueStatus, string $location, string $serviceDescription, string $serviceCategory, bool $serviceIsRemote, ?int $agreementId)
+    public function __construct(int $id, QueueType $queueType, QueueStatus $queueStatus, string $location, string $serviceDescription, string $serviceCategory, bool $serviceIsRemote, ?int $agreementId)
     {
         $this->id = $id;
         $this->queueType = $queueType;
@@ -31,12 +33,12 @@ class ServiceQueuesDTO
         return $this->id;
     }
 
-    public function getQueueType(): string
+    public function getQueueType(): QueueType
     {
         return $this->queueType;
     }
 
-    public function getQueueStatus(): string
+    public function getQueueStatus(): QueueStatus
     {
         return $this->queueStatus;
     }
