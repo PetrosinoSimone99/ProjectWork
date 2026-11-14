@@ -22,6 +22,97 @@ class MarketplaceControllerTest extends WebTestCase
     private EntityManagerInterface $entityManager;
     private KernelBrowser $client;
 
+    public function testUserServicesReturnsOnlyPublishedServicesAndPublicProfile(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $owner = $this->createUser('owner', 'Rome');
+        $owner->setBio('I enjoy sharing skills.');
+        $owner->setProfileImageUrl('https://example.test/avatar.png');
+        $firstCategory = $this->createCategory('Tutoring');
+        $secondCategory = $this->createCategory('Languages');
+        $expected = ['offers' => [], 'requests' => []];
+
+        foreach ([Service::TYPE_OFFER => 'offers', Service::TYPE_REQUEST => 'requests'] as $type => $key) {
+            // The oldest service gets the highest ID, proving date takes priority over ID.
+            foreach (['2026-11-14', '2026-11-14', '2026-11-01'] as $date) {
+                $service = $this->createService($owner, $type, 'Published '.$type, $firstCategory);
+                $service->addCategory($secondCategory);
+                $service->setLocation('Milan');
+                $service->setIsRemote(true);
+                (new \ReflectionProperty(Service::class, 'createdAt'))->setValue($service, new \DateTimeImmutable($date));
+                $expected[$key][] = $service;
+            }
+            $suspended = $this->createService($owner, $type, 'Suspended', $firstCategory);
+            $suspended->setIsSuspended(true);
+            $deleted = $this->createService($owner, $type, 'Deleted', $firstCategory);
+            $deleted->markDeleted();
+            $this->createService($viewer, $type, 'Another owner', $firstCategory);
+        }
+        $this->entityManager->flush();
+        $this->authenticate($viewer);
+        // Catalog filters must not narrow the selected person's services.
+        $this->client->request('GET', '/api/users/'.$owner->getId().'/services?q=absent&limit=1&isRemote=false');
+
+        self::assertResponseIsSuccessful();
+        $data = $this->data();
+        self::assertSame(['user', 'offers', 'requests'], array_keys($data));
+        self::assertSame($owner->toPublicApiArray(), $data['user']);
+        self::assertSame(
+            ['id', 'name', 'surname', 'username', 'location', 'bio', 'profileImageUrl'],
+            array_keys($data['user']),
+        );
+        foreach ($expected as $key => $services) {
+            $ordered = [$services[1], $services[0], $services[2]];
+            self::assertSame(array_map(static fn (Service $service): int => $service->getId(), $ordered), array_column($data[$key], 'id'));
+            foreach ($ordered as $index => $service) {
+                self::assertEquals($service->toOwnedServiceApiArray(), $data[$key][$index]);
+                self::assertCount(2, $data[$key][$index]['categories']);
+            }
+        }
+    }
+
+    public function testUserServicesReturnsEmptyListsOrNotFound(): void
+    {
+        $viewer = $this->createUser('viewer');
+        $owner = $this->createUser('owner');
+        $this->authenticate($viewer);
+        $this->client->request('GET', '/api/users/'.$owner->getId().'/services');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->data()['offers']);
+        self::assertSame([], $this->data()['requests']);
+
+        $this->client->request('GET', '/api/users/999999/services');
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(['error' => 'User not found.'], $this->data());
+
+        // Reload after browser requests, which can reboot the application kernel.
+        $owner = $this->entityManager->find(User::class, $owner->getId());
+        $owner->setAccountStatus(User::STATUS_INACTIVE);
+        $this->entityManager->flush();
+        $this->client->request('GET', '/api/users/'.$owner->getId().'/services');
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(['error' => 'User not found.'], $this->data());
+    }
+
+    public function testUserServicesRequiresAnActiveAuthenticatedViewer(): void
+    {
+        $owner = $this->createUser('owner');
+        $path = '/api/users/'.$owner->getId().'/services';
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(401);
+
+        $this->client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer invalid-token');
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(401);
+
+        $viewer = $this->createUser('inactive-viewer');
+        $viewer->setAccountStatus(User::STATUS_INACTIVE);
+        $this->entityManager->flush();
+        $this->authenticate($viewer);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testServiceLocationCanBeCreatedEditedClearedAndRead(): void
     {
         $owner = $this->createUser('owner', 'Profile city');

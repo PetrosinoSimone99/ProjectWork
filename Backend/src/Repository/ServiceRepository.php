@@ -38,6 +38,25 @@ final class ServiceRepository extends ServiceEntityRepository
         return $this->findOwnedServices($owner, Service::TYPE_REQUEST);
     }
 
+    /** @return list<Service> Published offers and requests visible to other users. */
+    public function findPublishedServicesByUser(User $owner): array
+    {
+        return $this->createQueryBuilder('service')
+            ->select('service, category')
+            // Fetch categories here to avoid a separate query for every service.
+            ->leftJoin('service.categories', 'category')
+            ->andWhere('service.user = :owner')
+            ->andWhere('service.type IN (:types)')
+            ->andWhere('service.deletedAt IS NULL')
+            ->andWhere('service.isSuspended = false')
+            ->setParameter('owner', $owner)
+            ->setParameter('types', [Service::TYPE_OFFER, Service::TYPE_REQUEST])
+            ->orderBy('service.createdAt', 'DESC')
+            ->addOrderBy('service.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     /** @return list<Service> */
     private function findOwnedServices(User $owner, string $type): array
     {
