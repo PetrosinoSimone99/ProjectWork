@@ -21,14 +21,14 @@ just independent agreements that happen to line up.
 
 | # | Tab | What it does | State today |
 | --- | --- | --- | --- |
-| 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is requested (see `backend-gaps.md` G1) and the app currently sorts the loaded page locally |
-| 2 | **Match** | Automatic matching of requests against offers | Placeholder: the backend has no matching engine yet |
+| 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is computed by the backend (`backend-gaps.md` G1 landed) |
+| 2 | **Match** | Automatic matching of requests against offers | Placeholder in the app. The backend now has queues and a matchmaker (`POST /create-service-queue`, `GET /get-queues`), but the app has no queue UI and nothing consumes the `async` transport in the local stack |
 | 3 | **Offro e cerco** | The user's own services: create, edit, suspend and reactivate, delete, and restore from a "Deleted" section | Working |
-| 4 | **Accordi** | Three sections (sent, accepted, concluded) plus a bell with the proposals waiting for an answer | Placeholder: the proposals and agreements endpoints do not exist yet |
+| 4 | **Accordi** | Three sections (sent, accepted, concluded) plus a bell with the proposals waiting for an answer | Working: proposals, answers, cancellation and the sheet's confirmation all exist; the sheet form itself is still missing (`backend-gaps.md` G6) |
 | 5 | **Profilo** | Name, surname, location, bio, profile photo URL, theme, logout, staff entry when the role allows it | Working |
 
-Outside the tab bar: the report screen and the staff area (reports list, user
-list), reachable from the profile.
+Outside the tab bar: the notifications inbox, the report screen and the staff
+area (reports list, user list), all reachable from the profile.
 
 ## The lifecycle: proposal, agreement, chat
 
@@ -36,10 +36,11 @@ list), reachable from the profile.
    Nothing is filled in: the proposal is deliberately blind, meaning "I want
    this service". The recipient decides by looking at what the proposer offers
    and looks for.
-2. **Notification.** The bell in the agreements tab shows the proposals waiting
-   for an answer, with a count. It is the only place where received proposals
-   appear. Proposals the user sent stay visible to the sender with an explicit
-   refused state.
+2. **Notification.** Two things tell the user something arrived: the bell in the
+   agreements tab, which counts the proposals waiting for **their** answer, and
+   the notifications inbox in the profile, which lists every backend event
+   (proposal, answer, sheet, match, chat message, staff decision). The inbox is
+   polled: the backend has no push channel.
 3. **Agreement.** Both sides accepting creates the agreement, and only then can
    the chat be opened: it is the only way to reach a chat with someone.
 4. **Details inside the chat.** Either participant fills the agreement sheet
@@ -50,7 +51,10 @@ list), reachable from the profile.
    opened. A service that is not delivered is a contested agreement, which is
    staff territory.
 
-Steps 1 to 4 need endpoints that do not exist yet; see `backend-gaps.md`.
+The routes exist for steps 1 to 4 (`docs/api.md`); what is missing is UI: no
+sheet form (the rows carry no ids, `backend-gaps.md` G6) and no chat screen. The
+conclusion in step 5 is written by the backend's end-date scheduler, which needs
+a worker nobody starts yet (`backend-gaps.md` G12).
 
 ## What is deliberately not in the product
 

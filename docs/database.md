@@ -6,63 +6,73 @@ connects through `DATABASE_URL` (Doctrine DBAL) with `serverVersion=8.0`.
 ## Which file is the schema
 
 The authoritative dump is the file named in
-`Context_and_DB_V2/LAST_DB_TO_USE.txt` — today `barattolo_demo_20261108.sql`.
-It is a **standalone dump for an empty database**: no migrations, no `DROP`, and
-12 tables — `categories`, `users`, `services`, `service_categories`,
-`agreements`, `agreement_proposal`, `agreement_details`, `user_reports`,
-`staff_operation_logs`, `match_candidates`, `service_queues`,
-`queue_associated_agreements`. Unlike the schema-only v3.1 dump it also carries
-seed rows: 50 categories, 30 users (password `demo`), 200 offers, 100 requests.
+`Context_and_DB_V2/LAST_DB_TO_USE.txt` — today `barattolo_15112026.sql`.
+It is a **structure-only** standalone dump for an empty database: no
+migrations, no `DROP`, **zero `INSERT`s**, 15 tables — `users`, `services`,
+`service_categories`, `categories`, `agreements`, `agreement_proposal`,
+`agreement_details`, `chat`, `chat_messages`, `chat_participants`,
+`messenger_messages`, `notifications`, `service_queues`, `user_reports`,
+`staff_operation_logs`.
 
-`barattolo_v3_1_senza_swipe_chat_catene.sql` is the model **without** the
-agreement tables and must not be imported any more: the agreement endpoints
-fail against it. `compose.yaml` mounts the demo dump.
+Because it carries no rows, the local stack mounts a seed right after it:
+`Backend/docker/seed-demo.sql` adds 50 categories, 30 users (password `demo`),
+300 services and their category links, copied verbatim from the archived demo
+dump `Archive/DB_mid_November/barattolo_demo_20261108.sql`. Agreements, chats,
+notifications and queues start empty on purpose. The generator
+`Backend/tools/create-demo-database.php` cannot do this job: it targets the
+previous schema and filename (`docs/backend-gaps.md`).
 
 | Where | What it is |
 | --- | --- |
-| `Context_and_DB_V2/` | The truth: current dump, readable `.dbml` version, API guide, user stories |
-| `Archive/DB_pre_November/` | The v2 dumps, moved out of the way when v3.1 landed. Rollback material only |
+| `Context_and_DB_V2/` | The truth: current dump, API guide, user stories |
+| `Archive/DB_mid_November/` | The demo dump with seed rows, plus the model dump it replaced. Rollback and seed material only |
+| `Archive/DB_pre_November/` | The v2 dumps. Rollback material only |
 | `Archive/API_docs_Prima_della_verifica_stronati/` | The chain/token API documentation, same reason |
 
-Nothing under `Archive/` describes the current product. Reading it to decide how
-to build something is how the team ends up implementing a feature that no longer
-exists.
+Nothing under `Archive/` describes the current product, with one exception the
+seed depends on: the November demo dump's column order still matches the four
+tables carried over. Reading the rest of `Archive/` to decide how to build
+something is how the team ends up implementing a feature that no longer exists.
 
-## Table map (demo dump, 12 tables)
+## Table map (15 tables)
 
 | Table | Responsibility |
 | --- | --- |
-| `users` | Identity: name, surname, optional location, unique username and email, password hash, `roles` JSON, `account_status`, `credits`, `bio`, `profile_image_url` |
+| `users` | Identity: name, surname, optional location, unique username and email, password hash, `roles` JSON, `account_status`, `credits` (default 0), `bio`, `profile_image_url` |
 | `services` | One table for both types through `type` (`OFFER`/`REQUEST`); owner, description, `is_remote`, `is_suspended`, `location`, `deleted_at` (soft delete), `is_used` |
 | `categories`, `service_categories` | Category catalog and the many-to-many link to services |
-| `service_queues` | A service waiting for a counterpart: `type` (`OFFER`/`REQUEST`), `location`, `status` (`OPEN`/`CLOSED`), `agreement_created` |
-| `match_candidates` | Pairs one offer queue with one request queue — the future matching engine |
-| `agreements` | The exchange unit: `status` (`PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`, `VOID`), `from_queue` |
+| `service_queues` | A service waiting for a counterpart: `user_id`, `type` (`OFFER`/`REQUEST`), `service_id`, `location` (**varchar(100)**, the only location column that is not 255), `status` (`OPEN`/`IN_PROGRESS`/`CLOSED`), `agreement_created` |
+| `agreements` | The exchange unit: `status` (`PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`, `VOID`, `CANCELLED`, `COMPLETED`), `from_queue` |
 | `agreement_proposal` | Per-participant proposal: user, `role` (`Provider`/`Beneficiary`), `response`, `response_date` |
-| `agreement_details` | The delivery itself: provider, service provided, beneficiary, `from_remote`, start and end datetime, `beneficiary_accepted`, `status` (`COMPILED`/`UNCOMPILED`) |
-| `queue_associated_agreements` | Which queue produced which agreement |
+| `agreement_details` | The delivery itself: provider, service provided, beneficiary, `from_remote`, start and end datetime, `beneficiary_accepted`, `status` (`COMPILED`/`UNCOMPILED`), `is_completed` |
+| `chat`, `chat_messages`, `chat_participants` | One chat per agreement, its messages, and per-participant read marker (`last_message_read`) |
+| `notifications` | One row per event and recipient: `type` (free text), `message`, `data` (JSON), `read_at` |
+| `messenger_messages` | The `async` transport's table: `App\Message\QueueId` lands here until a worker consumes it |
 | `user_reports` | Reports against users with claim and assignment (`PENDING` → `IN_REVIEW` → `CONFIRMED`/`REJECTED`) |
 | `staff_operation_logs` | Audit trail of staff actions, with historical ids kept after the subjects are deleted |
 
-The `tokens` and `token_redemptions` tables of the reversed design are **absent**
-from this dump; they survive only in the v3.1 schema file, which is no longer
-imported.
+`match_candidates` and `queue_associated_agreements` are **gone**: the queue now
+points at the agreement it produced through `service_queues.agreement_created`.
+The `tokens` and `token_redemptions` tables of the reversed design are gone too
+and survive only in the v3.1 file, which is no longer imported.
 
 ## What the schema does not have
 
-- **No swipe, chat or chain tables**, and no `tokens`. The demo dump creates
-  none of them. The chat controller still exists in the backend but cannot work
-  without its tables (G8). The **proposal** exists as `agreement_proposal` and
-  the backend writes one row per participant on every proposal; what it does not
-  carry is the service (`backend-gaps.md` G4).
-- **No conclusion state.** `agreements.status` has no `COMPLETED`: an agreement
-  is concluded when its `agreement_details.end_date` has passed. A dispute is
-  `CONTESTED` and belongs to staff.
-- **`credits` and `is_used` are inert.** Both columns exist and nothing manages
-  them; the app must not read them as a balance.
-- **Seed rows are demo data.** The dump carries 50 categories and 30 users
-  (password `demo`) so the app can be tried end to end: a fresh database is
-  never empty and the service form always has categories.
+- **No region or province.** Location is free text everywhere: `users.location`
+  and `services.location` are `varchar(255)`, `service_queues.location` is
+  `varchar(100)`. The app composes `"Provincia (Regione)"` client-side
+  (`Frontend/src/services/italian-regions.js`) and the database stores it as one
+  string, collated `utf8mb4_general_ci`. There is no lookup table and no
+  endpoint for administrative areas, so a region-only filter works in the
+  catalog (a `LIKE`) but a queue match needs the **identical** string.
+- **No swipe or chain tables.** The product is pairwise.
+- **`credits` is live now.** A `REQUEST` queue costs one credit
+  (`POST /create-service-queue` answers `400` at zero) and cancelling a queue
+  with no agreement refunds it. The app has no credits UI yet.
+- **`is_used` is still inert.** It exists and nothing manages it.
+- **`COMPLETED` needs the scheduler.** The status exists and the backend has the
+  task, but nothing consumes `scheduler_default` in the local stack, so an
+  agreement stays `ACCEPTED` past its end date until a worker runs.
 
 ## Rules the schema does not enforce
 
@@ -78,9 +88,12 @@ permissions. These stay application rules, and the backend implements them:
 ## Reading the dump
 
 ```bash
-grep -n "CREATE TABLE" Context_and_DB_V2/barattolo_demo_20261108.sql
-grep -n "ENUM" Context_and_DB_V2/barattolo_demo_20261108.sql
+grep -n "CREATE TABLE" Context_and_DB_V2/barattolo_15112026.sql
+grep -n "enum(" Context_and_DB_V2/barattolo_15112026.sql
+grep -n "CREATE TABLE" Backend/docker/seed-demo.sql | head
 ```
 
-`barattolo_v3_1_senza_swipe_chat_catene.dbml` is the same model in a readable
-form, useful for diagrams and for checking relations quickly.
+`Archive/DB_mid_November/barattolo_v3_1_senza_swipe_chat_catene.dbml` is an older
+model in a readable form; it is **not** the current schema (no chat, no
+notifications, no queues as they are today), so use it for shapes and
+relationships only, never for a column list.

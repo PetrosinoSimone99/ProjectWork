@@ -86,23 +86,22 @@ the app at all, so the sheet stays empty forever from the product's point of
 view. Until ids arrive the sheet renders read-only and says "Scheda non
 compilata" instead of offering a form that would guess a user id.
 
-## G7 — Confirmation of the delivery sheet
+## G7 — Confirmation of the delivery sheet — LANDED 2026-11-15
 
-`POST /send-agreement-details` writes the sheet as `UNCOMPILED` with
-`beneficiaryAccepted: null`, and no endpoint ever sets it: the other participant
-cannot confirm, `COMPILED` is never reached, and a sheet that is not final is
-indistinguishable from one that is. Requested:
-`POST /agreements/{id}/details/confirm`, `403` for anyone but the beneficiary,
-`409` when the agreement is not `ACCEPTED`.
+`POST /accept-agreement-details/{agreementId}` now sets `beneficiaryAccepted` and
+`COMPILED` and notifies the provider. One leftover: an already-accepted sheet
+answers `500` **with the exception message appended** instead of a `409`
+(`Backend/src/Controller/AgreementController.php:281`), while the route that
+writes the sheet answers a clean `Internal Server Error`. The frontend still has
+no sheet form, because rows lack ids (`G6`), so nothing calls either route yet.
 
-## G8 — Chat attached to an agreement
+## G8 — Chat attached to an agreement — LANDED 2026-11-15
 
-`GET /api/chats/agreement/{agreementId}` exists in `ChatController`, but the
-`chat`, `chat_messages` and `chat_participants` tables are absent from the
-reference dump, so it cannot work. Requested: the schema plus the send/list
-routes described in the previous version of this file (`POST` a message, poll
-after a message id, `403` for non-participants, `409` when the agreement is not
-`ACCEPTED`).
+`chat`, `chat_messages` and `chat_participants` are in the reference schema and
+the four routes are authenticated: `GET /chats/agreement/{id}`,
+`POST /chats/send-message/{chatId}` with `{message}`, `GET /chats/most-recent-message`,
+`GET /chats/check-new-messages/{recentMessageId}`. Sending creates a
+`CHAT_MESSAGE` notification. The remaining gap is ours: no chat screen exists.
 
 ## G9 — Registration with optional services
 
@@ -119,6 +118,69 @@ is required.
 
 Response: unchanged (`201 {token, user, offers, requests}`), with the empty
 section simply an empty list.
+
+## G10 — One queue can produce several agreements
+
+`QueueHandler::__invoke` (`Backend/src/Handler/QueueHandler.php:46-68`) loops over
+every relevant queue, creates an agreement for each, and overwrites
+`$userQueue->setAgreement()` on every iteration: one offer in a city with three
+waiting requests becomes three agreements, two of which the queue no longer
+points at and the UI cannot reach. Requested: one match per queue (stop after
+the first, or re-read the queue status inside the loop) and a single transaction
+around agreement + queue status + notification. Today the three writes flush
+separately, and `NotificationService::notify` flushes the whole unit of work
+(`Backend/src/Service/NotificationService.php:16-18`).
+
+## G11 — Queue matching compares location by exact string
+
+`ServiceQueueRepository::getRelevantQueues` filters with `'location' => $location`
+(`Backend/src/Repository/ServiceQueueRepository.php:24`). The app composes
+`"Milano (Lombardia)"` and the column stores free text, so a queue created from
+the app never matches one seeded or typed by hand (`"Milano"`). The column is
+also `varchar(100)` against `varchar(255)` on `users` and `services`
+(`Context_and_DB_V2/barattolo_15112026.sql:193`). Requested: the same width as
+the others and either a normalised comparison or a documented contract that the
+string is exactly the client's composed one.
+
+## G12 — Nothing consumes the scheduler, so `COMPLETED` is never written
+
+`App\Schedule\AgreementEndDateChecker` is registered (`bin/console debug:scheduler`
+lists `every 30 minutes … ServiceCallMessage`), but the task only runs while a
+worker consumes `scheduler_default`, and the stack starts none: an agreement
+whose end date passed stays `ACCEPTED` forever. Two smaller defects next to it:
+the notification type it writes is `agreement_completed`, lower case, unlike
+every other `AGREEMENT_*` type, and `$details->getStartDate()->format(...)` is
+called on a nullable column (`Backend/src/Schedule/AgreementEndDateChecker.php:49`)
+inside a loop that can find details without one.
+
+## G13 — Queue routes swallow their own error branch
+
+`QueueController` writes `catch (Exception $e)` without `use Exception`
+(`Backend/src/Controller/QueueController.php:15,50,69,84`): inside `App\Controller`
+that name resolves to a class that does not exist, so the branch never matches
+and real failures escape unhandled instead of answering the documented `500`.
+`GET /get-queues` also dereferences `getService()->getCategories()->first()`
+without a null check (`Backend/src/Manager/ServiceQueueManager.php:52-54`), so a
+service without a category answers `500`.
+
+## G14 — The demo generator cannot regenerate the demo data
+
+`Backend/tools/create-demo-database.php` still writes
+`Context_and_DB_V2/barattolo_demo_20261108.sql`, refuses to overwrite an
+existing file, `DROP TABLE`s `token_redemptions` and `tokens` (absent from the
+current schema, so the tool dies) and requires the database host to be
+`127.0.0.1`/`localhost` (from the container it is `database`). Result: the
+current dump ships **no rows** and the only way to get a working local database
+is the seed we wrote (`Backend/docker/seed-demo.sql`). Requested: the tool
+retargeted to the current schema and to a filename the compose stack mounts.
+
+## G15 — The credit balance is never exposed
+
+`users.credits` exists and the queue endpoints spend and refund it, but no
+endpoint returns it: `GET /profile` does not include it, so the app cannot show
+a balance and a `REQUEST` queue that fails with `Not enough credits` has no
+visible number behind it. Requested: `credits` in `GET /profile` (or a small
+`GET /credits`).
 
 ## Cross-cutting notes for the backend
 

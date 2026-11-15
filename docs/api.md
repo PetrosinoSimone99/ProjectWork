@@ -6,12 +6,18 @@ Canonical sources: `Backend/src/Controller/**`, `Backend/tests/**`, and
 guide). What the frontend needs and the backend does not have is in
 [`backend-gaps.md`](backend-gaps.md).
 
-Base URL: `http://localhost:8000/api` in development. Every protected call
-carries `Authorization: Bearer <jwt>`. Catalog, auth and staff routes answer
-errors as `{"error": "<text>"}` with a 4xx/5xx status. The **agreement routes**
-use the wrapped shape `{"error": {"code": …, "message": …}}` instead: the app
-maps those by status (`Frontend/src/api/areas/agreements.js`), never by body, so
-both shapes reach the user as Italian copy.
+Base URL: `http://localhost:8000/api` in development. **Authentication is
+mandatory on every route except `POST /auth/*` and `GET /categories`**: since
+2026-11-15 the firewall rule `{ path: ^/api, roles: IS_AUTHENTICATED_FULLY }` is
+active, so a call without the bearer token is a `401`, and a valid token on an
+inactive account is a `403` (`ActiveAccountSubscriber`). The app attaches the
+token from the session on every call (`Frontend/src/api/client.js`).
+
+Catalog, auth and staff routes answer errors as `{"error": "<text>"}` with a
+4xx/5xx status. The **agreement routes** use the wrapped shape
+`{"error": {"code": …, "message": …}}` instead: the app maps those by status
+(`Frontend/src/api/areas/agreements.js`), never by body, so both shapes reach
+the user as Italian copy.
 
 ## Authentication
 
@@ -118,8 +124,9 @@ proposal; the other participant answers once and it becomes `ACCEPTED` or
 | `GET /get-agreements` | — | `{success: {code, message, agreements: [...]}}`, every agreement the viewer participates in |
 | `POST /create-exchange-agreement` | `{otherParticipant}` | `201`. Creates a `PENDING` exchange: the caller answers `true` (they proposed), the other participant has `response: null` (has not answered yet). `400` for yourself, `404` for an unknown user |
 | `POST /send-agreement-response` | `{agreementId, response: true\|false}` | The answer, once. `true` → `ACCEPTED`, `false` → `REFUSED`. `409` when the agreement is no longer `PENDING` or this participant already answered |
-| `POST /send-agreement-details` | `{agreementId, serviceId, beneficiaryId, fromRemote, startDate, endDate}` | The delivery sheet on an `ACCEPTED` agreement. Today the manager checks only that the agreement exists and is accepted, that `serviceId` belongs to the caller and that the beneficiary exists: **no** participant check and **no** type check on `serviceId` (backend to add, G7). `400` when the end date does not come after the start date. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` |
-| `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `VOID`. `404` when the caller is not a participant |
+| `POST /send-agreement-details` | `{agreementId, fromRemote, startDate, endDate}` | The delivery sheet on an `ACCEPTED` agreement. `serviceId` and `beneficiaryId` are **no longer read**: since 2026-11-15 the manager takes the service and the beneficiary from the agreement itself, so sending them changes nothing. `400` when a field is missing or the end date does not come after the start date, `404` when the agreement is not accepted. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` and the beneficiary gets an `AGREEMENT_DETAILS` notification |
+| `POST /accept-agreement-details/{agreementId}` | — | The beneficiary's confirmation of the sheet: sets `beneficiaryAccepted` and `COMPILED`, and notifies the provider with `AGREEMENT_DETAILS_ACCEPTED`. `404` when the agreement is unknown, the caller is not the beneficiary, or there is no sheet; `500` when it was already accepted (the backend answers an exception, not a `409`) |
+| `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `CANCELLED` (before 2026-11-15 it became `VOID`). `404` when the caller is not a participant. A queue-born exchange refunds or increments a credit on this path |
 
 The details route used to be a `GET` that read a JSON body, which a browser
 cannot send: the sheet was unreachable from the app. It is a `POST` now.
@@ -147,16 +154,18 @@ One agreement:
 }
 ```
 
-`agreementStatus` is `PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED` or `VOID`:
-the reference schema has no `CANCELLED`, so calling off an accepted exchange
-produces `VOID`. `response: null` means "has not answered yet" and is not a
-refusal. `agreementDetails` is empty until someone writes the sheet, and its
-`status` stays `UNCOMPILED` because no endpoint confirms it yet
-(`backend-gaps.md` G7). Rows carry no user ids: the viewer is identified by
-username, and no row names the exchanged service until the sheet does
-(`backend-gaps.md` G4). Because the sheet route needs a `beneficiaryId` that no
-row carries, the frontend never calls `POST /send-agreement-details`: the sheet
-renders read-only as "Scheda non compilata" (`backend-gaps.md` G6).
+`agreementStatus` is `PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`,
+`CANCELLED` or `COMPLETED`. `CANCELLED` is what calling off an accepted
+exchange writes now; `VOID` survives only on rows created before the rename,
+and the frontend classifies both as closed history. `COMPLETED` is written by
+the backend's end-date scheduler once every delivery of the agreement is
+finished — but nothing consumes that scheduler in the local stack, so a sheet
+can stay `ACCEPTED` past its end date (see `setup.md`). `response: null` means
+"has not answered yet" and is not a refusal. Rows carry no user ids: the viewer
+is identified by username, and no row names the exchanged service until the
+sheet does (`backend-gaps.md` G4). The frontend has no sheet form yet, so an
+agreement with no sheet renders read-only as "Scheda non compilata"
+(`backend-gaps.md` G6).
 
 ## Reports
 
@@ -181,16 +190,76 @@ All of these return `403` for a non-staff caller.
 | `GET /staff/services/deleted` | Deleted services across users |
 | `POST /staff/services/{id}/restore` | Restores one |
 
-## Chat (legacy, not usable)
+## Chat (attached to an agreement)
 
-`GET /chats/mutual-proposal/{proposalId}`, `GET /chats/group-proposal/{...}`,
-`POST /chats/send-message/{chatId}`, `GET /chats/most-recent-message`,
+`GET /chats/agreement/{agreementId}`, `POST /chats/send-message/{chatId}` with
+`{message: string}`, `GET /chats/most-recent-message`,
 `GET /chats/check-new-messages/{recentMessageId}`.
 
-The controller is still in the backend, but the tables it needs are absent from
-the v3.1 schema and the proposal identifiers it expects no longer exist, so the
-frontend does not call them. The chat will be rebuilt on the agreement id; see
-`backend-gaps.md` G7 and G8.
+Since 2026-11-15 the `chat`, `chat_messages` and `chat_participants` tables are
+part of the reference schema, every call requires the token, `send-message`
+actually sends the body (until then it sent a hardcoded `'Hello Bob'`) and
+`most-recent-message` reads the JWT user instead of user id 1. Sending a
+message also creates a `CHAT_MESSAGE` notification for the other participant.
+The frontend has **no chat screen yet**, so nothing calls these routes.
+
+## Notifications
+
+The backend writes notifications synchronously inside the request that causes
+them (agreement proposed, answered, cancelled, sheet written or accepted, chat
+message, match created, staff actions). There is **no push channel**: no
+Mercure, no SSE, no email. A client learns about a new row by asking again.
+
+| Call | Notes |
+| --- | --- |
+| `GET /notifications?page=&limit=&unreadOnly=` | One page plus the count. `page` >= 1 (default 1), `limit` 1..50 (default 20), `unreadOnly` `true`/`false` (default `false`). **Any other query parameter is a `400`** |
+| `PATCH /notifications/{id}/read` | Marks one as read and returns `{notification: {...}}`. `404` for an unknown or foreign id |
+| `DELETE /notifications/{id}` | `204`, no body. `404` likewise |
+
+```json
+{
+  "notifications": [
+    {"id": 7, "type": "AGREEMENT_PROPOSAL", "message": "Nuova proposta…",
+     "data": {"agreementId": 12}, "createdAt": "2026-11-15T10:00:00+00:00",
+     "readAt": null}
+  ],
+  "pagination": {"page": 1, "limit": 20, "totalItems": 1, "totalPages": 1},
+  "unreadCount": 1
+}
+```
+
+`type` is a free-form string, not an enum. In use: `AGREEMENT_PROPOSAL`,
+`AGREEMENT_RESPONSE`, `AGREEMENT_DETAILS`, `AGREEMENT_DETAILS_ACCEPTED`,
+`AGREEMENT_CANCELLED`, `CHAT_MESSAGE`, `MATCH_CREATED`, `REPORT_CLAIMED`,
+`REPORT_REVIEWED`, `SERVICE_RESTORED`, `USER_PROMOTED`, `USER_STATUS_CHANGED`.
+The end-date scheduler writes `agreement_completed` in lower case, so the
+frontend upper-cases `type` when it normalises a row.
+
+## Service queues (matchmaker)
+
+A queue is a standing "I offer this" or "I look for this" that the backend
+matches in the background through `App\Message\QueueId` on the `async`
+transport. Nothing consumes that transport in the local stack, so queues stay
+`OPEN` until a worker runs (`setup.md`).
+
+| Call | Body | Notes |
+| --- | --- | --- |
+| `POST /create-service-queue` | `{queueType: "OFFER"\|"REQUEST"}` | `201`. A `REQUEST` queue costs one credit: `400 {error: "Not enough credits"}` when the account has none |
+| `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back |
+| `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`, `queueStatus` is `OPEN`, `IN_PROGRESS` or `CLOSED` |
+
+Matching compares `location` with **exact equality**, so `"Milano (Lombardia)"`
+and `"Milano"` never meet: the frontend must always send the same composed
+string it uses everywhere else (`italian-regions.js`). The frontend has no
+queue UI yet; `(tabs)/match.jsx` is still an empty state.
+
+## Another user's services
+
+| Call | Notes |
+| --- | --- |
+| `GET /users/{id}/services` | `{user: {id, name, surname, username, location, bio, profileImageUrl}, offers: [...], requests: [...]}`. `404` for an unknown or inactive owner, `403` when the viewer's account is inactive. Each service row has the catalog's shape, `location` included |
+
+This is the endpoint behind the offerer mini-card in the service detail.
 
 ## Frontend mapping notes
 
