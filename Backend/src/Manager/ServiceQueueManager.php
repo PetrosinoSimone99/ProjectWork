@@ -96,6 +96,8 @@ class ServiceQueueManager
             $agreement = $queue->getAgreement();
             if ($agreement !== null) {
                 $this->agreementManager->cancelAgreement($user, $agreement->getId());
+            }else if($queue->getQueueType() === QueueType::REQUEST){
+                $this->userManager->IncreaseOrRefundCredit($user);
             }
             $this->entityManager->persist($queue);
             $this->entityManager->flush();

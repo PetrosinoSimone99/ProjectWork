@@ -33,11 +33,10 @@ class UserManager
         $this->entityManager->flush();
     }
 
-    public function refundCreditForQueue(User $user): void
+    public function IncreaseOrRefundCredit(User $user): void
     {
         $user->setCredits($user->getCredits() + 1);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
     }
-
 }

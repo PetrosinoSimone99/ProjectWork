@@ -6,6 +6,7 @@ namespace App\Schedule;
 use App\Entity\Agreement;
 use App\Entity\AgreementDetails;
 use App\Entity\Service;
+use App\Manager\UserManager;
 use App\Service\NotificationService;
 use App\Repository\AgreementRepository;
 use App\Enum\AgreementStatus;
@@ -18,12 +19,15 @@ class AgreementEndDateChecker
     private NotificationService $notificationService;
     private AgreementRepository $agreementRepository;
     private EntityManagerInterface $entityManager;
+    private UserManager $userManager;
+
     public function __construct(AgreementRepository $agreementRepository, NotificationService $notificationService,
-    EntityManagerInterface $entityManager)
+    EntityManagerInterface $entityManager, UserManager $userManager)
     {
         $this->agreementRepository = $agreementRepository;
         $this->notificationService = $notificationService;
         $this->entityManager = $entityManager;
+        $this->userManager = $userManager;
     }
 
     public function __invoke(): void
@@ -52,6 +56,11 @@ class AgreementEndDateChecker
                 if($completedAgreement === count($agreementDetails) && $agreement->getAgreementStatus() === AgreementStatus::ACCEPTED){
                     $agreement->setAgreementStatus(AgreementStatus::COMPLETED);
                     $this->entityManager->persist($agreement);
+
+                    if($agreement->getFromQueue()){
+                        $user = $details->getUser();
+                        $this->userManager->IncreaseOrRefundCredit($user);
+                    }
                 }
             }
             $this->entityManager->flush();

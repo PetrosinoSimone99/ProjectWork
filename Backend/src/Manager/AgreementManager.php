@@ -188,7 +188,7 @@ class AgreementManager{
 
             if($agreement->getFromQueue()){
                 $agreementProposal = $this->agreementProposalRepository->findProposalAgreementBeneficiary($agreementId);
-                $this->userManager->refundCreditForQueue($agreementProposal->getUser());
+                $this->userManager->IncreaseOrRefundCredit($agreementProposal->getUser());
                 $this->closeQueueUseCase->execute($user, $agreement);
             }
         }
