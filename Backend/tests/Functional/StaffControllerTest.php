@@ -132,7 +132,7 @@ final class StaffControllerTest extends WebTestCase
         $this->send('PATCH', '/api/staff/users/'.$this->target->getId().'/status', ['accountStatus' => 'INACTIVE']);
         self::assertResponseIsSuccessful();
         $this->client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$targetToken);
-        foreach (['/api/profile', '/api/chats/mutual-proposal/1', '/api/services'] as $path) {
+        foreach (['/api/profile', '/api/chats/agreement/1', '/api/services'] as $path) {
             $this->send('GET', $path);
             self::assertResponseStatusCodeSame(403);
             self::assertSame(['error' => 'This account is inactive.'], $this->data());
@@ -243,6 +243,11 @@ final class StaffControllerTest extends WebTestCase
         $this->em->clear();
         self::assertSame($winner['data']['report'], $this->em->find(UserReport::class, $id)->toStaffApiArray());
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM staff_operation_logs WHERE action = 'REPORT_REVIEWED'"));
+        $notification = $this->em->getConnection()->fetchAllAssociative('SELECT user_id, type, data FROM notifications');
+        self::assertCount(1, $notification);
+        self::assertSame($this->author->getId(), (int) $notification[0]['user_id']);
+        self::assertSame('REPORT_REVIEWED', $notification[0]['type']);
+        self::assertEquals(['reportId' => $id, 'status' => $winner['data']['report']['status']], json_decode($notification[0]['data'], true, flags: JSON_THROW_ON_ERROR));
     }
 
     public function testConcurrentPromotionAndDeactivationCannotProduceInactiveStaff(): void
@@ -259,6 +264,10 @@ final class StaffControllerTest extends WebTestCase
         self::assertContains($results[0]['status'], [200, 409]);
         self::assertContains($results[1]['status'], [200, 403]);
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+        $notification = $this->em->getConnection()->fetchAllAssociative('SELECT user_id, type FROM notifications');
+        self::assertCount(1, $notification);
+        self::assertSame($id, (int) $notification[0]['user_id']);
+        self::assertSame($results[0]['status'] === 200 ? 'USER_PROMOTED' : 'USER_STATUS_CHANGED', $notification[0]['type']);
     }
 
     public function testUserAndReportHistoryContainsOnlyEffectiveChanges(): void
@@ -469,6 +478,11 @@ final class StaffControllerTest extends WebTestCase
         $this->em->clear();
         self::assertSame($winner['data']['report'], $this->em->find(UserReport::class, $id)->toStaffApiArray());
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM staff_operation_logs WHERE action = 'REPORT_CLAIMED'"));
+        $notification = $this->em->getConnection()->fetchAllAssociative('SELECT user_id, type, data FROM notifications');
+        self::assertCount(1, $notification);
+        self::assertSame($this->author->getId(), (int) $notification[0]['user_id']);
+        self::assertSame('REPORT_CLAIMED', $notification[0]['type']);
+        self::assertEquals(['reportId' => $id, 'status' => 'IN_REVIEW'], json_decode($notification[0]['data'], true, flags: JSON_THROW_ON_ERROR));
     }
 
     public function testConcurrentClaimAndDirectReviewPreserveTheWinningOperation(): void
@@ -493,6 +507,11 @@ final class StaffControllerTest extends WebTestCase
         $this->em->clear();
         self::assertSame($winner['data']['report'], $this->em->find(UserReport::class, $id)->toStaffApiArray());
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+        $notification = $this->em->getConnection()->fetchAllAssociative('SELECT user_id, type, data FROM notifications');
+        self::assertCount(1, $notification);
+        self::assertSame($this->author->getId(), (int) $notification[0]['user_id']);
+        self::assertSame($results[0]['status'] === 200 ? 'REPORT_CLAIMED' : 'REPORT_REVIEWED', $notification[0]['type']);
+        self::assertEquals(['reportId' => $id, 'status' => $winner['data']['report']['status']], json_decode($notification[0]['data'], true, flags: JSON_THROW_ON_ERROR));
     }
 
     /** Hold the target row until both independent requests are ready to contend for it. */

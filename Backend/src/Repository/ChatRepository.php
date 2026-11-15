@@ -45,4 +45,30 @@ class ChatRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function getOtherParticipant(Chat $chat, User $user): ?User
+    {
+        $chatWithParticipant = $this->createQueryBuilder('c')
+            ->join('c.chatParticipants', 'cp')
+            ->join('cp.user', 'u')
+            ->where('c.id = :chatId')
+            ->andWhere('u.id != :userId')
+            ->setParameter('chatId', $chat->getId())
+            ->setParameter('userId', $user->getId())
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$chatWithParticipant instanceof Chat) {
+            return null;
+        }
+
+        foreach ($chatWithParticipant->getChatParticipants() as $participant) {
+            $participantUser = $participant->getUser();
+            if ($participantUser !== null && $participantUser->getId() !== $user->getId()) {
+                return $participantUser;
+            }
+        }
+
+        return null;
+    }
 }

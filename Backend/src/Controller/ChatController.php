@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 use App\Manager\ChatManager;
+use App\Manager\UserManager;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,10 +16,11 @@ use App\Exception\ChatNotFoundException;
 class ChatController extends AbstractController
 {
     private ChatManager $chatManager;
-
-    public function __construct(ChatManager $chatManager)
+    private UserManager $userManager;
+    public function __construct(ChatManager $chatManager, UserManager $userManager)
     {
         $this->chatManager = $chatManager;
+        $this->userManager = $userManager;
     }
 
     #[Route('/chats/agreement/{agreementId}', name: 'get_chat_by_agreement_id', methods: ['GET'])]
@@ -47,6 +49,7 @@ class ChatController extends AbstractController
     #[Route('/chats/send-message/{chatId}', name: 'send_message', methods: ['POST'])]
     public function sendMessage(Request $request, int $chatId): JsonResponse
     {   
+        $user = $this->getUser();
         if(!$user instanceof User){
             return $this->json(['error' => 'User not authenticated'], 401);
         }
@@ -62,7 +65,7 @@ class ChatController extends AbstractController
                 return $this->json(['error' => 'Message must be a string'], 400);
             }
 
-            $this->chatManager->sendMessage($chatId, $user, $message = 'Hello Bob');
+            $this->chatManager->sendMessage($chatId, $user, $message);
             return $this->json(['success' => ['code' => 200, 'message' => 'Message sent successfully']], 200);
         }
         catch (JsonException) {
@@ -83,8 +86,7 @@ class ChatController extends AbstractController
     #[Route('/chats/most-recent-message', name: 'get_most_recent_message', methods: ['GET'])]
     public function getUserMostRecentReceivedMessage(): JsonResponse
     {   
-        //$user = $this->getUser();
-        $user = $this->userManager->getUserById(1); // Replace 1 with the actual user ID you want to test with
+        $user = $this->getUser();
         if(!$user instanceof User){
             return $this->json(['error' => 'User not authenticated'], 401);
         }

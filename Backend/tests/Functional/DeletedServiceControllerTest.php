@@ -89,6 +89,7 @@ final class DeletedServiceControllerTest extends WebTestCase
         $this->client->request('POST', '/api/'.$resource.'/'.$id.'/restore');
         self::assertResponseIsSuccessful();
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM notifications'));
         $this->client->request('GET', '/api/'.$resource.'/deleted');
         self::assertSame([], $this->data()[$resource]);
         $this->client->request('GET', '/api/'.$resource.'/mine');
@@ -163,6 +164,13 @@ final class DeletedServiceControllerTest extends WebTestCase
         self::assertSame($this->staff->getId(), $entry['actor']['id']);
         self::assertNotNull($entry['before']['deletedAt']);
         self::assertSame(['deletedAt' => null], $entry['after']);
+        $notifications = $this->em->getConnection()->fetchAllAssociative('SELECT * FROM notifications');
+        self::assertCount(1, $notifications);
+        self::assertSame($this->owner->getId(), (int) $notifications[0]['user_id']);
+        self::assertSame('SERVICE_RESTORED', $notifications[0]['type']);
+        self::assertSame('Your service has been restored by staff.', $notifications[0]['message']);
+        self::assertSame(['serviceId' => $service->getId()], json_decode($notifications[0]['data'], true, flags: JSON_THROW_ON_ERROR));
+        self::assertNull($notifications[0]['read_at']);
         $this->as($this->other);
         $this->client->request('GET', '/api/services');
         self::assertSame([], $this->data()['offers']);
@@ -189,6 +197,30 @@ final class DeletedServiceControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(500);
         self::assertSame($before, $db->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$service->getId()]));
         self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+    }
+
+    public function testStaffRestoringOwnServiceDoesNotNotifyThemselves(): void
+    {
+        $service = $this->service($this->staff, Service::TYPE_OFFER);
+        $this->as($this->staff);
+        $this->client->request('POST', '/api/staff/services/'.$service->getId().'/restore');
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM notifications'));
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+    }
+
+    public function testNotificationFailureRollsBackStaffRestoreAndHistory(): void
+    {
+        $service = $this->service($this->owner, Service::TYPE_REQUEST);
+        $this->as($this->staff);
+        $db = $this->em->getConnection();
+        $before = $db->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$service->getId()]);
+        $db->executeStatement("CREATE TRIGGER reject_notification BEFORE INSERT ON notifications BEGIN SELECT RAISE(ABORT, 'Test notification failure'); END");
+        $this->client->request('POST', '/api/staff/services/'.$service->getId().'/restore');
+        self::assertResponseStatusCodeSame(500);
+        self::assertSame($before, $db->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$service->getId()]));
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM staff_operation_logs'));
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM notifications'));
     }
 
     public function testRestoreKeepsExistingReferences(): void
@@ -254,6 +286,7 @@ final class DeletedServiceControllerTest extends WebTestCase
                 self::assertResponseStatusCodeSame(400);
             }
         }
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM notifications'));
     }
 
     private function user(string $username): User

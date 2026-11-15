@@ -24,4 +24,9 @@ class ServiceManager
     public function getUserOfferedService(User $user){
         return $this->serviceRepository->findUserOfferedService($user);
     }
+
+    public function getUserServiceByType(User $user, string $serviceType)
+    {
+        return $this->serviceRepository->getUserServiceByType($user, $serviceType);
+    }
 }

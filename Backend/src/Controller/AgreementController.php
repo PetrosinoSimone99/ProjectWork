@@ -113,9 +113,7 @@ final class AgreementController extends AbstractController
     #[Route('/send-agreement-response', name: 'send-agreement-response', methods: ['POST'])]
     public function sendResponse(Request $request): JsonResponse
     {
-        
         $user = $this->getUser();
-
         if(!$user instanceof User){
             return $this->json(['error' => [
                 'code' => 401,
@@ -136,7 +134,6 @@ final class AgreementController extends AbstractController
                     'message' => 'Bad Request'
                 ]], 400);
             }
-            
             $this->agreementManager->sendResponse($user, (int)$agreementId, $response);
             return $this->json([
                 'success' => [
@@ -187,7 +184,7 @@ final class AgreementController extends AbstractController
                 throw new \JsonException('Invalid JSON data');
             }
 
-            foreach(['agreementId', 'serviceId', 'beneficiaryId', 'fromRemote', 'startDate', 'endDate'] as $field){
+            foreach(['agreementId', 'fromRemote', 'startDate', 'endDate'] as $field){
                 if(!array_key_exists($field, $data)){
                     return $this->json(['error' => [
                         'code' => 400,
@@ -195,7 +192,6 @@ final class AgreementController extends AbstractController
                     ]], 400);
                 }
             }
-
             $this->agreementManager->sendAgreementDetails($user, $data);
             return $this->json([
                 'success' => [
@@ -256,7 +252,39 @@ final class AgreementController extends AbstractController
         catch(\Exception $e){
             return $this->json(['error' => [
                 'code' => 500,
-                'message' => 'Internal Server Error'
+                'message' => 'Internal Server Error' . $e->getMessage()
+            ]], 500);
+        }
+    }
+
+    #[Route('/accept-agreement-details/{agreementId}', name: 'accept-agreement-details', methods: ['POST'])]
+    public function acceptAgreementDetails(int $agreementId): JsonResponse
+    {
+        $user = $this->getUser();
+        if(!$user instanceof User){
+            return $this->json(['error' => [
+                'code' => 401,
+                'message' => 'Unauthorized'
+            ]], 401);
+        }
+        try{
+            $this->agreementManager->acceptAgreementDetails($user, $agreementId);
+            return $this->json([
+                'success' => [
+                    'code' => 200,
+                    'message' => 'Agreement details accepted successfully'
+                ],
+            ], 200);
+        }catch(ResourceNotFound $e){
+            return $this->json(['error' => [
+                'code' => 404,
+                'message' => 'Resource not found'
+            ]], 404);
+        }
+        catch(\Exception $e){
+            return $this->json(['error' => [
+                'code' => 500,
+                'message' => 'Internal Server Error' . $e->getMessage()
             ]], 500);
         }
     }

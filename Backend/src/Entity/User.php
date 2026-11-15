@@ -60,6 +60,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'creation_date')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\Column(name: 'credits', type: 'integer')]
+    private ?int $credits = null;
+
     public function __construct(string $name, string $surname, string $username, string $email)
     {
         $this->name = $name;
@@ -67,6 +70,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->username = $username;
         $this->email = $email;
         $this->createdAt = new \DateTimeImmutable();
+        $this->credits = 1;
     }
 
     public function getId(): ?int { return $this->id; }
@@ -80,7 +84,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getUsername(): string { return $this->username; }
     public function getPassword(): string { return $this->password; }
     public function eraseCredentials(): void {}
-
+    public function getCredits(): ?int { return $this->credits; }
     public function getRoles(): array
     {
         return array_values(array_unique([...$this->roles, self::ROLE_USER]));
@@ -96,7 +100,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getAccountStatus(): string { return $this->accountStatus; }
     public function setAccountStatus(string $accountStatus): void { $this->accountStatus = $accountStatus; }
     public function isActive(): bool { return $this->accountStatus === self::STATUS_ACTIVE; }
-
+    public function setCredits(?int $credits): void { $this->credits = $credits; }
     /** Returns only safe profile data that an API may send back to a client. */
     public function toApiArray(): array
     {

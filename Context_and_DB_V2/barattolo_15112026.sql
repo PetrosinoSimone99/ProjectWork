@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 07, 2026 at 09:41 PM
+-- Generation Time: Nov 15, 2026 at 10:24 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -29,7 +29,7 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `agreements` (
   `id` int(11) NOT NULL,
-  `status` enum('PENDING','ACCEPTED','REFUSED','CONTESTED','VOID','CANCELLED') NOT NULL DEFAULT 'PENDING',
+  `status` enum('PENDING','ACCEPTED','REFUSED','CONTESTED','VOID','CANCELLED','COMPLETED') NOT NULL DEFAULT 'PENDING',
   `creation_date` timestamp NOT NULL DEFAULT current_timestamp(),
   `from_queue` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -45,11 +45,12 @@ CREATE TABLE `agreement_details` (
   `provider_id` int(11) NOT NULL,
   `service_provided` int(11) NOT NULL,
   `beneficiary_id` int(11) NOT NULL,
-  `from_remote` tinyint(1) NOT NULL DEFAULT 0,
-  `start_date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `end_date` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `from_remote` tinyint(1) DEFAULT NULL,
+  `start_date` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp(),
+  `end_date` timestamp NULL DEFAULT NULL,
   `beneficiary_accepted` tinyint(1) DEFAULT NULL,
-  `status` enum('COMPILED','UNCOMPILED') DEFAULT 'UNCOMPILED'
+  `status` enum('COMPILED','UNCOMPILED') DEFAULT 'UNCOMPILED',
+  `is_completed` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -119,23 +120,33 @@ CREATE TABLE `chat_participants` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `match_candidates`
+-- Table structure for table `messenger_messages`
 --
 
-CREATE TABLE `match_candidates` (
-  `offer_queue_id` int(11) NOT NULL,
-  `request_queue_id` int(11) NOT NULL
+CREATE TABLE `messenger_messages` (
+  `id` bigint(20) NOT NULL,
+  `body` longtext NOT NULL,
+  `headers` longtext NOT NULL,
+  `queue_name` varchar(190) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `available_at` datetime NOT NULL,
+  `delivered_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `queue_associated_agreements`
+-- Table structure for table `notifications`
 --
 
-CREATE TABLE `queue_associated_agreements` (
-  `queue_id` int(11) NOT NULL,
-  `agreement_id` int(11) NOT NULL
+CREATE TABLE `notifications` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `type` varchar(100) NOT NULL,
+  `message` text NOT NULL,
+  `data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`data`)),
+  `created_at` datetime NOT NULL,
+  `read_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -181,7 +192,7 @@ CREATE TABLE `service_queues` (
   `service_id` int(11) NOT NULL,
   `location` varchar(100) DEFAULT NULL,
   `agreement_created` int(11) DEFAULT NULL,
-  `status` enum('OPEN','CLOSED') NOT NULL DEFAULT 'OPEN'
+  `status` enum('OPEN','CLOSED','IN_PROGRESS') NOT NULL DEFAULT 'OPEN'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -298,18 +309,19 @@ ALTER TABLE `chat_participants`
   ADD PRIMARY KEY (`chat_id`,`user_id`);
 
 --
--- Indexes for table `match_candidates`
+-- Indexes for table `messenger_messages`
 --
-ALTER TABLE `match_candidates`
-  ADD PRIMARY KEY (`offer_queue_id`,`request_queue_id`),
-  ADD KEY `request_queue_id` (`request_queue_id`);
+ALTER TABLE `messenger_messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `IDX_75EA56E0FB7336F0E3BD61CE16BA31DBBF396750` (`queue_name`,`available_at`,`delivered_at`,`id`);
 
 --
--- Indexes for table `queue_associated_agreements`
+-- Indexes for table `notifications`
 --
-ALTER TABLE `queue_associated_agreements`
-  ADD KEY `queue_id` (`queue_id`),
-  ADD KEY `agreement_id` (`agreement_id`);
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `notifications_user_date_index` (`user_id`,`created_at`,`id`),
+  ADD KEY `notifications_user_read_index` (`user_id`,`read_at`);
 
 --
 -- Indexes for table `services`
@@ -393,6 +405,18 @@ ALTER TABLE `chat_messages`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `messenger_messages`
+--
+ALTER TABLE `messenger_messages`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `services`
 --
 ALTER TABLE `services`
@@ -461,18 +485,10 @@ ALTER TABLE `chat_participants`
   ADD CONSTRAINT `chat_participants_ibfk_1` FOREIGN KEY (`chat_id`) REFERENCES `chat` (`id`);
 
 --
--- Constraints for table `match_candidates`
+-- Constraints for table `notifications`
 --
-ALTER TABLE `match_candidates`
-  ADD CONSTRAINT `match_candidates_ibfk_1` FOREIGN KEY (`offer_queue_id`) REFERENCES `service_queues` (`id`),
-  ADD CONSTRAINT `match_candidates_ibfk_2` FOREIGN KEY (`request_queue_id`) REFERENCES `service_queues` (`id`);
-
---
--- Constraints for table `queue_associated_agreements`
---
-ALTER TABLE `queue_associated_agreements`
-  ADD CONSTRAINT `queue_associated_agreements_ibfk_1` FOREIGN KEY (`queue_id`) REFERENCES `service_queues` (`id`),
-  ADD CONSTRAINT `queue_associated_agreements_ibfk_2` FOREIGN KEY (`agreement_id`) REFERENCES `agreements` (`id`);
+ALTER TABLE `notifications`
+  ADD CONSTRAINT `notifications_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `services`

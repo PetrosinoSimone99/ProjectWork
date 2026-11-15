@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Agreement;
+use App\Enum\AgreementStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -29,5 +30,10 @@ class AgreementRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->getQuery()
             ->getResult();
+    }
+
+    public function findAllAgreements(): array
+    {
+        return $this->findAll(['agreementStatus' => AgreementStatus::ACCEPTED]);
     }
 }

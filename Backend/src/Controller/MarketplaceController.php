@@ -19,6 +19,37 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api')]
 class MarketplaceController extends AbstractController
 {
+    #[Route('/users/{id}/services', name: 'api_user_services', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function listUserServices(int $id, EntityManagerInterface $entityManager, ServiceRepository $serviceRepository): JsonResponse
+    {
+        $viewer = $this->activeUser();
+        if ($viewer instanceof JsonResponse) {
+            return $viewer;
+        }
+
+        $owner = $entityManager->find(User::class, $id);
+        if (!$owner instanceof User || !$owner->isActive()) {
+            return $this->error('User not found.', 404);
+        }
+
+        $offers = [];
+        $requests = [];
+        // One query loads both types. Each list keeps the query's newest-first order.
+        foreach ($serviceRepository->findPublishedServicesByUser($owner) as $service) {
+            if ($service->getType() === Service::TYPE_OFFER) {
+                $offers[] = $service->toOwnedServiceApiArray();
+            } else {
+                $requests[] = $service->toOwnedServiceApiArray();
+            }
+        }
+
+        return $this->json([
+            'user' => $owner->toPublicApiArray(),
+            'offers' => $offers,
+            'requests' => $requests,
+        ]);
+    }
+
     #[Route('/categories', name: 'api_categories_list', methods: ['GET'])]
     public function listCategories(EntityManagerInterface $entityManager): JsonResponse
     {
