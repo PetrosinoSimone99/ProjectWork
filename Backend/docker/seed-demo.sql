@@ -734,3 +734,21 @@ INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES ('298', '5
 INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES ('299', '50');
 INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES ('300', '50');
 
+
+-- ---------------------------------------------------------------------------
+-- Cycle 2: an account the queue UI can actually be exercised with.
+--
+-- `POST /create-service-queue` looks the account's service up with
+-- `getOneOrNullResult()`, so it fails for an account with zero or with several
+-- services of that type (`docs/backend-gaps.md` G19). Every generated demo user
+-- has four to seven services per type, so none of them can create a queue. This
+-- account has exactly one offer and one request, and one credit so a REQUEST
+-- queue can be created and then refunded by cancelling it.
+--
+-- Password `demo`, like every other seeded user.
+-- ---------------------------------------------------------------------------
+INSERT INTO `users` (`id`, `name`, `surname`, `location`, `username`, `email`, `password_hash`, `roles`, `account_status`, `credits`, `creation_date`, `bio`, `profile_image_url`) VALUES ('31', 'Coda', 'Demo', 'Roma', 'coda.demo', 'coda.demo@example.test', '$2y$12$LXRr7elkVJ67hCCHaQ2fSeGTpKkwIMUJcnduTRyMBuJl/NH3qau5O', '[\"ROLE_USER\"]', 'ACTIVE', '1', '2026-11-15 20:00:00', NULL, NULL);
+INSERT INTO `services` (`id`, `user_id`, `type`, `description`, `is_used`, `creation_date`, `is_remote`, `is_suspended`, `deleted_at`, `location`) VALUES ('301', '31', 'OFFER', 'Riparo tostapane e piccoli elettrodomestici in ciascuna delle due ore del sabato.', '1', '2026-11-15 20:00:00', '0', '0', NULL, 'Roma');
+INSERT INTO `services` (`id`, `user_id`, `type`, `description`, `is_used`, `creation_date`, `is_remote`, `is_suspended`, `deleted_at`, `location`) VALUES ('302', '31', 'REQUEST', 'Cerco aiuto per tinteggiare una stanza di venti metri quadri nel fine settimana.', '1', '2026-11-15 20:00:00', '0', '0', NULL, 'Roma');
+INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES ('301', '36');
+INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES ('302', '36');
