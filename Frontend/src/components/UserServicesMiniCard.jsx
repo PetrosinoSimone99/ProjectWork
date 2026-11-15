@@ -9,6 +9,27 @@ import { radius, space, useTokens } from '@/theme/tokens';
 /** How many rows the card shows before it just counts the rest. */
 const RIGHE_VISIBILI = 3;
 
+/**
+ * The rows the card draws: every publication except the service the detail
+ * panel is already showing — the reader has it in front of them, so listing it
+ * again under «Cosa offre e cerca» would be noise.
+ *
+ * Identity is the whole `(tipo, id)` pair: `/offers/{id}` and `/requests/{id}`
+ * are two separate id sequences, so a request can share the numeric id of the
+ * open offer and must survive the filter. Null or absent lists come back as
+ * `[]`, and the input array is never touched (a new array every time).
+ */
+export function altriServizi(servizi, apertoDaEscludere) {
+  const elenco = Array.isArray(servizi) ? servizi : [];
+  if (apertoDaEscludere === null || apertoDaEscludere === undefined) {
+    return [...elenco];
+  }
+  return elenco.filter(
+    (servizio) =>
+      servizio.tipo !== apertoDaEscludere.tipo || servizio.id !== apertoDaEscludere.id,
+  );
+}
+
 /** The two groups, in the order the card draws them. */
 const GRUPPI = [
   { chiave: 'offerte', titolo: 'Offre', icona: 'pricetag-outline' },
@@ -32,7 +53,7 @@ function Gruppo({ titolo, icona, servizi }) {
         </AppText>
       </View>
       {visibili.map((servizio) => (
-        <AppText key={servizio.chiave} variant="small" tone="secondary">
+        <AppText key={servizio.chiave} variant="small" tone="secondary" numberOfLines={1}>
           {`- ${servizio.descrizione}`}
         </AppText>
       ))}
@@ -49,6 +70,10 @@ function Gruppo({ titolo, icona, servizi }) {
  * «Cosa offre e cerca»: the person's other published services, inside the
  * service detail.
  *
+ * «Other» means other: the panel passes the service it is showing as
+ * `apertoDaEscludere` and the card drops it from both groups, so the detail
+ * never repeats what the reader already has in front of them (`altriServizi`).
+ *
  * This block used to be a declared gap (`backend-gaps.md` G3: no public profile
  * endpoint). `GET /users/{id}/services` closes it, so the sentences that said
  * "not available for now" are gone and the card shows what the person publishes.
@@ -62,7 +87,7 @@ function Gruppo({ titolo, icona, servizi }) {
  * retry). The distinction between "gone" and "refused" is not pedantry: they are
  * two different sentences about two different people.
  */
-export function UserServicesMiniCard({ ownerId, ownerNome = null }) {
+export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEscludere = null }) {
   const t = useTokens();
   const { token } = useAuth();
   const { dati, disponibile, caricamento, ricaricando, errore, mancante, vietato, riprova } =
@@ -73,9 +98,14 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null }) {
   }
 
   const chi = ownerNome ?? 'Questa persona';
-  const offerte = dati?.offerte ?? [];
-  const richieste = dati?.richieste ?? [];
-  const vuota = dati !== null && offerte.length === 0 && richieste.length === 0;
+  // The same filtered set feeds both the groups and the empty line: a person
+  // whose only publication is the open service has *no other* publications.
+  const pubblicazioni = {
+    offerte: altriServizi(dati?.offerte, apertoDaEscludere),
+    richieste: altriServizi(dati?.richieste, apertoDaEscludere),
+  };
+  const vuota =
+    dati !== null && pubblicazioni.offerte.length === 0 && pubblicazioni.richieste.length === 0;
 
   return (
     <View
@@ -132,7 +162,7 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null }) {
           key={gruppo.chiave}
           titolo={gruppo.titolo}
           icona={gruppo.icona}
-          servizi={dati?.[gruppo.chiave]}
+          servizi={pubblicazioni[gruppo.chiave]}
         />
       ))}
     </View>

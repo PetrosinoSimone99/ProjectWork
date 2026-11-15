@@ -201,8 +201,10 @@ export function ServiceDetailModal({
           </View>
 
           {/* G3 is closed: `GET /users/{id}/services` returns this person's
-              other publications, and the card owns its own states. */}
-          <UserServicesMiniCard ownerId={owner.id} ownerNome={name} />
+              other publications, and the card owns its own states. The panel
+              also passes the service it is showing, so the card never repeats
+              it. */}
+          <UserServicesMiniCard ownerId={owner.id} ownerNome={name} apertoDaEscludere={servizio} />
 
           <View style={{ gap: space.sm }}>
             {erroreVisibile ? (
