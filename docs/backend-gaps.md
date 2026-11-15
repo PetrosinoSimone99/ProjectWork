@@ -81,11 +81,14 @@ as concluded. Requested: `serviceId` and the counterpart `id` in each row, plus
 either a concluded status or a documented rule the client applies (today the
 client compares `agreementDetails.endDate` with the current time).
 
-The consequence is concrete, not theoretical: because the client has no
-`beneficiaryId` to send, `POST /send-agreement-details` cannot be called from
-the app at all, so the sheet stays empty forever from the product's point of
-view. Until ids arrive the sheet renders read-only and says "Scheda non
-compilata" instead of offering a form that would guess a user id.
+**Narrowed on 2026-11-15 (cycle 2).** The paragraph that used to say the sheet
+could not be called at all is wrong against the current backend: the route reads
+only `{agreementId, fromRemote, startDate, endDate}`, and the sheet rows carry
+`providerUsername` + `beneficiaryUsername`, so each side knows which row it fills
+and which it confirms without a user id. The app now calls both sheet routes
+(`send-agreement-details`, `accept-agreement-details`). What remains of G6 is the
+missing `serviceId` (a sheet cannot name another of the provider's services
+without it) and the counterpart `id` (a sheet cannot link back to a profile).
 
 ## G7 — Confirmation of the delivery sheet — LANDED 2026-11-15
 
@@ -93,8 +96,9 @@ compilata" instead of offering a form that would guess a user id.
 `COMPILED` and notifies the provider. One leftover: an already-accepted sheet
 answers `500` **with the exception message appended** instead of a `409`
 (`Backend/src/Controller/AgreementController.php:281`), while the route that
-writes the sheet answers a clean `Internal Server Error`. The frontend still has
-no sheet form, because rows lack ids (`G6`), so nothing calls either route yet.
+writes the sheet answers a clean `Internal Server Error`. Both routes are called
+by the app since the second cycle; the `500` on a double confirmation is what the
+card shows as "Il server non ha accettato la scheda".
 
 ## G8 — Chat attached to an agreement — LANDED 2026-11-15
 
@@ -194,6 +198,61 @@ notifications past the twentieth cannot be read from the app at all. Requested:
 `totalItems` from a `COUNT(*)` of the same filter (the repository already has
 `countUnread`, so the shape exists). Until then the inbox shows the newest page
 and does **not** draw a "load more" button it could never justify.
+
+## G17 — An empty queue list is a `404`
+
+`QueueController::getQueues` answers `404 {error: "Service queues not found"}`
+when the account has no queue, because it tests `if (!$queuesDTO)` and an empty
+array is falsy (`Backend/src/Controller/QueueController.php:107-114`). The status
+that means "empty" is the one the frontend uses everywhere for "route missing",
+so every client has to special-case it: `listQueues` reads `404` as `[]`
+(`Frontend/src/api/areas/queues.js`). Requested: `200` with `{"queues": []}`, so
+"empty" and "broken" stop sharing a status.
+
+## G18 — Accepting an agreement can leave half a sheet and answer 500
+
+`AgreementManager::sendResponse` calls `createBlankDetails` twice on acceptance,
+and each call resolves the participant's service with
+`ServiceRepository::getUserServiceByType`, which ends in `getOneOrNullResult()`
+(`Backend/src/Repository/ServiceRepository.php:251-261`). An account with more
+than one service of that type throws `NonUniqueResultException` on the second
+call: the first sheet row is already flushed, the agreement is already
+`ACCEPTED`, and the route answers `500` (`Backend/src/Manager/AgreementManager.php:140-147`).
+Measured on `mario.rossi` (seven offers): the pair ends up with one sheet row out
+of two. The app copes — it draws the row that exists and offers only the action
+that row allows — but the missing second row is not a UI state, it is a lost
+write. Same root cause as G19. Requested: `setMaxResults(1)` (with a documented
+choice) or a deterministic "primary service" per type.
+
+## G19 — Creating a queue needs exactly one service of that type
+
+`ServiceQueueManager::createServiceQueue` looks the account's service up with the
+same `getOneOrNullResult()`. Measured: zero services of that type throw an
+uncaught `TypeError` (not the documented `500` JSON, because the controller
+catches `Exception`, not `Error`), and two or more throw
+`NonUniqueResultException` → `500 Internal Server Error`
+(`More than one result was found for query although one row or none was
+expected`). Worse, a `REQUEST` queue spends the credit **before** the lookup
+(`ServiceQueueManager.php:69-81`), so a failing creation can cost a credit
+without producing a queue. Every generated demo account has several services per
+type, so **no seeded user could create a queue** until the cycle's
+`coda.demo` account (exactly one offer, one request) was added to the seed. The
+app gates on "exactly one" and says why rather than calling
+(`Frontend/src/app/(tabs)/match.jsx`). Requested: pick one service deliberately
+and deduct the credit only after the queue is persisted.
+
+## G20 — `agreement_details.start_date` cannot hold a date
+
+The column is `timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP` in the
+reference dump (`Context_and_DB_V2/barattolo_15112026.sql`, table
+`agreement_details`). `POST /send-agreement-details` updates the row, so
+`end_date` is stored correctly and `start_date` is reset to the moment of the
+write. Measured: payload `startDate: 2026-12-01` → row
+`start_date = 2026-11-15 20:34:16`, `end_date = 2026-12-05 00:00:00`. The card
+shows what the API returns, so the start date a reader sees is the last update
+time, not the date that was typed. Requested: drop `ON UPDATE CURRENT_TIMESTAMP`
+from `start_date` (the other datetime columns have it too, and the same trap
+applies to any column a client writes).
 
 ## Cross-cutting notes for the backend
 

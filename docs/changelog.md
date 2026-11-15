@@ -6,7 +6,57 @@ documents/code touched.
 
 ---
 
-## 2026-11-15 — The branch catches up with `main`, the stack gets data back
+## 2026-11-15 (later) — Cycle 2: design debt closed, queues and the agreement sheet
+
+Cycle: [`docs/briefs/cycle-2/plan.md`](briefs/cycle-2/plan.md). Branch
+`andrea-frontend`. Twelve blocks, three lanes of disjoint files, evidence in
+[`docs/audits/native-parity-2026-11-15.md`](audits/native-parity-2026-11-15.md)
+and [`docs/audits/ux-audit-cycle2-2026-11-15.md`](audits/ux-audit-cycle2-2026-11-15.md).
+
+### What changed
+
+1. **The three P1 and the two cheap P2 of the 2026-11-15 audit are closed.**
+   «Elimina» on a notification goes through `ConfirmModal` and lost its red
+   outline (`AppButton` gained `dangerGhost`); an unread row is the `primary`
+   border plus a leading dot on `surface`, not a `serviceBg` fill; the mini-card
+   no longer repeats the service that opened it and gives every row
+   `numberOfLines={1}`; the refresh sentence is said once, in the header; the
+   profile unread count is a `Chip`.
+2. **The `match` tab is a real surface.** `GET /get-queues`, create and cancel,
+   with loading/empty/error states, the credit cost in words (no balance route
+   exists: G15) and a local gate that explains why a create button is disabled.
+   `cancel` goes through `ConfirmModal` because a queue attached to an agreement
+   cancels that agreement too.
+3. **The delivery sheet is callable and called.** The premise that blocked it was
+   wrong: `send-agreement-details` reads only the agreement id, the remote flag
+   and the dates, and each sheet row carries `providerUsername` +
+   `beneficiaryUsername`, so the card knows which row it fills and which it
+   confirms. G6 is narrowed to `serviceId` + counterpart id.
+4. **Native parity is documented, not claimed.** Both bundles export, `expo-doctor`
+   is 20/20, every `Platform.OS` branch was read with a verdict, and the web build
+   was driven with Playwright in light and dark. The device half is a checklist in
+   `docs/audits/native-parity-2026-11-15.md` §5 — owed, not done.
+
+### Docker exception (backend maintainer: read this)
+
+`Backend/docker/seed-demo.sql` gained one account at the end: `coda.demo` /
+`demo` (Roma, one offer, one request, one credit, category `Aiuto compiti`).
+Reason: `POST /create-service-queue` resolves the account's service with
+`getOneOrNullResult()`, so every generated demo user (four to seven services per
+type) gets a `500` from the route; without this account the queue UI cannot be
+exercised at all. Measured after `docker compose down -v && up -d`: login `200`,
+`offers/mine` 1, `requests/mine` 1, `create-service-queue` `201` then credit
+1→0, `cancel-queue/1` `200` then credit 0→1, empty `get-queues` `404`. No other
+Docker file changed.
+
+### Gaps filed
+
+`G17` (an empty queue list is a `404`), `G18` (accepting an agreement can leave
+half a sheet and answer `500`), `G19` (queue creation needs exactly one service
+of that type and spends the credit first), `G20` (`agreement_details.start_date`
+has `ON UPDATE CURRENT_TIMESTAMP`, so the start date a reader sees is the last
+write time). `G6` narrowed, `G7` note updated: both sheet routes are now called.
+
 
 Cycle: [`docs/briefs/sync-15112026/plan.md`](briefs/sync-15112026/plan.md).
 `origin/main` had 24 commits (notifications, service queues, credits, full auth

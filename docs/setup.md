@@ -30,9 +30,34 @@ service queues, messenger included). That dump is **structure only**, so the
 demo rows come from `Backend/docker/seed-demo.sql`, mounted right after it:
 50 categories, 30 users (every password `demo`, `credits` included) and 300
 services, copied verbatim from the archived demo dump
-`Archive/DB_mid_November/barattolo_demo_20261108.sql`. Agreements,
-notifications and queues start empty on purpose: their archived schema differs
-and the app is meant to create them through the API.
+`Archive/DB_mid_November/barattolo_demo_20261108.sql`, plus **one account added by
+the second cycle** (below). Agreements, notifications and queues start empty on
+purpose: their archived schema differs and the app is meant to create them
+through the API.
+
+### The queue demo account (`coda.demo` / `demo`)
+
+`POST /api/create-service-queue` resolves the account's service with
+`getOneOrNullResult()`, so it only works for an account with **exactly one**
+service of the requested type (`docs/backend-gaps.md` G19). Every generated demo
+user has four to seven services per type, so none of them can create a queue.
+The seed therefore ends with one more user — `coda.demo`, password `demo`, Roma,
+**one offer, one request, one credit** — which is the account to log in with when
+testing the `match` tab:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"coda.demo","password":"demo"}' | jq -r .token)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/api/create-service-queue \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"queueType":"REQUEST"}'          # 201, and the credit goes 1 -> 0
+curl -s http://localhost:8000/api/get-queues -H "Authorization: Bearer $TOKEN"   # the row
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/api/cancel-queue/1 \
+  -H "Authorization: Bearer $TOKEN"                                        # 200, credit back to 1
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/get-queues \
+  -H "Authorization: Bearer $TOKEN"                                        # 404: the list is empty
+```
 
 Without that seed the app cannot register or log in, because
 `GET /api/categories` would answer with an empty list. The generator
@@ -61,7 +86,15 @@ curl http://localhost:8000/api/categories    # 200 {"categories":[...]} — GET 
 ```
 
 Reset from scratch: `docker compose down -v`, then up again (re-imports the
-schema and the demo seed on the empty volume — 30 demo users, password `demo`).
+schema and the demo seed on the empty volume — 31 demo users, password `demo`).
+
+**Measured latency (2026-11-15, after `down -v` + up):** the first call after a
+start reached **7.8 s**, warm calls 2.0–2.6 s, and the client's timeout is 10 s. A
+screen opened in the first seconds after a restart can therefore show «Il servizio
+sta impiegando troppo tempo»: wait a moment and retry. This is the environment,
+not the app, and it is why the Playwright pass of this cycle waits for the loaded
+state instead of the frame
+(`docs/audits/native-parity-2026-11-15.md`).
 
 The new backend routes `App\Message\QueueId` to the `async` transport
 (`doctrine://default`, i.e. the `messenger_messages` table) and schedules

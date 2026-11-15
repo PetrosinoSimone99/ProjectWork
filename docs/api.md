@@ -129,7 +129,20 @@ proposal; the other participant answers once and it becomes `ACCEPTED` or
 | `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `CANCELLED` (before 2026-11-15 it became `VOID`). `404` when the caller is not a participant. A queue-born exchange refunds or increments a credit on this path |
 
 The details route used to be a `GET` that read a JSON body, which a browser
-cannot send: the sheet was unreachable from the app. It is a `POST` now.
+cannot send: the sheet was unreachable from the app. It is a `POST` now, and
+**the app calls both sheet routes** since the second cycle: the provider fills
+the row whose `providerUsername` is its own, the beneficiary confirms the row
+whose `beneficiaryUsername` is its own (`services/agreements.js` → `sheetsFor`).
+An accepted agreement therefore carries **two** sheet rows, one per participant,
+and the UI decides which one each side may act on from those two usernames:
+no participant id is guessed.
+
+Known defect in the schema behind these rows: `agreement_details.start_date` is
+`timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP` in the reference dump,
+so the `UPDATE` that writes the two dates resets the start to the moment of the
+write while `end_date` is stored correctly (`backend-gaps.md` G20). The card
+renders what the API returns; the start date is not trustworthy until the column
+is fixed.
 
 One agreement:
 
@@ -250,8 +263,31 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 
 Matching compares `location` with **exact equality**, so `"Milano (Lombardia)"`
 and `"Milano"` never meet: the frontend must always send the same composed
-string it uses everywhere else (`italian-regions.js`). The frontend has no
-queue UI yet; `(tabs)/match.jsx` is still an empty state.
+string it uses everywhere else (`italian-regions.js`).
+
+The queue surface is the `match` tab (`Frontend/src/app/(tabs)/match.jsx`, second
+cycle). Four facts decide how a client must talk to these routes:
+
+- **`GET /get-queues` answers `404` when the list is empty** (`if (!$queuesDTO)`
+  in `QueueController::getQueues`): a client reads `404` as `[]`, not as an error
+  (`backend-gaps.md` G17).
+- **`POST /create-service-queue` needs exactly one service of that type.** The
+  lookup ends with `getOneOrNullResult()`, so zero services throw an uncaught
+  `TypeError` and two or more throw `NonUniqueResultException` → a JSON `500`;
+  for a `REQUEST` queue the credit is spent **before** the lookup, so a failed
+  creation can cost a credit (`backend-gaps.md` G19). The app disables the button
+  and says why instead of calling.
+- **Any `queueType` other than `OFFER` becomes `REQUEST`** server-side, so a
+  client must send one of the two exact strings; the app refuses anything else
+  before the request.
+- **`400 {"error": "Not enough credits"}`** is the only way to learn that the
+  account has no credit: no route exposes the balance (`G15`). The app matches
+  that body and shows its own sentence; it never displays a number.
+
+A dry verification of the whole cycle, with an account that has exactly one offer
+and one request (`coda.demo` / `demo`, in the seed): `create REQUEST` → `201` and
+the credit goes from 1 to 0; `get-queues` → the row; `cancel-queue/{id}` → `200`
+and the credit returns to 1; `get-queues` again → `404`.
 
 ## Another user's services
 
