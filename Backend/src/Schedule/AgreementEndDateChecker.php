@@ -51,7 +51,6 @@ class AgreementEndDateChecker
 
                 if($completedAgreement === count($agreementDetails) && $agreement->getAgreementStatus() === AgreementStatus::ACCEPTED){
                     $agreement->setAgreementStatus(AgreementStatus::COMPLETED);
-                    echo "Agreement with ID " . $agreement->getId() . " has been marked as completed.\n";
                     $this->entityManager->persist($agreement);
                 }
             }
