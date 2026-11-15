@@ -1,4 +1,4 @@
-import { altriServizi } from '../UserServicesMiniCard';
+import { otherServices } from '../UserServicesMiniCard';
 
 /**
  * The card's one pure decision: which rows survive once the detail panel's own
@@ -14,28 +14,28 @@ const RICHIESTA_STESSO_ID = {
   descrizione: 'Cerco qualcuno per il giardinaggio',
 };
 
-describe('altriServizi', () => {
+describe('otherServices', () => {
   it('drops the open offer and keeps the other rows', () => {
-    expect(altriServizi([OFFERTA_APERTA, ALTRA_OFFERTA], APERTO)).toEqual([ALTRA_OFFERTA]);
+    expect(otherServices([OFFERTA_APERTA, ALTRA_OFFERTA], APERTO)).toEqual([ALTRA_OFFERTA]);
   });
 
   it('keeps a request that shares the numeric id of the open offer', () => {
-    expect(altriServizi([OFFERTA_APERTA, RICHIESTA_STESSO_ID], APERTO)).toEqual([
+    expect(otherServices([OFFERTA_APERTA, RICHIESTA_STESSO_ID], APERTO)).toEqual([
       RICHIESTA_STESSO_ID,
     ]);
   });
 
   it('answers [] for null or absent lists', () => {
-    expect(altriServizi(null, APERTO)).toEqual([]);
-    expect(altriServizi(undefined, APERTO)).toEqual([]);
-    expect(altriServizi(undefined, null)).toEqual([]);
+    expect(otherServices(null, APERTO)).toEqual([]);
+    expect(otherServices(undefined, APERTO)).toEqual([]);
+    expect(otherServices(undefined, null)).toEqual([]);
   });
 
   it('never mutates the input and hands back a new array', () => {
     const lista = [OFFERTA_APERTA, ALTRA_OFFERTA];
     const atteso = lista.map((servizio) => ({ ...servizio }));
 
-    const risultato = altriServizi(lista, APERTO);
+    const risultato = otherServices(lista, APERTO);
 
     expect(lista).toEqual(atteso);
     expect(risultato).not.toBe(lista);

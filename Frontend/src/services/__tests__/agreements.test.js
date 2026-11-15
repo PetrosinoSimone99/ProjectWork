@@ -242,6 +242,43 @@ describe('counterpartOf', () => {
   });
 });
 
+describe('classifyAgreements with two sheet rows', () => {
+  /**
+   * The rule under test: an accepted exchange is over when the **latest** end
+   * date has passed, not when the first row's has. Each side fills its own row,
+   * so reading only the first one lets the other person's period decide for the
+   * viewer.
+   */
+  function acceptedWithTwoPeriods(firstEnd, secondEnd) {
+    return classifyAgreements(
+      [
+        agreement({
+          stato: 'ACCEPTED',
+          proposte: [proposal(), proposal({ username: ME, ruolo: 'Beneficiary' })],
+          scheda: { fine: firstEnd },
+          schede: [{ fine: firstEnd }, { fine: secondEnd }],
+        }),
+      ],
+      ME,
+      NOW,
+    );
+  }
+
+  it('stays in progress while either sheet still ends in the future', () => {
+    const classificati = acceptedWithTwoPeriods(PAST_END, FUTURE_END);
+
+    expect(classificati.inProgress).toHaveLength(1);
+    expect(classificati.concluded).toHaveLength(0);
+  });
+
+  it('lands in the concluded history only when both periods are over', () => {
+    const classificati = acceptedWithTwoPeriods(PAST_END, PAST_END);
+
+    expect(classificati.concluded).toHaveLength(1);
+    expect(classificati.inProgress).toHaveLength(0);
+  });
+});
+
 describe('sheetsFor', () => {
   it('assigns each row to the right side for both participants', () => {
     const input = deepFreeze(acceptedWithSheets());

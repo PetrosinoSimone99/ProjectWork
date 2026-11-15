@@ -39,6 +39,10 @@ export function AgreementCard({
 }) {
   const t = useTokens();
   const [confermaAperta, setConfermaAperta] = useState(false);
+  // A sheet call is local to its row, so the card tracks it too: cancelling the
+  // exchange while a sheet is in flight could land the sheet on a cancelled
+  // agreement (the route only checks the status when it starts).
+  const [schedaInVolo, setSchedaInVolo] = useState(false);
 
   const STATI = {
     PENDING: { label: 'In attesa', bg: t.serviceBg, color: t.serviceText },
@@ -74,9 +78,14 @@ export function AgreementCard({
     altra.beneficiarioAccettato !== true &&
     onConfermaScheda !== null;
 
-  // Cancellation: accepted only, id present, and the screen opted in.
-  const puoAnnullare = accordo.stato === 'ACCEPTED' && Number.isInteger(accordo.id) && onCancel !== null;
-  const occupato = azioneInCorso !== null;
+  // Cancellation: accepted only, id present, the screen opted in, and no sheet
+  // call of this card in flight.
+  const puoAnnullare =
+    accordo.stato === 'ACCEPTED' &&
+    Number.isInteger(accordo.id) &&
+    onCancel !== null &&
+    !schedaInVolo;
+  const occupato = azioneInCorso !== null || schedaInVolo;
   const miaAnnulla = azioneInCorso?.id === accordo.id && azioneInCorso.nome === 'annulla';
 
   return (
@@ -108,6 +117,8 @@ export function AgreementCard({
               scheda={mia}
               azione={puoCompilare ? 'compila' : null}
               onInvia={(payload) => onInviaScheda(accordo.id, payload)}
+              occupata={azioneInCorso !== null}
+              onInVolo={setSchedaInVolo}
             />
           ) : null}
           {altra !== null ? (
@@ -118,6 +129,8 @@ export function AgreementCard({
               scheda={altra}
               azione={puoConfermare ? 'conferma' : null}
               onConferma={() => onConfermaScheda(accordo.id)}
+              occupata={azioneInCorso !== null}
+              onInVolo={setSchedaInVolo}
             />
           ) : null}
         </View>

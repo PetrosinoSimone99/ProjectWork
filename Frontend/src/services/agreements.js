@@ -58,10 +58,29 @@ function myProposal(agreement, myUsername) {
   );
 }
 
-/** Milliseconds of the sheet's end date, `NaN` when absent or unparseable. */
+/**
+ * Milliseconds of the **latest** end date among the agreement's sheet rows,
+ * `NaN` when none is usable.
+ *
+ * An accepted agreement carries one row per participant and each side fills its
+ * own dates, so reading `scheda` (the first row) would let the other person's
+ * period decide when *this* viewer's exchange is over. The exchange is over when
+ * no sheet still has an end date in the future, i.e. the latest one has passed.
+ */
 function endTime(agreement) {
-  const fine = typeof agreement.scheda?.fine === 'string' ? agreement.scheda.fine : '';
-  return fine === '' ? NaN : new Date(fine).getTime();
+  const righe = Array.isArray(agreement?.schede) ? agreement.schede : [agreement?.scheda];
+  let ultima = NaN;
+  for (const riga of righe) {
+    const fine = typeof riga?.fine === 'string' ? riga.fine : '';
+    if (fine === '') {
+      continue;
+    }
+    const tempo = new Date(fine).getTime();
+    if (Number.isFinite(tempo) && (!Number.isFinite(ultima) || tempo > ultima)) {
+      ultima = tempo;
+    }
+  }
+  return ultima;
 }
 
 /**

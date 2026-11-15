@@ -34,7 +34,7 @@ between `coda.demo` and `mario.rossi` carrying one compiled sheet row.
 | 8 | Aesthetic and minimalist design | 3 | the queue card carries five facts and one action; the empty state explains the feature where it is needed and disappears when it is no longer needed |
 | 9 | Error recovery | 3 | banners keep the rows on screen; the sheet form keeps what was typed when the call fails |
 
-**24/32** across the seven heuristics that can move (the previous audit scored
+**24/32** across the eight heuristics that can move (the previous audit scored
 27/40 on ten). The two lowest are the two hardest to fix inside a cycle: a date
 picker is a dependency decision, and a credit balance needs a backend route
 (`backend-gaps.md` G15).
@@ -70,7 +70,7 @@ picker is a dependency and a design decision, not a cycle-2 refactor.
 
 **P2 — a queue has no age.** `ServiceQueueDTO` carries no `createdAt`, so a queue
 opened three weeks ago looks exactly like one opened a minute ago. `In attesa` is
-a state, not a duration. Needs a backend field (`docs/backend-gaps.md` G17 area).
+a state, not a duration. Needs a backend field (`docs/backend-gaps.md` G22).
 
 **P2 — the match explainer disappears exactly when it is useful.** The only
 sentence explaining what a queue does lives in the empty state; with one queue on
@@ -95,11 +95,11 @@ change; the cost is two targets per row and a row that reads as a small toolbar.
 | Horizontal overflow at 390 / 1440 | `scrollWidth === innerWidth` at both (`390`, `1440`) |
 | Touch targets at 390 (inbox, dark) | 7 targets, 0 under 44 px |
 | One visible `h1` per screen | `["Notifiche"]`, `["Accordi"]`; `/match` shows two because of the stacked screen above (P2) |
-| Unread marker | dot `rgb(78, 169, 127)` in dark, card fill stays `surface`, 2 dots for 2 unread rows out of 4 |
+| Unread marker | dot `rgb(78, 169, 127)` in dark, card fill stays `surface`, 2 dots on 2 unread rows |
 | Refresh sentence | one occurrence (header) |
 | Dark theme | `documentElement.style.colorScheme === 'dark'`; every new surface follows, no light card on a dark page |
 | Empty → created → cancelled (match) | `Nessuna coda attiva` → row + `Coda di offerta creata.` → confirm panel → `Coda annullata: …` → `Nessuna coda attiva` |
-| Sheet card | one block (`La tua scheda`), dates, mode, `Scheda confermata.`; the provider form is not offered on a row that belongs to the other side |
+| Sheet card | one block (`La tua scheda`), `Fino al 5 dic 2026`, mode, `Scheda confermata.`, and the explicit line that the start is not stored (G20); the provider form is not offered on a row that belongs to the other side |
 | Copy | Italian, no emoji, no backend codes; the only English word left is in a dev comment |
 | Contrast | not re-derived: `tokens.js` untouched; the new pairs reuse `serviceBg`/`serviceText`, `accentBg`/`accentText`, `danger`/`dangerBg`, all audited on 2026-11-13 |
 

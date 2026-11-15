@@ -49,6 +49,23 @@ exercised at all. Measured after `docker compose down -v && up -d`: login `200`,
 1→0, `cancel-queue/1` `200` then credit 0→1, empty `get-queues` `404`. No other
 Docker file changed.
 
+### Review (fresh context, two angles)
+
+Two reviewers read the cycle at `cd16fad`: correctness/data/security and
+brief/evidence coherence. Both verdicts: **mergeable with fixes**, no P0. Fixed in
+the same cycle: the read-only sheet claimed a start date the schema does not keep
+(G20) — it now shows only the end date plus the reason; the new cross-module
+exports of `services/queues.js` were Italian, against D023, and are English now
+(`QUEUE_TYPE_LABELS`, `queueTypeLabel`, `servicesOfQueueType`, and
+`otherServices` in the mini-card); the dead `404` mapping on cancel-queue is gone
+(the route always answers `200`, now filed as G21); the sheet calls gained API
+tests and the component test now rejects with a real `ApiError`; cancelling can no
+longer race an in-flight sheet; the match tab loads the two answers independently
+so a failing own-services call no longer hides an arrived queue list; the
+in-progress/concluded split now reads the **latest** end date of the two sheet
+rows; seven stale `Backend/**` line citations and five count/claim errors in the
+docs are corrected.
+
 ### Gaps filed
 
 `G17` (an empty queue list is a `404`), `G18` (accepting an agreement can leave

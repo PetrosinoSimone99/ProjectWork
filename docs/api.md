@@ -125,7 +125,7 @@ proposal; the other participant answers once and it becomes `ACCEPTED` or
 | `POST /create-exchange-agreement` | `{otherParticipant}` | `201`. Creates a `PENDING` exchange: the caller answers `true` (they proposed), the other participant has `response: null` (has not answered yet). `400` for yourself, `404` for an unknown user |
 | `POST /send-agreement-response` | `{agreementId, response: true\|false}` | The answer, once. `true` → `ACCEPTED`, `false` → `REFUSED`. `409` when the agreement is no longer `PENDING` or this participant already answered |
 | `POST /send-agreement-details` | `{agreementId, fromRemote, startDate, endDate}` | The delivery sheet on an `ACCEPTED` agreement. `serviceId` and `beneficiaryId` are **no longer read**: since 2026-11-15 the manager takes the service and the beneficiary from the agreement itself, so sending them changes nothing. `400` when a field is missing or the end date does not come after the start date, `404` when the agreement is not accepted. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` and the beneficiary gets an `AGREEMENT_DETAILS` notification |
-| `POST /accept-agreement-details/{agreementId}` | — | The beneficiary's confirmation of the sheet: sets `beneficiaryAccepted` and `COMPILED`, and notifies the provider with `AGREEMENT_DETAILS_ACCEPTED`. `404` when the agreement is unknown, the caller is not the beneficiary, or there is no sheet; `500` when it was already accepted (the backend answers an exception, not a `409`) |
+| `POST /accept-agreement-details/{agreementId}` | — | The beneficiary's confirmation of the sheet: sets `beneficiaryAccepted` (the row is already `COMPILED`, written by the route above) and notifies the provider with `AGREEMENT_DETAILS_ACCEPTED`. `404` when the agreement is unknown, the caller is not the beneficiary, or there is no sheet; `500` when it was already accepted (the backend answers an exception, not a `409`) |
 | `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `CANCELLED` (before 2026-11-15 it became `VOID`). `404` when the caller is not a participant. A queue-born exchange refunds or increments a credit on this path |
 
 The details route used to be a `GET` that read a JSON body, which a browser
@@ -176,8 +176,8 @@ finished — but nothing consumes that scheduler in the local stack, so a sheet
 can stay `ACCEPTED` past its end date (see `setup.md`). `response: null` means
 "has not answered yet" and is not a refusal. Rows carry no user ids: the viewer
 is identified by username, and no row names the exchanged service until the
-sheet does (`backend-gaps.md` G4). The frontend has no sheet form yet, so an
-agreement with no sheet renders read-only as "Scheda non compilata"
+sheet does (`backend-gaps.md` G4). Until an agreement is accepted it carries no sheet at
+all, and the card renders the single line "Scheda non compilata"
 (`backend-gaps.md` G6).
 
 ## Reports
@@ -258,7 +258,7 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 | Call | Body | Notes |
 | --- | --- | --- |
 | `POST /create-service-queue` | `{queueType: "OFFER"\|"REQUEST"}` | `201`. A `REQUEST` queue costs one credit: `400 {error: "Not enough credits"}` when the account has none |
-| `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back |
+| `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back. It always answers `200`, **even when nothing happened** (unknown id, another account's queue, an already closed one): the app prints «Coda annullata» off that status, so a no-op reads as a success (`backend-gaps.md` G21) |
 | `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`, `queueStatus` is `OPEN`, `IN_PROGRESS` or `CLOSED` |
 
 Matching compares `location` with **exact equality**, so `"Milano (Lombardia)"`
@@ -273,7 +273,9 @@ cycle). Four facts decide how a client must talk to these routes:
   (`backend-gaps.md` G17).
 - **`POST /create-service-queue` needs exactly one service of that type.** The
   lookup ends with `getOneOrNullResult()`, so zero services throw an uncaught
-  `TypeError` and two or more throw `NonUniqueResultException` → a JSON `500`;
+  `TypeError` and two or more throw `NonUniqueResultException`, which escapes to
+  the framework error handler as a `500` (the controller's `catch (Exception)`
+  never matches: `backend-gaps.md` G13);
   for a `REQUEST` queue the credit is spent **before** the lookup, so a failed
   creation can cost a credit (`backend-gaps.md` G19). The app disables the button
   and says why instead of calling.

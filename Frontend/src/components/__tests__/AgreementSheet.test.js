@@ -1,5 +1,6 @@
 import { act, create } from 'react-test-renderer';
 
+import { ApiError } from '@/api/client';
 import { AgreementSheet } from '../AgreementSheet';
 import { AppInput } from '../AppInput';
 
@@ -96,8 +97,10 @@ describe('AgreementSheet — the form', () => {
     });
   });
 
-  it('shows the error the API returned and keeps the row on screen', async () => {
-    const onInvia = jest.fn().mockRejectedValue(new Error('Non trovo più questo accordo.'));
+  it('shows the Italian message the API area produced for a rejected call', async () => {
+    const onInvia = jest
+      .fn()
+      .mockRejectedValue(new ApiError(404, 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.'));
     const renderer = render('compila', { onInvia });
 
     scriviDate(renderer, '2026-12-01', '2026-12-05');
@@ -106,7 +109,21 @@ describe('AgreementSheet — the form', () => {
     });
 
     expect(
-      testoVisibile(renderer, 'Non è stato possibile inviare la scheda. Riprova.'),
+      testoVisibile(renderer, 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.'),
+    ).toBe(true);
+  });
+
+  it('falls back to its own sentence when the failure carries no message from the API layer', async () => {
+    const onInvia = jest.fn().mockRejectedValue(new Error('boom'));
+    const renderer = render('compila', { onInvia });
+
+    scriviDate(renderer, '2026-12-01', '2026-12-05');
+    await act(async () => {
+      premi(renderer, 'Invia la scheda');
+    });
+
+    expect(
+      testoVisibile(renderer, "Non è stato possibile inviare la scheda. Riprova."),
     ).toBe(true);
   });
 });
@@ -116,7 +133,13 @@ describe('AgreementSheet — read-only and confirmation', () => {
     const renderer = render(null, { scheda: SCHEDA_COMPILATA });
 
     expect(renderer.root.findAllByType(AppInput)).toHaveLength(0);
-    expect(testoVisibile(renderer, 'Dal 1 dic 2026 al 5 dic 2026')).toBe(true);
+    // Only the end date: the schema resets `start_date` on every update, so the
+    // row says the start is unavailable instead of claiming a date nobody chose
+    // (backend-gaps.md G20).
+    expect(testoVisibile(renderer, 'Fino al 5 dic 2026')).toBe(true);
+    expect(
+      testoVisibile(renderer, "L'inizio non è disponibile: il server non lo conserva (limite noto)."),
+    ).toBe(true);
   });
 
   it('confirms only after the panel, never on the first tap', async () => {

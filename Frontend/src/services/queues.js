@@ -8,13 +8,13 @@ import { TIPI_VOCE } from '@/services/offer-request';
  */
 
 /** Wire queue type (`QueueType`) -> Italian label. */
-export const ETICHETTE_TIPO = {
+export const QUEUE_TYPE_LABELS = {
   OFFER: 'Offerta',
   REQUEST: 'Ricerca',
 };
 
 /** Wire queue status (`QueueStatus`) -> Italian label. */
-export const ETICHETTE_STATO = {
+export const QUEUE_STATUS_LABELS = {
   OPEN: 'In attesa',
   IN_PROGRESS: 'In corso',
   CLOSED: 'Chiusa',
@@ -25,13 +25,13 @@ const TIPO_NON_DISPONIBILE = 'Tipo non indicato';
 const STATO_NON_DISPONIBILE = 'Stato non indicato';
 
 /** The label of a queue type, or a neutral word when the value is unknown. */
-export function etichettaTipoCoda(tipo) {
-  return ETICHETTE_TIPO[tipo] ?? TIPO_NON_DISPONIBILE;
+export function queueTypeLabel(tipo) {
+  return QUEUE_TYPE_LABELS[tipo] ?? TIPO_NON_DISPONIBILE;
 }
 
 /** The label of a queue status, or a neutral word when the value is unknown. */
-export function etichettaStatoCoda(stato) {
-  return ETICHETTE_STATO[stato] ?? STATO_NON_DISPONIBILE;
+export function queueStatusLabel(stato) {
+  return QUEUE_STATUS_LABELS[stato] ?? STATO_NON_DISPONIBILE;
 }
 
 /** Queue type -> the viewer's own service kind (`TIPI_VOCE`). */
@@ -48,11 +48,12 @@ const TIPO_SERVIZIO = {
  * `ServiceRepository::getUserServiceByType`):
  *
  * - the lookup ends with `getOneOrNullResult()`, so **two** services of the
- *   same type make Doctrine throw `NonUniqueResultException`, which the
- *   controller's `catch (Exception)` turns into a JSON `500` — and for a
- *   `REQUEST` queue the credit is spent **before** that lookup (measured: the
- *   demo accounts have several services of each type, so the route cannot
- *   create a queue for them at all, `backend-gaps.md` G19);
+ *   same type make Doctrine throw `NonUniqueResultException`, which escapes to
+ *   the framework error handler as a `500` (the controller's `catch (Exception)`
+ *   never matches: `backend-gaps.md` G13) — and for a `REQUEST` queue the
+ *   credit is spent **before** that lookup (measured: the demo accounts have
+ *   several services of each type, so the route cannot create a queue for them
+ *   at all, `backend-gaps.md` G19);
  * - no service of that type makes the same lookup return `null` and the queue
  *   constructor throw an uncaught `TypeError`, also not a `400` the app could
  *   translate.
@@ -64,7 +65,7 @@ const TIPO_SERVIZIO = {
  * `servizi` is the list `listMyServices` returns: rows carry `tipo` as
  * `TIPI_VOCE.OFFERTA` / `TIPI_VOCE.RICERCA` (`normalizeOwnedService`).
  */
-export function serviziDelTipo(servizi, tipoCoda) {
+export function servicesOfQueueType(servizi, tipoCoda) {
   const tipoServizio = TIPO_SERVIZIO[tipoCoda];
   if (tipoServizio === undefined || !Array.isArray(servizi)) {
     return [];

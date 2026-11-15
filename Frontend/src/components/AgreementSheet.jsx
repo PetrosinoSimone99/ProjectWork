@@ -46,7 +46,15 @@ const ERRORE_CONFERMA = 'Non è stato possibile confermare la scheda. Riprova.';
  * reader acted on. A success is shown by the screen reloading the list, which
  * turns the form into the compiled row.
  */
-export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, onConferma = null }) {
+export function AgreementSheet({
+  titolo,
+  scheda,
+  azione = null,
+  onInvia = null,
+  onConferma = null,
+  occupata = false,
+  onInVolo = null,
+}) {
   const t = useTokens();
   const [inizio, setInizio] = useState(formatIsoDate(scheda?.inizio) ? scheda.inizio.slice(0, 10) : '');
   const [fine, setFine] = useState(formatIsoDate(scheda?.fine) ? scheda.fine.slice(0, 10) : '');
@@ -62,7 +70,7 @@ export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, 
   const compilata = isSheetCompiled(scheda);
 
   async function invia() {
-    if (inVolo) {
+    if (inVolo || occupata) {
       return;
     }
     if (!periodoValido(inizio, fine)) {
@@ -71,28 +79,32 @@ export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, 
     }
     setErrore(null);
     setInVolo(true);
+    onInVolo?.(true);
     try {
       await onInvia({ fromRemote: daRemoto, startDate: dataDaInput(inizio), endDate: dataDaInput(fine) });
     } catch (err) {
       setErrore(err instanceof ApiError ? err.message : ERRORE_GENERICO);
     } finally {
       setInVolo(false);
+      onInVolo?.(false);
     }
   }
 
   async function conferma() {
     setConfermaAperta(false);
-    if (inVolo) {
+    if (inVolo || occupata) {
       return;
     }
     setErrore(null);
     setInVolo(true);
+    onInVolo?.(true);
     try {
       await onConferma();
     } catch (err) {
       setErrore(err instanceof ApiError ? err.message : ERRORE_CONFERMA);
     } finally {
       setInVolo(false);
+      onInVolo?.(false);
     }
   }
 
@@ -144,7 +156,7 @@ export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, 
             label={inVolo ? 'Invio…' : 'Invia la scheda'}
             icon="document-text-outline"
             onPress={() => void invia()}
-            disabled={inVolo}
+            disabled={inVolo || occupata}
           />
         </View>
       ) : (
@@ -164,9 +176,16 @@ export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 <AppIcon name="calendar-outline" size={14} color={t.textSecondary} />
                 <AppText variant="small" tone="secondary">
-                  {descriviPeriodo(scheda.inizio, scheda.fine)}
+                  {descriviPeriodo(scheda.fine)}
                 </AppText>
               </View>
+              {/* Only the end date is shown on purpose: the schema resets
+                  `start_date` on every update, so the start the reader set is
+                  not what the API returns (backend-gaps.md G20). Claiming it
+                  would show a date nobody chose. */}
+              <AppText variant="small" tone="secondary">
+                L&apos;inizio non è disponibile: il server non lo conserva (limite noto).
+              </AppText>
             </>
           ) : (
             <AppText variant="small" tone="secondary">
@@ -188,7 +207,7 @@ export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, 
                 label={inVolo ? 'Confermo…' : 'Conferma la scheda'}
                 icon="checkmark-outline"
                 onPress={() => setConfermaAperta(true)}
-                disabled={inVolo}
+                disabled={inVolo || occupata}
               />
               <ConfirmModal
                 visible={confermaAperta}
@@ -213,18 +232,15 @@ export function AgreementSheet({ titolo, scheda, azione = null, onInvia = null, 
   );
 }
 
-/** "Dal 1 dic 2026 al 5 dic 2026", or whichever half exists. */
-function descriviPeriodo(inizio, fine) {
-  const da = formatIsoDate(inizio);
-  const a = formatIsoDate(fine);
-  if (da && a) {
-    return `Dal ${da} al ${a}`;
-  }
-  if (da) {
-    return `Dal ${da}`;
-  }
-  if (a) {
-    return `Fino al ${a}`;
-  }
-  return 'Date non indicate';
+/**
+ * "Fino al 5 dic 2026", or "Date non indicate".
+ *
+ * The wire timestamp is UTC midnight for a date-only value, so it is read at
+ * noon UTC: formatting it directly would show the previous day on any device
+ * west of UTC (`services/dates.js` uses the device timezone).
+ */
+function descriviPeriodo(fine) {
+  const giorno = typeof fine === 'string' ? fine.slice(0, 10) : '';
+  const formattata = /^\d{4}-\d{2}-\d{2}$/.test(giorno) ? formatIsoDate(`${giorno}T12:00:00Z`) : null;
+  return formattata ? `Fino al ${formattata}` : 'Date non indicate';
 }

@@ -28,8 +28,8 @@ First boot on an empty data volume imports the schema named by
 **15-table** schema of the current backend (agreements, chat, notifications,
 service queues, messenger included). That dump is **structure only**, so the
 demo rows come from `Backend/docker/seed-demo.sql`, mounted right after it:
-50 categories, 30 users (every password `demo`, `credits` included) and 300
-services, copied verbatim from the archived demo dump
+50 categories, 30 generated users (every password `demo`, `credits` included) and
+300 services, copied verbatim from the archived demo dump
 `Archive/DB_mid_November/barattolo_demo_20261108.sql`, plus **one account added by
 the second cycle** (below). Agreements, notifications and queues start empty on
 purpose: their archived schema differs and the app is meant to create them
@@ -43,7 +43,8 @@ service of the requested type (`docs/backend-gaps.md` G19). Every generated demo
 user has four to seven services per type, so none of them can create a queue.
 The seed therefore ends with one more user — `coda.demo`, password `demo`, Roma,
 **one offer, one request, one credit** — which is the account to log in with when
-testing the `match` tab:
+testing the `match` tab. The volume therefore ends with **31 users and 302
+services** (the 30 generated plus this one):
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
@@ -52,8 +53,8 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/api/create-service-queue \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"queueType":"REQUEST"}'          # 201, and the credit goes 1 -> 0
-curl -s http://localhost:8000/api/get-queues -H "Authorization: Bearer $TOKEN"   # the row
-curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/api/cancel-queue/1 \
+QUEUE_ID=$(curl -s http://localhost:8000/api/get-queues -H "Authorization: Bearer $TOKEN" | jq -r .queues[0].id)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8000/api/cancel-queue/$QUEUE_ID" \
   -H "Authorization: Bearer $TOKEN"                                        # 200, credit back to 1
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/get-queues \
   -H "Authorization: Bearer $TOKEN"                                        # 404: the list is empty

@@ -19,7 +19,7 @@ const RIGHE_VISIBILI = 3;
  * open offer and must survive the filter. Null or absent lists come back as
  * `[]`, and the input array is never touched (a new array every time).
  */
-export function altriServizi(servizi, apertoDaEscludere) {
+export function otherServices(servizi, apertoDaEscludere) {
   const elenco = Array.isArray(servizi) ? servizi : [];
   if (apertoDaEscludere === null || apertoDaEscludere === undefined) {
     return [...elenco];
@@ -72,7 +72,7 @@ function Gruppo({ titolo, icona, servizi }) {
  *
  * «Other» means other: the panel passes the service it is showing as
  * `apertoDaEscludere` and the card drops it from both groups, so the detail
- * never repeats what the reader already has in front of them (`altriServizi`).
+ * never repeats what the reader already has in front of them (`otherServices`).
  *
  * This block used to be a declared gap (`backend-gaps.md` G3: no public profile
  * endpoint). `GET /users/{id}/services` closes it, so the sentences that said
@@ -101,8 +101,8 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEsclud
   // The same filtered set feeds both the groups and the empty line: a person
   // whose only publication is the open service has *no other* publications.
   const pubblicazioni = {
-    offerte: altriServizi(dati?.offerte, apertoDaEscludere),
-    richieste: altriServizi(dati?.richieste, apertoDaEscludere),
+    offerte: otherServices(dati?.offerte, apertoDaEscludere),
+    richieste: otherServices(dati?.richieste, apertoDaEscludere),
   };
   const vuota =
     dati !== null && pubblicazioni.offerte.length === 0 && pubblicazioni.richieste.length === 0;

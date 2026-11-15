@@ -93,9 +93,10 @@ without it) and the counterpart `id` (a sheet cannot link back to a profile).
 ## G7 — Confirmation of the delivery sheet — LANDED 2026-11-15
 
 `POST /accept-agreement-details/{agreementId}` now sets `beneficiaryAccepted` and
-`COMPILED` and notifies the provider. One leftover: an already-accepted sheet
-answers `500` **with the exception message appended** instead of a `409`
-(`Backend/src/Controller/AgreementController.php:281`), while the route that
+notifies the provider; `COMPILED` is written by the route that fills the sheet,
+not by this one. One leftover: an already-accepted sheet answers `500` **with the
+exception message appended** instead of a `409`
+(`Backend/src/Controller/AgreementController.php:287`), while the route that
 writes the sheet answers a clean `Internal Server Error`. Both routes are called
 by the app since the second cycle; the `500` on a double confirmation is what the
 card shows as "Il server non ha accettato la scheda".
@@ -139,7 +140,7 @@ separately, and `NotificationService::notify` flushes the whole unit of work
 ## G11 — Queue matching compares location by exact string
 
 `ServiceQueueRepository::getRelevantQueues` filters with `'location' => $location`
-(`Backend/src/Repository/ServiceQueueRepository.php:24`). The app composes
+(`Backend/src/Repository/ServiceQueueRepository.php:29`). The app composes
 `"Milano (Lombardia)"` and the column stores free text, so a queue created from
 the app never matches one seeded or typed by hand (`"Milano"`). The column is
 also `varchar(100)` against `varchar(255)` on `users` and `services`
@@ -161,7 +162,7 @@ inside a loop that can find details without one.
 ## G13 — Queue routes swallow their own error branch
 
 `QueueController` writes `catch (Exception $e)` without `use Exception`
-(`Backend/src/Controller/QueueController.php:15,50,69,84`): inside `App\Controller`
+(`Backend/src/Controller/QueueController.php:51,66,85`): inside `App\Controller`
 that name resolves to a class that does not exist, so the branch never matches
 and real failures escape unhandled instead of answering the documented `500`.
 `GET /get-queues` also dereferences `getService()->getCategories()->first()`
@@ -191,7 +192,8 @@ visible number behind it. Requested: `credits` in `GET /profile` (or a small
 
 `NotificationController` answers `pagination.totalItems = count($items)` — the
 rows of the page it just returned — and `totalPages = ceil(total / limit)`
-(`Backend/src/Controller/NotificationController.php:37`). With a full first page
+(`Backend/src/Controller/NotificationController.php:38` for the count, `:41` for
+the payload). With a full first page
 that is `{totalItems: 20, totalPages: 1}` whatever the real total is, so a client
 cannot tell whether a second page exists and `page=2` is unreachable by design:
 notifications past the twentieth cannot be read from the app at all. Requested:
@@ -203,7 +205,7 @@ and does **not** draw a "load more" button it could never justify.
 
 `QueueController::getQueues` answers `404 {error: "Service queues not found"}`
 when the account has no queue, because it tests `if (!$queuesDTO)` and an empty
-array is falsy (`Backend/src/Controller/QueueController.php:107-114`). The status
+array is falsy (`Backend/src/Controller/QueueController.php:80-83`). The status
 that means "empty" is the one the frontend uses everywhere for "route missing",
 so every client has to special-case it: `listQueues` reads `404` as `[]`
 (`Frontend/src/api/areas/queues.js`). Requested: `200` with `{"queues": []}`, so
@@ -213,8 +215,9 @@ so every client has to special-case it: `listQueues` reads `404` as `[]`
 
 `AgreementManager::sendResponse` calls `createBlankDetails` twice on acceptance,
 and each call resolves the participant's service with
-`ServiceRepository::getUserServiceByType`, which ends in `getOneOrNullResult()`
-(`Backend/src/Repository/ServiceRepository.php:251-261`). An account with more
+`ServiceManager::getUserOfferedService` →
+`ServiceRepository::findUserOfferedService`, which ends in `getOneOrNullResult()`
+(`Backend/src/Repository/ServiceRepository.php:239-249`, the lookup at `:248`). An account with more
 than one service of that type throws `NonUniqueResultException` on the second
 call: the first sheet row is already flushed, the agreement is already
 `ACCEPTED`, and the route answers `500` (`Backend/src/Manager/AgreementManager.php:140-147`).
@@ -228,8 +231,10 @@ choice) or a deterministic "primary service" per type.
 
 `ServiceQueueManager::createServiceQueue` looks the account's service up with the
 same `getOneOrNullResult()`. Measured: zero services of that type throw an
-uncaught `TypeError` (not the documented `500` JSON, because the controller
-catches `Exception`, not `Error`), and two or more throw
+uncaught `TypeError` (not the documented `500` JSON: the controller catches
+`Exception`, and `TypeError` is an `Error` — next to it, the missing `use
+Exception` of G13 means that `catch` never matches anything at all), and two or
+more throw
 `NonUniqueResultException` → `500 Internal Server Error`
 (`More than one result was found for query although one row or none was
 expected`). Worse, a `REQUEST` queue spends the credit **before** the lookup
@@ -253,6 +258,28 @@ shows what the API returns, so the start date a reader sees is the last update
 time, not the date that was typed. Requested: drop `ON UPDATE CURRENT_TIMESTAMP`
 from `start_date` (the other datetime columns have it too, and the same trap
 applies to any column a client writes).
+
+## G21 — Cancelling a queue answers `200` even when nothing happened
+
+`QueueController::cancelQueue` always answers
+`200 {"message": "Service queue cancelled successfully"}`: it calls the manager,
+which only acts when the queue exists, belongs to the caller and is not already
+`CLOSED`, and then returns success regardless
+(`Backend/src/Manager/ServiceQueueManager.php:91-104`,
+`Backend/src/Controller/QueueController.php:57-69`). An unknown id, another
+account's queue or an already closed one is a silent no-op that the app reads as
+a success — the screen prints «Coda annullata: …» and the row only leaves the
+list because the reload no longer returns it. From this UI the case is nearly
+unreachable (the list excludes `CLOSED` rows), but a client cannot tell a real
+cancellation from a no-op. Requested: `404` when the caller is not a participant
+and `409` when the queue is already closed.
+
+## G22 — A queue row carries no date
+
+`ServiceQueueDTO` has no `createdAt` (and no `updatedAt`), so the app cannot say
+how old a queue is: an `OPEN` queue from three weeks ago and one created a minute
+ago look identical (`In attesa` is a state, not a duration). Requested: one
+timestamp in the row.
 
 ## Cross-cutting notes for the backend
 

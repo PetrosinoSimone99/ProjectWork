@@ -1,3 +1,4 @@
+import { acceptAgreementSheet, sendAgreementSheet } from '../areas/agreements';
 import { normalizeAgreement, normalizeAgreements } from '../normalizers';
 
 /**
@@ -86,5 +87,105 @@ describe('normalizeAgreements', () => {
     expect(normalizeAgreements({ success: { agreements: [ACCORDO] } })).toHaveLength(1);
     expect(normalizeAgreements({})).toEqual([]);
     expect(normalizeAgreements(null)).toEqual([]);
+  });
+});
+
+/**
+ * The two sheet calls of `api/areas/agreements.js`.
+ *
+ * The route contract is narrow and worth pinning: `send-agreement-details`
+ * reads exactly `{agreementId, fromRemote, startDate, endDate}` (a participant
+ * id in the body changes nothing, `docs/api.md`), and
+ * `accept-agreement-details/{id}` takes the agreement in the path and no body.
+ * The three statuses each route can answer are mapped to Italian here, so no
+ * screen translates a status.
+ */
+const TOKEN = 'test-token';
+
+/** A `Response`-shaped object: `client.js` reads `ok`, `status` and `text()`. */
+function jsonResponse(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => JSON.stringify(body),
+  };
+}
+
+describe('sendAgreementSheet', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { success: { code: 200 } }));
+  });
+
+  it('posts the four fields the route reads, as date-only strings', async () => {
+    await sendAgreementSheet(TOKEN, {
+      agreementId: 9,
+      fromRemote: true,
+      startDate: '2026-12-01',
+      endDate: '2026-12-05',
+    });
+
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(String(url).endsWith('/send-agreement-details')).toBe(true);
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({
+      agreementId: 9,
+      fromRemote: true,
+      startDate: '2026-12-01',
+      endDate: '2026-12-05',
+    });
+  });
+
+  it('turns a 400 into the sentence about the two dates', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(400, { error: { code: 400 } }));
+
+    await expect(
+      sendAgreementSheet(TOKEN, {
+        agreementId: 9,
+        fromRemote: false,
+        startDate: '2026-12-05',
+        endDate: '2026-12-01',
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Controlla le date: la fine deve venire dopo l'inizio.",
+    });
+  });
+
+  it('turns a 404 into the sentence about an agreement or sheet that is gone', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(404, { error: { code: 404 } }));
+
+    await expect(
+      sendAgreementSheet(TOKEN, {
+        agreementId: 9,
+        fromRemote: false,
+        startDate: '2026-12-01',
+        endDate: '2026-12-05',
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.',
+    });
+  });
+});
+
+describe('acceptAgreementSheet', () => {
+  it('puts the agreement in the path and sends no body', async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { success: { code: 200 } }));
+
+    await acceptAgreementSheet(TOKEN, 9);
+
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(String(url).endsWith('/accept-agreement-details/9')).toBe(true);
+    expect(options.method).toBe('POST');
+    expect(options.body).toBeUndefined();
+  });
+
+  it('turns the 500 of an already confirmed sheet into its own sentence', async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(500, { error: { code: 500 } }));
+
+    await expect(acceptAgreementSheet(TOKEN, 9)).rejects.toMatchObject({
+      status: 500,
+      message: "Il server non ha accettato la scheda: riprova, e se l'errore resta segnalalo.",
+    });
   });
 });

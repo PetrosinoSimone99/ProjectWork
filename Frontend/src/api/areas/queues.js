@@ -27,9 +27,6 @@ const INVALID_INPUT_MESSAGE = 'Controlla i dati inseriti: manca qualcosa o non �
 /** Copy for `401` on create: without a usable session there is no queue. */
 const NOT_AUTHENTICATED_MESSAGE = 'Devi accedere per usare le code.';
 
-/** Copy for `404` on cancel: the row is gone, or it was closed already. */
-const QUEUE_GONE_MESSAGE = 'Non trovo più questa coda: potrebbe essere già chiusa.';
-
 /** The backend body of `NotEnoughCreditsException` (`QueueController`). */
 const NOT_ENOUGH_CREDITS_RAW = 'Not enough credits';
 
@@ -91,18 +88,17 @@ export async function createQueue(token, tipo) {
  *
  * The id travels in the path, so it is checked here: a non-integer or a
  * non-positive id is refused before the request instead of asking the route
- * to fail however it prefers. A `404` means the row is already gone.
+ * to fail however it prefers.
+ *
+ * There is **no status to translate on the way back**: the route answers `200`
+ * even when nothing happened (unknown id, another account's queue, an already
+ * closed one — the manager only acts on a match and the controller always
+ * answers success, `backend-gaps.md` G21). A `404` cannot come from a valid id,
+ * so none is mapped here; the screen's list is what tells the reader the state.
  */
 export async function cancelQueue(token, id) {
   if (!Number.isInteger(id) || id <= 0) {
     throw new ApiError(400, INVALID_INPUT_MESSAGE);
   }
-  try {
-    await apiFetch(`cancel-queue/${id}`, { method: 'POST', token });
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      throw new ApiError(404, QUEUE_GONE_MESSAGE);
-    }
-    throw err;
-  }
+  await apiFetch(`cancel-queue/${id}`, { method: 'POST', token });
 }

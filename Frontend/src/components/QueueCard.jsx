@@ -5,7 +5,7 @@ import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
-import { etichettaStatoCoda, etichettaTipoCoda } from '@/services/queues';
+import { queueStatusLabel, queueTypeLabel } from '@/services/queues';
 import { localitaPerDisplay } from '@/services/italian-regions';
 import { space, useTokens } from '@/theme/tokens';
 
@@ -71,7 +71,7 @@ export function QueueCard({ coda, occupata = false, onAnnulla }) {
     <Card style={{ gap: space.sm }}>
       <Chip background={typeColor.background}>
         <AppText variant="caption" style={{ color: typeColor.color }}>
-          {etichettaTipoCoda(coda.tipo)}
+          {queueTypeLabel(coda.tipo)}
         </AppText>
       </Chip>
 
@@ -103,7 +103,7 @@ export function QueueCard({ coda, occupata = false, onAnnulla }) {
       >
         <Chip background={statusColor.background}>
           <AppText variant="caption" style={{ color: statusColor.color }}>
-            {etichettaStatoCoda(coda.stato)}
+            {queueStatusLabel(coda.stato)}
           </AppText>
         </Chip>
         {coda.agreementId !== null ? (

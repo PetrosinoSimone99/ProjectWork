@@ -1,9 +1,9 @@
 import {
-  ETICHETTE_STATO,
-  ETICHETTE_TIPO,
-  etichettaStatoCoda,
-  etichettaTipoCoda,
-  serviziDelTipo,
+  QUEUE_STATUS_LABELS,
+  QUEUE_TYPE_LABELS,
+  queueStatusLabel,
+  queueTypeLabel,
+  servicesOfQueueType,
 } from '../queues';
 import {
   INSUFFICIENT_CREDITS_MESSAGE,
@@ -63,72 +63,72 @@ afterEach(() => {
 
 describe('queue labels', () => {
   it('maps the two wire types to the Italian labels', () => {
-    expect(ETICHETTE_TIPO).toEqual({ OFFER: 'Offerta', REQUEST: 'Ricerca' });
-    expect(etichettaTipoCoda('OFFER')).toBe('Offerta');
-    expect(etichettaTipoCoda('REQUEST')).toBe('Ricerca');
+    expect(QUEUE_TYPE_LABELS).toEqual({ OFFER: 'Offerta', REQUEST: 'Ricerca' });
+    expect(queueTypeLabel('OFFER')).toBe('Offerta');
+    expect(queueTypeLabel('REQUEST')).toBe('Ricerca');
   });
 
   it('maps the three wire statuses to the Italian labels', () => {
-    expect(ETICHETTE_STATO).toEqual({
+    expect(QUEUE_STATUS_LABELS).toEqual({
       OPEN: 'In attesa',
       IN_PROGRESS: 'In corso',
       CLOSED: 'Chiusa',
     });
-    expect(etichettaStatoCoda('OPEN')).toBe('In attesa');
-    expect(etichettaStatoCoda('IN_PROGRESS')).toBe('In corso');
-    expect(etichettaStatoCoda('CLOSED')).toBe('Chiusa');
+    expect(queueStatusLabel('OPEN')).toBe('In attesa');
+    expect(queueStatusLabel('IN_PROGRESS')).toBe('In corso');
+    expect(queueStatusLabel('CLOSED')).toBe('Chiusa');
   });
 
   it('falls back to a neutral word for an unknown or missing type', () => {
-    expect(etichettaTipoCoda('SOMETHING_ELSE')).toBe('Tipo non indicato');
-    expect(etichettaTipoCoda(null)).toBe('Tipo non indicato');
-    expect(etichettaTipoCoda(undefined)).toBe('Tipo non indicato');
+    expect(queueTypeLabel('SOMETHING_ELSE')).toBe('Tipo non indicato');
+    expect(queueTypeLabel(null)).toBe('Tipo non indicato');
+    expect(queueTypeLabel(undefined)).toBe('Tipo non indicato');
   });
 
   it('falls back to a neutral word for an unknown or missing status', () => {
-    expect(etichettaStatoCoda('SOMETHING_ELSE')).toBe('Stato non indicato');
-    expect(etichettaStatoCoda(null)).toBe('Stato non indicato');
-    expect(etichettaStatoCoda(undefined)).toBe('Stato non indicato');
+    expect(queueStatusLabel('SOMETHING_ELSE')).toBe('Stato non indicato');
+    expect(queueStatusLabel(null)).toBe('Stato non indicato');
+    expect(queueStatusLabel(undefined)).toBe('Stato non indicato');
   });
 });
 
-describe('serviziDelTipo', () => {
+describe('servicesOfQueueType', () => {
   const SERVIZI = [
     { chiave: 'OFFERTA-1', tipo: 'OFFERTA', id: 1 },
     { chiave: 'RICERCA-2', tipo: 'RICERCA', id: 2 },
   ];
 
   it('returns the rows of the requested type, so the caller can count them', () => {
-    expect(serviziDelTipo(SERVIZI, 'OFFER')).toEqual([SERVIZI[0]]);
-    expect(serviziDelTipo(SERVIZI, 'REQUEST')).toEqual([SERVIZI[1]]);
+    expect(servicesOfQueueType(SERVIZI, 'OFFER')).toEqual([SERVIZI[0]]);
+    expect(servicesOfQueueType(SERVIZI, 'REQUEST')).toEqual([SERVIZI[1]]);
   });
 
   it('returns every row of that type, which is how the caller learns it cannot create a queue', () => {
     const due = [SERVIZI[0], { ...SERVIZI[0], chiave: 'OFFERTA-3', id: 3 }];
 
-    expect(serviziDelTipo(due, 'OFFER')).toHaveLength(2);
+    expect(servicesOfQueueType(due, 'OFFER')).toHaveLength(2);
   });
 
   it('returns [] for an empty list or for a type with no row', () => {
-    expect(serviziDelTipo([], 'OFFER')).toEqual([]);
-    expect(serviziDelTipo([SERVIZI[1]], 'OFFER')).toEqual([]);
-    expect(serviziDelTipo(SERVIZI, 'CLOSED')).toEqual([]);
+    expect(servicesOfQueueType([], 'OFFER')).toEqual([]);
+    expect(servicesOfQueueType([SERVIZI[1]], 'OFFER')).toEqual([]);
+    expect(servicesOfQueueType(SERVIZI, 'CLOSED')).toEqual([]);
   });
 
   it('fails closed on a wrong-case queue type', () => {
-    expect(serviziDelTipo(SERVIZI, 'offer')).toEqual([]);
-    expect(serviziDelTipo(SERVIZI, 'Request')).toEqual([]);
+    expect(servicesOfQueueType(SERVIZI, 'offer')).toEqual([]);
+    expect(servicesOfQueueType(SERVIZI, 'Request')).toEqual([]);
   });
 
   it('fails closed when the list is not a list', () => {
-    expect(serviziDelTipo(null, 'OFFER')).toEqual([]);
-    expect(serviziDelTipo(undefined, 'OFFER')).toEqual([]);
+    expect(servicesOfQueueType(null, 'OFFER')).toEqual([]);
+    expect(servicesOfQueueType(undefined, 'OFFER')).toEqual([]);
   });
 
   it('never mutates the input list', () => {
     const copia = SERVIZI.map((voce) => ({ ...voce }));
 
-    serviziDelTipo(SERVIZI, 'OFFER');
+    servicesOfQueueType(SERVIZI, 'OFFER');
 
     expect(SERVIZI).toEqual(copia);
   });
@@ -250,12 +250,9 @@ describe('cancelQueue', () => {
     expect(options.method).toBe('POST');
   });
 
-  it('maps a 404 to the copy for a queue that is already gone', async () => {
-    global.fetch.mockResolvedValue(jsonResponse(404, { error: 'Queue not found' }));
+  it('passes a failure through untouched, because the route has no status to translate', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(500, { error: 'Internal server error' }));
 
-    await expect(cancelQueue(TOKEN, 7)).rejects.toMatchObject({
-      status: 404,
-      message: 'Non trovo più questa coda: potrebbe essere già chiusa.',
-    });
+    await expect(cancelQueue(TOKEN, 7)).rejects.toMatchObject({ status: 500 });
   });
 });

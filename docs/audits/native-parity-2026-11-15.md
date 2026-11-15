@@ -39,8 +39,9 @@ safe areas.
 
 ## 2. Every `Platform.OS` branch, with a verdict
 
-Twenty-three code sites (plus one comment in `PageHeader.jsx` that documents a
-branch the audits removed). The question asked of each is not "does it type-check" but
+Twenty-two code sites (plus one comment in `PageHeader.jsx` that documents a
+branch the audits removed); the table below merges `Screen.jsx:25-26` into one
+row. The question asked of each is not "does it type-check" but
 "what happens on a phone": a web-only branch that leaks into native would be a
 silent no-op, which is the failure this leg exists to catch.
 
@@ -49,7 +50,7 @@ silent no-op, which is the failure this leg exists to catch.
 | `api/config.js:16` | `Platform.OS === 'android' ? 10.0.2.2 : localhost` | emulator loopback for Android, `localhost` for iOS | correct, dev-only |
 | `api/config.js:52` | `Platform.OS === 'web'` reads `window.location.hostname` | guarded, native keeps the port rule | ok |
 | `api/config.js:63` | `Platform.OS === 'android' && senzaNome` | Android emulator host | ok |
-| `app/(tabs)/_layout.jsx:23` | `tabBar={web ? () => null : undefined}` | native gets the default tab bar | ok, the five tabs render |
+| `app/(tabs)/_layout.jsx:23` | `tabBar={web ? () => null : undefined}` | native gets the default tab bar | code-correct; the five tabs are **unproven on the device** (§5.1) |
 | `app/_layout.jsx:77` | `paddingRight: web ? barWidth : space.lg` | native keeps the standard gutter | ok |
 | `auth/token-store.js:12` | `web ? localStorage : SecureStore` | native uses SecureStore | ok |
 | `components/FocusRing.jsx:33` | `web` + `document` guard | native injects no CSS | ok (native has its own focus model) |
@@ -84,17 +85,17 @@ but its body is guarded by `isWeb` for the DOM listeners it installs) and
 
 ## 3. Web, driven (light and dark) — the numbers
 
-The same build a phone would load, at the phone width the audits use (390) plus
-the page width (1440). Raw output: `screens-2026-11-15-cycle2/measurements.txt`.
+The same code, exported for web, at the phone width the audits use (390) plus the
+page width (1440). Raw output: `screens-2026-11-15-cycle2/measurements.txt`.
 
 | Check | Measured |
 | --- | --- |
 | Match tab, credit line | present, once: «Una coda di ricerca costa un credito.» |
 | Match tab, create gate | `Offerta` enabled for an account with exactly one offer; the REQUEST button follows the same rule |
 | Match tab, create → list → cancel | queue created (`Coda di offerta creata.`), row drawn, cancel goes through `ConfirmModal`, then `Coda annullata: …` |
-| Inbox, unread marker | 2 unread rows out of 4: one 8 px dot each, card fill stays `surface`, border `primary` |
+| Inbox, unread marker | 2 unread rows, one 8 px dot each; card fill stays `surface`, border `primary` |
 | Inbox, refresh sentence | 1 occurrence (header only) |
-| Agreement card, sheet | 1 sheet block on the accepted agreement («La tua scheda», dates, mode, «Scheda confermata.») |
+| Agreement card, sheet | 1 sheet block on the accepted agreement («La tua scheda», «Fino al 5 dic 2026», mode, «Scheda confermata.», and the line that says the start is not stored — G20) |
 | Dark theme | `document.documentElement.style.colorScheme === 'dark'`; unread dot `rgb(78, 169, 127)`; every token pair legible in the captures |
 | Horizontal overflow at 390 | `scrollWidth === innerWidth === 390` |
 | Horizontal overflow at 1440 | `scrollWidth === innerWidth === 1440` |

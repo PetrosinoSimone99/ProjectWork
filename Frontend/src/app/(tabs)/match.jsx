@@ -12,7 +12,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
 import { QueueCard } from '@/components/QueueCard';
 import { Screen } from '@/components/Screen';
-import { etichettaTipoCoda, serviziDelTipo } from '@/services/queues';
+import { queueTypeLabel, servicesOfQueueType } from '@/services/queues';
 import { useRefresh } from '@/hooks/useRefresh';
 import { space } from '@/theme/tokens';
 
@@ -58,7 +58,7 @@ const EMPTY_DESCRIPTION =
  *   a `REQUEST` queue spends the credit before that lookup. Each create button
  *   therefore stays disabled — with the reason spelled out — unless
  *   `listMyServices` says there is **exactly one** service of that type
- *   (`serviziDelTipo`).
+ *   (`servicesOfQueueType`).
  * - A request queue costs one credit and **no route exposes the balance**
  *   (`docs/backend-gaps.md` G15): the tab states the cost in words and never
  *   a figure.
@@ -91,28 +91,32 @@ export default function MatchScreen() {
     const seq = ++requestSeqRef.current;
     setLoading(true);
     setLoadError(null);
-    try {
-      const [queueRows, serviceRows] = await Promise.all([
-        listQueues(token),
-        listMyServices(token),
-      ]);
-      if (seq !== requestSeqRef.current) {
-        return;
-      }
-      setQueues(queueRows);
-      setServices(serviceRows);
-    } catch (err) {
-      if (seq !== requestSeqRef.current) {
-        return;
-      }
-      // A failed reload keeps what is on screen: blanking a list that had
-      // rows a second ago is worse than a banner that says why.
-      setLoadError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-    } finally {
-      if (seq === requestSeqRef.current) {
-        setLoading(false);
-      }
+    // Two independent answers, so one failing does not throw away the other: a
+    // list that arrived stays on screen even when the own-services call did not,
+    // and the banner names the failure that costs something.
+    const [esitoCode, esitoServizi] = await Promise.allSettled([
+      listQueues(token),
+      listMyServices(token),
+    ]);
+    if (seq !== requestSeqRef.current) {
+      return;
     }
+    if (esitoCode.status === 'fulfilled') {
+      setQueues(esitoCode.value);
+    }
+    if (esitoServizi.status === 'fulfilled') {
+      setServices(esitoServizi.value);
+    }
+    // A failed reload keeps what is on screen: blanking a list that had rows a
+    // second ago is worse than a banner that says why.
+    const guasto =
+      esitoCode.status === 'rejected'
+        ? esitoCode.reason
+        : esitoServizi.status === 'rejected'
+          ? esitoServizi.reason
+          : null;
+    setLoadError(guasto === null ? null : guasto instanceof ApiError ? guasto.message : GENERIC_ERROR_MESSAGE);
+    setLoading(false);
   }, [token]);
 
   useFocusEffect(
@@ -162,7 +166,7 @@ export default function MatchScreen() {
         await cancelQueue(token, queue.id);
         // The banner names the queue that left the list; its description is
         // the only human identifier a row has.
-        const label = queue.descrizione?.trim() || etichettaTipoCoda(queue.tipo).toLowerCase();
+        const label = queue.descrizione?.trim() || queueTypeLabel(queue.tipo).toLowerCase();
         setOutcome(`Coda annullata: ${label}.`);
         await load();
       } catch (err) {
@@ -175,10 +179,10 @@ export default function MatchScreen() {
   );
 
   const firstLoadDone = queues !== null;
-  // Exactly one service of the type: see `serviziDelTipo` for why one is the
+  // Exactly one service of the type: see `servicesOfQueueType` for why one is the
   // number the backend can actually use.
-  const offerCount = serviziDelTipo(services, 'OFFER').length;
-  const requestCount = serviziDelTipo(services, 'REQUEST').length;
+  const offerCount = servicesOfQueueType(services, 'OFFER').length;
+  const requestCount = servicesOfQueueType(services, 'REQUEST').length;
   const busy = actionInFlight !== null;
 
   return (
