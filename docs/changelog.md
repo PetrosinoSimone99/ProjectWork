@@ -6,6 +6,67 @@ documents/code touched.
 
 ---
 
+## 2026-11-16 — What the teammates pushed: one file to merge, three fixes to state
+
+Session start ran the mandatory `git fetch origin` and the comparison against
+`origin/main` and `origin/andrea-frontend`. This entry is that report plus the
+docs it produced. No code changed.
+
+### Delta at session start
+
+| Comparison | Result |
+| --- | --- |
+| local vs `origin/andrea-frontend` | identical (`fa84c3a`), working tree clean — **nobody pushed to this branch**: every `PushEvent` on `refs/heads/andrea-frontend` in the repository event feed is ours, and the branch carries no commit by another author that is not already on `main` |
+| local vs `origin/main` | main 1 ahead, branch 241 ahead — diverged; no merge done, the owner decides |
+
+The single pending commit is `7408f52` (yrl26, 2026-11-15 20:43).
+
+### What the pushes contain
+
+1. **Pending: `7408f52` — `Context_and_DB_V2/province-comuni.json`** (new,
+   8.116 lines): every province mapped to its comuni. Nothing in `Backend/`
+   reads it and no endpoint serves it: it is reference data for the frontend,
+   which today stops at province (`italian-regions.js`, `Provincia (Regione)`).
+   It touches only one file under `Context_and_DB_V2/`, which our branch has
+   not modified, so merging it has no overlap with our work.
+2. **Already in the branch** through yesterday's sync merge `70c799b` (24
+   commits), itemised now because the sync entry only said "notifications,
+   service queues, credits":
+   - `11cffda` — a queue-born agreement credits +1 when the end-date scheduler
+     completes it, and cancelling a `REQUEST` queue with no agreement refunds
+     it; `refundCreditForQueue` became `IncreaseOrRefundCredit`, a plain
+     `credits + 1`.
+   - `76a3fc4` — `create-service-queue` reads its body through the injected
+     `Request` (it called `AbstractController::getRequest()`, removed in
+     Symfony 7), `cancel-queue` passes user and id to the manager, and
+     `ServiceQueueDTO::getLocation()` was added so `GET /get-queues`
+     serialises `location`.
+   - `761357b` — the scheduler's debug `echo` is gone.
+   - Notifications (PRs #54–#56) were already covered by `docs/api.md`.
+
+### What it unblocks / what we owe
+
+- **A comune-level location picker**, once `province-comuni.json` is merged:
+  `register`, `edit-profile` and the entry form stop at province today. The
+  stored format (`Provincia (Regione)`) is a product decision first — the queue
+  match compares the string exactly (`docs/backend-gaps.md` G11), so changing
+  it changes both sides and the existing rows.
+- **Credits move on four paths and none is readable** (`G15`): create a
+  `REQUEST` queue (−1), cancel it without an agreement (+1), cancel a
+  queue-born agreement (+1), complete one through the scheduler (+1). The app
+  still shows no number, by design until a route exists.
+- **The completion credit sits behind the unconsumed scheduler** (`G12`): in
+  the local stack nothing changes until a worker consumes `scheduler_default`.
+- Everything else the pushes touched (notifications, queues,
+  `GET /users/{id}/services`) was implemented and documented in the previous
+  two cycles; no new backend route appeared.
+
+### Touched
+
+`docs/changelog.md` (this entry, plus the missing heading of the 2026-11-15
+sync block), `docs/api.md`, `docs/backend-gaps.md`, `docs/database.md`. No
+code, no `Backend/` file, no `Context_and_DB_V2/` file.
+
 ## 2026-11-15 (later) — Cycle 2: design debt closed, queues and the agreement sheet
 
 Cycle: [`docs/briefs/cycle-2/plan.md`](briefs/cycle-2/plan.md). Branch
@@ -74,6 +135,7 @@ of that type and spends the credit first), `G20` (`agreement_details.start_date`
 has `ON UPDATE CURRENT_TIMESTAMP`, so the start date a reader sees is the last
 write time). `G6` narrowed, `G7` note updated: both sheet routes are now called.
 
+## 2026-11-15 — Sync with main: 24 commits, Expo SDK 58, an inbox and a mini-card
 
 Cycle: [`docs/briefs/sync-15112026/plan.md`](briefs/sync-15112026/plan.md).
 `origin/main` had 24 commits (notifications, service queues, credits, full auth

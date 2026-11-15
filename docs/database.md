@@ -64,11 +64,19 @@ and survive only in the v3.1 file, which is no longer imported.
   (`Frontend/src/services/italian-regions.js`) and the database stores it as one
   string, collated `utf8mb4_general_ci`. There is no lookup table and no
   endpoint for administrative areas, so a region-only filter works in the
-  catalog (a `LIKE`) but a queue match needs the **identical** string.
+  catalog (a `LIKE`) but a queue match needs the **identical** string. Upstream
+  `7408f52` adds `Context_and_DB_V2/province-comuni.json` (province → comuni,
+  read by nothing in `Backend/`): a comune level now exists as reference data,
+  and joining it with `italian-regions.js` would change the stored string — a
+  product decision first, because the queue match needs one identical string on
+  both sides.
 - **No swipe or chain tables.** The product is pairwise.
 - **`credits` is live now.** A `REQUEST` queue costs one credit
-  (`POST /create-service-queue` answers `400` at zero) and cancelling a queue
-  with no agreement refunds it. The app has no credits UI yet.
+  (`POST /create-service-queue` answers `400` at zero); cancelling a queue with
+  no agreement, cancelling a queue-born agreement and completing one through
+  the end-date scheduler each add one back (backend `11cffda`). The app has no
+  credits UI yet and no route exposes the balance
+  (`docs/backend-gaps.md` G15).
 - **`is_used` is still inert.** It exists and nothing manages it.
 - **`COMPLETED` needs the scheduler.** The status exists and the backend has the
   task, but nothing consumes `scheduler_default` in the local stack, so an

@@ -157,7 +157,9 @@ whose end date passed stays `ACCEPTED` forever. Two smaller defects next to it:
 the notification type it writes is `agreement_completed`, lower case, unlike
 every other `AGREEMENT_*` type, and `$details->getStartDate()->format(...)` is
 called on a nullable column (`Backend/src/Schedule/AgreementEndDateChecker.php:49`)
-inside a loop that can find details without one.
+inside a loop that can find details without one. Since `11cffda` the same task
+is also the only path that credits +1 when a queue-born agreement completes:
+with no worker that credit never arrives either.
 
 ## G13 — Queue routes swallow their own error branch
 
@@ -182,7 +184,11 @@ retargeted to the current schema and to a filename the compose stack mounts.
 
 ## G15 — The credit balance is never exposed
 
-`users.credits` exists and the queue endpoints spend and refund it, but no
+`users.credits` exists and four paths move it — `POST /create-service-queue`
+spends one for a `REQUEST` queue, `POST /cancel-queue/{id}` refunds a `REQUEST`
+queue with no agreement, `POST /cancel-agreement/{id}` credits a queue-born
+exchange, and the end-date scheduler credits a completed queue-born agreement
+(`11cffda`, backend, 2026-11-15) — but no
 endpoint returns it: `GET /profile` does not include it, so the app cannot show
 a balance and a `REQUEST` queue that fails with `Not enough credits` has no
 visible number behind it. Requested: `credits` in `GET /profile` (or a small

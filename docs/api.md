@@ -173,7 +173,11 @@ exchange writes now; `VOID` survives only on rows created before the rename,
 and the frontend classifies both as closed history. `COMPLETED` is written by
 the backend's end-date scheduler once every delivery of the agreement is
 finished — but nothing consumes that scheduler in the local stack, so a sheet
-can stay `ACCEPTED` past its end date (see `setup.md`). `response: null` means
+can stay `ACCEPTED` past its end date (see `setup.md`). On a queue-born
+agreement that same task credits +1 to the user of the sheet row
+(`UserManager::IncreaseOrRefundCredit`, backend `11cffda`): a movement no route
+exposes (`backend-gaps.md` G15) and one that cannot happen before a worker
+exists (`backend-gaps.md` G12). `response: null` means
 "has not answered yet" and is not a refusal. Rows carry no user ids: the viewer
 is identified by username, and no row names the exchanged service until the
 sheet does (`backend-gaps.md` G4). Until an agreement is accepted it carries no sheet at
@@ -263,7 +267,11 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 
 Matching compares `location` with **exact equality**, so `"Milano (Lombardia)"`
 and `"Milano"` never meet: the frontend must always send the same composed
-string it uses everywhere else (`italian-regions.js`).
+string it uses everywhere else (`italian-regions.js`). Upstream `7408f52`
+adds `Context_and_DB_V2/province-comuni.json` (province → comuni, 8.116 lines):
+no endpoint serves it and no `Backend/` code reads it, it is raw material for
+a comune-level picker, which only pays off once the composed format is decided
+(`docs/database.md`).
 
 The queue surface is the `match` tab (`Frontend/src/app/(tabs)/match.jsx`, second
 cycle). Four facts decide how a client must talk to these routes:
