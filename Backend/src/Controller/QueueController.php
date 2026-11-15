@@ -13,6 +13,7 @@ use App\Exception\NotEnoughCreditsException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\HttpFoundation\Request;
 
 #[Route('/api')]
 final class QueueController extends AbstractController
@@ -26,15 +27,15 @@ final class QueueController extends AbstractController
     }
 
     #[Route('/create-service-queue', name: 'create_queue', methods: ['POST'])]
-    public function createQueue(): JsonResponse
+    public function createQueue(Request $request): JsonResponse
     {
         $user = $this->getUser();
         if (!$user instanceof User){
             return $this->json(['error' => 'User not authenticated'], 401);
         }
-
+        
         try{
-            $data = json_decode($this->getRequest()->getContent(), true);
+            $data = json_decode($request->getContent(), true);
             if(!is_array($data)) {
                 return $this->json(['error' => 'Request data must be a JSON object'], 400);
             }
@@ -60,7 +61,7 @@ final class QueueController extends AbstractController
             return $this->json(['error' => 'User not authenticated'], 401);
         }
         try{
-            $this->serviceQueueManager->cancelServiceQueue($queue);
+            $this->serviceQueueManager->cancelServiceQueue($user,$queueId);
             
         }catch(Exception $e){
             return $this->json(['error' => 'Internal server error'], 500);

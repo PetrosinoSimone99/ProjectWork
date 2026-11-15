@@ -43,6 +43,11 @@ class ServiceQueueDTO
         return $this->queueStatus;
     }
 
+    public function getLocation(): string
+    {
+        return $this->location;
+    }
+    
     public function getServiceDescription(): string
     {
         return $this->serviceDescription;
