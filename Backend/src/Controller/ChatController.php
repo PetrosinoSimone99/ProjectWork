@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 use App\Manager\ChatManager;
+use App\Manager\UserManager;
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,10 +16,11 @@ use App\Exception\ChatNotFoundException;
 class ChatController extends AbstractController
 {
     private ChatManager $chatManager;
-
-    public function __construct(ChatManager $chatManager)
+    private UserManager $userManager;
+    public function __construct(ChatManager $chatManager, UserManager $userManager)
     {
         $this->chatManager = $chatManager;
+        $this->userManager = $userManager;
     }
 
     #[Route('/chats/agreement/{agreementId}', name: 'get_chat_by_agreement_id', methods: ['GET'])]

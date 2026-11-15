@@ -48,4 +48,17 @@ class AgreementProposalRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findOtherParticipant(int $agreementId, User $user): ?User
+    {
+        $proposal = $this->createQueryBuilder('ap')
+            ->where('ap.agreement = :agreementId')
+            ->andWhere('ap.user != :user')
+            ->setParameter('agreementId', $agreementId)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $proposal instanceof AgreementProposal ? $proposal->getUser() : null;
+    }
+
 }
