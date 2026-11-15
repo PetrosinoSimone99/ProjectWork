@@ -5,11 +5,12 @@ import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { ModalShell } from './ModalShell';
+import { UserServicesMiniCard } from './UserServicesMiniCard';
 import { Chip } from './Card';
 import { formatIsoDate } from '@/services/dates';
 import { etichettaModalita, nomePersona } from '@/services/offer-request';
 import { localitaPerDisplay } from '@/services/italian-regions';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space, useTokens } from '@/theme/tokens';
 
 /**
  * The service detail panel of the home catalog.
@@ -199,25 +200,9 @@ export function ServiceDetailModal({
             ) : null}
           </View>
 
-          {/* Declared gap G3: no public profile endpoint for another user. */}
-          <View
-            style={{
-              gap: space.xs,
-              padding: space.md,
-              borderRadius: radius.input,
-              borderWidth: 1,
-              borderColor: t.border,
-              backgroundColor: t.background,
-            }}
-          >
-            <AppText variant="small" style={{ fontWeight: '600' }}>
-              Cosa offre e cerca
-            </AppText>
-            <AppText variant="small" tone="secondary">
-              Non disponibile per ora: di questa persona vediamo la scheda e il servizio che
-              ti interessa, non le sue altre offerte e ricerche.
-            </AppText>
-          </View>
+          {/* G3 is closed: `GET /users/{id}/services` returns this person's
+              other publications, and the card owns its own states. */}
+          <UserServicesMiniCard ownerId={owner.id} ownerNome={name} />
 
           <View style={{ gap: space.sm }}>
             {erroreVisibile ? (

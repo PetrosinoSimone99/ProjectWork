@@ -2,6 +2,7 @@ import { ApiError, apiFetch } from '../client';
 import {
   normalizeOwnedServices,
   normalizeServiceEnvelope,
+  normalizeUserServices,
   toIntegerOrNull,
 } from '../normalizers';
 import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/services/offer-request';
@@ -221,4 +222,21 @@ export async function restoreService(token, entry) {
       SERVICE_MESSAGES,
     ),
   );
+}
+
+/**
+ * GET /users/{id}/services — one person's public profile and their services.
+ *
+ * The service detail asks for it when it opens: it is the only endpoint that
+ * returns somebody else's offers and requests, and the mini-card is the only
+ * consumer. An `id` that is not a positive integer never reaches the network:
+ * the backend would answer `404` and the screen can say the same thing without
+ * a round trip.
+ */
+export async function getUserServices(token, userId) {
+  const id = toIntegerOrNull(userId);
+  if (id === null || id <= 0) {
+    throw new ApiError(400, 'Persona non disponibile.');
+  }
+  return normalizeUserServices(await apiFetch(`users/${id}/services`, { token }));
 }
