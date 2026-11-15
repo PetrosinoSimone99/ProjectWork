@@ -181,3 +181,41 @@ export function sheetsFor(accordo, myUsername) {
 export function isSheetCompiled(scheda) {
   return scheda?.stato === 'COMPILED';
 }
+
+/**
+ * One `YYYY-MM-DD` date as the backend wants it, or `null` when the text is
+ * not a real calendar day.
+ *
+ * The form has no date picker (the app has none, and adding one is a dependency
+ * this task does not need), so the field is text and this function is the whole
+ * validation: the shape, and then the round trip through `Date` that rejects
+ * `2026-02-31` (which would silently become 3 March). Date-only strings are
+ * what `send-agreement-details` accepts — it parses them with
+ * `DateTimeImmutable` — so no time and no timezone is invented here.
+ */
+export function dataDaInput(valore) {
+  const testo = typeof valore === 'string' ? valore.trim() : '';
+  const pezzi = /^(\d{4})-(\d{2})-(\d{2})$/.exec(testo);
+  if (pezzi === null) {
+    return null;
+  }
+  const [, anno, mese, giorno] = pezzi;
+  const data = new Date(Date.UTC(Number(anno), Number(mese) - 1, Number(giorno)));
+  const esiste =
+    data.getUTCFullYear() === Number(anno) &&
+    data.getUTCMonth() + 1 === Number(mese) &&
+    data.getUTCDate() === Number(giorno);
+  return esiste ? testo : null;
+}
+
+/**
+ * Whether the two fields are two real dates with the end after the start — the
+ * same rule the backend enforces with a `400` (`The end date must come after the
+ * start date`), checked here so the reader sees it without a round trip.
+ * `YYYY-MM-DD` strings compare correctly as strings, so no conversion back.
+ */
+export function periodoValido(inizio, fine) {
+  const da = dataDaInput(inizio);
+  const a = dataDaInput(fine);
+  return da !== null && a !== null && a > da;
+}

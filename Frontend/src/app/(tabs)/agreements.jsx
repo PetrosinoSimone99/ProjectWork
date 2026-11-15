@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
+import { acceptAgreementSheet, sendAgreementSheet } from '@/api';
 import { AgreementCard } from '@/components/AgreementCard';
 import { AppButton } from '@/components/AppButton';
 import { AppIcon } from '@/components/AppIcon';
@@ -174,6 +175,33 @@ export default function AgreementsScreen() {
 
   const occupato = azioneInCorso !== null;
 
+  // The two sheet calls. The card owns the in-flight and error state of the row
+  // it acts on, so a failure is an error the card can throw for ("not sent"),
+  // and a success is the list reloading into the compiled row. The reload is
+  // fire-and-forget: its own failure belongs to the screen's Banner, not to the
+  // card's "could not send".
+  const inviaScheda = useCallback(
+    async (agreementId, payload) => {
+      if (!token) {
+        throw new Error('Sessione assente.');
+      }
+      await sendAgreementSheet(token, { agreementId, ...payload });
+      void riprova();
+    },
+    [token, riprova],
+  );
+
+  const confermaScheda = useCallback(
+    async (agreementId) => {
+      if (!token) {
+        throw new Error('Sessione assente.');
+      }
+      await acceptAgreementSheet(token, agreementId);
+      void riprova();
+    },
+    [token, riprova],
+  );
+
   // The bell number: real proposals only, and nothing at all before the first
   // response or without the viewer's username (a "0" would be an invented
   // count, and without my username no row can be classified as mine).
@@ -268,6 +296,8 @@ export default function AgreementsScreen() {
                 myUsername={myUsername}
                 onCancel={accordo.stato === 'ACCEPTED' ? () => annulla(accordo.id) : null}
                 azioneInCorso={azioneInCorso}
+                onInviaScheda={inviaScheda}
+                onConfermaScheda={confermaScheda}
               />
             ))
           )}

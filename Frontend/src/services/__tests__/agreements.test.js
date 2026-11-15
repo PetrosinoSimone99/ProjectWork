@@ -1,4 +1,11 @@
-import { classifyAgreements, counterpartOf, isSheetCompiled, sheetsFor } from '../agreements';
+import {
+  classifyAgreements,
+  counterpartOf,
+  dataDaInput,
+  isSheetCompiled,
+  periodoValido,
+  sheetsFor,
+} from '../agreements';
 
 /** The clock every test pins: mid-2026, between the fixtures' two dates. */
 const NOW = new Date('2026-06-15T12:00:00.000Z');
@@ -271,5 +278,43 @@ describe('isSheetCompiled', () => {
     expect(isSheetCompiled(sheet({ stato: 'COMPILED' }))).toBe(true);
     expect(isSheetCompiled(sheet({ stato: 'UNCOMPILED' }))).toBe(false);
     expect(isSheetCompiled(null)).toBe(false);
+  });
+});
+
+describe('dataDaInput', () => {
+  it('keeps a real calendar day exactly as typed, without inventing a time', () => {
+    expect(dataDaInput('2026-12-01')).toBe('2026-12-01');
+    expect(dataDaInput(' 2026-02-28 ')).toBe('2026-02-28');
+    expect(dataDaInput('2028-02-29')).toBe('2028-02-29');
+  });
+
+  it('refuses a day that does not exist instead of letting Date roll it over', () => {
+    expect(dataDaInput('2026-02-31')).toBeNull();
+    expect(dataDaInput('2026-13-01')).toBeNull();
+    expect(dataDaInput('2026-04-31')).toBeNull();
+    expect(dataDaInput('2027-02-29')).toBeNull();
+  });
+
+  it('refuses anything that is not YYYY-MM-DD', () => {
+    expect(dataDaInput('01/12/2026')).toBeNull();
+    expect(dataDaInput('2026-12-1')).toBeNull();
+    expect(dataDaInput('2026-12-01T09:00:00')).toBeNull();
+    expect(dataDaInput('')).toBeNull();
+    expect(dataDaInput(null)).toBeNull();
+    expect(dataDaInput(undefined)).toBeNull();
+  });
+});
+
+describe('periodoValido', () => {
+  it('accepts a period whose end comes after the start', () => {
+    expect(periodoValido('2026-12-01', '2026-12-05')).toBe(true);
+    expect(periodoValido('2026-12-01', '2027-01-01')).toBe(true);
+  });
+
+  it('refuses the same day, a reversed period and anything unparseable', () => {
+    expect(periodoValido('2026-12-01', '2026-12-01')).toBe(false);
+    expect(periodoValido('2026-12-05', '2026-12-01')).toBe(false);
+    expect(periodoValido('2026-12-01', '')).toBe(false);
+    expect(periodoValido('domani', 'dopodomani')).toBe(false);
   });
 });

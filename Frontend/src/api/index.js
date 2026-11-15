@@ -54,9 +54,11 @@ export {
   setStaffUserStatus,
 } from './areas/staff.js';
 export {
+  acceptAgreementSheet,
   cancelAgreement,
   listAgreements,
   respondToAgreement,
+  sendAgreementSheet,
   sendExchangeProposal,
 } from './areas/agreements';
 

@@ -1,20 +1,25 @@
 import { useState } from 'react';
 import { View } from 'react-native';
+import { AgreementSheet } from './AgreementSheet';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { formatIsoDate } from '@/services/dates';
-import { etichettaModalita } from '@/services/offer-request';
-import { counterpartOf } from '@/services/agreements';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { counterpartOf, isSheetCompiled, sheetsFor } from '@/services/agreements';
+import { space, useTokens } from '@/theme/tokens';
 
 /**
  * One agreement of the agreements tab: who the other participant is, the
- * status in Italian, and the delivery sheet when the backend has one —
- * otherwise the single honest line "Scheda non compilata", with no invented
- * place or dates (the app never fills the sheet: decision 5).
+ * status in Italian, and the two delivery-sheet rows — mine, which I fill, and
+ * the other person's, which I confirm — or the single honest line "Scheda non
+ * compilata" when the backend has not created them yet (that happens on
+ * acceptance). No place or date is ever invented.
+ *
+ * `sheetsFor` decides which row is which from the usernames the rows carry
+ * (`docs/backend-gaps.md` G6): a row is never guessed, and a sheet whose action
+ * belongs to the other side or to a later moment renders read-only.
  *
  * "Annulla scambio" (decision 4) appears only for an `ACCEPTED` agreement
  * and only when the screen passed `onCancel`; it opens the reused
@@ -24,7 +29,14 @@ import { radius, space, useTokens } from '@/theme/tokens';
  *
  * Data and callbacks only: no network, no mutation of the input.
  */
-export function AgreementCard({ accordo, myUsername = null, onCancel = null, azioneInCorso = null }) {
+export function AgreementCard({
+  accordo,
+  myUsername = null,
+  onCancel = null,
+  azioneInCorso = null,
+  onInviaScheda = null,
+  onConfermaScheda = null,
+}) {
   const t = useTokens();
   const [confermaAperta, setConfermaAperta] = useState(false);
 
@@ -48,7 +60,19 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
 
   const controparte = counterpartOf(accordo, myUsername);
   const creataIl = formatIsoDate(accordo.creazione);
-  const scheda = accordo.scheda;
+  const { mia, altra } = sheetsFor(accordo, myUsername);
+
+  // Both sheet routes only accept an accepted agreement, so the form and the
+  // confirm button appear on `ACCEPTED` alone: on a cancelled or completed row
+  // the same facts render read-only.
+  const accettato = accordo.stato === 'ACCEPTED';
+  const puoCompilare = accettato && mia !== null && !isSheetCompiled(mia) && onInviaScheda !== null;
+  const puoConfermare =
+    accettato &&
+    altra !== null &&
+    isSheetCompiled(altra) &&
+    altra.beneficiarioAccettato !== true &&
+    onConfermaScheda !== null;
 
   // Cancellation: accepted only, id present, and the screen opted in.
   const puoAnnullare = accordo.stato === 'ACCEPTED' && Number.isInteger(accordo.id) && onCancel !== null;
@@ -76,49 +100,34 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
         <AppText>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
       </View>
 
-      {scheda ? (
-        <View
-          style={{
-            gap: space.xs,
-            padding: space.md,
-            borderRadius: radius.input,
-            borderWidth: 1,
-            borderColor: t.border,
-            backgroundColor: t.background,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-            <AppIcon name="grid-outline" size={14} color={t.textSecondary} />
-            <AppText variant="small">{scheda.descrizione ?? 'Servizio non indicato'}</AppText>
-          </View>
-          {/* The sheet has no location field: the mode is the only place
-              datum it carries, and the row disappears when it is absent. */}
-          {scheda.daRemoto !== null ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <AppIcon
-                name={scheda.daRemoto ? 'videocam-outline' : 'people-outline'}
-                size={14}
-                color={t.textSecondary}
-              />
-              <AppText variant="small" tone="secondary">
-                {`Si svolge ${etichettaModalita(scheda.daRemoto)}`}
-              </AppText>
-            </View>
+      {mia !== null || altra !== null ? (
+        <View style={{ gap: space.sm }}>
+          {mia !== null ? (
+            <AgreementSheet
+              titolo="La tua scheda"
+              scheda={mia}
+              azione={puoCompilare ? 'compila' : null}
+              onInvia={(payload) => onInviaScheda(accordo.id, payload)}
+            />
           ) : null}
-          {formatIsoDate(scheda.inizio) || formatIsoDate(scheda.fine) ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <AppIcon name="calendar-outline" size={14} color={t.textSecondary} />
-              <AppText variant="small" tone="secondary">
-                {descriviDate(scheda.inizio, scheda.fine)}
-              </AppText>
-            </View>
+          {altra !== null ? (
+            <AgreementSheet
+              titolo={
+                controparte ? `La scheda di @${controparte}` : "La scheda dell'altra persona"
+              }
+              scheda={altra}
+              azione={puoConfermare ? 'conferma' : null}
+              onConferma={() => onConfermaScheda(accordo.id)}
+            />
           ) : null}
         </View>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
           <AppIcon name="help-circle-outline" size={16} color={t.textSecondary} />
           <AppText variant="small" tone="secondary">
-            Scheda non compilata
+            {accettato
+              ? "Scheda non ancora disponibile: l'accordo è accettato, il server non ha creato le schede."
+              : 'Scheda non compilata'}
           </AppText>
         </View>
       )}
@@ -154,20 +163,4 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
       ) : null}
     </Card>
   );
-}
-
-/** "Dal X al Y", or whichever half exists; an empty string when neither does. */
-function descriviDate(inizio, fine) {
-  const da = formatIsoDate(inizio);
-  const a = formatIsoDate(fine);
-  if (da && a) {
-    return `Dal ${da} al ${a}`;
-  }
-  if (da) {
-    return `Dal ${da}`;
-  }
-  if (a) {
-    return `Fino al ${a}`;
-  }
-  return '';
 }
