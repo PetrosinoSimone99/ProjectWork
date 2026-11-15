@@ -9,6 +9,7 @@ use App\Entity\Category;
 use App\Message\QueueId;
 use App\Manager\ServiceQueueManager;
 use App\Manager\AgreementManager;
+use App\Service\NotificationService;
 use App\Enum\QueueType;
 use App\Enum\QueueStatus;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -19,12 +20,14 @@ class QueueHandler
 {
     private ServiceQueueManager $serviceQueueManager;
     private AgreementManager $agreementManager;
+    private NotificationService $notificationService;
     private EntityManagerInterface $entityManager;
-    public function __construct(ServiceQueueManager $serviceQueueManager, AgreementManager $agreementManager, 
+    public function __construct(ServiceQueueManager $serviceQueueManager, AgreementManager $agreementManager, NotificationService $notificationService,
     EntityManagerInterface $entityManager)
     {
         $this->serviceQueueManager = $serviceQueueManager;
         $this->agreementManager = $agreementManager;
+        $this->notificationService = $notificationService;
         $this->entityManager = $entityManager;
     }
     public function __invoke(QueueId $queueId)
@@ -61,6 +64,9 @@ class QueueHandler
                     $this->entityManager->persist($userQueue);
                     $this->entityManager->persist($queue);
                     $this->entityManager->flush();
+
+                    $this->notificationService->notify($provider, 'MATCH_CREATED', 'Nuovo match creato con: '.$beneficiary->getUsername());
+                    $this->notificationService->notify($beneficiary, 'MATCH_CREATED', 'Nuovo match creato con: '.$provider->getUsername());
                 }
             }
         }

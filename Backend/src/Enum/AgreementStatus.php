@@ -9,4 +9,6 @@ enum AgreementStatus: string{
     case REFUSED = 'REFUSED';
     case CONTESTED = 'CONTESTED';
     case VOID = 'VOID';
+    case CANCELLED = 'CANCELLED';
+    case COMPLETED = 'COMPLETED';
 }

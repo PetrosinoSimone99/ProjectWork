@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\AgreementDetails;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -22,5 +23,27 @@ class AgreementDetailsRepository extends ServiceEntityRepository
             ->setParameter('agreementId', $agreementId)
             ->getQuery()
             ->getResult();
+    }
+
+    public function getAgreementDetailsByBeneficiary(int $agreementId, User $beneficiary): ?AgreementDetails
+    {
+        return $this->createQueryBuilder('ad')
+            ->where('ad.agreement = :agreementId')
+            ->andWhere('ad.beneficiary = :beneficiary')
+            ->setParameter('agreementId', $agreementId)
+            ->setParameter('beneficiary', $beneficiary)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function getAgreementDetailsByUser(int $agreementId, User $user): ?AgreementDetails
+    {
+        return $this->createQueryBuilder('ad')
+            ->where('ad.agreement = :agreementId')
+            ->andWhere('ad.user = :user')
+            ->setParameter('agreementId', $agreementId)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

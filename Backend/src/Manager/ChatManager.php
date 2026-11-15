@@ -12,7 +12,7 @@ use App\Entity\AgreementProposal;
 use App\Exception\ChatNotFoundException;
 
 use App\Manager\AgreementManager;
-
+use App\Service\NotificationService;
 use App\DTO\ChatMessageDTO;
 
 use App\Repository\ChatRepository;
@@ -29,15 +29,18 @@ class ChatManager
     private ValidatorInterface $validator;
     private UserManager $userManager;
     private AgreementManager $agreementManager;
+    private NotificationService $notificationService;
 
     public function __construct(EntityManagerInterface $entityManager, ChatRepository $chatRepository, 
-    ChatMessageRepository $chatMessageRepository, ValidatorInterface $validator, UserManager $userManager, AgreementManager $agreementManager) {
+    ChatMessageRepository $chatMessageRepository, ValidatorInterface $validator, UserManager $userManager,
+    AgreementManager $agreementManager, NotificationService $notificationService) {
         $this->entityManager = $entityManager;
         $this->chatRepository = $chatRepository;
         $this->chatMessageRepository = $chatMessageRepository;
         $this->validator = $validator;
         $this->userManager = $userManager;
         $this->agreementManager = $agreementManager;
+        $this->notificationService = $notificationService;
     }
 
     public function getOrCreateChat(int $agreementId): Chat
@@ -89,6 +92,10 @@ class ChatManager
 
         $this->entityManager->persist($chatMessage);
         $this->entityManager->flush();
+
+        $otherParticipant = $this->chatRepository->getOtherParticipant($chat, $user);
+        $this->notificationService->notify($otherParticipant, 'CHAT_MESSAGE', 'Nuovo messaggio da: '.$user->getUsername(),
+        ['agreementId' => $chat->getAgreementId(), 'chatId' => $chat->getId(), 'message' => $message]);
     }
 
 

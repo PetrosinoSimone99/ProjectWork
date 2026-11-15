@@ -42,20 +42,21 @@ class AgreementDetails
     #[ORM\Column(name: 'status', enumType: AgreementDetailsStatus::class)]
     private ?AgreementDetailsStatus $status = null;
 
+    #[ORM\Column(name: 'is_completed', type: 'boolean')]
+    private ?bool $isCompleted = null;
 
-    public function __construct(Agreement $agreement, User $user, Service $service, User $beneficiary, bool $fromRemote,
-    DateTimeImmutable $startDate, DateTimeImmutable $endDate, ?bool $beneficiaryAccepted,
-    AgreementDetailsStatus $status)
+    public function __construct(Agreement $agreement, User $user, Service $service, User $beneficiary)
     {
         $this->agreement = $agreement;
         $this->user = $user;
         $this->service = $service;
         $this->beneficiary = $beneficiary;
-        $this->fromRemote = $fromRemote;
-        $this->startDate = $startDate;
-        $this->endDate = $endDate;
-        $this->beneficiaryAccepted = $beneficiaryAccepted;
-        $this->status = $status;
+        $this->fromRemote = null;
+        $this->startDate = null;
+        $this->endDate = null;
+        $this->beneficiaryAccepted = null;
+        $this->status = AgreementDetailsStatus::UNCOMPILED;
+        $this->isCompleted = false;
     }
 
 
@@ -145,6 +146,15 @@ class AgreementDetails
     public function setStatus(AgreementDetailsStatus $status): self
     {
         $this->status = $status;
+        return $this;
+    }
+    public function getIsCompleted(): ?bool
+    {
+        return $this->isCompleted;
+    }
+    public function setIsCompleted(bool $isCompleted): self
+    {
+        $this->isCompleted = $isCompleted;
         return $this;
     }
 }

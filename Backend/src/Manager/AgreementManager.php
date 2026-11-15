@@ -16,6 +16,8 @@ use App\Enum\AgreementDetailsStatus;
 use App\Manager\UserManager;
 use App\Manager\ServiceManager;
 use App\Manager\UseCase\CloseQueueUseCase;
+use App\Service\NotificationService;
+
 use App\Repository\AgreementRepository;
 use App\Repository\AgreementProposalRepository;
 use App\Repository\AgreementDetailsRepository;
@@ -36,11 +38,12 @@ class AgreementManager{
     private AgreementRepository $agreementRepository;
     private AgreementProposalRepository $agreementProposalRepository;
     private AgreementDetailsRepository $agreementDetailsRepository;
+    private NotificationService $notificationService;
 
     public function __construct(EntityManagerInterface $entityManager,UserManager $userManager, 
     ServiceManager $serviceManager,CloseQueueUseCase $closeQueueUseCase, 
     AgreementRepository $agreementRepository, AgreementProposalRepository $agreementProposalRepository,
-    AgreementDetailsRepository $agreementDetailsRepository){
+    AgreementDetailsRepository $agreementDetailsRepository, NotificationService $notificationService){
         $this->entityManager = $entityManager;
         $this->userManager = $userManager;
         $this->serviceManager = $serviceManager;
@@ -48,6 +51,7 @@ class AgreementManager{
         $this->agreementRepository = $agreementRepository;
         $this->agreementProposalRepository = $agreementProposalRepository;
         $this->agreementDetailsRepository = $agreementDetailsRepository;
+        $this->notificationService = $notificationService;
     }
 
     public function getAgreementById(int $agreementId): ?Agreement{
@@ -90,6 +94,8 @@ class AgreementManager{
                 $entityManager->persist($agreement);
                 $entityManager->flush();
                 $this->addAgreementParticipants($agreement, [$user, $otherParticipant], 'exchange');
+                $this->notificationService->notify($otherParticipant, 'AGREEMENT_PROPOSAL', 'Ricevuto proposta di scambio da: '.$user->getUsername(),
+                ['agreementId' => $agreement->getId()]);
             }
         );
     }
@@ -101,7 +107,8 @@ class AgreementManager{
                 $entityManager->persist($agreement);
                 $entityManager->flush();
                 $this->addAgreementParticipants($agreement, [$provider, $beneficiary], 'provision');
-
+                $this->notificationService->notify($beneficiary, 'AGREEMENT_PROPOSAL', 'Ricevuto proposta di fornitura da: '.$provider->getUsername(),
+                ['agreementId' => $agreement->getId()]);
                 return $agreement;
             }
         );
@@ -130,21 +137,19 @@ class AgreementManager{
         $agreement->setAgreementStatus($response ? AgreementStatus::ACCEPTED : AgreementStatus::REFUSED);
         $this->entityManager->persist($agreement);
         $this->entityManager->flush();
+        $otherParticipant = $this->agreementProposalRepository->findOtherParticipant($agreementId, $user);
+        if($response){
+            $this->createBlankDetails($agreement, $user,$this->serviceManager->getUserOfferedService($user), $otherParticipant);
+            $this->createBlankDetails($agreement, $otherParticipant, $this->serviceManager->getUserOfferedService($otherParticipant), $user);
+        }
+        $this->notificationService->notify($otherParticipant, 'AGREEMENT_RESPONSE', 'Ricevuta risposta da: '.$user->getUsername().' - '.($response ? 'Accettata' : 'Rifiutata'),
+        ['agreementId' => $agreementId, 'response' => $response]);
     }
 
     public function sendAgreementDetails(User $user, array $payload){
         $agreement = $this->agreementRepository->findAgreement((int) ($payload['agreementId'] ?? 0));
         if($agreement === null || $agreement->getAgreementStatus() !== AgreementStatus::ACCEPTED){
             throw new ResourceNotFound('Agreement not found');
-        }
-        // The sheet names the service being exchanged: it cannot be guessed from the provider.
-        $service = $this->entityManager->find(Service::class, (int) ($payload['serviceId'] ?? 0));
-        if($service === null || $service->getUser() !== $user){
-            throw new ResourceNotFound('Service not found');
-        }
-        $beneficiary = $this->userManager->getUserById((int) ($payload['beneficiaryId'] ?? 0));
-        if($beneficiary === null){
-            throw new ResourceNotFound('Beneficiary not found');
         }
         try{
             $startDate = new DateTimeImmutable((string) $payload['startDate']);
@@ -155,12 +160,16 @@ class AgreementManager{
         if($endDate <= $startDate){
             throw new \InvalidArgumentException('The end date must come after the start date');
         }
-        $details = new AgreementDetails($agreement, $user, $service, $beneficiary, (bool) $payload['fromRemote'],
-                            $startDate, $endDate, null, AgreementDetailsStatus::UNCOMPILED);
-        $agreement->addAgreementDetails($details);
-        $this->entityManager->persist($agreement);
-        $this->entityManager->persist($details);
+        $agreementDetails = $this->agreementDetailsRepository->getAgreementDetailsByUser($agreement->getId(), $user);
+        $agreementDetails->setFromRemote((bool) ($payload['fromRemote'] ?? false));
+        $agreementDetails->setStartDate($startDate);
+        $agreementDetails->setEndDate($endDate);
+        $agreementDetails->setStatus(AgreementDetailsStatus::COMPILED);
+        $this->entityManager->persist($agreementDetails);
         $this->entityManager->flush();
+
+        $this->notificationService->notify($agreementDetails->getBeneficiary(), 'AGREEMENT_DETAILS', 'Ricevuti dettagli da: '.$user->getUsername(),
+        ['agreementId' => $agreement->getId(), 'fromRemote' => $agreementDetails->getFromRemote(), 'startDate' => $agreementDetails->getStartDate()->format('Y-m-d'), 'endDate' => $agreementDetails->getEndDate()->format('Y-m-d')]);
     }
 
     public function cancelAgreement(User $user, int $agreementId){
@@ -173,9 +182,7 @@ class AgreementManager{
             throw new ResourceNotFound('Agreement not found');
         }
         if($agreement->getAgreementStatus() === AgreementStatus::ACCEPTED){
-            // The reference schema has no CANCELLED value: VOID is the state for an
-            // exchange that was called off before it was delivered.
-            $agreement->setAgreementStatus(AgreementStatus::VOID);
+            $agreement->setAgreementStatus(AgreementStatus::CANCELLED);
             $this->entityManager->persist($agreement);
             $this->entityManager->flush();
 
@@ -186,8 +193,35 @@ class AgreementManager{
             }
         }
 
+        $otherParticipant = $this->agreementProposalRepository->findOtherParticipant($agreementId, $user);
+        $this->notificationService->notify($otherParticipant, 'AGREEMENT_CANCELLED', 'Accordo annullato da: '.$user->getUsername(),
+        ['agreementId' => $agreementId]);
+    }
+
+    public function acceptAgreementDetails(User $user, int $agreementId){
+        $agreement = $this->agreementRepository->findAgreement($agreementId);
+        if(!$agreement){
+            throw new ResourceNotFound('Agreement not found');
+        }
+        if(!$this->isParticipant($agreement, $user)){
+            throw new ResourceNotFound('Agreement not found');
+        }
+        $details = $this->agreementDetailsRepository->getAgreementDetailsByBeneficiary($agreementId, $user);
+        if(!$details){
+            throw new ResourceNotFound('Agreement details not found');
+        }
+        if($details->getBeneficiary() !== $user){
+            throw new \DomainException('Only the beneficiary can accept the agreement details');
+        }
+        if($details->getBeneficiaryAccepted() === true){
+            throw new \DomainException('The agreement details have already been accepted');
+        }
+        $details->setBeneficiaryAccepted(true);
+        $this->entityManager->persist($details);
+        $this->entityManager->flush();
         
-        
+        $this->notificationService->notify($details->getUser(), 'AGREEMENT_DETAILS_ACCEPTED', 'Dettagli accettati da: '.$user->getUsername()
+        , ['agreementId' => $agreementId]);
     }
     //Internal only
     private function isParticipant(Agreement $agreement, User $user): bool{
@@ -221,6 +255,15 @@ class AgreementManager{
             $this->entityManager->flush();
         }
 
+    }
+
+    private function createBlankDetails(Agreement $agreement, User $user, Service $service, User $beneficiary,): void
+    {
+        $details = new AgreementDetails($agreement, $user, $service, $beneficiary);
+        $this->entityManager->persist($details);
+        $agreement->addAgreementDetails($details);
+        $this->entityManager->persist($agreement);
+        $this->entityManager->flush();
     }
 }
 
