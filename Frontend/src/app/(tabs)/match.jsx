@@ -40,7 +40,7 @@ const REQUEST_COST_COPY = 'Una coda di ricerca costa un credito.';
 /** The empty list says what to do next, without pretending the tab is broken. */
 const EMPTY_TITLE = 'Nessuna coda attiva';
 const EMPTY_DESCRIPTION =
-  'Una coda è un servizio che metti in attesa: il match automatico confronta le code della tua località. Creane una qui sopra.';
+  'Una coda è un servizio che metti in attesa: il match automatico confronta le code della tua località. Creane una con i due pulsanti qui sotto.';
 
 /**
  * The match tab: the viewer's service queues (`GET /get-queues`) with the two
@@ -233,6 +233,12 @@ export default function MatchScreen() {
  * The two create actions with their reasons: a disabled button always says why,
  * and the request one carries its cost in words right under it — never a
  * balance figure, because no route exposes one.
+ *
+ * Both are `secondary`: two choices of equal weight are not two primary
+ * actions, and `DESIGN.md` gives a screen **one** filled accent ("a screen with
+ * no primary action has no filled accent, and that is the rule working"). Each
+ * also carries an explicit accessibility name, because "Offerta" alone does not
+ * say what pressing it does.
  */
 function CreateQueueActions({ offerCount, requestCount, busy, actionInFlight, onCreate }) {
   const offerDisabled = offerCount !== 1;
@@ -243,9 +249,11 @@ function CreateQueueActions({ offerCount, requestCount, busy, actionInFlight, on
       <View style={{ flex: 1, gap: space.xs }}>
         <AppButton
           label="Offerta"
+          variant="secondary"
           onPress={() => onCreate('OFFER')}
           disabled={offerDisabled || busy}
           loading={actionInFlight === 'create:OFFER'}
+          accessibilityLabel="Crea una coda per la tua offerta"
         />
         {offerDisabled ? (
           <AppText variant="small" tone="secondary">
@@ -256,9 +264,11 @@ function CreateQueueActions({ offerCount, requestCount, busy, actionInFlight, on
       <View style={{ flex: 1, gap: space.xs }}>
         <AppButton
           label="Ricerca"
+          variant="secondary"
           onPress={() => onCreate('REQUEST')}
           disabled={requestDisabled || busy}
           loading={actionInFlight === 'create:REQUEST'}
+          accessibilityLabel="Crea una coda per la tua ricerca"
         />
         <AppText variant="small" tone="secondary">
           {REQUEST_COST_COPY}
