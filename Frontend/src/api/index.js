@@ -42,6 +42,7 @@ export {
   getNotifications,
   markNotificationRead,
 } from './areas/notifications';
+export { cancelQueue, createQueue, INSUFFICIENT_CREDITS_MESSAGE, listQueues } from './areas/queues';
 export {
   claimStaffReport,
   getStaffUser,
