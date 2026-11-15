@@ -439,11 +439,11 @@ function normalizeAgreementProposal(row) {
 }
 
 /**
- * The delivery sheet of an agreement (`agreementDetails`): read-only data
- * the backend fills, never a form from the app (the route needs an id the
- * agreement rows do not carry). An empty `agreementDetails` array means the
- * sheet does not exist yet -> `null`, which the screens draw as
- * "Scheda non compilata".
+ * The delivery sheet rows of an agreement (`agreementDetails`): read-only data
+ * the backend fills. Each participant gets their own row, so an accepted
+ * agreement carries two of them; the screens pick the one that belongs to the
+ * viewer (`services/agreements.js`). An empty array means the sheet does not
+ * exist yet, which the screens draw as "Scheda non compilata".
  *
  * The wire keys are the ones `AgreementDetailsDTO` serialises
  * (`providerUsername`, `serviceDescription`, `beneficiaryUsername`), not the
@@ -475,7 +475,7 @@ function normalizeAgreementSheet(row) {
 /**
  * One row of `GET /get-agreements`, the same shape for both participants:
  * `{id, stato, creazione, proposte: [{username, ruolo, risposta,
- * dataRisposta}], scheda: null | {...}}`.
+ * dataRisposta}], scheda: null | {...}, schede: [...]}`.
  *
  * `stato` stays the raw wire word
  * (`PENDING`/`ACCEPTED`/`REFUSED`/`CONTESTED`/`VOID`): the screens map it to
@@ -483,6 +483,11 @@ function normalizeAgreementSheet(row) {
  * id cannot be answered or cancelled, so it is dropped like every other row
  * the UI could not act on; a malformed row returns `null` instead of throwing
  * (the file is tolerant by design).
+ *
+ * `schede` keeps **every** sheet row, because an accepted agreement has one per
+ * participant and the card must show the viewer's. `scheda` remains the first
+ * one: classification needs one end date, and keeping the old field means the
+ * existing consumers do not change.
  */
 export function normalizeAgreement(row) {
   if (!row || typeof row !== 'object') {
@@ -494,6 +499,7 @@ export function normalizeAgreement(row) {
   }
   const proposte = Array.isArray(row.agreementProposal) ? row.agreementProposal : [];
   const dettagli = Array.isArray(row.agreementDetails) ? row.agreementDetails : [];
+  const schede = dettagli.map(normalizeAgreementSheet).filter(Boolean);
   return {
     id,
     stato:
@@ -502,7 +508,8 @@ export function normalizeAgreement(row) {
         : null,
     creazione: toTextOrNull(row.creationDate),
     proposte: proposte.map(normalizeAgreementProposal).filter(Boolean),
-    scheda: dettagli.length > 0 ? normalizeAgreementSheet(dettagli[0]) : null,
+    scheda: schede.length > 0 ? schede[0] : null,
+    schede,
   };
 }
 
@@ -592,4 +599,47 @@ export function normalizeUserServices(response) {
     offerte: rowsOf('offers').map(withOwner).filter(Boolean),
     richieste: rowsOf('requests').map(withOwner).filter(Boolean),
   };
+}
+
+/**
+ * One row of `GET /get-queues`: a standing offer or request the matchmaker
+ * consumes.
+ *
+ * `tipo` and `stato` stay the wire words (`OFFER`/`REQUEST`,
+ * `OPEN`/`IN_PROGRESS`/`CLOSED`), upper-cased once: the Italian labels are a
+ * display decision the screen makes. A row without an id cannot be cancelled,
+ * so it is dropped; a missing category or location is `null` and the card says
+ * so instead of inventing one (`QueueController` dereferences the category
+ * without a null check: `backend-gaps.md` G13).
+ */
+export function normalizeQueue(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  if (id === null) {
+    return null;
+  }
+  const tipo = toTextOrNull(row.queueType);
+  const stato = toTextOrNull(row.queueStatus);
+  return {
+    id,
+    tipo: tipo === null ? null : tipo.toUpperCase(),
+    stato: stato === null ? null : stato.toUpperCase(),
+    localita: toTextOrNull(row.location),
+    descrizione: toTextOrNull(row.serviceDescription),
+    categoria: toTextOrNull(row.serviceCategory),
+    daRemoto: typeof row.serviceRemote === 'boolean' ? row.serviceRemote : null,
+    agreementId: toIntegerOrNull(row.agreementId),
+  };
+}
+
+/**
+ * `GET /get-queues` -> `[{...}]`, read from `response.queues`.
+ * A missing list is an empty list, never a throw; an empty answer with a `404`
+ * status is the caller's business (`api/areas/queues.js`), not this layer's.
+ */
+export function normalizeQueues(response) {
+  const rows = Array.isArray(response?.queues) ? response.queues : [];
+  return rows.map(normalizeQueue).filter(Boolean);
 }
