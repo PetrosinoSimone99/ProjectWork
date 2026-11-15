@@ -183,6 +183,18 @@ a balance and a `REQUEST` queue that fails with `Not enough credits` has no
 visible number behind it. Requested: `credits` in `GET /profile` (or a small
 `GET /credits`).
 
+## G16 — The notifications page count is page-scoped
+
+`NotificationController` answers `pagination.totalItems = count($items)` — the
+rows of the page it just returned — and `totalPages = ceil(total / limit)`
+(`Backend/src/Controller/NotificationController.php:37`). With a full first page
+that is `{totalItems: 20, totalPages: 1}` whatever the real total is, so a client
+cannot tell whether a second page exists and `page=2` is unreachable by design:
+notifications past the twentieth cannot be read from the app at all. Requested:
+`totalItems` from a `COUNT(*)` of the same filter (the repository already has
+`countUnread`, so the shape exists). Until then the inbox shows the newest page
+and does **not** draw a "load more" button it could never justify.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id

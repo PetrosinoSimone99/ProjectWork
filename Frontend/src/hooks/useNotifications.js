@@ -11,10 +11,16 @@ import {
  * The data layer of the notifications inbox.
  *
  * The backend has no push channel: this hook asks again when the screen comes
- * back to the foreground and when the user pulls, and reads the unread count
- * from the same answer instead of keeping a counter of its own (a counter would
- * be a second truth, and the notification that arrived from another device
- * would never reach it).
+ * back to the foreground and when the user pulls (the screen wires the pull into
+ * `ricarica`), and reads the unread count from the same answer instead of
+ * keeping a counter of its own (a counter would be a second truth, and the
+ * notification that arrived from another device would never reach it).
+ *
+ * It asks for **page 1 only**. The backend's `pagination` is page-scoped
+ * (`totalItems` counts the rows of the page it just returned), so a client
+ * cannot know whether a second page exists; rather than draw a "load more"
+ * button that can never appear, the screen shows the newest page and the gap is
+ * filed as `docs/backend-gaps.md` G16.
  *
  * Reads follow the `useAgreements` pattern:
  *
@@ -31,37 +37,26 @@ import {
 export function useNotifications({ token }) {
   const [elementi, setElementi] = useState(null);
   const [nonLette, setNonLette] = useState(0);
-  const [paginazione, setPaginazione] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
-  const [caricandoAltre, setCaricandoAltre] = useState(false);
   const [errore, setErrore] = useState(null);
   const [azioneInCorso, setAzioneInCorso] = useState(null);
 
   const requestSeqRef = useRef(0);
 
-  const carica = useCallback(
-    async (page = 1) => {
+  const carica = useCallback(async () => {
       if (!token) {
         return;
       }
       const seq = ++requestSeqRef.current;
-      const prime = page === 1;
-      if (prime) {
-        setCaricamento(true);
-      } else {
-        setCaricandoAltre(true);
-      }
+      setCaricamento(true);
       setErrore(null);
       try {
-        const risposta = await getNotifications(token, { page });
+        const risposta = await getNotifications(token, { page: 1 });
         if (seq !== requestSeqRef.current) {
           return;
         }
         setNonLette(risposta.nonLette);
-        setPaginazione(risposta.paginazione);
-        setElementi((precedenti) =>
-          prime || precedenti === null ? risposta.elementi : [...precedenti, ...risposta.elementi],
-        );
+        setElementi(risposta.elementi);
       } catch (err) {
         if (seq !== requestSeqRef.current) {
           return;
@@ -70,34 +65,18 @@ export function useNotifications({ token }) {
       } finally {
         if (seq === requestSeqRef.current) {
           setCaricamento(false);
-          setCaricandoAltre(false);
         }
       }
-    },
-    [token],
-  );
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
-      void carica(1);
+      void carica();
       return () => {
         requestSeqRef.current += 1;
       };
     }, [carica]),
   );
-
-  /** The next page, only when the backend says there is one. */
-  const caricaAltre = useCallback(() => {
-    if (caricandoAltre || caricamento || !paginazione) {
-      return;
-    }
-    const pagina = paginazione.pagina ?? 1;
-    const totali = paginazione.pagineTotali ?? 0;
-    if (pagina >= totali) {
-      return;
-    }
-    void carica(pagina + 1);
-  }, [carica, caricamento, caricandoAltre, paginazione]);
 
   const elimina = useCallback(
     async (id) => {
@@ -149,13 +128,10 @@ export function useNotifications({ token }) {
   return {
     elementi,
     nonLette,
-    paginazione,
     caricamento,
-    caricandoAltre,
     errore,
     azioneInCorso,
-    ricarica: () => carica(1),
-    caricaAltre,
+    ricarica: carica,
     segnaLetta,
     elimina,
   };
@@ -168,34 +144,40 @@ export function useNotifications({ token }) {
  * number, not the list, and a full page would be twenty rows the screen throws
  * away. A failure is silent here on purpose — the row stays neutral and the
  * inbox itself reports the error when it opens.
+ *
+ * `ricarica` exists because the profile's pull-to-refresh must move this number
+ * too: a gesture that refreshes the profile and leaves the badge at the old
+ * value is a gesture that looks broken.
  */
 export function useUnreadCount({ token }) {
   const [nonLette, setNonLette] = useState(null);
+  const richiestaRef = useRef(0);
+
+  const carica = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    const seq = ++richiestaRef.current;
+    try {
+      const risposta = await getNotifications(token, { limit: 1 });
+      if (seq === richiestaRef.current) {
+        setNonLette(risposta.nonLette);
+      }
+    } catch {
+      if (seq === richiestaRef.current) {
+        setNonLette(null);
+      }
+    }
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
-      let attivo = true;
-      if (!token) {
-        return () => {
-          attivo = false;
-        };
-      }
-      void getNotifications(token, { limit: 1 })
-        .then((risposta) => {
-          if (attivo) {
-            setNonLette(risposta.nonLette);
-          }
-        })
-        .catch(() => {
-          if (attivo) {
-            setNonLette(null);
-          }
-        });
+      void carica();
       return () => {
-        attivo = false;
+        richiestaRef.current += 1;
       };
-    }, [token]),
+    }, [carica]),
   );
 
-  return nonLette;
+  return { nonLette, ricarica: carica };
 }

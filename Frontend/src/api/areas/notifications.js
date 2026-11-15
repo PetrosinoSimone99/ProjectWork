@@ -6,8 +6,9 @@ import { normalizeNotification, normalizeNotifications } from '../normalizers';
  * `DELETE /notifications/{id}`.
  *
  * The backend has no push channel (no Mercure, no SSE): a client learns about a
- * new notification by asking again, which is why the screen polls `GET` and
- * reads `nonLette` from the same answer instead of keeping a counter of its own.
+ * new notification by asking again, which is why the screen re-requests `GET`
+ * when it comes back to the foreground and when the user pulls, and reads
+ * `nonLette` from the same answer instead of keeping a counter of its own.
  *
  * The list endpoint rejects **every** query parameter it does not know with
  * `400`, so the only three that travel are the three documented ones:

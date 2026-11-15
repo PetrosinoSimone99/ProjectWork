@@ -93,10 +93,10 @@ test was touched, and the archived dump the seed comes from is read-only.
 
 Open points for the backend side (detail in `docs/backend-gaps.md`): the new
 dump ships **no data**, `tools/create-demo-database.php` cannot regenerate it,
-the scheduler never runs (`Schedule` attaches no task, nothing consumes
-`scheduler_default`) and `QueueHandler` can create several agreements for one
-queue. The Docker stack starts no messenger worker, so queues created through
-the API stay unmatched.
+the scheduler is registered but **nothing consumes** `scheduler_default`
+(`debug:scheduler` lists the task; the stack starts no worker), so `COMPLETED` is
+never written locally, and `QueueHandler` can create several agreements for one
+queue. Queues created through the API stay unmatched for the same reason.
 
 ## 2026-11-14 — The page has a frame, the body has a measure
 

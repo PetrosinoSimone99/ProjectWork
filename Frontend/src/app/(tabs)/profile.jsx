@@ -104,12 +104,14 @@ export default function ProfileScreen() {
     }, [caricaProfilo]),
   );
 
-  // Pull-to-refresh: rilegge sessione e profilo insieme, senza svuotare nulla.
-  const nonLette = useUnreadCount({ token });
+  // Pull-to-refresh: rilegge sessione, profilo e conteggio non lette insieme,
+  // senza svuotare nulla. Il badge è nella stessa schermata: lasciarlo vecchio
+  // mentre l'utente tira giù è la cosa che fa sembrare rotto il gesto.
+  const { nonLette, ricarica: ricaricaNonLette } = useUnreadCount({ token });
   const { refreshing, onRefresh } = useRefresh(
     useCallback(async () => {
-      await Promise.all([ricaricaSessione(), caricaProfilo()]);
-    }, [ricaricaSessione, caricaProfilo]),
+      await Promise.all([ricaricaSessione(), caricaProfilo(), ricaricaNonLette()]);
+    }, [ricaricaSessione, caricaProfilo, ricaricaNonLette]),
   );
 
   if (!utente) {

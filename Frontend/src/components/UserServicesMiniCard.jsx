@@ -53,16 +53,19 @@ function Gruppo({ titolo, icona, servizi }) {
  * endpoint). `GET /users/{id}/services` closes it, so the sentences that said
  * "not available for now" are gone and the card shows what the person publishes.
  *
- * Four states, all explicit and all compact, because the block lives inside a
- * modal that must not jump: a missing person (the row is not drawn at all), the
- * first load (one secondary line), nothing published (one secondary line), a
- * failure (a banner with retry, only for failures a retry can fix — an inactive
- * account or a person who no longer exists says so and offers no button).
+ * Five states, all explicit and all compact, because the block lives inside a
+ * modal that must not jump: no person to ask about (the block is not drawn), the
+ * first load (one secondary line), nothing published (one secondary line), the
+ * person is gone (one secondary line, no button — a retry cannot bring an
+ * account back), the viewer is refused (`403`, one secondary line naming the
+ * right cause: *their own* inactive account), and a real failure (a banner with
+ * retry). The distinction between "gone" and "refused" is not pedantry: they are
+ * two different sentences about two different people.
  */
 export function UserServicesMiniCard({ ownerId, ownerNome = null }) {
   const t = useTokens();
   const { token } = useAuth();
-  const { dati, disponibile, caricamento, ricaricando, errore, nonDisponibile, riprova } =
+  const { dati, disponibile, caricamento, ricaricando, errore, mancante, vietato, riprova } =
     useUserServices({ token, ownerId });
 
   if (!disponibile) {
@@ -95,9 +98,16 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null }) {
         </AppText>
       ) : null}
 
-      {nonDisponibile ? (
+      {mancante ? (
         <AppText variant="small" tone="secondary">
           {`Le pubblicazioni di ${chi} non sono disponibili: l'account non è attivo o non esiste più.`}
+        </AppText>
+      ) : null}
+
+      {vietato ? (
+        <AppText variant="small" tone="secondary">
+          Il tuo account non è attivo: questa persona ha pubblicato qualcosa, ma il server non lo
+          mostra a un account inattivo.
         </AppText>
       ) : null}
 

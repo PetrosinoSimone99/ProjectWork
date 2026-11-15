@@ -6,28 +6,30 @@ import { getUserServices } from '@/api/areas/services';
  * Another person's published services, for the mini-card inside the service
  * detail.
  *
- * Three rules it must not break:
+ * Four rules it must not break:
  *
- * 1. **A late answer for a previous owner is dropped.** The payload is stored
+ * 1. **A late answer for a previous owner is dropped.** Everything the request
+ *    produced — payload, error, "this person has no public page" — is stored
  *    together with the id it belongs to and read back only while that id is
- *    still the current one (`stato.ownerId === ownerId`), so the modal moving
- *    from one person to another can never show somebody else's services under
- *    the new name.
- * 2. **`403`/`404` are "nothing to show", not failures**: an inactive account or
- *    an owner that disappeared is not something a retry fixes, so the card says
- *    it in its empty state instead of offering a button that would fail again.
- * 3. **`loading` is derived, not stored**: it is true while no answer exists for
- *    the person on screen. That keeps "loading", "loaded and empty" and "failed"
- *    three different things without an extra state that can drift from `dati`.
+ *    still the current one (`esito.ownerId === ownerId`). The modal moving from
+ *    one person to another therefore never shows the previous person's data,
+ *    error or empty state, not even for one round trip.
+ * 2. **`403` and `404` are two different sentences.** `404` is the owner: an
+ *    unknown or inactive account, nothing to retry. `403` is the **viewer**: the
+ *    backend's `activeUser()` refuses the call for an inactive account of the
+ *    person reading, so blaming the offerer would be a lie against
+ *    `MarketplaceController::listUserServices` (and `docs/api.md`).
+ * 3. **A failure that a retry can fix offers a retry**; the other two do not.
+ * 4. **`loading` is derived**, not stored: true while no answer exists for the
+ *    person on screen, so "loading", "loaded and empty", "gone" and "failed"
+ *    stay four different states without an extra flag that can drift.
  *
  * The fetch lives in an effect because it depends on an external system (the
  * API) and on the owner the modal was opened for; every `setState` happens after
  * the `await`, so the effect never triggers a cascading render.
  */
 export function useUserServices({ token, ownerId }) {
-  const [stato, setStato] = useState({ ownerId: null, dati: null });
-  const [errore, setErrore] = useState(null);
-  const [nonDisponibile, setNonDisponibile] = useState(false);
+  const [esito, setEsito] = useState({ ownerId: null, dati: null, errore: null, mancante: false });
   const [ricaricando, setRicaricando] = useState(false);
 
   const richiestaRef = useRef(0);
@@ -43,20 +45,19 @@ export function useUserServices({ token, ownerId }) {
       if (seq !== richiestaRef.current) {
         return;
       }
-      setStato({ ownerId, dati: risposta });
-      setNonDisponibile(false);
-      setErrore(null);
+      setEsito({ ownerId, dati: risposta, errore: null, mancante: false });
     } catch (err) {
       if (seq !== richiestaRef.current) {
         return;
       }
       const status = err instanceof ApiError ? err.status : null;
-      if (status === 403 || status === 404) {
-        setNonDisponibile(true);
-        setStato({ ownerId, dati: null });
-        setErrore(null);
+      if (status === 404) {
+        setEsito({ ownerId, dati: null, errore: null, mancante: true });
+      } else if (status === 403) {
+        setEsito({ ownerId, dati: null, errore: null, mancante: false, vietato: true });
       } else {
-        setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+        const messaggio = err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE;
+        setEsito({ ownerId, dati: null, errore: messaggio, mancante: false });
       }
     }
   }, [idValido, ownerId, token]);
@@ -78,8 +79,6 @@ export function useUserServices({ token, ownerId }) {
   /** Called from the retry button, never from an effect. */
   const riprova = useCallback(async () => {
     setRicaricando(true);
-    setErrore(null);
-    setNonDisponibile(false);
     try {
       await carica();
     } finally {
@@ -87,15 +86,20 @@ export function useUserServices({ token, ownerId }) {
     }
   }, [carica]);
 
-  const dati = stato.ownerId === ownerId ? stato.dati : null;
+  const corrente = esito.ownerId === ownerId ? esito : null;
+  const dati = corrente?.dati ?? null;
+  const errore = corrente?.errore ?? null;
+  const mancante = corrente?.mancante ?? false;
+  const vietato = corrente?.vietato ?? false;
 
   return {
     dati,
     disponibile: idValido,
-    caricamento: idValido && dati === null && errore === null && !nonDisponibile,
+    caricamento: idValido && corrente === null,
     ricaricando,
     errore,
-    nonDisponibile,
+    mancante,
+    vietato,
     riprova,
   };
 }
