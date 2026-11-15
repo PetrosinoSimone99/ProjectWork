@@ -38,9 +38,37 @@ on `/api`, new reference dump) and none of them touched `Frontend/`.
 | `POST /api/auth/login` (`mario.rossi` / `demo`) | 200 with JWT |
 | `GET /api/notifications` with that JWT | 200 `{notifications:[],pagination:…,unreadCount:0}` |
 
+### What changed on the frontend
+
+1. **Expo SDK 58** (`2574674`): `expo 58.0.25`, React 19.3.0, React Native
+   0.88.1, `expo-router 58.0.31`, `react-native-gesture-handler 3.3.0` (major),
+   jest 30 and TypeScript 6. `expo-doctor` 20/20, `expo lint` and
+   `tsc --noEmit` green, `jest` 122 tests green, and both bundles exported
+   (iOS Hermes 3.2 MB, web) so Expo Go 58 can load the project.
+2. **`CANCELLED` and `COMPLETED`** (`f94b55a`): the backend renamed the
+   cancellation status and the scheduler adds a completed one; the classifier
+   keeps both in "Concluse" and the card labels them "Annullato"/"Completato".
+   Before this, cancelled and completed exchanges silently disappeared.
+3. **A notifications inbox** (`2f82e54`, `c1c21ae`, `4de5c6f`): the API layer
+   (`api/areas/notifications.js`), two normalisers, `useNotifications`, the
+   `notifications` screen and its row, plus the profile row that opens it with
+   the unread count. The backend has no push channel, so the screen reloads
+   when it comes back to the foreground and the copy says so.
+4. **The offerer mini-card** (`fae86fa`): `GET /users/{id}/services` fills the
+   block that used to declare gap G3, with loading, empty, failure and
+   "account gone" states.
+
+Both writing lanes (inbox, mini-card) were killed by the workflow timeout at
+1800 s with **zero files written**; the parent implemented both blocks instead
+of re-running them. Recorded here because the cost of that failure is the
+measured part of this cycle.
+
 ### Touched
 
 `Backend/compose.yaml`, `Backend/docker/seed-demo.sql` (new),
+`Frontend/package.json`, `Frontend/package-lock.json`,
+`Frontend/src/api/**`, `Frontend/src/hooks/**`, `Frontend/src/components/**`,
+`Frontend/src/app/**`, `Frontend/src/services/agreements.js`,
 `docs/setup.md`, `docs/briefs/sync-15112026/**`, `AGENTS.md` (brought in line
 with D011 and with what the lint gate really proves).
 

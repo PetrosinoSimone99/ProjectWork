@@ -34,10 +34,10 @@ Consumed by the frontend: the client-side mode filter and its "only among the
 loaded rows" line are gone, the mode selector sends the parameter
 (`docs/decisions.md` D021).
 
-## G3 — Public profile of another user
+## G3 — Public profile of another user — LANDED 2026-11-15
 
-`GET /users/{id}` → the public profile plus the services used to judge
-compatibility:
+The backend now exposes `GET /users/{id}/services` with exactly the envelope the
+frontend asked for:
 
 ```json
 {
@@ -48,9 +48,10 @@ compatibility:
 }
 ```
 
-No email, no roles, no account status. `404` for an unknown or inactive user.
-The service detail popup needs it in the "what they offer and look for" block,
-and the recipient of a proposal needs the same data about the proposer.
+The service detail's "what they offer and look for" block is now
+`UserServicesMiniCard` and the sentence that said "not available for now" is
+gone. The recipient of a proposal could use the same call to see the proposer;
+that screen is not built yet, and it is the only remaining half of this gap.
 
 ## G4 — A proposal that names the service
 
