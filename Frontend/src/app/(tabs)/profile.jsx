@@ -14,7 +14,7 @@ import { AppText } from '@/components/AppText';
 import { AppButton } from '@/components/AppButton';
 import { AppIcon } from '@/components/AppIcon';
 import { Banner } from '@/components/Banner';
-import { Card } from '@/components/Card';
+import { Card, Chip } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
 import { ThemeSelector } from '@/components/ThemeSelector';
@@ -293,9 +293,11 @@ export default function ProfileScreen() {
               </AppText>
             </View>
             {nonLette > 0 ? (
-              <AppText variant="caption" style={{ color: t.primary }}>
-                {String(nonLette)}
-              </AppText>
+              <Chip background={t.serviceBg}>
+                <AppText variant="caption" style={{ color: t.serviceText }}>
+                  {String(nonLette)}
+                </AppText>
+              </Chip>
             ) : null}
             <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
           </Banda>

@@ -1,7 +1,6 @@
 import { View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { useNotifications } from '@/hooks/useNotifications';
-import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
 import { Banner } from '@/components/Banner';
 import { EmptyState } from '@/components/EmptyState';
@@ -21,7 +20,8 @@ import { space } from '@/theme/tokens';
  *
  * The backend has no push channel, so this screen asks again when it comes back
  * to the foreground and when the user pulls: "load again" is the only freshness
- * there is, and the copy states exactly those two moments.
+ * there is, and the copy says so once in the header instead of repeating it
+ * under the list.
  *
  * States, all explicit: first load (`LoadingScreen`), loaded and empty
  * (`EmptyState`), reload failure (`Banner` + retry, with the rows already on
@@ -86,11 +86,6 @@ export default function NotificationsScreen() {
               onElimina={() => void elimina(notifica.id)}
             />
           ))}
-
-          <AppText variant="small" tone="secondary">
-            Le notifiche non si aggiornano da sole: tornando su questa schermata o tirando giù la
-            lista vengono richieste le più recenti.
-          </AppText>
         </View>
       ) : null}
     </Screen>
