@@ -140,8 +140,13 @@ export function normalizeCategories(response) {
 }
 
 /** An `owner`/`offerente` object of a catalog row. */
-function normalizeOwner(row) {
-  const source = row?.owner ?? row?.offerente;
+/**
+ * A `{id,name,surname,username,location,bio,profileImageUrl}` object in the UI
+ * shape (`nome`, `cognome`, `localita`, `immagineProfilo`). Shared by the owner
+ * of a service row and by the `user` envelope of `GET /users/{id}/services`,
+ * which carry the same seven fields.
+ */
+function normalizePersonFields(source) {
   const inside = source && typeof source === 'object' ? source : {};
   return {
     id: toIntegerOrNull(inside.id),
@@ -152,6 +157,11 @@ function normalizeOwner(row) {
     bio: toTextOrNull(inside.bio),
     immagineProfilo: toTextOrNull(inside.profileImageUrl),
   };
+}
+
+function normalizeOwner(row) {
+  const source = row?.owner ?? row?.offerente;
+  return normalizePersonFields(source);
 }
 
 /** `pagination` -> `{pagina, limite, elementiTotali, pagineTotali}`. */
@@ -554,5 +564,32 @@ export function normalizeNotifications(response) {
     elementi: rows.map(normalizeNotification).filter(Boolean),
     paginazione: normalizePagination(response?.pagination),
     nonLette: toIntegerOrNull(response?.unreadCount) ?? 0,
+  };
+}
+
+/**
+ * `GET /users/{id}/services` -> `{utente, offerte, richieste}`.
+ *
+ * The envelope is the only endpoint that returns a public profile together with
+ * that person's services, so the mini-card in the service detail reads it in one
+ * call. Every service row has the shape `GET /services` already sends, so it
+ * goes through `normalizeCatalogOffer` and gets the envelope's `user` attached
+ * as its owner: the person IS the offerer of every row here, and leaving that
+ * field empty would make the mini-card re-fetch it.
+ *
+ * A row without a description is dropped, like everywhere else: the card has
+ * nothing to draw without one.
+ */
+export function normalizeUserServices(response) {
+  const utente = normalizePersonFields(response?.user);
+  const rowsOf = (key) => (Array.isArray(response?.[key]) ? response[key] : []);
+  const withOwner = (row, index) => {
+    const servizio = normalizeCatalogOffer(row, index);
+    return servizio === null ? null : { ...servizio, offerente: utente };
+  };
+  return {
+    utente,
+    offerte: rowsOf('offers').map(withOwner).filter(Boolean),
+    richieste: rowsOf('requests').map(withOwner).filter(Boolean),
   };
 }
