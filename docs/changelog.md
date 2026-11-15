@@ -63,6 +63,18 @@ Both writing lanes (inbox, mini-card) were killed by the workflow timeout at
 of re-running them. Recorded here because the cost of that failure is the
 measured part of this cycle.
 
+5. **The web build hydrates again** (`cc6cf03`). SDK 58's root-HTML contract
+   changed: `+html.jsx` must render `headNodes`/`bodyNodes` from
+   `useServerDocumentContext()`, otherwise the exported HTML carries **no**
+   bundle script and every web surface stays on the boot placeholder. Measured
+   before the fix (one inline script, zero bundle requests) and after (the app
+   renders, `document.title` follows the route). The `/notifications` route also
+   entered the secondary-title map, so the browser tab says "Notifiche".
+6. **An audit of the two new surfaces** (`docs/audits/ux-audit-2026-11-15.md`,
+   27/40 on the ten heuristics, six captures): the P1 items are the missing
+   confirmation on delete, the mini-card repeating the open service, and unread
+   rows filled with `serviceBg`.
+
 ### Touched
 
 `Backend/compose.yaml`, `Backend/docker/seed-demo.sql` (new),
