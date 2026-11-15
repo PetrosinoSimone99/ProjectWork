@@ -6,6 +6,58 @@ documents/code touched.
 
 ---
 
+## 2026-11-15 — The branch catches up with `main`, the stack gets data back
+
+Cycle: [`docs/briefs/sync-15112026/plan.md`](briefs/sync-15112026/plan.md).
+`origin/main` had 24 commits (notifications, service queues, credits, full auth
+on `/api`, new reference dump) and none of them touched `Frontend/`.
+
+### What changed
+
+1. **`origin/main` merged into `andrea-frontend`** (merge commit, no rebase).
+   Backend, `Context_and_DB_V2/` and `Archive/` only; the frontend code is the
+   same as before the merge.
+2. **The Docker stack imports the current schema.** `Backend/compose.yaml`
+   mounts `Context_and_DB_V2/barattolo_15112026.sql` (15 tables, structure
+   only) and then `Backend/docker/seed-demo.sql`, a new file carrying the demo
+   rows that schema lacks: 50 categories, 30 users (password `demo`) and 300
+   services, copied verbatim from the archived demo dump whose column order
+   still matches. Agreements, notifications and queues stay empty.
+3. **Why a seed of our own.** The reference dump has zero `INSERT`s and the
+   generator `Backend/tools/create-demo-database.php` still targets the previous
+   schema and filename, so it cannot run against this one. Without rows
+   `GET /api/categories` returns an empty list and the app cannot register.
+
+### Measured (empty volume, `docker compose down -v` + up)
+
+| check | result |
+| --- | --- |
+| tables in `barattolo` | 15 (was 12) |
+| `categories` / `users` / `services` | 50 / 30 / 300 |
+| `GET /api/categories` | 200, 50 rows |
+| `POST /api/auth/login` (`mario.rossi` / `demo`) | 200 with JWT |
+| `GET /api/notifications` with that JWT | 200 `{notifications:[],pagination:…,unreadCount:0}` |
+
+### Touched
+
+`Backend/compose.yaml`, `Backend/docker/seed-demo.sql` (new),
+`docs/setup.md`, `docs/briefs/sync-15112026/**`, `AGENTS.md` (brought in line
+with D011 and with what the lint gate really proves).
+
+### Attention (backend maintainer)
+
+`Backend/compose.yaml` and a new file under `Backend/docker/` changed under the
+ownership exception in AGENTS.md (D008): the schema mount now points at
+`barattolo_15112026.sql` and a seed file was added. No backend source, config or
+test was touched, and the archived dump the seed comes from is read-only.
+
+Open points for the backend side (detail in `docs/backend-gaps.md`): the new
+dump ships **no data**, `tools/create-demo-database.php` cannot regenerate it,
+the scheduler never runs (`Schedule` attaches no task, nothing consumes
+`scheduler_default`) and `QueueHandler` can create several agreements for one
+queue. The Docker stack starts no messenger worker, so queues created through
+the API stay unmatched.
+
 ## 2026-11-14 — The page has a frame, the body has a measure
 
 Direction: **(a) as (c)** — the gutters are used deliberately, and the page

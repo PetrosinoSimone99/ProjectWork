@@ -23,12 +23,21 @@ docker compose up -d --build
 | `database` | `mysql:8.0` | 3306 | database `barattolo`, dev credentials `root`/`root` |
 | `backend` | PHP 8.4 (built from `Backend/docker/`) | **8000** | Symfony at `http://localhost:8000` |
 
-First boot on an empty data volume imports the dump named by
-`Context_and_DB_V2/LAST_DB_TO_USE.txt` — today
-`barattolo_demo_20261108.sql`: the full schema (12 tables, agreement tables
-included) **plus seed rows** — 50 categories, 30 users (every password `demo`),
-200 offers and 100 requests. The previous schema-only dump predated the
-agreement tables, which is why the agreement endpoints failed against it.
+First boot on an empty data volume imports the schema named by
+`Context_and_DB_V2/LAST_DB_TO_USE.txt` — today `barattolo_15112026.sql`: the
+**15-table** schema of the current backend (agreements, chat, notifications,
+service queues, messenger included). That dump is **structure only**, so the
+demo rows come from `Backend/docker/seed-demo.sql`, mounted right after it:
+50 categories, 30 users (every password `demo`, `credits` included) and 300
+services, copied verbatim from the archived demo dump
+`Archive/DB_mid_November/barattolo_demo_20261108.sql`. Agreements,
+notifications and queues start empty on purpose: their archived schema differs
+and the app is meant to create them through the API.
+
+Without that seed the app cannot register or log in, because
+`GET /api/categories` would answer with an empty list. The generator
+`Backend/tools/create-demo-database.php` is not usable for this yet: it targets
+the previous schema and filename (see `docs/backend-gaps.md`).
 
 Re-importing only happens on an empty volume: after changing the dump in
 `compose.yaml`, `docker compose down -v` then up again. That **wipes** the local
@@ -51,8 +60,17 @@ docker compose ps
 curl http://localhost:8000/api/categories    # 200 {"categories":[...]} — GET is public
 ```
 
-Reset from scratch: `docker compose down -v`, then up again (re-imports the demo
-dump on the empty volume — 30 demo users, password `demo`).
+Reset from scratch: `docker compose down -v`, then up again (re-imports the
+schema and the demo seed on the empty volume — 30 demo users, password `demo`).
+
+The new backend routes `App\Message\QueueId` to the `async` transport
+(`doctrine://default`, i.e. the `messenger_messages` table) and schedules
+`App\Schedule\AgreementEndDateChecker`. Nothing consumes either inside the
+stack: queues created through `POST /api/create-service-queue` stay unmatched
+and `COMPLETED` is never assigned until a worker is started by hand —
+`docker compose exec backend php bin/console messenger:consume async scheduler_default`.
+One tick is enough to check the scheduler:
+`messenger:consume scheduler_default --limit=1`.
 
 ## 2. Configure the frontend
 

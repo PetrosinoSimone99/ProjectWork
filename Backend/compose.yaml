@@ -20,15 +20,19 @@ services:
       - "3306:3306"
     volumes:
       - database_data:/var/lib/mysql
-      # First boot on an empty data volume imports the reference dump named by
-      # ../Context_and_DB_V2/LAST_DB_TO_USE.txt: the demo dump (12 tables,
-      # agreements/agreement_proposal/agreement_details included) with seed
-      # rows - 50 categories, 30 users (password `demo`), 200 offers, 100
-      # requests. The previous v3.1 schema dump predated the agreement tables,
-      # which is why the agreement endpoints failed against it.
-      # docker-entrypoint-initdb.d only runs on an empty data volume: after
-      # changing this line the stack needs `docker compose down -v`.
-      - ../Context_and_DB_V2/barattolo_demo_20261108.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      # First boot on an empty data volume imports the reference schema named by
+      # ../Context_and_DB_V2/LAST_DB_TO_USE.txt: barattolo_15112026.sql, the
+      # 15-table schema of the current backend (notifications, queues, chat,
+      # messenger included). That dump is STRUCTURE ONLY, so the demo rows come
+      # from the next mount: ./docker/seed-demo.sql carries the 50 categories,
+      # 30 users (password `demo`, credits included) and 300 services copied
+      # from the archived demo dump. Without it the app cannot register or log
+      # in, because /api/categories would answer with an empty list.
+      # docker-entrypoint-initdb.d runs the files in name order and only on an
+      # empty data volume: after changing these lines the stack needs
+      # `docker compose down -v`.
+      - ../Context_and_DB_V2/barattolo_15112026.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      - ./docker/seed-demo.sql:/docker-entrypoint-initdb.d/20-seed.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 5s
