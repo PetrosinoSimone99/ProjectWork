@@ -22,8 +22,12 @@ export function AppButton({
     secondary: { normal: 'transparent', pressed: t.border, text: t.text },
     ghost: { normal: 'transparent', pressed: t.border, text: t.primary },
     danger: { normal: 'transparent', pressed: t.dangerBg, text: t.danger },
+    // Same red words and icon, no outline: a destructive action stays
+    // recognisable without being the loudest control in a row of calm content
+    // (ux-audit-2026-11-15, P1 on NotificationRow).
+    dangerGhost: { normal: 'transparent', pressed: t.dangerBg, text: t.danger },
   };
-  const palette = palettes[variant];
+  const palette = palettes[variant] ?? palettes.primary;
 
   return (
     <Pressable
