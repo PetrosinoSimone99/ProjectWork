@@ -24,6 +24,9 @@ const TITOLI_SECONDARI = {
   '/login': 'Accedi',
   '/register': 'Crea il tuo profilo',
   '/edit-profile': 'Modifica profilo',
+  // The inbox is a secondary screen like the two below it: the browser tab,
+  // the bookmark and the history entry carry the same word the page shows.
+  '/notifications': 'Notifiche',
   '/report': 'Segnala alla staff',
   '/staff': 'Area staff',
   '/staff-users': 'Utenti',
