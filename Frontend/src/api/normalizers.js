@@ -508,3 +508,51 @@ export function normalizeAgreements(response) {
   }
   return list.map(normalizeAgreement).filter(Boolean);
 }
+
+/**
+ * One `notifications[]` row of `GET /notifications`.
+ *
+ * `tipo` stays the raw backend string (`AGREEMENT_PROPOSAL`, `CHAT_MESSAGE`, …):
+ * the label and the icon are a presentation decision the screen makes, and the
+ * backend's `type` is free-form, with one known inconsistency (`COMPLETED`
+ * events are written lowercase by the scheduler), so it is upper-cased here
+ * once instead of in every consumer.
+ *
+ * `dati` is the backend's `data` object kept verbatim (it carries `agreementId`
+ * and friends, whose shape depends on the type); `letta` is the boolean the UI
+ * actually reads, derived from `readAt`, because a timestamp is never what a
+ * row asks.
+ */
+export function normalizeNotification(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  if (id === null) {
+    return null;
+  }
+  const tipo = toTextOrNull(row.type);
+  return {
+    id,
+    tipo: tipo === null ? null : tipo.toUpperCase(),
+    messaggio: toTextOrNull(row.message),
+    dati: row.data && typeof row.data === 'object' ? row.data : null,
+    creataIl: toTextOrNull(row.createdAt),
+    lettaIl: toTextOrNull(row.readAt),
+    letta: toTextOrNull(row.readAt) !== null,
+  };
+}
+
+/**
+ * `GET /notifications` -> `{elementi, paginazione, nonLette}`.
+ * A missing list is an empty page, never a throw: an account with no
+ * notifications is the normal case, not an error.
+ */
+export function normalizeNotifications(response) {
+  const rows = Array.isArray(response?.notifications) ? response.notifications : [];
+  return {
+    elementi: rows.map(normalizeNotification).filter(Boolean),
+    paginazione: normalizePagination(response?.pagination),
+    nonLette: toIntegerOrNull(response?.unreadCount) ?? 0,
+  };
+}
