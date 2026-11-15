@@ -8,6 +8,7 @@ import { getProfile } from '@/api';
 import { localitaPerDisplay } from '@/services/italian-regions';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 import { useRefresh } from '@/hooks/useRefresh';
+import { useUnreadCount } from '@/hooks/useNotifications';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppButton } from '@/components/AppButton';
@@ -42,8 +43,7 @@ import { radius, space, target, useTokens } from '@/theme/tokens';
  * - un 401 non si gestisce qui: il meccanismo di `client.js` manda al login.
  */
 export default function ProfileScreen() {
-  const { utente, token, signOut, ricaricaSessione } = useAuth();
-  const router = useRouter();
+  const { utente, token, signOut, ricaricaSessione } = useAuth();  const router = useRouter();
   // «Modifiche salvate»: il salvataggio del profilo porta qui il suo esito
   // (audit UX F35), e l'utente lo chiude quando l'ha letto.
   const { salvato } = useLocalSearchParams();
@@ -105,6 +105,7 @@ export default function ProfileScreen() {
   );
 
   // Pull-to-refresh: rilegge sessione e profilo insieme, senza svuotare nulla.
+  const nonLette = useUnreadCount({ token });
   const { refreshing, onRefresh } = useRefresh(
     useCallback(async () => {
       await Promise.all([ricaricaSessione(), caricaProfilo()]);
@@ -264,6 +265,39 @@ export default function ProfileScreen() {
             />
           </View>
         </Banda>
+
+        {/* La casella delle notifiche è una schermata a sé, non una sesta tab:
+            la barra ne ha cinque e il menu del web le rispecchia. Il conteggio
+            arriva da una chiamata da una riga (`limit: 1`), così la riga dice se
+            c'è qualcosa da leggere senza scaricare la lista qui. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            nonLette > 0
+              ? `Apri le notifiche, ${nonLette} da leggere`
+              : 'Apri le notifiche'
+          }
+          onPress={() => router.push('/notifications')}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
+          <Banda riga>
+            <AppIcon name="notifications-outline" size={20} color={t.primary} />
+            <View style={{ flex: 1, gap: space.xs }}>
+              <AppText variant="heading">Notifiche</AppText>
+              <AppText variant="small" tone="secondary">
+                {nonLette > 0
+                  ? `${nonLette} da leggere: proposte, risposte, schede e decisioni della staff.`
+                  : 'Proposte, risposte, schede e decisioni della staff che ti riguardano.'}
+              </AppText>
+            </View>
+            {nonLette > 0 ? (
+              <AppText variant="caption" style={{ color: t.primary }}>
+                {String(nonLette)}
+              </AppText>
+            ) : null}
+            <AppIcon name="chevron-forward" size={18} color={t.textSecondary} />
+          </Banda>
+        </Pressable>
 
         {/* La modifica ha una schermata a sé: la banda si limita ad aprirla. */}
         <Pressable

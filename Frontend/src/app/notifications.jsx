@@ -1,0 +1,114 @@
+import { View } from 'react-native';
+import { useAuth } from '@/auth/auth-context';
+import { useNotifications } from '@/hooks/useNotifications';
+import { AppButton } from '@/components/AppButton';
+import { AppText } from '@/components/AppText';
+import { BackButton } from '@/components/BackButton';
+import { Banner } from '@/components/Banner';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { NotificationRow } from '@/components/NotificationRow';
+import { PageHeader } from '@/components/PageHeader';
+import { Screen } from '@/components/Screen';
+import { space } from '@/theme/tokens';
+
+/**
+ * «Notifiche»: the inbox of what the backend wrote for this account.
+ *
+ * It is a secondary screen and not a sixth tab: the tab bar has five entries and
+ * a sixth would crowd it on a phone, while the web menu mirrors the same five
+ * routes (`navigation/tab-routes.js`). The entry point is the row in the
+ * profile, which also carries the unread count.
+ *
+ * The backend has no push channel, so this screen polls when it comes back to the
+ * foreground and when the user pulls: "load again" is the only freshness there
+ * is, and the copy never promises more than that.
+ *
+ * States, all explicit: first load (`LoadingScreen`), loaded and empty
+ * (`EmptyState`), reload failure (`Banner` + retry, with the rows already on
+ * screen kept), and the per-row action state (`inCorso`).
+ */
+export default function NotificationsScreen() {
+  const { token } = useAuth();
+  const {
+    elementi,
+    nonLette,
+    paginazione,
+    caricamento,
+    caricandoAltre,
+    errore,
+    azioneInCorso,
+    ricarica,
+    caricaAltre,
+    segnaLetta,
+    elimina,
+  } = useNotifications({ token });
+
+  const primaCaricata = elementi !== null;
+  const vuota = primaCaricata && elementi.length === 0;
+  const altrePagine = Boolean(paginazione && (paginazione.pagina ?? 1) < (paginazione.pagineTotali ?? 0));
+
+  return (
+    <Screen scroll withBottomInset={false}>
+      <PageHeader
+        titolo="Notifiche"
+        frase={
+          nonLette > 0
+            ? `${nonLette} da leggere. Le notifiche arrivano quando riapri la schermata.`
+            : 'Proposte, risposte, schede e decisioni della staff che ti riguardano.'
+        }
+        indietro={<BackButton />}
+      />
+
+      {!primaCaricata && caricamento && token ? <LoadingScreen /> : null}
+
+      {errore ? (
+        <Banner
+          kind="error"
+          message={errore}
+          etichettaAzione="Riprova"
+          onAzione={() => void ricarica()}
+          caricamentoAzione={caricamento}
+        />
+      ) : null}
+
+      {primaCaricata && vuota ? (
+        <EmptyState
+          icon="notifications-off-outline"
+          title="Nessuna notifica"
+          description="Qui arrivano le proposte di scambio, le risposte, le schede e le decisioni della staff. Per ora non c'è niente da leggere."
+        />
+      ) : null}
+
+      {primaCaricata && !vuota ? (
+        <View style={{ gap: space.sm }}>
+          {elementi.map((notifica) => (
+            <NotificationRow
+              key={notifica.id}
+              notifica={notifica}
+              inCorso={azioneInCorso?.id === notifica.id ? azioneInCorso : null}
+              onLetta={() => void segnaLetta(notifica.id)}
+              onElimina={() => void elimina(notifica.id)}
+            />
+          ))}
+
+          {altrePagine ? (
+            <AppButton
+              label="Carica altre"
+              variant="secondary"
+              icon="chevron-down-outline"
+              onPress={caricaAltre}
+              loading={caricandoAltre}
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
+
+          <AppText variant="small" tone="secondary">
+            Le notifiche non si aggiornano da sole: tornando su questa schermata o tirando giù la
+            lista viene chiesta l&apos;ultima pagina.
+          </AppText>
+        </View>
+      ) : null}
+    </Screen>
+  );
+}
