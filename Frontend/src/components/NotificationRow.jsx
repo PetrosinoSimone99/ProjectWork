@@ -1,17 +1,21 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
+import { ConfirmModal } from './ConfirmModal';
 import { formatIsoDate } from '@/services/dates';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
  * One row of the notifications inbox.
  *
- * Data and callbacks only: no network, no state of its own, no mutation of the
- * input. The screen owns the calls and passes `inCorso` back down so the row can
- * show which of its two actions is flying.
+ * Data and callbacks only: no network, no mutation of the input. The screen
+ * owns the calls and passes `inCorso` back down so the row can show which of
+ * its two actions is flying. The one piece of state the row keeps is whether
+ * its delete confirmation is open — pure UI, the same as `AgreementCard`:
+ * `onElimina` fires only from the confirm panel, never from the row button.
  *
  * `type` is a free-form backend string (the scheduler even writes one in lower
  * case, which the normaliser upper-cases). Unknown types are not an error: they
@@ -70,23 +74,40 @@ export function NotificationRow({ notifica, inCorso = null, onLetta = null, onEl
   const occupata = inCorso !== null;
   const lettaInCorso = inCorso?.nome === 'letta';
   const eliminaInCorso = inCorso?.nome === 'elimina';
+  const [confermaAperta, setConfermaAperta] = useState(false);
 
   return (
     <Card
       style={{
         gap: space.sm,
-        // An unread row is marked by the surface, not by a dot nobody notices,
-        // and the accent border makes it legible in both themes.
-        backgroundColor: notifica.letta ? t.surface : t.serviceBg,
+        // The card keeps the surface in both themes: the unread state is the
+        // accent border plus the leading dot below, because `serviceBg` is
+        // reserved to data marks (docs/DESIGN.md).
+        backgroundColor: t.surface,
         borderWidth: 1,
         borderColor: notifica.letta ? t.border : t.primary,
         borderRadius: radius.input,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
+        {/* The unread marker: one dot on the leading edge, in front of the
+            type chip, so the state reads without filling the whole card. */}
+        {notifica.letta ? null : (
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: radius.pill,
+              backgroundColor: t.primary,
+            }}
+          />
+        )}
         <AppIcon name={iconaTipo(notifica.tipo)} size={16} color={t.textSecondary} />
-        <Chip background={notifica.letta ? t.background : t.surface}>
-          <AppText variant="caption" style={{ color: notifica.letta ? t.textSecondary : t.primary }}>
+        <Chip background={notifica.letta ? t.background : t.serviceBg}>
+          <AppText
+            variant="caption"
+            style={{ color: notifica.letta ? t.textSecondary : t.serviceText }}
+          >
             {etichettaTipo(notifica.tipo)}
           </AppText>
         </Chip>
@@ -114,14 +135,26 @@ export function NotificationRow({ notifica, inCorso = null, onLetta = null, onEl
         )}
         <AppButton
           label="Elimina"
-          variant="danger"
+          variant="dangerGhost"
           icon="trash-outline"
-          onPress={onElimina}
+          onPress={() => setConfermaAperta(true)}
           loading={eliminaInCorso}
           disabled={occupata && !eliminaInCorso}
           accessibilityLabel="Elimina questa notifica"
         />
       </View>
+      <ConfirmModal
+        visible={confermaAperta}
+        titolo="Eliminare questa notifica?"
+        messaggio="La notifica sparisce per sempre."
+        etichettaConferma="Elimina"
+        loading={eliminaInCorso}
+        onConferma={() => {
+          setConfermaAperta(false);
+          onElimina?.();
+        }}
+        onAnnulla={() => setConfermaAperta(false)}
+      />
     </Card>
   );
 }

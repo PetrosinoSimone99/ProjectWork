@@ -1,4 +1,9 @@
-import { etichettaTipo, iconaTipo, quandoNotifica } from '../NotificationRow';
+import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { act, create } from 'react-test-renderer';
+
+import { etichettaTipo, iconaTipo, NotificationRow, quandoNotifica } from '../NotificationRow';
+import { radius, useTokens } from '@/theme/tokens';
 
 /**
  * The row's two pure decisions: which label and icon a backend `type` gets, and
@@ -66,5 +71,110 @@ describe('quandoNotifica', () => {
     expect(quandoNotifica(null)).toBeNull();
     expect(quandoNotifica('')).toBeNull();
     expect(quandoNotifica('non-una-data')).toBeNull();
+  });
+});
+
+/**
+ * The row as a reader meets it: how an unread row is marked, and when the
+ * delete starts.
+ *
+ * The expected colours come back through the same hook the row uses instead of
+ * being hard-coded, so these cases hold in either theme.
+ */
+let tokens;
+function TokenProbe() {
+  const t = useTokens();
+  // Written in an effect, not during render: a render must not touch state
+  // outside the component, even in a test harness.
+  useEffect(() => {
+    tokens = t;
+  }, [t]);
+  return null;
+}
+
+const NOTIFICA = {
+  id: 1,
+  tipo: 'MATCH_CREATED',
+  messaggio: 'Nuovo match con un\'altra persona.',
+  creataIl: null,
+  letta: true,
+};
+
+function renderRiga(notifica, extra = {}) {
+  let renderer;
+  act(() => {
+    renderer = create(
+      <>
+        <NotificationRow notifica={notifica} {...extra} />
+        <TokenProbe />
+      </>,
+    );
+  });
+  return renderer;
+}
+
+/** The control with this accessibility label, pressed the way a tap would. */
+function premi(renderer, accessibilityLabel) {
+  const pulsante = renderer.root
+    .findAll(
+      (node) =>
+        node.props?.accessibilityLabel === accessibilityLabel &&
+        typeof node.props.onPress === 'function',
+    )
+    .at(0);
+  expect(pulsante).toBeDefined();
+  act(() => {
+    pulsante.props.onPress();
+  });
+}
+
+describe('NotificationRow rendering', () => {
+  it('keeps the surface on an unread row and marks it with the primary border and a leading dot', () => {
+    const renderer = renderRiga({ ...NOTIFICA, letta: false });
+    const stile = StyleSheet.flatten(renderer.root.findAllByType(View)[0].props.style);
+
+    expect(stile.backgroundColor).toBe(tokens.surface);
+    expect(stile.backgroundColor).not.toBe(tokens.serviceBg);
+    expect(stile.borderColor).toBe(tokens.primary);
+
+    const pallino = renderer.root
+      .findAllByType(View)
+      .map((node) => StyleSheet.flatten(node.props.style ?? {}))
+      .find((style) => style.width === 8 && style.height === 8);
+    expect(pallino).toBeDefined();
+    expect(pallino.backgroundColor).toBe(tokens.primary);
+    expect(pallino.borderRadius).toBe(radius.pill);
+
+    // A read row keeps the same surface with the decorative border: the state
+    // is the border and the dot, never a fill.
+    const letta = renderRiga(NOTIFICA);
+    const stileLetto = StyleSheet.flatten(letta.root.findAllByType(View)[0].props.style);
+    expect(stileLetto.backgroundColor).toBe(tokens.surface);
+    expect(stileLetto.borderColor).toBe(tokens.border);
+  });
+
+  it('fires the delete callback only from the confirm panel', () => {
+    const onElimina = jest.fn();
+    const renderer = renderRiga(NOTIFICA, { onElimina });
+
+    premi(renderer, 'Elimina questa notifica');
+    expect(onElimina).not.toHaveBeenCalled();
+
+    premi(renderer, 'Elimina');
+    expect(onElimina).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the row untouched when the panel is dismissed with "No, torna indietro"', () => {
+    const onElimina = jest.fn();
+    const renderer = renderRiga({ ...NOTIFICA, messaggio: 'Riga da non perdere.' }, { onElimina });
+
+    premi(renderer, 'Elimina questa notifica');
+    premi(renderer, 'No, torna indietro');
+
+    expect(onElimina).not.toHaveBeenCalled();
+    const testoDellaRiga = renderer.root.findAll(
+      (node) => node.props?.children === 'Riga da non perdere.',
+    );
+    expect(testoDellaRiga.length).toBeGreaterThan(0);
   });
 });
