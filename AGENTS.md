@@ -4,11 +4,14 @@ Instructions for AI agents (and humans) working in this repository.
 
 ## Project in one breath
 
-Baratto-lo: non-profit platform for exchanging services between users
-(swipe matching, 1:1 or up-to-4-person chain exchanges, chat, token
-compensation, staff moderation). React Native/Expo frontend, Symfony 7.4
-backend, MySQL 8.0 database. Full context: [`docs/`](docs/README.md) — read
-[`docs/overview.md`](docs/overview.md) first.
+Baratto-lo: a non-profit platform where people exchange services without
+money. One account publishes what it **offers** and what it **looks for**; a
+proposal both sides accept becomes an agreement. Exchanges are **pairwise and
+directional** — there is no closed loop to complete and no minimum group size.
+React Native/Expo frontend, Symfony 7.4 backend, MySQL 8.0 database. Full
+context: [`docs/`](docs/README.md) — read [`docs/overview.md`](docs/overview.md)
+first; what the backend does not expose yet is in
+[`docs/backend-gaps.md`](docs/backend-gaps.md).
 
 ## Your role
 
@@ -87,6 +90,10 @@ npx expo lint
 npx tsc --noEmit
 ```
 
+`tsc --noEmit` here parses syntax and imports only: `Frontend/tsconfig.json` sets
+`allowJs` without `checkJs`, so the `.js`/`.jsx` files are not type-checked and
+the step cannot fail on a type error. Do not read a green gate as type safety.
+
 Red gate → no push. Do not weaken assertions or skip checks to make it green.
 
 ## Docs duty
@@ -111,9 +118,10 @@ dev container serving Symfony on port 8000).
 ## Frontend development model
 
 - Frontend runs on the host (Node + Expo), not in Docker: `npx expo start`.
-- **Fake-data mode:** `EXPO_PUBLIC_DATI_FINTI=1` in `Frontend/.env.local`
-  replaces the backend with canned data. The single switch is
-  `src/api/config.js`; components never decide fake-vs-real themselves.
+- **There is no fake-data mode.** `EXPO_PUBLIC_DATI_FINTI` was removed
+  (`docs/decisions.md` D011) and nothing reads it; setting it changes nothing.
+  The app always talks to the real backend — `docs/setup.md` has the local
+  stack and its seeded demo users.
 - API reachability is configured via `EXPO_PUBLIC_API_PORT` (dev,
   matched to the fixed Docker port 8000) or `EXPO_PUBLIC_API_URL`.
 - Testing surfaces: Expo Go on a physical device, web (`npx expo start --web`),
@@ -126,4 +134,5 @@ dev container serving Symfony on port 8000).
   errors; surface them.
 - No emoji in code or UI copy. No hardcoded secrets or backend URLs.
 - Keep screams in single-responsibility modules; prefer many small files
-  over few large ones (see ARCHITECTURE_MAX in docs/frontend.md).
+  over few large ones (the line ceiling and the function rules are in
+  [`docs/frontend.md`](docs/frontend.md)).
