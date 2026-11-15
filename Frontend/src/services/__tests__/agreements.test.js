@@ -1,4 +1,4 @@
-import { classifyAgreements, counterpartOf } from '../agreements';
+import { classifyAgreements, counterpartOf, isSheetCompiled, sheetsFor } from '../agreements';
 
 /** The clock every test pins: mid-2026, between the fixtures' two dates. */
 const NOW = new Date('2026-06-15T12:00:00.000Z');
@@ -36,6 +36,31 @@ function acceptedAgreement(endDate) {
     proposte: [proposal(), proposal({ username: ME, ruolo: 'Beneficiary' })],
     scheda: { fine: endDate },
   });
+}
+
+/** One normalised delivery-sheet row (`normalizeAgreementSheet` in the API layer). */
+function sheet(overrides = {}) {
+  return {
+    username: OTHER,
+    descrizione: 'Lezione di italiano',
+    beneficiario: ME,
+    daRemoto: true,
+    inizio: '2026-07-01',
+    fine: '2026-07-10',
+    beneficiarioAccettato: null,
+    stato: 'UNCOMPILED',
+    ...overrides,
+  };
+}
+
+/**
+ * An accepted agreement with the two rows the backend writes: the first row
+ * is filled by ME and confirmed by OTHER, the second is the other way round.
+ */
+function acceptedWithSheets() {
+  const mia = sheet({ username: ME, beneficiario: OTHER });
+  const altra = sheet({ username: OTHER, beneficiario: ME });
+  return agreement({ stato: 'ACCEPTED', scheda: mia, schede: [mia, altra] });
 }
 
 /** Freezes a value tree so a mutating implementation fails instead of passing. */
@@ -207,5 +232,44 @@ describe('counterpartOf', () => {
     expect(counterpartOf(null, ME)).toBeNull();
     expect(counterpartOf(agreement(), null)).toBeNull();
     expect(counterpartOf(agreement(), '')).toBeNull();
+  });
+});
+
+describe('sheetsFor', () => {
+  it('assigns each row to the right side for both participants', () => {
+    const input = deepFreeze(acceptedWithSheets());
+
+    const perMe = sheetsFor(input, ME);
+    expect(perMe.mia).toBe(input.schede[0]);
+    expect(perMe.altra).toBe(input.schede[1]);
+
+    const perOther = sheetsFor(input, OTHER);
+    expect(perOther.mia).toBe(input.schede[1]);
+    expect(perOther.altra).toBe(input.schede[0]);
+  });
+
+  it('returns nulls when the viewer username is missing', () => {
+    const input = acceptedWithSheets();
+
+    expect(sheetsFor(input, null)).toEqual({ mia: null, altra: null });
+    expect(sheetsFor(input, '')).toEqual({ mia: null, altra: null });
+  });
+
+  it('returns nulls when no row belongs to the viewer', () => {
+    expect(sheetsFor(acceptedWithSheets(), 'nessuno')).toEqual({ mia: null, altra: null });
+  });
+
+  it('returns nulls for an agreement without sheets', () => {
+    expect(sheetsFor(agreement(), ME)).toEqual({ mia: null, altra: null });
+    expect(sheetsFor(null, ME)).toEqual({ mia: null, altra: null });
+    expect(sheetsFor(undefined, ME)).toEqual({ mia: null, altra: null });
+  });
+});
+
+describe('isSheetCompiled', () => {
+  it('counts only a COMPILED sheet as compiled', () => {
+    expect(isSheetCompiled(sheet({ stato: 'COMPILED' }))).toBe(true);
+    expect(isSheetCompiled(sheet({ stato: 'UNCOMPILED' }))).toBe(false);
+    expect(isSheetCompiled(null)).toBe(false);
   });
 });

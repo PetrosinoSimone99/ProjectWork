@@ -2,6 +2,10 @@
  * Agreement classification: the pure rules that map every agreement of
  * `GET /get-agreements` to the section of the tab that shows it.
  *
+ * The same file also holds the delivery-sheet helpers (`sheetsFor`,
+ * `isSheetCompiled`) that pick the sheet rows belonging to the viewer; both
+ * halves are pure and read only what the agreement already carries.
+ *
  * The real lifecycle (`AgreementManager::createExchangeAgreement` and
  * `sendResponse`) decides the rules:
  *
@@ -133,4 +137,47 @@ export function counterpartOf(agreement, myUsername) {
       proposta.username !== myUsername,
   );
   return other ? other.username : null;
+}
+
+/**
+ * The two sheet rows that concern the viewer: `{mia, altra}`, both `null`
+ * when there is nothing to show. **A row is never invented**: without the
+ * viewer's username, or with no row matching, the side stays `null` and the
+ * screen draws nothing for it.
+ *
+ * The split comes from the backend, not from a guess: an accepted agreement
+ * carries one row per participant (`createBlankDetails` on both, one row
+ * each), and
+ *
+ * - `mia` is the row whose `username === myUsername` — on the wire
+ *   `providerUsername`, the `ad.user` the sender looks the row up by
+ *   (`Backend/src/Manager/AgreementManager.php:149-175`), so it is the row
+ *   **I fill**;
+ * - `altra` is the row whose `beneficiario === myUsername` — on the wire
+ *   `beneficiaryUsername`, the `ad.beneficiary` the confirm route looks up
+ *   (`AgreementManager.php:201-228`), so it is the row **I confirm**.
+ *
+ * Both participants therefore get one row to fill and one to confirm: the
+ * two rows are different, and each side of the pair is found by exactly one
+ * of the two usernames (`normalizeAgreementSheet` in `api/normalizers.js`).
+ */
+export function sheetsFor(accordo, myUsername) {
+  const nessuna = { mia: null, altra: null };
+  if (typeof myUsername !== 'string' || myUsername === '' || !Array.isArray(accordo?.schede)) {
+    return nessuna;
+  }
+  const mia = accordo.schede.find((riga) => riga && riga.username === myUsername) ?? null;
+  const altra = accordo.schede.find((riga) => riga && riga.beneficiario === myUsername) ?? null;
+  return { mia, altra };
+}
+
+/**
+ * `true` only for a row the backend marked `COMPILED`. The enum has exactly
+ * two values (`UNCOMPILED`/`COMPILED`, `AgreementDetailsStatus`) and the
+ * normaliser upper-cases the wire word, so anything else — including a
+ * missing row — counts as not compiled: the screen must never offer the
+ * confirm button or read a blank row as finished.
+ */
+export function isSheetCompiled(scheda) {
+  return scheda?.stato === 'COMPILED';
 }

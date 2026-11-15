@@ -5,9 +5,13 @@ import { normalizeAgreements } from '../normalizers';
  * Agreements area: the exchange lifecycle the backend exposes today.
  *
  * Real endpoints only: `GET /get-agreements`, `POST /create-exchange-agreement`,
- * `POST /send-agreement-response`, `POST /cancel-agreement/{id}`. The delivery
- * sheet (`POST /send-agreement-details`) is not called: it needs a `beneficiaryId`
- * that the agreement rows do not carry (`docs/backend-gaps.md` G6).
+ * `POST /send-agreement-response`, `POST /cancel-agreement/{id}` and the two
+ * delivery-sheet calls `POST /send-agreement-details` /
+ * `POST /accept-agreement-details/{id}`. The sheet calls need no participant
+ * id (the old G6 blocker): `send` writes the caller's own row (`ad.user =
+ * caller`, `Backend/src/Manager/AgreementManager.php:149-175`) and `accept`
+ * confirms the row where the caller is the `beneficiary` (same file,
+ * 201-228), so the agreement id is all either route takes.
  *
  * The creation body carries the **person** (`otherParticipant`), never a service
  * (G4): the agreement is born with that person and the service is named later
@@ -18,8 +22,20 @@ import { normalizeAgreements } from '../normalizers';
  * statuses and no English text reaches the UI.
  */
 
-/** Italian copy for the statuses the four calls can answer. */
+/** Italian copy for the statuses the six calls can answer. */
 const MESSAGES = {
+  /**
+   * The two sheet calls. `400` only happens on send (invalid dates or a
+   * missing field), `404` is agreement/sheet gone or not `ACCEPTED`, `500`
+   * covers the rest — including "already confirmed": the accept route catches
+   * the manager's `DomainException` with its generic `\Exception` branch and
+   * answers `500`, never `409` (`AgreementManager.php:201-228`).
+   */
+  sheet: {
+    400: "Controlla le date: la fine deve venire dopo l'inizio.",
+    404: 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.',
+    500: "Il server non ha accettato la scheda: riprova, e se l'errore resta segnalalo.",
+  },
   list: {
     401: 'Devi accedere per vedere i tuoi accordi.',
   },
@@ -107,5 +123,48 @@ export async function cancelAgreement(token, agreementId) {
   await withMessage(
     apiFetch(`cancel-agreement/${Number(agreementId)}`, { method: 'POST', token }),
     MESSAGES.cancel,
+  );
+}
+
+/**
+ * POST /send-agreement-details — fills the caller's own sheet row.
+ *
+ * The body carries only the agreement id, the remote flag and the two dates:
+ * the row is looked up by `ad.user = caller`
+ * (`Backend/src/Manager/AgreementManager.php:149-175`), so no participant id
+ * is guessed (the old G6 blocker). The dates travel as date-only
+ * `YYYY-MM-DD` strings — the backend parses them with `DateTimeImmutable` and
+ * rejects an end that is not after the start with a `400`, which the form
+ * checks first. The route answers `404` for an agreement that is not
+ * `ACCEPTED`, `500` when the row cannot be written.
+ */
+export async function sendAgreementSheet(token, { agreementId, fromRemote, startDate, endDate }) {
+  await withMessage(
+    apiFetch('send-agreement-details', {
+      method: 'POST',
+      token,
+      body: {
+        agreementId: Number(agreementId),
+        fromRemote: fromRemote === true,
+        startDate: String(startDate),
+        endDate: String(endDate),
+      },
+    }),
+    MESSAGES.sheet,
+  );
+}
+
+/**
+ * POST /accept-agreement-details/{id} — the beneficiary confirms the other
+ * side's row. The route takes the agreement id in the path and no body; the
+ * row is found by `ad.beneficiary = caller` (`AgreementManager.php:201-228`).
+ * Confirming a row that is already accepted answers `500`, not `409`: the
+ * manager throws a `DomainException` that the controller catches with its
+ * generic `\Exception` branch, so the `500` copy is what a double tap gets.
+ */
+export async function acceptAgreementSheet(token, agreementId) {
+  await withMessage(
+    apiFetch(`accept-agreement-details/${Number(agreementId)}`, { method: 'POST', token }),
+    MESSAGES.sheet,
   );
 }
