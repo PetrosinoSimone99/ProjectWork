@@ -13,11 +13,14 @@
  * - A `PENDING` agreement without my proposal cannot be classified: it is
  *   dropped instead of guessed into a list.
  * - `ACCEPTED` stays `inProgress` while its sheet has no end date or an end
- *   date still in the future; an end date not after `now`, `REFUSED`, `VOID`
- *   and `CONTESTED` are `concluded` (a missing sheet never hides an accepted
- *   exchange from "in progress"). `CONTESTED` is the staff-side dispute: the
- *   backend enum carries it, so it is closed history rather than a row that
- *   silently disappears.
+ *   date still in the future; an end date not after `now`, `REFUSED`, `VOID`,
+ *   `CANCELLED`, `COMPLETED` and `CONTESTED` are `concluded` (a missing sheet
+ *   never hides an accepted exchange from "in progress"). `CONTESTED` is the
+ *   staff-side dispute: the backend enum carries it, so it is closed history
+ *   rather than a row that silently disappears. `CANCELLED` is what the
+ *   backend writes when someone cancels an accepted exchange (it replaced
+ *   `VOID`, which legacy rows still carry) and `COMPLETED` is written by the
+ *   backend's end-date scheduler once every delivery is complete.
  *
  * Every function copies: the returned arrays are new and the input is never
  * mutated. `now` is an optional parameter so the tests pin the clock; an
@@ -28,6 +31,16 @@
 function emptyBuckets() {
   return { toAnswer: [], sent: [], inProgress: [], concluded: [] };
 }
+
+/**
+ * Statuses that belong to the closed history, never dropped.
+ *
+ * `CONTESTED` is the staff-side dispute a member opens on a delivery.
+ * `CANCELLED` and `COMPLETED` are the backend's current spellings for the two
+ * ways an exchange ends: the first replaced `VOID`, which legacy rows keep, and
+ * the second is written by the backend's end-date scheduler.
+ */
+const STATI_CONCLUSI = new Set(['REFUSED', 'VOID', 'CANCELLED', 'COMPLETED', 'CONTESTED']);
 
 /** The viewer's own proposal of an agreement, `null` when it does not exist. */
 function myProposal(agreement, myUsername) {
@@ -77,9 +90,7 @@ function sectionOf(agreement, myUsername, referenceTime) {
     return scaduta ? 'concluded' : 'inProgress';
   }
 
-  // `CONTESTED` is a real backend status (the dispute a staff member opens on
-  // a delivery): it belongs to the closed history, never dropped.
-  if (stato === 'REFUSED' || stato === 'VOID' || stato === 'CONTESTED') {
+  if (STATI_CONCLUSI.has(stato)) {
     return 'concluded';
   }
 

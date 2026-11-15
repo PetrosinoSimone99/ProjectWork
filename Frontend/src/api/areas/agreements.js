@@ -97,7 +97,9 @@ export async function respondToAgreement(token, agreementId, accepted) {
 }
 
 /**
- * POST /cancel-agreement/{id} — an `ACCEPTED` exchange becomes `VOID`.
+ * POST /cancel-agreement/{id} — an `ACCEPTED` exchange becomes `CANCELLED`,
+ * the status that replaced the old `VOID` (rows created before the rename keep
+ * `VOID`, and both classify as closed history).
  * Answering `200` for an agreement that is not accepted leaves it unchanged
  * (the backend only acts on `ACCEPTED`), so the screen refreshes either way.
  */

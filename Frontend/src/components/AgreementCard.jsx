@@ -33,6 +33,11 @@ export function AgreementCard({ accordo, myUsername = null, onCancel = null, azi
     ACCEPTED: { label: 'Accettato', bg: t.successBg, color: t.successText },
     REFUSED: { label: 'Rifiutato', bg: t.dangerBg, color: t.dangerText },
     CONTESTED: { label: 'Contestato', bg: t.dangerBg, color: t.dangerText },
+    // `CANCELLED` is the backend's current spelling for an annulled exchange
+    // (it replaced `VOID`, which rows created before the rename still carry);
+    // `COMPLETED` is written by the backend's end-date scheduler.
+    CANCELLED: { label: 'Annullato', bg: t.background, color: t.textSecondary },
+    COMPLETED: { label: 'Completato', bg: t.successBg, color: t.successText },
     VOID: { label: 'Annullato', bg: t.background, color: t.textSecondary },
   };
   const stato = STATI[accordo.stato] ?? {

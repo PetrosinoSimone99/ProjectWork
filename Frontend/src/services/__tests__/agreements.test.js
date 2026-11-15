@@ -121,6 +121,24 @@ describe('classifyAgreements', () => {
     expect(result.concluded).toEqual(input);
   });
 
+  it('moves a cancelled agreement to concluded instead of dropping it', () => {
+    const input = [agreement({ stato: 'CANCELLED' })];
+
+    const result = classifyAgreements(input, ME, NOW);
+
+    expect(result.concluded).toEqual(input);
+    expect(result.inProgress).toEqual([]);
+  });
+
+  it('moves a completed agreement to concluded instead of dropping it', () => {
+    const input = [acceptedAgreement(FUTURE_END), agreement({ stato: 'COMPLETED' })];
+
+    const result = classifyAgreements(input, ME, NOW);
+
+    expect(result.concluded).toEqual([input[1]]);
+    expect(result.inProgress).toEqual([input[0]]);
+  });
+
   it('moves a contested agreement to concluded instead of dropping it', () => {
     const input = [agreement({ stato: 'CONTESTED' })];
 
