@@ -15,10 +15,13 @@ migrations, no `DROP`, **zero `INSERT`s**, 15 tables — `users`, `services`,
 `staff_operation_logs`.
 
 Because it carries no rows, the local stack mounts a seed right after it:
-`Backend/docker/seed-demo.sql` adds 50 categories, 30 users (password `demo`),
-300 services and their category links, copied verbatim from the archived demo
-dump `Archive/DB_mid_November/barattolo_demo_20261108.sql`. Agreements, chats,
-notifications and queues start empty on purpose. The generator
+`Backend/docker/seed-demo.sql`. That seed is **what the app writes**, not a
+copied dump: six accounts (password `demo1234`), one offer and one request each,
+an OPEN `REQUEST` queue for the account that spent its credit, plus the 50
+categories of the shared catalog. It was produced by registering those accounts
+from the web build and dumping the resulting database (2026-11-16), and the
+stack rebuilds from it to the same rows. Agreements, chats and notifications
+start empty on purpose: the app creates them through the API. The generator
 `Backend/tools/create-demo-database.php` cannot do this job: it targets the
 previous schema and filename (`docs/backend-gaps.md`).
 
@@ -60,16 +63,15 @@ and survive only in the v3.1 file, which is no longer imported.
 
 - **No region or province.** Location is free text everywhere: `users.location`
   and `services.location` are `varchar(255)`, `service_queues.location` is
-  `varchar(100)`. The app composes `"Provincia (Regione)"` client-side
-  (`Frontend/src/services/italian-regions.js`) and the database stores it as one
-  string, collated `utf8mb4_general_ci`. There is no lookup table and no
-  endpoint for administrative areas, so a region-only filter works in the
-  catalog (a `LIKE`) but a queue match needs the **identical** string. Upstream
-  `7408f52` adds `Context_and_DB_V2/province-comuni.json` (province → comuni,
-  read by nothing in `Backend/`): a comune level now exists as reference data,
-  and joining it with `italian-regions.js` would change the stored string — a
-  product decision first, because the queue match needs one identical string on
-  both sides.
+  `varchar(100)`. The app composes `"Comune - Provincia"` client-side
+  (`Frontend/src/services/italian-locations.js`) and the database stores it as
+  one string, collated `utf8mb4_general_ci`. There is no lookup table and no
+  endpoint for administrative areas: the app carries a verbatim copy of
+  `Context_and_DB_V2/province-comuni.json` (110 provinces, 7.894 comuni, nothing
+  in `Backend/` reads it) as `Frontend/src/services/data/province-comuni.json`.
+  A province-only filter works in the catalog (a `LIKE` matches `… - Milano`),
+  but a queue match needs the **identical** string on both sides, which is why
+  one module owns composing and parsing it.
 - **No swipe or chain tables.** The product is pairwise.
 - **`credits` is live now.** A `REQUEST` queue costs one credit
   (`POST /create-service-queue` answers `400` at zero); cancelling a queue with

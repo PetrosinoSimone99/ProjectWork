@@ -6,6 +6,89 @@ documents/code touched.
 
 ---
 
+## 2026-11-16 (later) — A location is Comune - Provincia, the credits verified, the registration fixed
+
+Class **L**, 28 files (5 new, 1 deleted), contract and plan in
+[`briefs/location-comune/`](briefs/location-comune/). Branch `andrea-frontend`,
+clean tree at start, `HEAD == origin/andrea-frontend`, 0 behind `origin/main`.
+
+### What changed
+
+1. **Regione is gone from the frontend.** Every picker descends Provincia →
+   Comune and the composed string is `Comune - Provincia` (`Roma - Roma`),
+   decision **D024**. `italian-locations.js` owns compose, parse and display;
+   `italian-regions.js` is deleted. The dataset is a verbatim copy of upstream
+   `Context_and_DB_V2/province-comuni.json` (110 provinces, 7.894 comuni) at
+   `Frontend/src/services/data/province-comuni.json`; the parser splits on the
+   last separator (one comune is named `Tripi - Abakainon`), accepts a comune
+   only in its own province, and refuses the old `Milano (Lombardia)` shape —
+   `localitaPerDisplay` shows it verbatim and edit-profile asks for a re-pick.
+2. **The registration no longer leaves the user on the form.** `signUp` created
+   the session but nothing moved the URL off `/register`: the root Stack swaps
+   `(auth)` for `(tabs)` and on the web that does not navigate, so the form
+   stayed on screen with the home's web menu drawn over it. `register.jsx` now
+   navigates itself, the same single-owner rule `login.jsx` already documented.
+   **Login never had the bug** — it always navigated.
+3. **Credits verified against what the backend implements**, and one sentence
+   fixed. The four movements are −1 on a `REQUEST` queue, +1 when such a queue
+   is cancelled with no agreement, +1 when a queue-born agreement is cancelled,
+   +1 when the scheduler completes one; a new account starts at 1. The app
+   states the cost, refuses to create a queue without exactly one service of
+   the type, maps `Not enough credits`, and shows no balance because no route
+   exposes one (`G15`). The one wrong copy: the cancel flow did not mention the
+   refund — the confirm modal and the outcome banner now do, and only for a
+   `REQUEST` queue with no agreement (the list never carries `CLOSED` rows, so
+   the sentence is always true).
+4. **The demo seed is now what the app writes.** The volume was rebuilt on the
+   reference schema with only the category catalog, six accounts were registered
+   from the web build (Playwright, real form, real payloads) picking Provincia
+   and Comune, a `REQUEST` queue was created from the match tab, and the
+   database was dumped back into `Backend/docker/seed-demo.sql`. Measured before
+   and after the rebuild from that file: 50 categories, 6 users, 12 services,
+   12 `service_categories`, 1 OPEN queue, identical rows, 0 locations outside
+   `% - %`, credits 0/1 as designed. Accounts: `giulia.bianchi` (Roma, 0, one
+   queue), `marco.ricci`, `sara.mancini`, `davide.costa`, `chiara.marino`,
+   `luca.ferrari` (1 each), password `demo1234`.
+
+What the run measured in the app, not in the code: registration lands on `/`
+with the form gone; the profile shows `Località: Milano - Milano`; edit-profile
+pre-fills Provincia/Comune from the stored string; the home lists the other
+accounts' offers as `Firenze - Firenze`, `Napoli - Napoli`, …; filtering by the
+province alone (`Roma`) returns 1 of 5; the match tab creates a `REQUEST` queue
+and its cancel dialog says the credit comes back.
+
+One plan step was impossible by design, not by defect: the product rule allows
+**one offer and one request per person**, so no account gets a second entry. The
+run exposed **no frontend defect**: every insert landed in the shape the client
+composes.
+
+### Touched
+
+Code: `Frontend/src/services/italian-locations.js` (new),
+`Frontend/src/services/data/province-comuni.json` (new, copy),
+`Frontend/src/services/italian-regions.js` (deleted), `offer-request.js`,
+`api/areas/services.js`, `hooks/useServiceCatalog.js`, `app/(auth)/register.jsx`,
+`app/edit-profile.jsx`, `app/(tabs)/offer-and-request.jsx`,
+`app/(tabs)/index.jsx`, `app/(tabs)/profile.jsx`, `app/(tabs)/match.jsx`,
+`components/EntryForm.jsx`, `EntryCard.jsx`, `FilterBar.jsx`,
+`DeletedServicesSection.jsx`, `QueueCard.jsx`, `ServiceCard.jsx`,
+`ServiceDetailModal.jsx`, `ModalShell.jsx` (comment only); tests
+`services/__tests__/italian-locations.test.js` (new),
+`services/__tests__/offer-request-location.test.js` (new); `Frontend/package.json`
+(coverage entry).
+
+Docker exception: `Backend/docker/seed-demo.sql` regenerated from the app's own
+writes — the backend maintainer is notified here, as `AGENTS.md` requires.
+
+Docs: `api.md` (format + the credits table), `database.md`, `setup.md`,
+`backend-gaps.md` (G11), `decisions.md` (D024), `ui-triage.md` (demo accounts),
+this entry, plus `briefs/location-comune/plan-brief.md` and `plan.md`.
+
+Gate after every commit: `expo lint` 0, `tsc --noEmit` 0, `jest` 17 suites /
+220 tests green.
+
+---
+
 ## 2026-11-16 — Synced with main: one reference file in, three fixes stated
 
 Session start ran the mandatory `git fetch origin` and the comparison against

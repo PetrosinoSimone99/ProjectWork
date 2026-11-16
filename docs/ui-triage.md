@@ -85,7 +85,9 @@ nothing.
 
 The app always talks to the real backend. The Docker stack is up
 (`backend-backend-1` on :8000, `backend-database-1` healthy), so a sweep runs
-against seeded data: 30 demo users, password `demo`, e.g. `mario.rossi`.
+against seeded data: six demo users, password `demo1234`, e.g. `marco.ricci`,
+one per city (`giulia.bianchi` Roma, `marco.ricci` Milano, `sara.mancini`
+Torino, `davide.costa` Bologna, `chiara.marino` Napoli, `luca.ferrari` Firenze).
 
 Consequence for any agent reading `AGENTS.md` first: its premise is false, and
 reasoning that starts from "check both data modes" is wrong from the first step.

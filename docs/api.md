@@ -315,9 +315,9 @@ lookup), and it never displays a balance, because inventing one would be a
 number the backend does not confirm.
 
 A dry verification of the whole cycle, with an account that has exactly one offer
-and one request (`coda.demo` / `demo`, in the seed): `create REQUEST` → `201` and
-the credit goes from 1 to 0; `get-queues` → the row; `cancel-queue/{id}` → `200`
-and the credit returns to 1; `get-queues` again → `404`.
+and one request (`luca.ferrari` / `demo1234`, in the seed): `create REQUEST` →
+`201` and the credit goes from 1 to 0; `get-queues` → the row; `cancel-queue/{id}`
+→ `200` and the credit returns to 1; `get-queues` again → `404`.
 
 ## Another user's services
 

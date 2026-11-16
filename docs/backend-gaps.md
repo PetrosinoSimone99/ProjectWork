@@ -141,12 +141,15 @@ separately, and `NotificationService::notify` flushes the whole unit of work
 
 `ServiceQueueRepository::getRelevantQueues` filters with `'location' => $location`
 (`Backend/src/Repository/ServiceQueueRepository.php:29`). The app composes
-`"Milano (Lombardia)"` and the column stores free text, so a queue created from
-the app never matches one seeded or typed by hand (`"Milano"`). The column is
-also `varchar(100)` against `varchar(255)` on `users` and `services`
+`"Comune - Provincia"` (`Frontend/src/services/italian-locations.js`,
+e.g. `Milano - Milano`) and the column stores free text, so a queue created from
+the app only matches another one composed by the app: a queue seeded or typed by
+hand as `"Milano"` never meets it. The column is also `varchar(100)` against
+`varchar(255)` on `users` and `services`
 (`Context_and_DB_V2/barattolo_15112026.sql:193`). Requested: the same width as
 the others and either a normalised comparison or a documented contract that the
-string is exactly the client's composed one.
+string is exactly the client's composed one — the second half now exists
+(`docs/api.md`, service queues).
 
 ## G12 — Nothing consumes the scheduler, so `COMPLETED` is never written
 

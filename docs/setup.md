@@ -27,29 +27,32 @@ First boot on an empty data volume imports the schema named by
 `Context_and_DB_V2/LAST_DB_TO_USE.txt` — today `barattolo_15112026.sql`: the
 **15-table** schema of the current backend (agreements, chat, notifications,
 service queues, messenger included). That dump is **structure only**, so the
-demo rows come from `Backend/docker/seed-demo.sql`, mounted right after it:
-50 categories, 30 generated users (every password `demo`, `credits` included) and
-300 services, copied verbatim from the archived demo dump
-`Archive/DB_mid_November/barattolo_demo_20261108.sql`, plus **one account added by
-the second cycle** (below). Agreements, notifications and queues start empty on
-purpose: their archived schema differs and the app is meant to create them
-through the API.
+demo rows come from `Backend/docker/seed-demo.sql`, mounted right after it.
+Those rows are **what the app writes**: six accounts (every password `demo1234`,
+the shortest the registration form accepts) registered from the web build by
+picking Provincia then Comune, one offer and one request each, the 50 categories
+of the shared catalog, and one OPEN `REQUEST` queue created from the match tab.
+Agreements, notifications and the rest start empty on purpose: the app is meant
+to create them through the API. The file was produced by dumping the database
+those registrations produced, so the seed and the app cannot drift.
 
-### The queue demo account (`coda.demo` / `demo`)
+### The queue demo account (`giulia.bianchi` / `demo1234`)
 
 `POST /api/create-service-queue` resolves the account's service with
 `getOneOrNullResult()`, so it only works for an account with **exactly one**
-service of the requested type (`docs/backend-gaps.md` G19). Every generated demo
-user has four to seven services per type, so none of them can create a queue.
-The seed therefore ends with one more user — `coda.demo`, password `demo`, Roma,
-**one offer, one request, one credit** — which is the account to log in with when
-testing the `match` tab. The volume therefore ends with **31 users and 302
-services** (the 30 generated plus this one):
+service of the requested type (`docs/backend-gaps.md` G19). The product rule
+gives every account exactly one offer and one request, so every seeded account
+qualifies; `giulia.bianchi` is the one the seed already carries a queue for, and
+it sits at **zero credits** because that queue spent the one a new account
+starts with. The six accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
+request queue), `marco.ricci` (Milano), `sara.mancini` (Torino), `davide.costa`
+(Bologna), `chiara.marino` (Napoli) and `luca.ferrari` (Firenze), the last five
+at one credit each:
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"coda.demo","password":"demo"}' | jq -r .token)
+  -d '{"username":"luca.ferrari","password":"demo1234"}' | jq -r .token)
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8000/api/create-service-queue \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"queueType":"REQUEST"}'          # 201, and the credit goes 1 -> 0
