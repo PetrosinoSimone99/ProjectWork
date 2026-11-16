@@ -30,14 +30,18 @@ export function MessageComposer({ onInvia, inviando = false, disabilitato = fals
     setErrore(null);
   };
 
-  const invia = () => {
+  const invia = async () => {
     if (nonParte) return;
     if (pulito.length > LIMITE_TESTO) {
       setErrore(ERRORE_TESTO_LUNGO);
       return;
     }
-    onInvia(pulito);
-    setTesto('');
+    // The draft is cleared only when the send went through: a caller that
+    // answers `false` (a failed POST) keeps the text the person typed.
+    const esito = await onInvia(pulito);
+    if (esito !== false) {
+      setTesto('');
+    }
   };
 
   return (

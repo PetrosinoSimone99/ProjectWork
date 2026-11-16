@@ -59,8 +59,10 @@ mai un riassunto inline):
   `Frontend/src/components/__tests__/MessageBubble.test.js`
 - `composer` — blocco 4 · files: `Frontend/src/components/MessageComposer.jsx`,
   `Frontend/src/components/__tests__/MessageComposer.test.js`
-- `card` — blocco 5 · files: `Frontend/src/components/AgreementCard.jsx`
-- `tab-accordi` — blocco 6 · files: `Frontend/src/app/(tabs)/agreements.jsx`
+- `card+tab` — blocchi 5 e 6 · files: `Frontend/src/components/AgreementCard.jsx`,
+  `Frontend/src/app/(tabs)/agreements.jsx` — uniti in una lane sola: la prop
+  `onApriChat` attraversa i due file, quindi un solo proprietario evita che due
+  figli si aspettino a vicenda su `tsc`
 
 Ondata 2 (dopo il commit della prima e dopo i blocchi 7-8 del padre):
 

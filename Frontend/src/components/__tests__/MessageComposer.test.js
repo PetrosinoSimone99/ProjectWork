@@ -33,7 +33,7 @@ function scrivi(renderer, testo) {
  * the handler runs directly, so the assertions below test the component's own
  * guard — the announced `disabled` state covers the platform refusing the tap.
  */
-function premiInvia(renderer) {
+async function premiInvia(renderer) {
   const pulsante = renderer.root
     .findAll(
       (node) =>
@@ -43,8 +43,10 @@ function premiInvia(renderer) {
     )
     .at(0);
   expect(pulsante).toBeDefined();
-  act(() => {
-    pulsante.props.onPress();
+  // `onPress` is `async` since the draft survives a failed send: awaiting it
+  // inside `act` lets the clear (or the keep) land before the assertions.
+  await act(async () => {
+    await pulsante.props.onPress();
   });
 }
 
@@ -77,22 +79,22 @@ describe('MessageComposer — the draft field', () => {
     expect(props.editable).toBe(true);
   });
 
-  it('never sends an empty or whitespace-only draft', () => {
+  it('never sends an empty or whitespace-only draft', async () => {
     const onInvia = jest.fn();
     const renderer = render(onInvia);
 
     expect(statoInvia(renderer)).toEqual({ disabled: true, busy: false });
-    premiInvia(renderer);
+    await premiInvia(renderer);
     expect(onInvia).not.toHaveBeenCalled();
 
     scrivi(renderer, '   ');
     expect(statoInvia(renderer)).toEqual({ disabled: true, busy: false });
-    premiInvia(renderer);
+    await premiInvia(renderer);
     expect(onInvia).not.toHaveBeenCalled();
     expect(campo(renderer).props.value).toBe('   ');
   });
 
-  it('sends the trimmed draft and empties the field', () => {
+  it('sends the trimmed draft and empties the field', async () => {
     const onInvia = jest.fn();
     const renderer = render(onInvia);
 
@@ -100,7 +102,7 @@ describe('MessageComposer — the draft field', () => {
     expect(testoVisibile(renderer, '16/1000')).toBe(true);
     expect(statoInvia(renderer)).toEqual({ disabled: false, busy: false });
 
-    premiInvia(renderer);
+    await premiInvia(renderer);
 
     expect(onInvia).toHaveBeenCalledTimes(1);
     expect(onInvia).toHaveBeenCalledWith('Ciao baratto');
@@ -108,7 +110,7 @@ describe('MessageComposer — the draft field', () => {
     expect(testoVisibile(renderer, '0/1000')).toBe(true);
   });
 
-  it('locks into loading while a send is in flight', () => {
+  it('locks into loading while a send is in flight', async () => {
     const onInvia = jest.fn();
     const renderer = render(onInvia, { inviando: true });
 
@@ -119,11 +121,11 @@ describe('MessageComposer — the draft field', () => {
     // The pill shows the spinner, not its label.
     expect(testoVisibile(renderer, 'Invia')).toBe(false);
 
-    premiInvia(renderer);
+    await premiInvia(renderer);
     expect(onInvia).not.toHaveBeenCalled();
   });
 
-  it('does nothing while the composer is disabled', () => {
+  it('does nothing while the composer is disabled', async () => {
     const onInvia = jest.fn();
     const renderer = render(onInvia, { disabilitato: true });
 
@@ -132,22 +134,34 @@ describe('MessageComposer — the draft field', () => {
     expect(campo(renderer).props.editable).toBe(false);
     expect(statoInvia(renderer)).toEqual({ disabled: true, busy: false });
 
-    premiInvia(renderer);
+    await premiInvia(renderer);
     expect(onInvia).not.toHaveBeenCalled();
     expect(campo(renderer).props.value).toBe('Ciao');
   });
 
-  it('refuses a draft over the cap before the call', () => {
+  it('refuses a draft over the cap before the call', async () => {
     const onInvia = jest.fn();
     const renderer = render(onInvia);
     const lungo = 'a'.repeat(1001);
 
     scrivi(renderer, lungo);
-    premiInvia(renderer);
+    await premiInvia(renderer);
 
     expect(onInvia).not.toHaveBeenCalled();
     expect(testoVisibile(renderer, FRASE_TROPPO_LUNGO)).toBe(true);
     // The refusal keeps the draft: nothing typed is lost.
     expect(campo(renderer).props.value).toBe(lungo);
+  });
+
+  it('keeps the draft when the send answers false', async () => {
+    const onInvia = jest.fn().mockResolvedValue(false);
+    const renderer = render(onInvia);
+
+    scrivi(renderer, 'Ciao baratto');
+    await premiInvia(renderer);
+
+    expect(onInvia).toHaveBeenCalledWith('Ciao baratto');
+    // Nothing typed is lost: a rejected POST is not a reason to empty the field.
+    expect(campo(renderer).props.value).toBe('Ciao baratto');
   });
 });
