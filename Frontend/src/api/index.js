@@ -61,6 +61,12 @@ export {
   sendAgreementSheet,
   sendExchangeProposal,
 } from './areas/agreements';
+export {
+  getAgreementChat,
+  getMostRecentMessageId,
+  getNewChatMessages,
+  sendChatMessage,
+} from './areas/chat';
 
 // ---------------------------------------------------------------------------
 // Access — login and registration
