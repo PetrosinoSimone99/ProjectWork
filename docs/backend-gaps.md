@@ -248,9 +248,10 @@ more throw
 (`More than one result was found for query although one row or none was
 expected`). Worse, a `REQUEST` queue spends the credit **before** the lookup
 (`ServiceQueueManager.php:69-81`), so a failing creation can cost a credit
-without producing a queue. Every generated demo account has several services per
-type, so **no seeded user could create a queue** until the cycle's
-`coda.demo` account (exactly one offer, one request) was added to the seed. The
+without producing a queue. The seed the app now produces gives **every** account
+exactly one offer and one request, so every seeded account can create either
+queue (before 2026-11-16 the generated demo users carried several services per
+type, and only one added account could). The
 app gates on "exactly one" and says why rather than calling
 (`Frontend/src/app/(tabs)/match.jsx`). Requested: pick one service deliberately
 and deduct the credit only after the queue is persisted.

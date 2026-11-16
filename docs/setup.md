@@ -90,7 +90,8 @@ curl http://localhost:8000/api/categories    # 200 {"categories":[...]} — GET 
 ```
 
 Reset from scratch: `docker compose down -v`, then up again (re-imports the
-schema and the demo seed on the empty volume — 31 demo users, password `demo`).
+schema and the demo seed on the empty volume — six demo users, password
+`demo1234`, listed above).
 
 **Measured latency (2026-11-15, after `down -v` + up):** the first call after a
 start reached **7.8 s**, warm calls 2.0–2.6 s, and the client's timeout is 10 s. A

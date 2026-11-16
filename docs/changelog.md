@@ -62,6 +62,41 @@ One plan step was impossible by design, not by defect: the product rule allows
 run exposed **no frontend defect**: every insert landed in the shape the client
 composes.
 
+### Review round: two fresh-context reviews, five fixes, one P1
+
+Two reviewers read the tree (correctness; data and security) and returned
+`MERGE` and `MERGE WITH FIXES`. The one real defect the cycle had shipped:
+
+- **P1 — the province filter was a substring match.** The backend runs
+  `LOWER(service.location) LIKE '%…%'`, so sending the bare province name found
+  comuni in other provinces: `Torino` matched `Torino di Sangro - Chieti`,
+  `Roma` matched `Romano di Lombardia - Bergamo`, `Bari` matched
+  `Bariano - Bergamo`. The app now sends `" - Provincia"`
+  (`formattaProvinciaPerFiltro`), so the match anchors on the province half;
+  both test files pin the collisions. Documented in `api.md` next to the
+  exact-equality rule the queue match uses: the two comparisons are opposite
+  kinds of match and now say so.
+- **A ghost filter.** A comune chosen between a province change and its response
+  was counted as one active filter while `filtriDaQuery` dropped it (the empty
+  state read «Prova a toglierne uno: .»). `useServiceCatalog.cambiaScelta`
+  ignores a comune when the applied province is empty.
+- **Dead payload helpers with the wrong key.** `aPayloadApi`,
+  `aPayloadPubblicazione` and `aPayloadAggiornamento` had no callers and emitted
+  `localita` where the backend accepts only `location`: deleted.
+- **A seed that cannot be half-imported.** `START TRANSACTION` / `COMMIT` around
+  the rows.
+- **Stale references to the old seed** in `Backend/compose.yaml` (Docker
+  exception, reported here), `docs/setup.md`, `docs/backend-gaps.md` (G19),
+  `docs/database.md`, and the Playwright harness of the previous cycle, which
+  still logged in as `coda.demo` / `demo`.
+
+Accepted as documented, not fixed: **editing an entry whose location predates the
+format writes `NULL` over it** (`api.md`, next to the PATCH table) — the decision
+of 2026-10-13 stands and the current seed has no such row; **MySQL is still
+published on `0.0.0.0:3306` with `root`/`root`**, older than this diff and the
+Docker owner's call; the six bcrypt hashes in the seed stay, bounded by a
+read-only dev-only mount.
+
 ### Touched
 
 Code: `Frontend/src/services/italian-locations.js` (new),
@@ -85,7 +120,7 @@ Docs: `api.md` (format + the credits table), `database.md`, `setup.md`,
 this entry, plus `briefs/location-comune/plan-brief.md` and `plan.md`.
 
 Gate after every commit: `expo lint` 0, `tsc --noEmit` 0, `jest` 17 suites /
-220 tests green.
+224 tests green.
 
 ---
 

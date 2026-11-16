@@ -110,6 +110,14 @@ value is a `400`, not a silently different result.
 Suspending is the `isSuspended` flag through `PATCH`: a suspended service stays
 in the owner's list but disappears from the home.
 
+**A `PATCH` always carries `location`,** and `null` there clears the column
+(`OfferController:71-73`). The edit form composes the value from the province and
+comune it shows, so editing an entry whose stored location predates the
+`Comune - Provincia` format — `Milano (Lombardia)`, a bare `Roma` — sends `null`
+and the old value is lost on the first save. Accepted on 2026-10-13 with the
+decision that a deploy database starts fresh (`services/offer-request.js`), and
+unreachable on the current seed, where every row is in the new format.
+
 Known conflict: `409` when the service is already used by a proposal or an
 exchange; the message is shown as it is.
 
@@ -268,12 +276,18 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 Matching compares `location` with **exact equality**, so the app must always
 send the same composed string it uses everywhere else: `Comune - Provincia`
 (`Frontend/src/services/italian-locations.js`, e.g. `Milano - Milano`,
-`Sesto San Giovanni - Milano`). `Context_and_DB_V2/province-comuni.json`
+`Sesto San Giovanni - Milano`). The **catalogue** filter is the opposite kind of
+match: the backend runs `LOWER(service.location) LIKE '%…%'`, so the app sends the
+composed string when a comune is chosen and `" - " + provincia` when only the
+province is (`formattaProvinciaPerFiltro`). The leading separator anchors the
+match to the province half; without it `Torino` also found
+`Torino di Sangro - Chieti` and `Roma` found `Romano di Lombardia - Bergamo`.
+`Context_and_DB_V2/province-comuni.json`
 (upstream `7408f52`, province → comuni, 110 provinces and 7.894 comuni) is the
 dataset the picker reads from; no endpoint serves it and no `Backend/` code
 reads it, so the app carries a verbatim copy
-(`Frontend/src/services/data/province-comuni.json`) and the upstream file stays
-read-only.
+(`Frontend/src/services/data/province-comuni.json`, `sha256` equal to the
+upstream file) and the upstream file stays read-only.
 
 The queue surface is the `match` tab (`Frontend/src/app/(tabs)/match.jsx`, second
 cycle). Four facts decide how a client must talk to these routes:

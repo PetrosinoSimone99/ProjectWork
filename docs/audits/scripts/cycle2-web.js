@@ -13,8 +13,8 @@ const path = require('path');
 
 const BASE = 'http://localhost:8083';
 const API = 'http://localhost:8000/api';
-const USERNAME = 'coda.demo';
-const PASSWORD = 'demo';
+const USERNAME = 'giulia.bianchi';
+const PASSWORD = 'demo1234';
 const OUT = path.join(__dirname, '..', 'screens-2026-11-15-cycle2');
 
 const results = [];

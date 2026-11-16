@@ -33,8 +33,8 @@ previous schema and filename (`docs/backend-gaps.md`).
 | `Archive/API_docs_Prima_della_verifica_stronati/` | The chain/token API documentation, same reason |
 
 Nothing under `Archive/` describes the current product, with one exception the
-seed depends on: the November demo dump's column order still matches the four
-tables carried over. Reading the rest of `Archive/` to decide how to build
+seed still depends on: the November demo dump keeps the column order the
+reference schema uses. Reading the rest of `Archive/` to decide how to build
 something is how the team ends up implementing a feature that no longer exists.
 
 ## Table map (15 tables)
