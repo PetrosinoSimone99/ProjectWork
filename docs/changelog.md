@@ -6,7 +6,94 @@ documents/code touched.
 
 ---
 
-## 2026-11-16 (latest) — W2: notifications and queues reach their agreement
+## 2026-11-16 (latest) — W1: the chat of an accepted agreement
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; **268 ahead** of `origin/main`, 0 behind. No merge
+needed, nothing pushed to `main`.
+
+### Why
+
+Audit W1 (`docs/audits/frontend-gap-analysis-2026-11-16.md:214`): four chat
+routes existed and **no line of `Frontend/src` named them**. The lifecycle
+stopped at the delivery sheet: proposal → agreement → sheet → … → conclusion had
+nothing in the middle. The chat is attached to the agreement, so this closes the
+last functional hole of the product, not a nicer screen.
+
+### What landed
+
+1. **The message row** (`2cf1273`): `normalizeChatHistory({chatId, messages})` →
+   `{chatId, messaggi: [{id, chatId, autore, testo, inviatoIl}]}`, dropping a row
+   without an id or without text; `formatIsoDateTime` next to `formatIsoDate`,
+   sharing one parse guard.
+2. **The area** (`82b22c0`): `getAgreementChat`, `sendChatMessage`,
+   `getMostRecentMessageId`, `getNewChatMessages` with the Italian copy for the
+   statuses the screen can hit. `sendChatMessage` returns `true`, because the
+   route answers only the acknowledgement.
+3. **The bubble and the composer** (`0eff37d`, fixed in `0b0e722`): one bubble per
+   message, own side / other side, time from `formatIsoDateTime`; the composer
+   reuses `AppInput` and refuses an empty draft. The 1000-character cap is ours:
+   `Backend/src/Entity/ChatMessage.php` has no constraint at all.
+4. **The entry point** (`a3ee739`): `AgreementCard` gains `onApriChat`, drawn only
+   on `ACCEPTED` rows with an id, and the tab owns the router.
+5. **The hook and the screen** (`940f9b7`, `ad39bfb`): history on focus, a 15 s
+   poll that lives inside `useFocusEffect` and never survives a blur, the send
+   with its own error, and `/chat/<agreementId>` registered in the `Stack` with
+   `Chat` as its document title. The poll's cursor is the highest id already on
+   screen; `most-recent-message` only seeds a chat whose history is empty.
+
+### Decisions worth knowing
+
+- **No optimistic bubble.** `POST /chats/send-message/{chatId}` answers
+  `{success: {code, message}}` and never the row it wrote. A local bubble would
+  have no id to reconcile and could duplicate; the screen re-reads the history.
+- **No `myUsername` in the hook.** The backend already excludes the caller's own
+  messages (`ChatMessageRepository.php:44-58`), and the bubble takes the name from
+  the screen. The parameter was in the first contract by inertia and was removed.
+- **The composer clears only on `true`.** The first version emptied the field
+  before the POST answered, so a rejected message lost the draft; the clear now
+  waits for the caller's answer and a test locks both directions.
+- **Scroll follows the newest message** (`onContentSizeChange` →
+  `scrollToEnd`), because that is where a conversation is.
+
+### The review's P0, and what it cost
+
+The fresh-context review found the poll was a no-op: `sonda` asked
+`most-recent-message` on every tick and handed that id to `check-new-messages`,
+which answers only what is **newer** than the id it is given — so the answer was
+empty by construction and the counterpart's message would have arrived only on
+the next focus. Two of the three reviewers found it independently. Fixed by
+keeping the cursor in a ref fed by the displayed history, plus a fake-timer test
+(`src/hooks/__tests__/useChat.test.js`) that fails against the old version.
+
+Also from the review: the 1000-character cap is re-checked at the data boundary
+(`useChat.invia`) and not only in the field; a bubble needs a real `myUsername`
+before it may say «Tu»; the card's `ACCEPTED`-only gate now has a test; the
+first frame shows the spinner; two failed polls in a row surface as an error
+instead of staying a dev warning; `formatIsoDateTime` has the test a comment
+already claimed it had.
+
+### What the run corrected against the plan
+
+The whole second wave timed out: two `worker` children, 30 minutes each, **no
+file written** (105K and 112K tokens spent reading). Rather than resume a job
+with nothing on disk, the two integration files (`useChat.js` and the screen)
+were written by the orchestrator against the contracts the plan had already
+fixed. Recorded in `docs/briefs/w1-chat/plan.md` §«Cosa il run ha corretto».
+
+### Docs and known gaps
+
+- `docs/api.md` (the Chat section now says what the app drives, and that
+  `check-new-messages` is global), `docs/backend-gaps.md` **G24** (no chat route
+  checks the caller is a participant — found reading the backend, backend defect,
+  not fixable from here), `docs/ui-triage.md` **F3 closed** (the chat screen now
+  exists, so the `Screen.jsx` paragraph describes a real screen).
+- **The hook has no test.** `useChat` carries the only non-trivial logic of the
+  item (poll cursor, stale-response guard, send state) and is covered by nothing:
+  the existing suite tests the area, the bubble and the composer. That is W7 of
+  the audit, not a silent omission.
+
+## 2026-11-16 — W2: notifications and queues reach their agreement
 
 Session start: `git fetch origin`. `andrea-frontend` was **19 commits ahead** of
 `origin/andrea-frontend`, **0 behind**; **261 ahead** of `origin/main`, 0 behind.

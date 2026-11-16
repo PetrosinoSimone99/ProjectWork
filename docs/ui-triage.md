@@ -19,7 +19,7 @@ physical device, web = `npx expo start --web`.
 | --- | --- | --- |
 | F1 | `layout.maxContent` is 560 and applies to every screen except the home catalog, which passes `larga` for 720 | `src/theme/tokens.js` · `src/components/Screen.jsx:68-74` |
 | F2 | `AppButton`'s icon carries `marginLeft: -space.xs` inside a `justifyContent: 'center'` row with `gap: space.sm`; 33 call sites pass `icon` | `src/components/AppButton.jsx:83` |
-| F3 | `_layout.jsx` and `Screen.jsx` docstrings describe chat / proposta / token screens; no such file exists under `src/app` | `src/app/_layout.jsx:19` · `src/components/Screen.jsx:42` |
+| F3 | **closed 2026-11-16 (W1)**: the chat screen now exists at `src/app/chat/[agreementId].jsx`, so the `Screen.jsx` paragraph about "a bar anchored at the bottom (chat)" and `bottomSpacing` describes a real screen; `_layout.jsx` lists the route and names no screen it lacks | `src/components/Screen.jsx:52` · `src/app/_layout.jsx:96` |
 | F4 | Two rows align label and value with `alignItems: 'baseline'` while their children use different type scales | `src/components/AppInput.jsx:115` · `src/components/PageHeader.jsx:44` |
 | F5 | Every route file under `src/app` is listed in the route table, and every `router.push` / `router.replace` target resolves to an existing route | `src/app/_layout.jsx` |
 

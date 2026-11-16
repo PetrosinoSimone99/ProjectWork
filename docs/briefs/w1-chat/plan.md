@@ -33,16 +33,16 @@ Voce sorgente: [`../../audits/frontend-gap-analysis-2026-11-16.md`](../../audits
 ## Blocchi
 
 - 0. Committa contratto e piano; nessun figlio parte prima | files: docs/briefs/w1-chat/plan-brief.md,docs/briefs/w1-chat/plan.md | done: `git log -1 --stat` mostra i due file, `git status --porcelain` vuoto | Stato: DONE
-- 1. Base condivisa (padre, prima delle lane): `normalizeChatHistory({chatId, messages})` -> `{chatId, messaggi: [{id, chatId, autore, testo, inviatoIl}]}` (ordine cronologico, righe senza id scartate) e `formatIsoDateTime` accanto a `formatIsoDate` | files: Frontend/src/api/normalizers.js,Frontend/src/services/dates.js | done: `node -e`/jest su `normalizeChatHistory` con payload DTO reale e `formatIsoDateTime('2026-11-16T14:03:22+00:00')` -> `16 nov, 15:03` in fuso locale, `npx jest` verde, commit | Stato: DONE
+- 1. Base condivisa (padre, prima delle lane): `normalizeChatHistory({chatId, messages})` -> `{chatId, messaggi: [{id, chatId, autore, testo, inviatoIl}]}` più `normalizeChatMessage`, che ne è la riga (ordine cronologico; righe senza id **o senza testo** scartate) e `formatIsoDateTime` accanto a `formatIsoDate` | files: Frontend/src/api/normalizers.js,Frontend/src/services/dates.js | done: `node -e`/jest su `normalizeChatHistory` con payload DTO reale e `formatIsoDateTime('2026-11-16T14:03:22+00:00')` -> `16 nov, 15:03` in fuso locale, `npx jest` verde, commit | Stato: DONE
 - 2. Lane 1 — area API chat: 4 chiamate (`getAgreementChat`, `sendChatMessage`, `getMostRecentMessageId`, `getNewChatMessages`) con la tabella di copy italiana per 400/401/404/500, corpo `{message}` e nessun `Number()` su id assenti | files: Frontend/src/api/areas/chat.js,Frontend/src/api/__tests__/chat.test.js | done: test dell'area verde sui 4 endpoint (URL, metodo, token, corpo, mapping 400/401/404/500 e riga malformata ignorata), nessun testo inglese del backend che arriva allo schermo | Stato: DONE
 - 3. Lane 2 — bolla messaggio: proprio vs controparte (lato, allineamento, token del tema), autore e ora leggibili, testo lungo che va a capo senza rompere la riga | files: Frontend/src/components/MessageBubble.jsx,Frontend/src/components/__tests__/MessageBubble.test.js | done: test che distingue il messaggio proprio da quello altrui e mostra l'ora; zero colori letterali nel file (`grep -n "#" ` vuoto) | Stato: DONE
 - 4. Lane 3 — composer: `TextInput` multilinea + bottone "Invia"; disabilitato se testo vuoto/di soli spazi o `inviando` o `chatId` assente; 1000 caratteri con rifiuto esplicito prima della chiamata | files: Frontend/src/components/MessageComposer.jsx,Frontend/src/components/__tests__/MessageComposer.test.js | done: test su vuoto (nessuna chiamata), troppo lungo (frase di rifiuto), invio riuscito (testo ripulito e svuotato), invio in corso (bottone in loading) | Stato: DONE
 - 5. Lane 4 — `AgreementCard`: azione "Apri chat" (icona `chatbubble-ellipses-outline`, `accessibilityLabel` "Apri la chat di questo scambio") solo su `ACCEPTED` + id intero + `onApriChat` presente; nessun router dentro la card | files: Frontend/src/components/AgreementCard.jsx | done: il blocco azioni non cambia sugli altri stati; `npx jest src/components/__tests__/AgreementSheet.test.js` verde e lint verde | Stato: DONE
 - 6. Lane 5 — `(tabs)/agreements.jsx` passa `onApriChat`: `router.push('/chat/' + accordo.id)` solo per le righe accettate | files: Frontend/src/app/(tabs)/agreements.jsx | done: lint + tsc verdi, la prop arriva solo sulle righe `ACCEPTED` | Stato: DONE
 - 7. Padre — export dell'area in `api/index.js` (dopo il blocco 2) | files: Frontend/src/api/index.js | done: i 4 nomi esportati, `npx tsc --noEmit` verde | Stato: DONE
-- 8. Padre — rotta e titolo: `<Stack.Screen name="chat/[agreementId]" />` con sessione attiva, e `screen-titles.js` che riconosce il prefisso `/chat/<id>` con il titolo `Chat` | files: Frontend/src/app/_layout.jsx,Frontend/src/navigation/screen-titles.js | done: `titoloDocumento('/chat/7')` -> `Chat · Baratto-lo`, `titoloDocumento('/chat')` invariato, tsc verde | Stato: TODO
-- 9. On data 2 — `useChat({token, agreementId, myUsername})`: storico su focus, polling 15 s su focus e **nessun** timer su blur, filtraggio per `chatId`, `invia(testo)` -> `Promise<boolean>` con rilettura dopo il 200, errori separati (`errore` di lettura, `erroreInvio` di scrittura) | files: Frontend/src/hooks/useChat.js | done: lint + tsc verdi, il timer vive dentro `useFocusEffect` e la sua cleanup lo spegne (`grep -n "setInterval" ` una sola occorrenza) | Stato: TODO
-- 10. On data 2 — schermata `/chat/[agreementId]`: `Screen` con `bottomSpacing` ridotto, header con la controparte, `FlatList` di `MessageBubble`, composer ancorato in fondo; quattro facce: prima lettura (`LoadingScreen`), vuoto (`EmptyState`, copy di decisione 3 del brief), errore (`Banner` + Riprova tenendo i messaggi già a schermo), invio fallito (`Banner` sopra il composer senza perdere il testo digitato) | files: Frontend/src/app/chat/[agreementId].jsx | done: lint + tsc verdi, i quattro stati esistono nel file e nessuno inventa un conteggio (`grep -n "length" ` non produce numeri inventati) | Stato: TODO
+- 8. Padre — rotta e titolo: `<Stack.Screen name="chat/[agreementId]" />` con sessione attiva, e `screen-titles.js` che riconosce il prefisso `/chat/<id>` con il titolo `Chat` | files: Frontend/src/app/_layout.jsx,Frontend/src/navigation/screen-titles.js | done: `titoloDocumento('/chat/7')` -> `Chat · Baratto-lo`, `titoloDocumento('/chat')` invariato, tsc verde | Stato: DONE
+- 9. On data 2 — `useChat({token, agreementId, myUsername})`: storico su focus, polling 15 s su focus e **nessun** timer su blur, filtraggio per `chatId`, `invia(testo)` -> `Promise<boolean>` con rilettura dopo il 200, errori separati (`errore` di lettura, `erroreInvio` di scrittura) | files: Frontend/src/hooks/useChat.js | done: lint + tsc verdi, il timer vive dentro `useFocusEffect` e la sua cleanup lo spegne (`grep -n "setInterval" ` una sola occorrenza) | Stato: DONE
+- 10. On data 2 — schermata `/chat/[agreementId]`: `Screen` con `bottomSpacing` ridotto, header con la controparte, `FlatList` di `MessageBubble`, composer ancorato in fondo; quattro facce: prima lettura (`LoadingScreen`), vuoto (`EmptyState`, copy approvata nel lock, domanda 3), errore (`Banner` + Riprova tenendo i messaggi già a schermo), invio fallito (`Banner` sopra il composer senza perdere il testo digitato) | files: Frontend/src/app/chat/[agreementId].jsx | done: lint + tsc verdi, i quattro stati esistono nel file e nessuno inventa un conteggio (`grep -n "length" ` non produce numeri inventati) | Stato: DONE
 - 11. Gate e review a contesto fresco (correttezza / sicurezza e dati / coerenza col brief), P0-P1-P2 con file:riga e verdict | files: — | done: lint + tsc + jest verdi sul commit corrente e la review riporta verdict `merge` senza P0 | Stato: TODO
 - 12. Documentazione nella stessa chiusura: `docs/api.md` (la sezione Chat dice cosa fa lo schermo), `docs/backend-gaps.md` (voce nuova: nessuna rotta di chat verifica il partecipante), `docs/ui-triage.md` F3 chiuso con il motivo, `docs/changelog.md` (sessione W1), voce W1 dell'audit a `Stato: chiuso` con ciò che il run ha corretto | files: docs/api.md,docs/backend-gaps.md,docs/ui-triage.md,docs/changelog.md,docs/audits/frontend-gap-analysis-2026-11-16.md | done: `grep -rn "no chat screen\|nessuna chat" docs/` non trova più la frase; F3 non è più aperto; G-voce nuova presente | Stato: TODO
 - 13. Push su `andrea-frontend` a chiusura, albero pulito e gate verde, mai su `main` | files: — | done: `git status --porcelain` vuoto, `git log origin/andrea-frontend..HEAD --oneline` vuoto dopo il push | Stato: TODO
@@ -91,3 +91,45 @@ Contratto stabile fra le ondate, così le lane non divergono:
   `getMostRecentMessageId(token)`, `getNewChatMessages(token, recentMessageId)`
 
 Nessun figlio committa (albero condiviso, file disgiunti, git al padre).
+
+## Review e fix (blocco 11)
+
+Review a tre angoli, verdict `fix-first`. Il **P0** trovato da due revisori su tre:
+`sonda` chiedeva `most-recent-message` a **ogni giro** e passava quell'id a
+`check-new-messages`, che filtra `id > :recentMessageId` — il cursore era per
+costruzione il massimo già ricevuto, quindi la sonda non poteva trovare nulla e
+il criterio «il messaggio della controparte arriva entro un giro di polling» era
+falso. Ora il cursore è il massimo id **già a schermo** (`cursoreRef`), avanzato
+con i risultati prima della rilettura, e `most-recent-message` serve solo a
+seminare una chat ancora vuota. Un test con fake timers lo fissa
+(`src/hooks/__tests__/useChat.test.js`): avrebbe fallito sull'implementazione
+precedente.
+
+Accettate anche: il tetto di 1000 ricontrollato al confine dati (`useChat.invia`,
+con le due costanti ora in `api/areas/chat.js`) e non solo nel campo; `mio` nella
+bolla richiede un `myUsername` vero, così un autore nullo non diventa «Tu»; un
+test sulla card per il gating `ACCEPTED` (decisione 7) che nessun test copriva;
+un test per `formatIsoDateTime` (il commento ne citava uno inesistente); lo
+spinner anche al primo frame, non solo a richiesta partita; due guasti di fila
+del polling arrivano a `errore` invece di restare solo un `console.warn`
+(`AGENTS.md`: mai inghiottire in silenzio).
+
+Rifiutata con motivo: il rifiuto «oltre 1000» nel composer era irraggiungibile
+(`maxLength` taglia prima) — tolto da lì, resta al confine. E l'url digitato su
+un accordo non `ACCEPTED` resta possibile: verificarlo richiede lo stato
+dell'accordo, che la chat non legge; sta in `docs/backend-gaps.md` G24.
+
+## Cosa il run ha corretto
+
+- **Le lane `card` e `tab-accordi` sono una lane sola**: `onApriChat` attraversa
+  i due file e due figli separati si sarebbero aspettati su `tsc`.
+- **L'ondata 2 è morta al timeout** (due `worker`, 30 minuti, nessun file
+  scritto): `useChat.js` e `chat/[agreementId].jsx` li ha scritti il padre sui
+  contratti già fissati qui sopra. Nessuna modifica presa da un albero mezzo
+  scritto, perché non c'era.
+- **`useChat` non prende `myUsername`**: il filtro dei propri messaggi lo fa già
+  il backend (`cm.user != :user`) e la bolla riceve il nome dalla schermata. Il
+  parametro era nel contratto iniziale per inerzia ed è stato tolto.
+- **Il composer svuota il campo solo se `onInvia` risolve `true`**: la prima
+  versione lo svuotava prima del POST e un invio rifiutato perdeva il testo
+  digitato. Una modifica al file della lane `composer` e il test che la fissa.

@@ -54,7 +54,7 @@ These are not "backend gaps": the routes work today and the app ignores them.
 
 | Route | Source | Frontend |
 | --- | --- | --- |
-| `GET /chats/agreement/{id}`, `POST /chats/send-message/{chatId}`, `GET /chats/most-recent-message`, `GET /chats/check-new-messages/{id}` | `Backend/src/Controller/ChatController.php:26,49,86,108` | **zero references** to `chats/` anywhere in `Frontend/src` |
+| `GET /chats/agreement/{id}`, `POST /chats/send-message/{chatId}`, `GET /chats/most-recent-message`, `GET /chats/check-new-messages/{id}` | `Backend/src/Controller/ChatController.php:26,49,86,108` | consumed since W1: `src/api/areas/chat.js` wraps all four and `src/app/chat/[agreementId].jsx` drives three — history, send, `check-new-messages` (whose cursor is the displayed id; `most-recent-message` only seeds an empty chat) |
 | `GET /staff/services/deleted`, `POST /staff/services/{id}/restore` | `Backend/src/Controller/DeletedServiceController.php:34,52` | no API function in `Frontend/src/api/areas/staff.js`, no UI |
 | `GET /staff/operations/{id}` | `Backend/src/Controller/StaffOperationController.php:55` | only the list is consumed (`listStaffOperations`) |
 | `GET /staff/reports/{id}` | `Backend/src/Controller/StaffController.php:92` | zero: `StaffReportCard` renders the list row only |
@@ -96,10 +96,11 @@ backend to anyone opening the file next.
 ### B3. `Screen.jsx` and `_layout.jsx` document a chat screen that does not exist — P2
 
 `Screen.jsx:52` documents "le schermate con una barra ancorata in fondo (chat)" and
-`bottomSpacing`; no chat screen exists under `src/app`. Already recorded as F3 in
-`docs/ui-triage.md` and still open.
-Judgment: keep the paragraph (it will become true with W1) or drop the reference
-until then.
+`bottomSpacing`; no chat screen existed under `src/app`. Recorded as F3 in
+`docs/ui-triage.md`.
+Judgment: **closed 2026-11-16 by W1** — the paragraph was kept and is now true:
+`src/app/chat/[agreementId].jsx` is a `Screen` with a composer anchored at the
+bottom and a reduced `bottomSpacing`, exactly the case it describes.
 
 ### B4. `docs/architecture.md` lists a directory that does not exist — P2
 
@@ -213,7 +214,35 @@ a paste-ready invocation; each item is a valid `/ship` brief on its own.
 
 ### W1 — Chat on an accepted agreement
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-16) — plan:
+[`../briefs/w1-chat/plan.md`](../briefs/w1-chat/plan.md) (class `L` by the file
+count: 21 touched, 10 new), contract in `plan-brief.md` next to it.
+
+What landed, in the shape the audit asked for: `src/api/areas/chat.js`
+(`82b22c0`), the message normaliser and the time formatter (`2cf1273`),
+`MessageBubble` + `MessageComposer` (`0eff37d`), the "Apri chat" action on
+`ACCEPTED` rows (`a3ee739`), `useChat` with a 15 s focus-only poll (`940f9b7`)
+and `/chat/[agreementId]` registered in the `Stack` with `Chat` as its document
+title (`ad39bfb`).
+
+Three facts the run corrected against this item:
+
+1. **`send-message` returns no row** — only `{success: {code, message}}`
+   (`ChatController.php:49`). There is no message id to reconcile, so there is no
+   optimistic bubble: the screen re-reads the history after the `200`.
+2. **`check-new-messages` is global**, not per chat (`ChatMessageRepository.php:44-58`:
+   `chat IN (:chats)`, `user != :user`, `id > :recentMessageId`). The client uses
+   `most-recent-message` as the cursor and filters the answer by `chatId`; the
+   user's own messages never come from it.
+3. **None of the four routes checks that the caller participates**
+   (`ChatManager.php:46` and `:78` read no user against `chat_participants`).
+   Written up as `docs/backend-gaps.md` **G24**; the app does not widen the hole
+   (only `ACCEPTED` rows of one's own agreements link to the chat) and cannot
+   close it.
+
+Two smaller ones: the composer clears the draft only when the send answers
+`true`, so a rejected message keeps what was typed; and `useChat` carries the
+only untested logic of the item (hooks tests are W7).
 
 Close the last hole in the lifecycle: proposal → agreement → sheet → **chat** →
 conclusion. Four authenticated routes exist and are unconsumed (A).
@@ -484,7 +513,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | --- | --- | --- |
 | 1 | ~~W5 error boundary~~ | **done** 2026-11-16: landed in `0e22832` + the fix that made the retry test green |
 | 2 | W2 notification/queue links | data already in memory, highest UX return per line |
-| 3 | W1 chat | the only functional hole in the product lifecycle |
+| 3 | ~~W1 chat~~ | **done** 2026-11-16: plan in `docs/briefs/w1-chat/`, landed in `82b22c0`…`0b0e722` |
 | 4 | W3 public profile | closes G3's remaining half, endpoint ready |
 | 5 | W6 lazy dataset | measurable payload win, no backend |
 | 6 | W4 staff surface | documentation already promises it |

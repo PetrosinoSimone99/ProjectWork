@@ -337,6 +337,48 @@ is another `500`; and `getActiveQueueByUser` now duplicates
 `getServiceQueuesByUser` with `!= CLOSED`, so the queue list can never show a
 cancelled row either.
 
+## G24 — No chat route checks that the caller is a participant
+
+Found while writing W1 (2026-11-16), from reading only. None of the four chat
+routes compares the JWT user with the participants of the chat or of the
+agreement:
+
+- `ChatManager::getOrCreateChat` (`Backend/src/Manager/ChatManager.php:46`)
+  fetches the chat by agreement id and, when it is missing, creates it from the
+  agreement's proposals — it never reads the calling user. `GET
+  /chats/agreement/{agreementId}` therefore returns the history of **any**
+  agreement id to **any** authenticated account, and creates its chat as a side
+  effect.
+- `ChatManager::sendMessage` (`ChatManager.php:78`) fetches the chat by id and
+  writes a message for the calling user without checking `chat_participants`.
+  `POST /chats/send-message/{chatId}` lets any authenticated account post into
+  any chat, and sends a `CHAT_MESSAGE` notification to the real participant
+  (`ChatManager.php:98`).
+
+`getUserChats` and `getNewMessagesForUser` **are** scoped by participant, so the
+two cursor routes are safe; the hole is exactly the pair the screen drives.
+
+Requested: a participant check on both routes, answering `403` (or `404`, if the
+existence of the chat should not leak) for a caller who is not in
+`chat_participants` of that chat / in the proposals of that agreement. Until
+then this is a backend authorization defect, not a frontend one.
+
+**How the app lives with it today:** it does not widen the hole further. The
+chat is reachable only from an `ACCEPTED` row of the caller's own agreements
+(`AgreementCard`, `puoAprireChat`), the route carries no agreement id from a
+free-text source, and nothing links to `/chat/<id>` from outside the app. A
+person who types another account's agreement id still gets that chat: there is
+nothing the client can do about it, and the app does not pretend otherwise.
+
+The same applies **inside one account**: the chat is *offered* only by `ACCEPTED`
+rows, but a typed `/chat/<id>` (or a deep link) opens the chat of a `PENDING`,
+`CANCELLED` or `COMPLETED` agreement of the caller — and `getOrCreateChat`
+creates it if it is missing. Closing that would need the agreement's status,
+which the chat screen does not read (the chat routes return no agreement
+state); with a participant check in place at G24's suggestion, the remaining
+case is a person reading a chat of their own exchange, which the product may
+accept. Recorded so nobody reads the "ACCEPTED only" rule as enforced.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id

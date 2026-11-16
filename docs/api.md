@@ -226,7 +226,20 @@ part of the reference schema, every call requires the token, `send-message`
 actually sends the body (until then it sent a hardcoded `'Hello Bob'`) and
 `most-recent-message` reads the JWT user instead of user id 1. Sending a
 message also creates a `CHAT_MESSAGE` notification for the other participant.
-The frontend has **no chat screen yet**, so nothing calls these routes.
+The app drives three of them since W1 (2026-11-16):
+`Frontend/src/app/chat/[agreementId].jsx` opens the history of one accepted
+agreement, sends, and polls `check-new-messages` every 15 s while the screen is
+focused. That call is **global** across the user's chats, never carries the
+caller's own messages, and answers only what is newer than the id it is given
+(`cm.id > :recentMessageId`): the client's cursor is therefore the highest id it
+already shows, and `most-recent-message` is used **once**, to seed a chat whose
+history is still empty. Asking `most-recent-message` on every tick would hand
+the check its own answer's lower bound and always get an empty array back.
+Sending returns only the acknowledgement: the screen re-reads the history
+instead of drawing a bubble the backend never confirmed.
+
+The routes check the token but **not** that the caller participates in that
+chat: see `backend-gaps.md` G24.
 
 ## Notifications
 
