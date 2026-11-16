@@ -6,7 +6,71 @@ documents/code touched.
 
 ---
 
-## 2026-11-16 (latest) — No white screen left: a global error boundary around the Stack
+## 2026-11-16 (latest) — W2: notifications and queues reach their agreement
+
+Session start: `git fetch origin`. `andrea-frontend` was **19 commits ahead** of
+`origin/andrea-frontend`, **0 behind**; **261 ahead** of `origin/main`, 0 behind.
+No merge needed, nothing pushed to `main`.
+
+### Why
+
+Audit W2 (`docs/audits/frontend-gap-analysis-2026-11-16.md:238`): two surfaces
+already hold the `agreementId` of the exchange they talk about and threw it away.
+The inbox normaliser keeps the backend `data` object verbatim, so
+`notifica.dati.agreementId` was already in memory; `normalizeQueue` already
+carried `agreementId` and the card already printed "Collegata a uno scambio". The
+row said something was happening and gave no way to go look.
+
+### What landed
+
+1. **`NotificationRow`** (`0718c3a`): the informational block (header row plus
+   message) is one `Pressable` with `accessibilityRole="button"` and the label
+   `Apri lo scambio di questa notifica` when
+   `Number.isInteger(notifica.dati?.agreementId)`; a row without it, or with a
+   string id, renders exactly the old markup — no pressable, no role, no label.
+   The actions row and the delete `ConfirmModal` stay outside it.
+2. **`notifications.jsx`**: owns `useRouter`, passes
+   `onApri={() => router.push('/agreements')}`. The component stays data and
+   callbacks only, with no `expo-router` import.
+3. **`QueueCard` + `match.jsx`** (`ca9e098`): same shape for the linked case
+   (`agreementId !== null`), label `Apri lo scambio collegato a questa coda`;
+   `Annulla coda` and its modal stay outside the pressable.
+4. **Tests**: two new cases in `NotificationRow.test.js` (integer id → one
+   actionable button that fires `onApri`; missing/`null`/`'12'` → none), and a
+   new `__tests__/QueueCard.test.js` (linked, unlinked, and the cancel path that
+   must never navigate) — the queue half had no test file at all.
+
+Why the actions stay outside the pressable: on `react-native-web` a press inside
+a nested pressable bubbles up, so a card-wide pressable would make "Elimina" and
+"Annulla coda" navigate as well.
+
+Two corrections to the plan, both kept in the comments: react-test-renderer
+exposes a `Pressable`'s accessibility props on the composite layers and the host
+view, so "exactly one node" counts three and the tests assert one rendered host
+node; and a new wrapper swallows the card's own `gap`, so both pressables carry
+`style={{ gap: space.sm }}` to keep the two states visually identical.
+
+Honest limit: `/agreements` reads no search params, so the tap lands on the tab
+and not on the single agreement. Deep-linking one agreement is its own item.
+
+### Gate
+
+`npx expo lint` exit 0, `npx tsc --noEmit` exit 0 (syntax-only, D010), `npx jest`
+**19 suites / 240 tests** green (was 18/235).
+
+### Touched
+
+`Frontend/src/components/NotificationRow.jsx`,
+`Frontend/src/app/notifications.jsx`,
+`Frontend/src/components/__tests__/NotificationRow.test.js`,
+`Frontend/src/components/QueueCard.jsx`, `Frontend/src/app/(tabs)/match.jsx`,
+`Frontend/src/components/__tests__/QueueCard.test.js` (new),
+`docs/audits/frontend-gap-analysis-2026-11-16.md`,
+`docs/briefs/w2-agreement-links/plan.md`, this file.
+
+---
+
+## 2026-11-16 — No white screen left: a global error boundary around the Stack
 
 Session start: `git fetch origin`. `andrea-frontend` was **17 commits ahead** of
 `origin/andrea-frontend`, **0 behind**; **259 ahead** of `origin/main`, 0 behind.

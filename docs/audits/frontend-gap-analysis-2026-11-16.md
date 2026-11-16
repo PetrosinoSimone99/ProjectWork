@@ -237,19 +237,35 @@ conclusion. Four authenticated routes exist and are unconsumed (A).
 
 ### W2 — Notifications and queues navigate to their agreement
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-16) — landed in `0718c3a` (notification row) and
+`ca9e098` (queue card), plan: `docs/briefs/w2-agreement-links/plan.md` (class
+`M`, 6 files, 1 new).
 
-- Edit: `src/components/NotificationRow.jsx` (row becomes pressable when
-  `dati.agreementId` is an integer, with an explicit accessibility label),
-  `src/app/notifications.jsx` (handler → `router.push`), `src/components/QueueCard.jsx`
-  and `src/app/(tabs)/match.jsx` (same target from the queue row).
-- Tests: `NotificationRow.test.js` already exists (180 lines) — extend it with the
-  "row is not pressable without an id" case.
-- Done: tapping a notification with `agreementId` lands on `/agreements`; a row
-  without the id stays inert and is announced as such; queue row with an agreement
-  opens the same place.
-- Ship: `M: 4 file (0 nuovi), 2 figli, ~45 min` →
-  `/ship "notifiche e code navigabili verso l'accordo"`
+What landed: `NotificationRow` wraps its informational block (header row plus
+message) in one `Pressable` with `accessibilityRole="button"` and the label
+`Apri lo scambio di questa notifica` when `Number.isInteger(notifica.dati?.agreementId)`,
+otherwise it renders today's markup with no role and no label; `notifications.jsx`
+owns `useRouter` and passes `onApri={() => router.push('/agreements')}`.
+`QueueCard` does the same for the linked case (`agreementId !== null`, label
+`Apri lo scambio collegato a questa coda`) and `match.jsx` passes the handler.
+The action buttons (`Segna come letta`, `Elimina`, `Annulla coda`) and both
+`ConfirmModal`s stay **outside** the pressable: on `react-native-web` a press
+inside a nested pressable bubbles up, so wrapping the whole card would make the
+destructive action navigate too. A string id is treated as a backend anomaly —
+no coercion, no destination.
+
+Two facts the run corrected against the plan: react-test-renderer exposes a
+`Pressable`'s accessibility props on the composite layers *and* the host view,
+so "exactly one node with that label and role" counts three; both test files
+assert one *rendered host* node instead (see `pulsantiRenderati` in
+`QueueCard.test.js`). And the sibling spacing inside the card comes from the
+card's own `gap`, which a new wrapper would swallow: both pressables carry
+`style={{ gap: space.sm }}` so the linked and unlinked cards stay
+pixel-identical.
+
+Honest limit: no deep link. `/agreements` reads no search params, so the tap
+lands on the tab, not on the single agreement — opening it needs param handling
+and expand/scroll inside the tab, a second work item.
 
 ### W3 — Public profile of another user
 
