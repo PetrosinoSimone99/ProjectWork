@@ -159,6 +159,13 @@ export function useServiceCatalog({ token, utenteId }) {
    */
   const cambiaScelta = useCallback(
     (campo, valore) => {
+      // Un comune senza provincia non è un filtro: fra il cambio di provincia e
+      // la risposta del server i filtri applicati hanno ancora la provincia
+      // vecchia (o nessuna) mentre la tendina del comune è già aperta. Si ignora
+      // la scelta invece di contare un filtro che la query poi scarta.
+      if (campo === 'comune' && !filtriApplicatiRef.current.provincia) {
+        return;
+      }
       const prossimi =
         campo === 'provincia'
           ? { ...filtriApplicatiRef.current, provincia: valore, comune: '' }

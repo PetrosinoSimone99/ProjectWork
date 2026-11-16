@@ -30,6 +30,8 @@
 --
 -- and the stack was rebuilt from it, proving it reproduces the same rows.
 -- Owned by the Docker exception in AGENTS.md; reported in docs/changelog.md.
+-- Never mount this file outside the local stack: it contains working
+-- credentials for six demo accounts.
 --
 -- Accounts: giulia.bianchi (0 credits, one OPEN request queue), marco.ricci,
 -- sara.mancini, davide.costa, chiara.marino, luca.ferrari (1 credit each).
@@ -37,6 +39,12 @@
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- One transaction, so a failed row cannot leave the volume half-seeded: the
+-- entrypoint runs with `set -e` but MySQL autocommits INSERT by INSERT, and
+-- initdb only ever runs on an empty datadir — the only cure would be another
+-- `down -v`.
+START TRANSACTION;
 
 INSERT INTO `categories` (`id`, `description`) VALUES (36,'Aiuto compiti');
 INSERT INTO `categories` (`id`, `description`) VALUES (15,'Assistenza computer');
@@ -119,3 +127,5 @@ INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES (10,36);
 INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES (11,3);
 INSERT INTO `service_categories` (`service_id`, `category_id`) VALUES (12,16);
 INSERT INTO `service_queues` (`id`, `user_id`, `type`, `service_id`, `location`, `agreement_created`, `status`) VALUES (1,1,'REQUEST',2,'Roma - Roma',NULL,'OPEN');
+
+COMMIT;

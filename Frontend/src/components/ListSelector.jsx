@@ -7,15 +7,15 @@ import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * Selettore a tendina generico: un `Pressable` che apre un `ModalShell` con
- * campo di ricerca ed elenco scorrevole di opzioni di tipo stringa (regioni,
- * province, …).
+ * campo di ricerca ed elenco scorrevole di opzioni di tipo stringa (province,
+ * comuni, categorie).
  *
  * Perché modale + elenco e non una libreria di picker: nessuna libreria è
  * installata e aggiungerne una richiede l'approvazione del titolare (§7 di
  * `AGENTS.md`). È la stessa scelta già fatta per `CategorySelector` e
  * `ConfirmModal`: il `Modal` di react-native funziona su web (il target della
  * demo), Android e iOS. La ricerca c'è in entrambi i selettori (F41): gli
- * elenchi che lo useranno (regioni, province, categorie) sono troppo lunghi
+ * elenchi che lo useranno (province, comuni, categorie) sono troppo lunghi
  * per scorrerli a mano.
  *
  * Doppio canale accessibilità: `accessibilityState` **e** attributi `aria-*`

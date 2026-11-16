@@ -3,6 +3,7 @@ import {
   analizzaLocalita,
   comuniPerProvincia,
   formattaLocalita,
+  formattaProvinciaPerFiltro,
   localitaPerDisplay,
 } from '../italian-locations';
 
@@ -57,6 +58,25 @@ describe('comuniPerProvincia', () => {
 
   it('keeps the comune whose own name contains the separator', () => {
     expect(comuniPerProvincia('Messina')).toContain('Tripi - Abakainon');
+  });
+});
+
+describe('formattaProvinciaPerFiltro', () => {
+  it('carries the separator, so the catalogue LIKE anchors on the province half', () => {
+    expect(formattaProvinciaPerFiltro('Torino')).toBe(' - Torino');
+  });
+
+  it('normalizes the name and returns nothing for a missing province', () => {
+    expect(formattaProvinciaPerFiltro('  Milano ')).toBe(' - Milano');
+    expect(formattaProvinciaPerFiltro('')).toBe('');
+    expect(formattaProvinciaPerFiltro(null)).toBe('');
+  });
+
+  it('cannot be found inside a composed row of another province', () => {
+    const filtro = formattaProvinciaPerFiltro('Torino').toLowerCase();
+    expect('Torino di Sangro - Chieti'.toLowerCase().includes(filtro)).toBe(false);
+    expect('Sesto San Giovanni - Milano'.toLowerCase().includes(filtro)).toBe(false);
+    expect('Moncalieri - Torino'.toLowerCase().includes(filtro)).toBe(true);
   });
 });
 

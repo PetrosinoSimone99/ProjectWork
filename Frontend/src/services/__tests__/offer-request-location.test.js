@@ -63,8 +63,18 @@ describe('filtriDaQuery', () => {
     expect(query.location).toBe('Sesto San Giovanni - Milano');
   });
 
-  it('sends the bare province when no comune is chosen: the LIKE finds every comune', () => {
-    expect(filtriDaQuery({ ...nuoviFiltri(), provincia: 'Milano' }).location).toBe('Milano');
+  it('anchors a province-only filter to the province half, separator included', () => {
+    // The backend LIKE is a substring match, so the bare name found comuni in
+    // other provinces: `Torino` matched `Torino di Sangro - Chieti`. The
+    // separator in front makes the match land on the province half only.
+    expect(filtriDaQuery({ ...nuoviFiltri(), provincia: 'Milano' }).location).toBe(' - Milano');
+  });
+
+  it('the anchored filter rejects another province and keeps its own comuni', () => {
+    const anchor = filtriDaQuery({ ...nuoviFiltri(), provincia: 'Torino' }).location.toLowerCase();
+    expect('Torino di Sangro - Chieti'.toLowerCase().includes(anchor)).toBe(false);
+    expect('Torino - Torino'.toLowerCase().includes(anchor)).toBe(true);
+    expect('Moncalieri - Torino'.toLowerCase().includes(anchor)).toBe(true);
   });
 
   it('omits location entirely when nothing is chosen, never an empty parameter', () => {
@@ -73,7 +83,7 @@ describe('filtriDaQuery', () => {
 
   it('keeps the other filters independent of the location', () => {
     const query = filtriDaQuery({ ...nuoviFiltri(), testo: ' orto ', provincia: 'Roma' });
-    expect(query).toMatchObject({ q: 'orto', location: 'Roma' });
+    expect(query).toMatchObject({ q: 'orto', location: ' - Roma' });
   });
 });
 

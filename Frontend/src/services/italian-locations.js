@@ -65,6 +65,24 @@ export function formattaLocalita(comune, provincia) {
 }
 
 /**
+ * The province as a **catalogue filter** travels it: the province half of the
+ * composed string, separator included.
+ *
+ * The backend matches the filter with `LOWER(service.location) LIKE '%…%'`
+ * (`ServiceRepository::paginateHomepageOffers`), so a bare province name also
+ * finds comuni that merely contain it: `Torino` matched
+ * `Torino di Sangro - Chieti`, `Roma` matched `Romano di Lombardia - Bergamo`.
+ * With the separator in front the match is anchored to the province half, so
+ * only rows that end in `- <provincia>` survive.
+ * @param {string|null|undefined} provincia - Province name from the dataset.
+ * @returns {string} ` - Provincia`, or `''` when there is no province.
+ */
+export function formattaProvinciaPerFiltro(provincia) {
+  const nome = normalizza(provincia);
+  return nome ? `${SEPARATOR}${nome}` : '';
+}
+
+/**
  * Reads a stored `location` back into its two halves, only when the text has the
  * composed shape **and** the pair really exists in the dataset (an old
  * `Milano (Lombardia)` or a bare `Roma` gives `null`, so the caller decides how

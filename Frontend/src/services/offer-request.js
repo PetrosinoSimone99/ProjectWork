@@ -9,7 +9,7 @@
  * Nessuna funzione muta i dati ricevuti: copia, trasforma, restituisce.
  */
 
-import { formattaLocalita } from '@/services/italian-locations';
+import { formattaLocalita, formattaProvinciaPerFiltro } from '@/services/italian-locations';
 
 /** I due tipi di voce. Stringhe, perché viaggiano in JSON e finiscono nelle query. */
 export const TIPI_VOCE = { OFFERTA: 'OFFERTA', RICERCA: 'RICERCA' };
@@ -56,9 +56,10 @@ function sostantivoVoce(tipo, quanti) {
 }
 
 /**
- * Limite della località dell'annuncio.
- * TODO(backend): confermare — oggi `richieste.php` ha `localita varchar(100)`.
- * In registrazione la località è della persona e vive fuori dalla voce.
+ * Limite della località dell'annuncio: `services.location` è `varchar(255)`
+ * (`Context_and_DB_V2/barattolo_15112026.sql`). Il valore più lungo che il
+ * dataset sa comporre è 65 caratteri, quindi il limite è oggi irraggiungibile:
+ * resta come rete di sicurezza se il dataset cambiasse.
  */
 export const LIMITE_LOCALITA = 100;
 
@@ -235,19 +236,6 @@ export function validaVoce(voce, categorie = []) {
 }
 
 /**
- * Le voci nella forma di rete. Il `trim` dei testi si fa qui una volta sola:
- * la forma di rete è una funzione di questo modulo, non uno spread fatto a mano
- * nella schermata.
- */
-export function aPayloadApi(voci) {
-  return voci.map((voce) => ({
-    id_categoria: voce.idCategoria,
-    mansione: voce.mansione.trim(),
-    da_remoto: voce.daRemoto === true,
-  }));
-}
-
-/**
  * Etichetta della categoria a partire dall'id. La voce non contiene il nome:
  * il nome si risolve sempre dalla lista caricata, così non nasce un secondo
  * posto in cui il nome può divergere.
@@ -295,28 +283,6 @@ export function etichettaModalita(daRemoto) {
 export function nomePersona(persona) {
   const completo = [persona?.nome, persona?.cognome].filter(Boolean).join(' ');
   return completo || persona?.username || 'Utente';
-}
-
-/**
- * La voce nella forma di rete della **pubblicazione** (creazione), diversa da
- * quella della registrazione: qui viaggia anche la località dell'annuncio.
- * Una località vuota si omette invece di spedire `""`, come già fa il backend
- * di oggi con `richieste.php` (stringa vuota salvata come `NULL`).
- */
-export function aPayloadPubblicazione(voce) {
-  const localita = localitaDaVoce(voce);
-  return {
-    tipo: voce.tipo,
-    id_categoria: voce.idCategoria,
-    mansione: voce.mansione.trim(),
-    da_remoto: voce.daRemoto === true,
-    ...(localita ? { localita } : {}),
-  };
-}
-
-/** Come `aPayloadPubblicazione`, più l'id della voce da modificare. */
-export function aPayloadAggiornamento(voce) {
-  return { ...aPayloadPubblicazione(voce), id: voce.id };
 }
 
 /** Copia dell'oggetto senza una chiave: gli errori si aggiornano sempre in copia. */
@@ -427,10 +393,12 @@ export function filtriDaQuery(filtri) {
   const testo = typeof filtri.testo === 'string' ? filtri.testo.trim() : '';
   const provincia = typeof filtri.provincia === 'string' ? filtri.provincia.trim() : '';
   const comune = typeof filtri.comune === 'string' ? filtri.comune.trim() : '';
-  // Comune (se c'è) composto con la provincia, altrimenti la sola provincia:
-  // `location` resta una stringa sola, come vuole il contratto, e il backend la
-  // confronta con un LIKE su `service.location` (non più su quella della persona).
-  const localita = comune ? formattaLocalita(comune, provincia) : provincia;
+  // Comune (se c'è) composto con la provincia, altrimenti la provincia **con il
+  // separatore davanti**: `location` resta una stringa sola, come vuole il
+  // contratto, e il backend la confronta con un LIKE su `service.location`. Il
+  // separatore è quello che impedisce a «provincia Torino» di trovare
+  // `Torino di Sangro - Chieti` (`formattaProvinciaPerFiltro`).
+  const localita = comune ? formattaLocalita(comune, provincia) : formattaProvinciaPerFiltro(provincia);
   return {
     ...(testo ? { q: testo } : {}),
     ...(Number.isInteger(filtri.idCategoria) ? { categoryIds: filtri.idCategoria } : {}),
