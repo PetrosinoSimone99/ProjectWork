@@ -6,7 +6,57 @@ documents/code touched.
 
 ---
 
-## 2026-11-16 (latest) — W6: the lazy dataset was measured, not built
+## 2026-11-17 — W4: the staff area drives the four endpoints it promised
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 292 ahead of `origin/main`, 0 behind. No merge needed,
+nothing pushed to `main`.
+
+### Why
+
+Audit W4 (`docs/audits/frontend-gap-analysis-2026-11-16.md:375`) and
+`docs/api.md:211-216` both claimed the staff area was complete. It was not: a
+grep for `staff/services`, `getStaffReport` and `getStaffOperation` in
+`Frontend/src` returned nothing, so four documented endpoints — the deleted
+services of every user, their restore, one report, one log entry — had no
+caller. The screen showed the report list and a read-only log and stopped
+there.
+
+### What landed
+
+1. **The four calls** (`d7046c5`): `listStaffDeletedServices`,
+   `restoreStaffService`, `getStaffReport`, `getStaffOperation`, with
+   `normalizeStaffDeletedServices` (a service plus `proprietario` and
+   `categoriaNome`) and `normalizeStaffOperation` (`before`/`after`, `null` when
+   the entry has none). Non-staff was already handled by `StaffAreaGate` and
+the mapped `403`; that was verified, not rebuilt.
+2. **The components** (`38eff76`): `StaffOperationsLog` (rows are `Pressable`
+   and open the detail), `StaffDeletedServicesSection` (restore, plus «Carica
+   altri 20» because `limit` stops at 50), and a «Dettagli» action on
+   `StaffReportCard` that exists on closed reports too — the detail is a read,
+   not a decision.
+3. **The wiring** (`83e6396`): `staff.jsx` loads the deleted services with
+   their own request and their own error (the F57 lesson: one failure must not
+   reinterpret another), opens both details from the row already in memory and
+   refreshes them in the background, and confirms a restore with
+   `varianteConferma="primary"` — a reversible action must not wear the red of
+   a destructive one. The two panels live in `StaffDetailPanels.jsx`.
+
+### What cost more than planned
+
+`staff.jsx` measures **588 lines**, not the <500 the plan's step 5 wrote. Three
+surfaces in one route plus two panels: the extractions above (log, section,
+panels) took out ~230 lines, and going under 500 would mean extracting the
+review flow as well, which is a refactor this item did not ask for. The repo
+ceiling is 800 (`docs/frontend.md`), so this is declared, not hidden: the plan's
+step 5 is marked `DONE` with the measured number next to it.
+
+Gate: `npx expo lint`, `npx tsc --noEmit` clean, `npx jest` 28 suites / 313
+tests. Plan and contract: `docs/briefs/w4-staff-surface/plan.md`.
+
+---
+
+## 2026-11-16 — W6: the lazy dataset was measured, not built
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
 `origin/andrea-frontend`; 291 ahead of `origin/main`, 0 behind. No merge needed.

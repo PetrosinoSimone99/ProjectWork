@@ -1,6 +1,6 @@
 # W4 — Area staff: servizi eliminati e dettaglio segnalazione
 
-Classe: **M** — 10 file (3 nuovi), 4 figli, 1 stop (questo piano). Stile: `full`.
+Classe: **M** — 11 file (4 nuovi), 4 figli, 1 stop (questo piano). Stile: `full`.
 Fonte: `docs/audits/frontend-gap-analysis-2026-11-16.md:375-391` (W4), elenco run
 `…:558`. Sessione: `git fetch origin` → `andrea-frontend` 0 avanti / 0 indietro
 rispetto a `origin/andrea-frontend`; 292 avanti, 0 indietro rispetto a
@@ -103,13 +103,13 @@ Oggi il frontend non chiama quattro endpoint documentati
 
 ## Piano
 
-- 0. Committare contratto e piano | files: docs/briefs/w4-staff-surface/plan.md | done: `git log -1 --name-only` mostra il piano, albero pulito | Stato: DONE — `375db79`
-- 1. Aggiungere le quattro chiamate API con i loro messaggi d'errore | files: Frontend/src/api/areas/staff.js, Frontend/src/api/normalizers.js, Frontend/src/api/index.js | done: `grep -n "listStaffDeletedServices\|restoreStaffService\|getStaffReport\|getStaffOperation" Frontend/src/api/{index.js,areas/staff.js}` trova definizione ed export; `node -e` non serve, il gate di lint/tsc copre | Stato: TODO
-- 2. Scrivere il test delle quattro funzioni con `apiFetch` mockato | files: Frontend/src/api/__tests__/staff.test.js | done: `npx jest src/api/__tests__/staff.test.js` verde; casi: URL+metodo, query, normalizzazione, 403 italiano, risposta vuota | Stato: TODO
-- 3. Estrarre il registro operazioni in un componente con righe premibili e stati propri | files: Frontend/src/components/StaffOperationsLog.jsx | done: il componente esporta `StaffOperationsLog`, nessun colore letterale, `staff.jsx` non contiene più la funzione `OperationsLog` | Stato: TODO
-- 4. Scrivere la sezione dei servizi eliminati con ripristino dietro conferma | files: Frontend/src/components/StaffDeletedServicesSection.jsx, Frontend/src/components/StaffReportCard.jsx | done: la sezione esporta `StaffDeletedServicesSection` con caricamento/vuoto/errore espliciti; la card espone l'apertura del dettaglio | Stato: TODO
-- 5. Cablare la schermata: sezione eliminati, pannello dettaglio segnalazione, pannello dettaglio operazione | files: Frontend/src/app/staff.jsx | done: `/staff` rende le tre superfici, `wc -l` < 500, `npx expo lint` e `npx tsc --noEmit` verdi | Stato: TODO
-- 6. Documentazione: voce di changelog, W4 chiusa nell'audit | files: docs/changelog.md, docs/audits/frontend-gap-analysis-2026-11-16.md | done: changelog in testa datato 2026-11-17 con i commit del ciclo; W4 `Stato: chiuso` con cosa è atterrato | Stato: TODO
+- 0. Committare contratto e piano | files: docs/briefs/w4-staff-surface/plan.md | done: `git log -1 --name-only` mostra il piano, albero pulito | Stato: DONE — `57e06fc`
+- 1. Aggiungere le quattro chiamate API con i loro messaggi d'errore | files: Frontend/src/api/areas/staff.js, Frontend/src/api/normalizers.js, Frontend/src/api/index.js | done: `grep -n "listStaffDeletedServices\|restoreStaffService\|getStaffReport\|getStaffOperation" Frontend/src/api/{index.js,areas/staff.js}` trova definizione ed export; `node -e` non serve, il gate di lint/tsc copre | Stato: DONE — `d7046c5`
+- 2. Scrivere il test delle quattro funzioni con `apiFetch` mockato | files: Frontend/src/api/__tests__/staff.test.js | done: `npx jest src/api/__tests__/staff.test.js` verde; casi: URL+metodo, query, normalizzazione, 403 italiano, risposta vuota | Stato: DONE — 15 test, `d7046c5` (più `categoriaNome` asserito in `83e6396`)
+- 3. Estrarre il registro operazioni in un componente con righe premibili e stati propri | files: Frontend/src/components/StaffOperationsLog.jsx | done: il componente esporta `StaffOperationsLog`, nessun colore letterale, `staff.jsx` non contiene più la funzione `OperationsLog` | Stato: DONE — `38eff76`
+- 4. Scrivere la sezione dei servizi eliminati con ripristino dietro conferma | files: Frontend/src/components/StaffDeletedServicesSection.jsx, Frontend/src/components/StaffReportCard.jsx | done: la sezione esporta `StaffDeletedServicesSection` con caricamento/vuoto/errore espliciti; la card espone l'apertura del dettaglio | Stato: DONE — `38eff76`
+- 5. Cablare la schermata: sezione eliminati, pannello dettaglio segnalazione, pannello dettaglio operazione | files: Frontend/src/app/staff.jsx, Frontend/src/components/StaffDetailPanels.jsx | done: `/staff` rende le tre superfici, `npx expo lint` e `npx tsc --noEmit` verdi | Stato: DONE — `83e6396`; criterio `wc -l` < 500 **non raggiunto**: `staff.jsx` misura 588. Il pannello di dettaglio è uscito in `StaffDetailPanels.jsx` (due export) e il registro in `StaffOperationsLog.jsx`; sotto 500 servirebbe estrarre anche il flusso di revisione, un refactor fuori perimetro. Tetto del repo: 800 righe
+- 6. Documentazione: voce di changelog, W4 chiusa nell'audit | files: docs/changelog.md, docs/audits/frontend-gap-analysis-2026-11-16.md | done: changelog in testa datato 2026-11-17 con i commit del ciclo; W4 `Stato: chiuso` con cosa è atterrato | Stato: DONE — con questo commit
 - 7. Gate completo e review a contesto fresco (correttezza+sicurezza/dati, coerenza col brief) | files: - | done: lint + tsc + jest verdi; verdetto Merge con P0/P1/P2 su file:linea | Stato: TODO
 
 ## How to resume

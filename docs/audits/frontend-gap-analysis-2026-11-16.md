@@ -374,9 +374,44 @@ The request as written, for the record:
 
 ### W4 — Staff: deleted services and per-report detail
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-17) — landed in `d7046c5` (API + tests), `38eff76`
+(components) and `83e6396` (screen wiring), all behind the plan in
+`docs/briefs/w4-staff-surface/plan.md` (class `M`, 11 files, 4 new).
 
-Complete the staff area, which is documented as complete in `docs/api.md:211-216`.
+What landed: the staff area now drives the four endpoints it documented but
+never called. `listStaffDeletedServices` reads
+`GET /staff/services/deleted` as `{servizi, paginazione}` where every row is
+the normalised service plus `proprietario` and `categoriaNome` (the wire row
+carries the category name, so the section needs no `GET /categories`);
+`restoreStaffService` posts to `/staff/services/{id}/restore` behind a
+`ConfirmModal` with `varianteConferma="primary"` — a restore is reversible, and
+a red button would say the opposite — and the row leaves the list on the
+reload after the success. `getStaffReport` opens the full report (reason,
+reporter and reported with usernames, assignment and review trail) with the row
+already in memory and a background refresh that degrades to «Dettagli non
+aggiornati» instead of an empty panel; `getStaffOperation` gives the log rows a
+`before`/`after` panel, which the list endpoint does not carry at all.
+
+Three files were extracted instead of letting the screen pass the ceiling it
+was given: `StaffOperationsLog` (rows are `Pressable`, their own F57-style
+error states preserved), `StaffDeletedServicesSection` (loading, empty, error,
+«Carica altri 20» — `limit` stops at 50, so one page cannot claim to show
+themselves all) and `StaffDetailPanels` (both read-only panels). `staff.jsx`
+still ends at **588 lines**, not under the 500 the plan wrote: with the three
+surfaces in one route (reports, deleted services, log) plus two panels, the
+only way under 500 was another component split, and the repo ceiling is 800.
+That is a declared deviation, not a silent one — it is the one number this
+item misses.
+
+Non-staff behaviour needed no work: the route is registered for every session
+and `StaffAreaGate` plus the mapped `403` already refuse it (`staff.jsx:314`).
+
+Tests: 15 in `src/api/__tests__/staff.test.js` with `apiFetch` mocked — URL and
+method, the built query, the normalised shape, `403` in Italian, an empty
+answer as an empty list, `before`/`after` null when absent. Gate: 28 suites /
+313 tests, `expo lint` and `tsc --noEmit` clean.
+
+The request as written, for the record:
 
 - Edit: `src/api/areas/staff.js` (`listStaffDeletedServices`,
   `restoreStaffService`, `getStaffReport`, `getStaffOperation`), `src/api/index.js`,
@@ -555,7 +590,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | 3 | ~~W1 chat~~ | **done** 2026-11-16: plan in `docs/briefs/w1-chat/`, landed in `82b22c0`…`0b0e722` |
 | 4 | W3 public profile | closes G3's remaining half, endpoint ready |
 | 5 | ~~W6 lazy dataset~~ | **closed N/A** 2026-11-16: measured, the win claimed here does not exist (B8) |
-| 6 | W4 staff surface | documentation already promises it |
+| 6 | ~~W4 staff surface~~ | **done** 2026-11-17: the four documented endpoints are wired, plan in `docs/briefs/w4-staff-surface/` |
 | 7 | W10 unread polling | small, but it makes the inbox feel alive |
 | 8 | W7 hook tests | before W9's renames, so the refactor has a net |
 | 9 | W9 naming + W8 docs | last: both touch many files and depend on the decisions above |
