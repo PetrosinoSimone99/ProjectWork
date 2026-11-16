@@ -60,10 +60,17 @@ class ServiceQueueManager
     }
     public function createServiceQueue(User $user, string $queueType): void
     {
+        $queue = $this->serviceQueueRepository->getActiveQueueByUser($user);
+        if ($queue !== null) {
+            throw new \Exception("User already has an active queue.");
+        }
+
         $type = null;
         if($queueType === 'OFFER'){
             $type = QueueType::OFFER;
-        }else{
+        }
+        
+        if($queueType === 'REQUEST'){
             $type = QueueType::REQUEST;
         }
         if($type === QueueType::REQUEST){
@@ -74,6 +81,7 @@ class ServiceQueueManager
                 throw new NotEnoughCreditsException("User does not have enough credits to create an request queue.");
             }
         }
+       
         $userService = $this->serviceManager->getUserServiceByType($user, $queueType);
         $serviceQueue = new ServiceQueue($user, $type, $userService, $user->getLocation(), QueueStatus::OPEN);
         $this->entityManager->persist($user);
