@@ -318,11 +318,33 @@ and expand/scroll inside the tab, a second work item.
 
 ### W3 — Public profile of another user
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-16) — plan:
+[`../briefs/w3-public-profile/plan.md`](../briefs/w3-public-profile/plan.md)
+(class `L` by the file count: 9 product files, 4 new), contract in
+`plan-brief.md` next to it.
 
-The endpoint exists and is normalised (`normalizeUserServices`); only the screen is
-missing. Closes the second half of G3: the recipient of a blind proposal must be
-able to see who is proposing.
+What landed: the row group moved out of the mini card into
+`src/components/ServiceGroup.jsx` with a `limite` prop (`1ed4fe3`),
+`src/components/ProfileSummary.jsx` for the identity block (`a857cc8`),
+`src/app/user/[id].jsx` with the route and the `Profilo` document title
+(`1393d07`), and the owner row of the service detail made openable through
+`onOpenProfile` + the home's push (`136a332`).
+
+Two decisions this item left open, taken before any code: the **agreement side
+does not ship** (the rows still carry the counterpart's username only, `G6`; a
+username → id lookup would mean paging the whole catalog client-side to invent a
+mapping the backend does not offer) and therefore the screen takes an **id
+only**. `AgreementCard.jsx` is untouched, and so is `UserServicesMiniCard.jsx`
+beyond the extraction.
+
+One fact the run corrected against the plan: the location goes through
+`localitaPerDisplay`, because the own-profile screen and every card already
+render it that way and one person's place must read the same everywhere. One
+defect caught by the review of my own diff: a non-integer id sat on a loading
+spinner that no answer could ever end — it now falls into «Profilo non
+disponibile», the same state as a person the backend does not know.
+
+The request as written, for the record:
 
 - New: `src/app/user/[id].jsx`, `src/components/ProfileSummary.jsx` (or reuse
   `UserServicesMiniCard` + header), test.
@@ -338,7 +360,8 @@ able to see who is proposing.
 - Done: from a service detail the owner's profile opens with name, location, bio,
   offers and requests; no invented fields; `404` (inactive/deleted owner) is an
   explicit state; loading/empty/error present.
-- Ship: `M: 6 file (2 nuovi), 2 figli, ~1-2 h` → `/ship "profilo pubblico utente"`
+- Ship: `L: 9 file di prodotto (4 nuovi), 4 lane su 2 ondate, ~1-2 h` → shipped
+  as `ad4ceac..136a332`
 
 ### W4 — Staff: deleted services and per-report detail
 

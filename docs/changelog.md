@@ -6,7 +6,87 @@ documents/code touched.
 
 ---
 
-## 2026-11-16 (latest) — W1: the chat of an accepted agreement
+## 2026-11-16 (latest) — W3: the public profile of another person
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; **283 ahead** of `origin/main`, 0 behind. No merge
+needed, nothing pushed to `main`.
+
+### Why
+
+Audit W3 (`docs/audits/frontend-gap-analysis-2026-11-16.md:319`): the service
+detail of the home catalog names the person who published it and shows three of
+their publications, and there was no page behind that name. The recipient of a
+blind proposal could not look at who was proposing. G3's endpoint has existed
+since 2026-11-15; only the surface was missing.
+
+### What landed
+
+1. **One owner for the rows** (`1ed4fe3`): the group of publications was private
+to `UserServicesMiniCard`, capped at three. It is now
+`src/components/ServiceGroup.jsx` — heading, one `- descrizione` line per row,
+and the «e N altre» counter only when the list is actually cut. `limite` is the
+caller's decision: the mini card passes 3, the profile passes `null` and shows
+everything. A counter over a list nobody truncated would be a lie.
+2. **The identity block** (`a857cc8`): `src/components/ProfileSummary.jsx` draws
+name, `@username`, place, bio and photo from the envelope `normalizeUserServices`
+already returns. A field the person left empty has no line — never «Bio non
+indicata», a sentence the person never said. A photo that fails to load leaves
+the initials in the circle plus one prose line saying so, the same rule as the
+own-profile screen. The place goes through `localitaPerDisplay`, so a location
+reads the same here as on a card.
+3. **The screen** (`1393d07`): `/user/[id]`, registered in the `Stack` beside
+`chat/[agreementId]`, document title `Profilo · Baratto-lo` through the
+`TITOLI_CON_ID` family. It adds no request of its own: `useUserServices` already
+answers `{utente, offerte, richieste}` and already separates `404` (**this**
+person, unknown or deactivated) from `403` (**the reader's** inactive account).
+Five explicit states: first read, person gone, viewer refused, failed read with
+a retry, and nothing published.
+4. **The entry point** (`136a332`): the «Pubblicato da» row of
+`ServiceDetailModal` becomes a `Pressable` when the owner has an integer id and
+the parent passes `onOpenProfile`, with name and username folded into the
+accessible name (a `button` makes its descendants presentational, the F50
+lesson). The panel still never imports the router: the home owns the push.
+
+### What was decided before writing
+
+The audit left one decision open and the closing lock took it: **the agreement
+side does not ship.** `GET /get-agreements` rows carry the counterpart's
+username only (G6 is still open), so a username → id lookup would mean paging
+the whole catalog client-side to invent a mapping the backend does not offer.
+Consequence: the screen takes an id only, `AgreementCard.jsx` and
+`AgreementSheet.jsx` are untouched, and the remaining entry point stays G6's
+business, not a W3 residue.
+
+### Corrections against the plan
+
+- The location needed `localitaPerDisplay`; the plan had the raw field.
+- My own diff review caught a real defect: a non-integer id sat on a
+  `LoadingScreen` that no answer could ever end. It now falls into «Profilo non
+  disponibile», the same state as a person the backend does not know.
+- The plan's gate baseline (19 suites / 240 tests) was stale — it came from W2's
+  close, and W1 added 8 suites after it. The gate on the final tree is **27
+  suites / 294 tests**, lint clean, `tsc --noEmit` exit 0.
+
+### Touched
+
+`Frontend/src/components/ServiceGroup.jsx` (new),
+`Frontend/src/components/ProfileSummary.jsx` (new),
+`Frontend/src/app/user/[id].jsx` (new),
+`Frontend/src/components/__tests__/ServiceGroup.test.js` (new),
+`Frontend/src/components/__tests__/ProfileSummary.test.js` (new),
+`Frontend/src/components/UserServicesMiniCard.jsx`,
+`Frontend/src/components/ServiceDetailModal.jsx`,
+`Frontend/src/app/(tabs)/index.jsx`, `Frontend/src/app/_layout.jsx`,
+`Frontend/src/navigation/screen-titles.js`,
+`Frontend/src/navigation/__tests__/screen-titles.test.js`, plus this changelog,
+the W3 section of the audit and the plan under `docs/briefs/w3-public-profile/`.
+No `Backend/**` file, no `Context_and_DB_V2/**` file, no change to the API
+surface or to the hook.
+
+---
+
+## 2026-11-16 — W1: the chat of an accepted agreement
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
 `origin/andrea-frontend`; **268 ahead** of `origin/main`, 0 behind. No merge
