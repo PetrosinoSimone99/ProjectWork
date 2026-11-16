@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
@@ -31,9 +31,14 @@ import { space, useTokens } from '@/theme/tokens';
  *   `onProposalSent(servizio, username)` tells the parent to close the popup
  *   and show its banner (decision 9).
  *
- * The "what they offer and look for" block is the third declared gap (G3): the
- * public profile of another user does not exist, so the box says it is not
- * available instead of showing the owner's own data as if it were a summary.
+ * The "what they offer and look for" block is `UserServicesMiniCard`: it asks
+ * `GET /users/{id}/services` for the person's other publications and owns its own
+ * five states.
+ *
+ * The owner row is the way into that person's profile: `onOpenProfile(persona)`
+ * is the parent's route, called only when the owner has an integer id and the
+ * callback exists — otherwise the row stays the plain text it always was. The
+ * panel never imports the router and never names a route.
  */
 export function ServiceDetailModal({
   servizio,
@@ -41,6 +46,7 @@ export function ServiceDetailModal({
   onReport,
   onSendProposal,
   onProposalSent,
+  onOpenProfile,
 }) {
   const t = useTokens();
   const owner = servizio?.offerente ?? {};
@@ -65,6 +71,14 @@ export function ServiceDetailModal({
   // disabled instead of firing a request the backend must reject.
   const haPersona = Number.isInteger(owner.id);
   const invioDisabilitato = invio || !haPersona || typeof onSendProposal !== 'function';
+
+  // The owner row opens the profile only when there is a person to open and a
+  // parent that knows how to: the same integer predicate the proposal uses.
+  const apriProfilo = haPersona && typeof onOpenProfile === 'function';
+  // A `button` makes its descendants presentational, so the name and the
+  // username go into the label instead of being announced on their own (F50,
+  // `ServiceCard`'s shape): the row shows both, the label says both.
+  const nomeProfilo = owner.username ? `${name} (@${owner.username})` : name;
 
   async function inviaProposta() {
     if (!servizio || invioDisabilitato) {
@@ -103,6 +117,20 @@ export function ServiceDetailModal({
     : remote
       ? 'Da remoto'
       : 'Località non indicata';
+
+  // The name and the username as they are drawn, with or without a way to open
+  // the profile: one row, one place to keep the two lines in step.
+  const rigaProprietario = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+      <AppIcon name="person-circle-outline" size={18} color={t.textSecondary} />
+      <AppText>{name}</AppText>
+      {owner.username ? (
+        <AppText variant="small" tone="secondary">
+          @{owner.username}
+        </AppText>
+      ) : null}
+    </View>
+  );
 
   return (
     <ModalShell
@@ -157,15 +185,19 @@ export function ServiceDetailModal({
             <AppText variant="small" tone="secondary">
               Pubblicato da
             </AppText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-              <AppIcon name="person-circle-outline" size={18} color={t.textSecondary} />
-              <AppText>{name}</AppText>
-              {owner.username ? (
-                <AppText variant="small" tone="secondary">
-                  @{owner.username}
-                </AppText>
-              ) : null}
-            </View>
+            {apriProfilo ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Apri il profilo di ${nomeProfilo}`}
+                onPress={() => onOpenProfile(owner)}
+                // The house feedback of an openable row (`ServiceCard`).
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              >
+                {rigaProprietario}
+              </Pressable>
+            ) : (
+              rigaProprietario
+            )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
               <AppIcon
                 name={
