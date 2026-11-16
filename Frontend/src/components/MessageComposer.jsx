@@ -2,23 +2,22 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppInput } from './AppInput';
+import { MESSAGE_MAX_LENGTH } from '@/api/areas/chat';
 import { space } from '@/theme/tokens';
 
 /**
  * Chat composer: it owns the draft, the caller owns the send.
  *
- * The 1000-character cap is ours, not the backend's:
- * `Backend/src/Entity/ChatMessage.php` has no constraint, so an unbounded
- * message would be stored as-is. `maxLength` stops the field, the guard
- * re-checks the trimmed text before `onInvia` runs, and the refusal is shown
- * as the field's error instead of failing silently.
+ * The cap is ours, not the backend's: `Backend/src/Entity/ChatMessage.php` has
+ * no constraint, so an unbounded message would be stored as-is. `maxLength`
+ * stops the field at `MESSAGE_MAX_LENGTH` (typing and paste alike, with the
+ * counter saying where the end is); the refusal sentence lives next to that
+ * constant and is enforced again by `useChat.invia` before the POST, because
+ * this field is one caller and not the boundary.
  */
-const LIMITE_TESTO = 1000;
-const ERRORE_TESTO_LUNGO = 'Il messaggio è troppo lungo (massimo 1000 caratteri).';
 
 export function MessageComposer({ onInvia, inviando = false, disabilitato = false }) {
   const [testo, setTesto] = useState('');
-  const [errore, setErrore] = useState(null);
 
   const pulito = testo.trim();
   // Empty text locks the send only: the field must stay typeable, or a fresh
@@ -27,15 +26,10 @@ export function MessageComposer({ onInvia, inviando = false, disabilitato = fals
 
   const cambiaTesto = (nuovo) => {
     setTesto(nuovo);
-    setErrore(null);
   };
 
   const invia = async () => {
     if (nonParte) return;
-    if (pulito.length > LIMITE_TESTO) {
-      setErrore(ERRORE_TESTO_LUNGO);
-      return;
-    }
     // The draft is cleared only when the send went through: a caller that
     // answers `false` (a failed POST) keeps the text the person typed.
     const esito = await onInvia(pulito);
@@ -51,10 +45,9 @@ export function MessageComposer({ onInvia, inviando = false, disabilitato = fals
         value={testo}
         onChangeText={cambiaTesto}
         multiline
-        maxLength={LIMITE_TESTO}
-        contatore={`${testo.length}/${LIMITE_TESTO}`}
+        maxLength={MESSAGE_MAX_LENGTH}
+        contatore={`${testo.length}/${MESSAGE_MAX_LENGTH}`}
         editable={!inviando && !disabilitato}
-        error={errore}
         accessibilityLabel="Scrivi un messaggio"
       />
       <AppButton label="Invia" onPress={invia} loading={inviando} disabled={nonParte} />

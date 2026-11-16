@@ -3,9 +3,6 @@ import { act, create } from 'react-test-renderer';
 import { AppInput } from '../AppInput';
 import { MessageComposer } from '../MessageComposer';
 
-/** The refusal sentence the brief fixes for a draft over our own cap. */
-const FRASE_TROPPO_LUNGO = 'Il messaggio è troppo lungo (massimo 1000 caratteri).';
-
 function render(onInvia, extra = {}) {
   let renderer;
   act(() => {
@@ -137,20 +134,6 @@ describe('MessageComposer — the draft field', () => {
     await premiInvia(renderer);
     expect(onInvia).not.toHaveBeenCalled();
     expect(campo(renderer).props.value).toBe('Ciao');
-  });
-
-  it('refuses a draft over the cap before the call', async () => {
-    const onInvia = jest.fn();
-    const renderer = render(onInvia);
-    const lungo = 'a'.repeat(1001);
-
-    scrivi(renderer, lungo);
-    await premiInvia(renderer);
-
-    expect(onInvia).not.toHaveBeenCalled();
-    expect(testoVisibile(renderer, FRASE_TROPPO_LUNGO)).toBe(true);
-    // The refusal keeps the draft: nothing typed is lost.
-    expect(campo(renderer).props.value).toBe(lungo);
   });
 
   it('keeps the draft when the send answers false', async () => {
