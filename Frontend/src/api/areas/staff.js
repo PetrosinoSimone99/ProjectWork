@@ -1,6 +1,10 @@
 import { ApiError, apiFetch } from '../client';
 import {
+  normalizeServiceEnvelope,
+  normalizeStaffDeletedServices,
+  normalizeStaffOperation,
   normalizeStaffOperations,
+  normalizeStaffReport,
   normalizeStaffReports,
   normalizeStaffUser,
   normalizeStaffUsers,
@@ -130,5 +134,39 @@ export async function reviewStaffReport(token, id, { status, reviewNote }) {
 export async function listStaffOperations(token, filters = {}) {
   return normalizeStaffOperations(
     await apiFetch(`staff/operations?${buildQuery(filters)}`, { token }),
+  );
+}
+
+/**
+ * GET /staff/services/deleted?page=&limit= -> `{servizi, paginazione}`.
+ * `limit` arriva al massimo a 50: «tutti» non e' una pagina sola, quindi il
+ * chiamante pagina (`paginazione.pagineTotali`).
+ */
+export async function listStaffDeletedServices(token, filters = {}) {
+  return normalizeStaffDeletedServices(
+    await apiFetch(`staff/services/deleted?${buildQuery(filters)}`, { token }),
+  );
+}
+
+/** POST /staff/services/{id}/restore — no body, the answer is `{service:…}`. */
+export async function restoreStaffService(token, id) {
+  const response = await withActionMessage(
+    apiFetch(`staff/services/${Number(id)}/restore`, { method: 'POST', token }),
+  );
+  return normalizeServiceEnvelope(response);
+}
+
+/** GET /staff/reports/{id} -> the full report, same shape as a list row. */
+export async function getStaffReport(token, id) {
+  const response = await withActionMessage(
+    apiFetch(`staff/reports/${Number(id)}`, { token }),
+  );
+  return normalizeStaffReport(response?.report ?? response);
+}
+
+/** GET /staff/operations/{id} -> one operation with its `before`/`after`. */
+export async function getStaffOperation(token, id) {
+  return normalizeStaffOperation(
+    await apiFetch(`staff/operations/${Number(id)}`, { token }),
   );
 }

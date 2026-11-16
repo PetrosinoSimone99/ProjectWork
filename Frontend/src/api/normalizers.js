@@ -417,6 +417,61 @@ export function normalizeStaffOperations(response) {
 }
 
 /**
+ * `GET /staff/services/deleted` -> `{servizi, paginazione}`.
+ *
+ * Ogni riga e' un servizio di chiunque (`normalizeOwnedService`, con
+ * `eliminataIl` gia' dentro) piu' il suo proprietario: senza di lui le righe
+ * della lista sarebbero indistinguibili. `normalizePerson` e' privata di
+ * questo modulo, quindi il normalizzatore vive qui e non in `areas/staff.js`.
+ */
+export function normalizeStaffDeletedServices(response) {
+  const list = Array.isArray(response?.services) ? response.services : [];
+  return {
+    servizi: list
+      .map((row) => {
+        const service = normalizeOwnedService(row);
+        if (!service) {
+          return null;
+        }
+        return { ...service, proprietario: normalizePerson(row?.owner) };
+      })
+      .filter(Boolean),
+    paginazione: normalizePagination(response?.pagination),
+  };
+}
+
+/**
+ * `GET /staff/operations/{id}` -> una voce del registro col suo dettaglio.
+ *
+ * La riga di lista e' la stessa (`normalizeStaffOperations`), piu' `before` e
+ * `after`: esistono solo qui, la lista non li porta, e restano `null` quando
+ * l'operazione non ne ha (`?? null`, perche' `undefined` in UI e' un campo
+ * mancante, non un valore assente).
+ */
+export function normalizeStaffOperation(response) {
+  const operation = response?.operation;
+  if (!operation || typeof operation !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(operation.id);
+  if (id === null) {
+    return null;
+  }
+  const target = operation.target && typeof operation.target === 'object' ? operation.target : {};
+  const actor = operation.actor && typeof operation.actor === 'object' ? operation.actor : {};
+  return {
+    id,
+    azione: toTextOrNull(operation.action),
+    bersaglio: toTextOrNull(target.type),
+    bersaglioId: toIntegerOrNull(target.id),
+    staff: { id: toIntegerOrNull(actor.id), username: toTextOrNull(actor.username) },
+    creataIl: toTextOrNull(operation.createdAt),
+    prima: operation.before ?? null,
+    dopo: operation.after ?? null,
+  };
+}
+
+/**
  * One row of `agreementProposal`: a participant of an agreement with their
  * role (`Provider`/`Beneficiary`, kept raw like every other wire word) and
  * their answer — `true`/`false`, `null` while they have not answered yet.

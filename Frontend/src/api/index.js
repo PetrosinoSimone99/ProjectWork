@@ -45,11 +45,15 @@ export {
 export { cancelQueue, createQueue, INSUFFICIENT_CREDITS_MESSAGE, listQueues } from './areas/queues';
 export {
   claimStaffReport,
+  getStaffOperation,
+  getStaffReport,
   getStaffUser,
+  listStaffDeletedServices,
   listStaffOperations,
   listStaffReports,
   listStaffUsers,
   promoteStaffUser,
+  restoreStaffService,
   reviewStaffReport,
   setStaffUserStatus,
 } from './areas/staff.js';
