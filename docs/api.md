@@ -298,9 +298,11 @@ cycle). Five facts decide how a client must talk to these routes:
   is not `null`, before the credit is spent and before the service lookup; the
   throw is a plain `\Exception`, the controller's `catch (Exception)` names
   `App\Controller\Exception` and never matches (`G13`), so the client reads the
-  refusal as a server fault (`backend-gaps.md` G23). A client that knows the
-  current queues can avoid the call entirely — one active queue is the whole
-  rule, `OFFER` and `REQUEST` alike — but nothing but a `500` says it otherwise.
+  refusal as a server fault (`backend-gaps.md` G23). The guard counts **both**
+  types together, so one offer queue also blocks the request one; the app follows
+  the server and disables **both** create actions while a queue is active
+  (`hasActiveQueue`, decision **D025**), instead of offering a call that cannot
+  succeed and cannot be explained.
 - **`GET /get-queues` answers `404` when the list is empty** (`if (!$queuesDTO)`
   in `QueueController::getQueues`): a client reads `404` as `[]`, not as an error
   (`backend-gaps.md` G17).
@@ -334,9 +336,10 @@ and translate the refusal.
 
 Three guards the app owes and keeps: it never creates a queue when the account
 does not have **exactly one** service of that type (G19 spends the credit before
-the lookup), it never asks for a **second active queue** (G23 answers a `500`
-that reads like a server fault), and it never displays a balance, because
-inventing one would be a number the backend does not confirm.
+the lookup), it never asks for a **second active queue** — both create buttons go
+down while a queue is listed, with one sentence saying why (G23 would answer a
+`500` that reads like a server fault, decision **D025**) — and it never displays a
+balance, because inventing one would be a number the backend does not confirm.
 
 A dry verification of the whole cycle, with an account that has exactly one offer
 and one request (`luca.ferrari` / `demo1234`, in the seed): `create REQUEST` →

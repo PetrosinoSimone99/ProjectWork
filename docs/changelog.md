@@ -11,8 +11,8 @@ documents/code touched.
 Session start: `git fetch origin`. `andrea-frontend` was **11 commits ahead** of
 `origin/andrea-frontend` and **2 behind** `origin/main`; nobody had pushed to the
 frontend branch, the two new commits were on `main` (`yrl26`, 2026-11-16).
-Nothing was merged: per the repo rules the delta is reported and the merge waits
-for Andrea.
+`origin/main` was merged in (`153e26b`, no conflict, 3 backend files), and the
+match tab was fixed for the new queue rule in the same session (**D025**).
 
 ### What landed upstream (`origin/main`)
 
@@ -47,19 +47,33 @@ Neither commit touches `Frontend/`, `docs/` or the schema.
   seed (changelog 2026-11-13); the new guard blocks the second *type*. Requested
   as **G23**, together with a `409` instead of the `500`.
 
-### Open — what this cycle still has to implement
+### What this cycle implemented (decision **D025**, choice "the server wins")
 
-1. **Gate the create buttons on the queues the screen already loads** (no new
-   call): when `queues.length > 0`, both create actions are disabled with a
-   reason, honestly worded for whichever rule the backend keeps. Blocked on the
-   G23 answer: gating on "any active queue" bakes in the rule this repo does not
-   want.
-2. **Nothing else.** The agreement change is behaviour-neutral for the app, and
-   the queue list already shows what the new repository filter returns.
+1. **Both create buttons go down while a queue is active.**
+   `services/queues.js` grew `hasActiveQueue(code)` (true when any row is not
+   `CLOSED`, fails closed on a non-list, never mutates), and `CreateQueueActions`
+   in `Frontend/src/app/(tabs)/match.jsx` takes that flag: when it is true, both
+   actions are disabled and one sentence under the row — «Hai già una coda
+   attiva: annullala per poterne crearne un’altra.» — replaces the two
+   per-button reasons, because the queue is the only thing that changed. No new
+   request: `GET /get-queues` already returns only non-`CLOSED` rows, so "a queue
+   on screen" **is** "a queue the backend counts". Seven cases pinned in
+   `services/__tests__/queues.test.js` (28 tests in the file, green).
+2. **The `500` is now unreachable from the app.** It stays reachable from a
+   client that does not look at the list, which is why **G23** still asks the
+   backend for a `409` and a guard keyed on `queueType`.
+3. **Nothing to change for the agreement commit.** `cccd44c` is behaviour-neutral
+   here: the app renders cancel on `ACCEPTED` rows only (`agreements.jsx:297`).
+
+The cost of the choice, stated once: the second queue type is unreachable in the
+app until G23 lands. Hiding a button that is guaranteed to fail was judged better
+than a rule narrower than the product wants, and D025 records it as reversible.
+
+Pre-push gate green: `npx expo lint`, `npx tsc --noEmit`.
 
 Docs touched: `api.md` (create/cancel/get queue rows, the five facts, the third
-client guard), `backend-gaps.md` (new G23), `setup.md` (the demo account), this
-entry.
+client guard), `backend-gaps.md` (new G23 + how the app lives with it),
+`setup.md` (the demo account), `decisions.md` (D025), this entry.
 
 ## 2026-11-16 (later) — A location is Comune - Provincia, the credits verified, the registration fixed
 

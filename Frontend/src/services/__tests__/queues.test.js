@@ -1,6 +1,7 @@
 import {
   QUEUE_STATUS_LABELS,
   QUEUE_TYPE_LABELS,
+  hasActiveQueue,
   queueStatusLabel,
   queueTypeLabel,
   servicesOfQueueType,
@@ -131,6 +132,48 @@ describe('servicesOfQueueType', () => {
     servicesOfQueueType(SERVIZI, 'OFFER');
 
     expect(SERVIZI).toEqual(copia);
+  });
+});
+
+describe('hasActiveQueue', () => {
+  it('is true for an OPEN queue, of either type', () => {
+    expect(hasActiveQueue([{ id: 1, tipo: 'OFFER', stato: 'OPEN' }])).toBe(true);
+    expect(hasActiveQueue([{ id: 2, tipo: 'REQUEST', stato: 'OPEN' }])).toBe(true);
+  });
+
+  it('is true for a queue in progress, which the backend also counts', () => {
+    expect(hasActiveQueue([{ id: 3, tipo: 'OFFER', stato: 'IN_PROGRESS' }])).toBe(true);
+  });
+
+  it('is true when one of several rows is active, so one queue closes both creates', () => {
+    const code = [
+      { id: 4, tipo: 'OFFER', stato: 'CLOSED' },
+      { id: 5, tipo: 'REQUEST', stato: 'OPEN' },
+    ];
+
+    expect(hasActiveQueue(code)).toBe(true);
+  });
+
+  it('is false for an empty list, which is the state right after a cancel', () => {
+    expect(hasActiveQueue([])).toBe(false);
+  });
+
+  it('is false when every row is CLOSED, in case the route starts returning history', () => {
+    expect(hasActiveQueue([{ id: 6, tipo: 'OFFER', stato: 'CLOSED' }])).toBe(false);
+  });
+
+  it('fails closed when the list is not a list', () => {
+    expect(hasActiveQueue(null)).toBe(false);
+    expect(hasActiveQueue(undefined)).toBe(false);
+  });
+
+  it('never mutates the input list', () => {
+    const code = [{ id: 7, tipo: 'OFFER', stato: 'OPEN' }];
+    const copia = code.map((voce) => ({ ...voce }));
+
+    hasActiveQueue(code);
+
+    expect(code).toEqual(copia);
   });
 });
 

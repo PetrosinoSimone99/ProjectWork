@@ -321,6 +321,15 @@ shape:
    product decision that one queue per account is the new rule — the app cannot
    guess which.
 
+**How the app lives with it today (decision D025):** it follows the server. The
+`match` tab disables **both** create actions while `GET /get-queues` returns a
+row (`hasActiveQueue` in `Frontend/src/services/queues.js`) and says «Hai già una
+coda attiva: annullala per poterne crearne un’altra.», so the `500` is
+unreachable from the app and nothing is offered that cannot work. The cost is a
+narrower product rule: the second queue type is unreachable until this block is
+implemented. When it is, the gate becomes one per type and the copy points at
+the other type instead of at cancel.
+
 Two smaller notes on the same query: `getOneOrNullResult()` throws
 `NonUniqueResultException` for an account that already holds two non-`CLOSED`
 queues (possible for any account that created one before `4c90ccd` merged), which

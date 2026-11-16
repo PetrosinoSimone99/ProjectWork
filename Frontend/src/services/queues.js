@@ -72,3 +72,29 @@ export function servicesOfQueueType(servizi, tipoCoda) {
   }
   return servizi.filter((voce) => voce?.tipo === tipoServizio);
 }
+
+/**
+ * Whether one of these queues is still active, i.e. blocks a further create.
+ *
+ * Backend `4c90ccd` put a guard at the head of
+ * `ServiceQueueManager::createServiceQueue`: while the account holds a queue
+ * whose status is not `CLOSED`, the route throws
+ * `User already has an active queue.` — a plain `\Exception` that the
+ * controller cannot catch (`backend-gaps.md` G13), so the client would read a
+ * `500`. The guard counts **both** queue types together (`backend-gaps.md`
+ * G23), so one offer queue also blocks the request one; the product rule this
+ * repo follows is one queue per type, which is why the app keeps the stricter
+ * server rule here instead of pretending the second type is allowed.
+ *
+ * `GET /get-queues` already excludes `CLOSED` rows
+ * (`ServiceQueueRepository::getServiceQueuesByUser`), so on real data this is
+ * `queues.length > 0`; the status is still checked so the predicate stays true
+ * if the route ever starts returning history. Fails closed: a list that is not
+ * a list is "no queue".
+ */
+export function hasActiveQueue(code) {
+  if (!Array.isArray(code)) {
+    return false;
+  }
+  return code.some((coda) => coda?.stato !== 'CLOSED');
+}

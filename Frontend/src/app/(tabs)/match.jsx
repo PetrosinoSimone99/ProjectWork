@@ -12,7 +12,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
 import { QueueCard } from '@/components/QueueCard';
 import { Screen } from '@/components/Screen';
-import { queueTypeLabel, servicesOfQueueType } from '@/services/queues';
+import { hasActiveQueue, queueTypeLabel, servicesOfQueueType } from '@/services/queues';
 import { useRefresh } from '@/hooks/useRefresh';
 import { space } from '@/theme/tokens';
 
@@ -36,6 +36,18 @@ function manyServicesReason(tipo, quanti) {
 
 /** The cost of a request queue, in words: a balance figure does not exist. */
 const REQUEST_COST_COPY = 'Una coda di ricerca costa un credito.';
+
+/**
+ * Why **both** create buttons are disabled while a queue is still active.
+ *
+ * Backend `4c90ccd` rejects a second queue of either type with an untranslatable
+ * `500` (`backend-gaps.md` G23), so the only honest screen is one that says why
+ * it will not call the route. The sentence promises nothing the backend does not
+ * do: cancelling the queue is the way back, and it is the same button this tab
+ * already shows on every row.
+ */
+const ACTIVE_QUEUE_REASON =
+  'Hai già una coda attiva: annullala per poterne crearne un’altra.';
 
 /**
  * Whether cancelling this queue gives a credit back.
@@ -73,6 +85,10 @@ const EMPTY_DESCRIPTION =
  *   therefore stays disabled — with the reason spelled out — unless
  *   `listMyServices` says there is **exactly one** service of that type
  *   (`servicesOfQueueType`).
+ * - `POST /create-service-queue` also refuses a second queue of **either** type
+ *   (`hasActiveQueue`, backend `4c90ccd`) and it refuses it with a `500` the app
+ *   cannot translate (`backend-gaps.md` G23), so while a queue is active the two
+ *   buttons are disabled together and the reason replaces theirs.
  * - A request queue costs one credit and **no route exposes the balance**
  *   (`docs/backend-gaps.md` G15): the tab states the cost in words and never
  *   a figure.
@@ -201,6 +217,9 @@ export default function MatchScreen() {
   // number the backend can actually use.
   const offerCount = servicesOfQueueType(services, 'OFFER').length;
   const requestCount = servicesOfQueueType(services, 'REQUEST').length;
+  // One active queue closes both create actions: the backend counts the two
+  // types together and answers a `500` to the second call (G23).
+  const codaAttiva = hasActiveQueue(queues);
   const busy = actionInFlight !== null;
 
   return (
@@ -231,6 +250,7 @@ export default function MatchScreen() {
         <CreateQueueActions
           offerCount={offerCount}
           requestCount={requestCount}
+          codaAttiva={codaAttiva}
           busy={busy}
           actionInFlight={actionInFlight}
           onCreate={(tipo) => void create(tipo)}
@@ -256,51 +276,64 @@ export default function MatchScreen() {
  * and the request one carries its cost in words right under it — never a
  * balance figure, because no route exposes one.
  *
+ * A third state sits above both: while a queue is still active the backend
+ * refuses **any** second create with a `500` (`backend-gaps.md` G23), so the two
+ * buttons go down together and one sentence under the row replaces the two
+ * per-button reasons — the only thing that changed is the queue, and cancelling
+ * it is the way back.
+ *
  * Both are `secondary`: two choices of equal weight are not two primary
  * actions, and `DESIGN.md` gives a screen **one** filled accent ("a screen with
  * no primary action has no filled accent, and that is the rule working"). Each
  * also carries an explicit accessibility name, because "Offerta" alone does not
  * say what pressing it does.
  */
-function CreateQueueActions({ offerCount, requestCount, busy, actionInFlight, onCreate }) {
-  const offerDisabled = offerCount !== 1;
-  const requestDisabled = requestCount !== 1;
+function CreateQueueActions({ offerCount, requestCount, codaAttiva, busy, actionInFlight, onCreate }) {
+  const offerDisabled = codaAttiva || offerCount !== 1;
+  const requestDisabled = codaAttiva || requestCount !== 1;
 
   return (
-    <View style={{ flexDirection: 'row', gap: space.sm }}>
-      <View style={{ flex: 1, gap: space.xs }}>
-        <AppButton
-          label="Offerta"
-          variant="secondary"
-          onPress={() => onCreate('OFFER')}
-          disabled={offerDisabled || busy}
-          loading={actionInFlight === 'create:OFFER'}
-          accessibilityLabel="Crea una coda per la tua offerta"
-        />
-        {offerDisabled ? (
+    <View style={{ gap: space.xs }}>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1, gap: space.xs }}>
+          <AppButton
+            label="Offerta"
+            variant="secondary"
+            onPress={() => onCreate('OFFER')}
+            disabled={offerDisabled || busy}
+            loading={actionInFlight === 'create:OFFER'}
+            accessibilityLabel="Crea una coda per la tua offerta"
+          />
+          {!codaAttiva && offerDisabled ? (
+            <AppText variant="small" tone="secondary">
+              {offerCount === 0 ? GATE_NEED_ONE.OFFER : manyServicesReason('OFFER', offerCount)}
+            </AppText>
+          ) : null}
+        </View>
+        <View style={{ flex: 1, gap: space.xs }}>
+          <AppButton
+            label="Ricerca"
+            variant="secondary"
+            onPress={() => onCreate('REQUEST')}
+            disabled={requestDisabled || busy}
+            loading={actionInFlight === 'create:REQUEST'}
+            accessibilityLabel="Crea una coda per la tua ricerca"
+          />
           <AppText variant="small" tone="secondary">
-            {offerCount === 0 ? GATE_NEED_ONE.OFFER : manyServicesReason('OFFER', offerCount)}
+            {REQUEST_COST_COPY}
           </AppText>
-        ) : null}
+          {!codaAttiva && requestDisabled ? (
+            <AppText variant="small" tone="secondary">
+              {requestCount === 0 ? GATE_NEED_ONE.REQUEST : manyServicesReason('REQUEST', requestCount)}
+            </AppText>
+          ) : null}
+        </View>
       </View>
-      <View style={{ flex: 1, gap: space.xs }}>
-        <AppButton
-          label="Ricerca"
-          variant="secondary"
-          onPress={() => onCreate('REQUEST')}
-          disabled={requestDisabled || busy}
-          loading={actionInFlight === 'create:REQUEST'}
-          accessibilityLabel="Crea una coda per la tua ricerca"
-        />
+      {codaAttiva ? (
         <AppText variant="small" tone="secondary">
-          {REQUEST_COST_COPY}
+          {ACTIVE_QUEUE_REASON}
         </AppText>
-        {requestDisabled ? (
-          <AppText variant="small" tone="secondary">
-            {requestCount === 0 ? GATE_NEED_ONE.REQUEST : manyServicesReason('REQUEST', requestCount)}
-          </AppText>
-        ) : null}
-      </View>
+      ) : null}
     </View>
   );
 }
