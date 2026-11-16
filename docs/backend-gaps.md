@@ -291,6 +291,43 @@ how old a queue is: an `OPEN` queue from three weeks ago and one created a minut
 ago look identical (`In attesa` is a state, not a duration). Requested: one
 timestamp in the row.
 
+## G23 — A second active queue is a `500`, and one queue total is not the product rule
+
+Since backend `4c90ccd` `ServiceQueueManager::createServiceQueue` runs
+`ServiceQueueRepository::getActiveQueueByUser($user)` before anything else and
+throws `\Exception("User already has an active queue.")` when the account has a
+queue whose status is not `CLOSED`
+(`Backend/src/Manager/ServiceQueueManager.php:61-66`). Two problems with that
+shape:
+
+1. **The refusal is untyped and uncaught.** A plain `\Exception` lands in
+   `QueueController::createQueue`, whose `catch (Exception $e)` names
+   `App\Controller\Exception` (no `use Exception`, `G13`), so nothing catches it
+   and the framework error handler answers **`500`**. The app's `500` sentence is
+   «Il servizio ha avuto un problema. Riprova tra poco.» — a server fault offered
+   as retryable for a state the account can only fix by cancelling a queue.
+   Requested: a dedicated exception mapped to `409 \{error: "User already has an
+   active queue"\}` (the cross-cutting rule above asks for `409` on a call that
+   cannot be repeated).
+2. **One queue total conflicts with the product rule.** The rule the seed, the
+   docs and the `match` tab all follow is **one offer and one request per
+   account** (`setup.md`, `database.md`, changelog 2026-11-13): two queues of the
+   two different types are a normal state, not a duplicate. The guard blocks the
+   second *type* as well, so an account with an `OPEN` offer queue can no longer
+   create the request queue it is entitled to. Measured against the seed:
+   `giulia.bianchi` holds the one `OPEN` request queue, so she can create nothing
+   at all, and every other account gets one queue and then the same refusal.
+   Requested: the guard keyed on `queueType` (one `OPEN` queue **per type**), or a
+   product decision that one queue per account is the new rule — the app cannot
+   guess which.
+
+Two smaller notes on the same query: `getOneOrNullResult()` throws
+`NonUniqueResultException` for an account that already holds two non-`CLOSED`
+queues (possible for any account that created one before `4c90ccd` merged), which
+is another `500`; and `getActiveQueueByUser` now duplicates
+`getServiceQueuesByUser` with `!= CLOSED`, so the queue list can never show a
+cancelled row either.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id

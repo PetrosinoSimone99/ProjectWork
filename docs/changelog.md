@@ -6,6 +6,61 @@ documents/code touched.
 
 ---
 
+## 2026-11-16 (latest) — Upstream pushed twice: one queue per account, and a cancel that only notifies when it cancels
+
+Session start: `git fetch origin`. `andrea-frontend` was **11 commits ahead** of
+`origin/andrea-frontend` and **2 behind** `origin/main`; nobody had pushed to the
+frontend branch, the two new commits were on `main` (`yrl26`, 2026-11-16).
+Nothing was merged: per the repo rules the delta is reported and the merge waits
+for Andrea.
+
+### What landed upstream (`origin/main`)
+
+1. **`4c90ccd` — `POST /create-service-queue` now refuses a second queue.**
+   `ServiceQueueManager::createServiceQueue` asks the new
+   `ServiceQueueRepository::getActiveQueueByUser` (any queue whose status is not
+   `CLOSED`) and throws before the type mapping, before the credit and before the
+   service lookup. So a refused create costs nothing — G19's credit-then-fail
+   trap is narrowed, not closed — and the rule is now **one active queue per
+   account, of either type**.
+2. **`cccd44c` — `POST /cancel-agreement` only notifies when it cancels.**
+   The `AGREEMENT_CANCELLED` notification moved inside the
+   `status === ACCEPTED` branch, so a cancel on a `PENDING`/`REFUSED` agreement
+   no longer tells the counterpart that a live exchange was called off. No
+   frontend change: the app renders that action on `ACCEPTED` rows only
+   (`agreements.jsx:297`).
+
+Neither commit touches `Frontend/`, `docs/` or the schema.
+
+### What it costs the app today
+
+- **A reachable `500` in the match tab.** `CreateQueueActions`
+  (`Frontend/src/app/(tabs)/match.jsx:265`) enables each create button off the
+  account's services and never off the queues on screen, so an account holding an
+  `OPEN` queue can still press the other type. The backend now throws a plain
+  `\Exception`, which `QueueController` cannot catch (`G13`), so the screen says
+  «Il servizio ha avuto un problema. Riprova tra poco.» — a retryable server
+  fault for a state only a cancel fixes. `giulia.bianchi` (the seeded account
+  that already holds a queue) is the fastest reproduction.
+- **The one-queue rule contradicts the product rule the app follows.** One offer
+  and one request per account is the rule in `setup.md`, `database.md` and every
+  seed (changelog 2026-11-13); the new guard blocks the second *type*. Requested
+  as **G23**, together with a `409` instead of the `500`.
+
+### Open — what this cycle still has to implement
+
+1. **Gate the create buttons on the queues the screen already loads** (no new
+   call): when `queues.length > 0`, both create actions are disabled with a
+   reason, honestly worded for whichever rule the backend keeps. Blocked on the
+   G23 answer: gating on "any active queue" bakes in the rule this repo does not
+   want.
+2. **Nothing else.** The agreement change is behaviour-neutral for the app, and
+   the queue list already shows what the new repository filter returns.
+
+Docs touched: `api.md` (create/cancel/get queue rows, the five facts, the third
+client guard), `backend-gaps.md` (new G23), `setup.md` (the demo account), this
+entry.
+
 ## 2026-11-16 (later) — A location is Comune - Provincia, the credits verified, the registration fixed
 
 Class **L**, 28 files (5 new, 1 deleted), contract and plan in

@@ -44,7 +44,10 @@ service of the requested type (`docs/backend-gaps.md` G19). The product rule
 gives every account exactly one offer and one request, so every seeded account
 qualifies; `giulia.bianchi` is the one the seed already carries a queue for, and
 it sits at **zero credits** because that queue spent the one a new account
-starts with. The six accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
+starts with. Since backend `4c90ccd` she also cannot create anything at all: the
+one-queue guard fires before the credit check, so what used to answer
+`400 Not enough credits` for her now answers `500`, and cancelling her queue is
+the only way back (`backend-gaps.md` G23). The six accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
 request queue), `marco.ricci` (Milano), `sara.mancini` (Torino), `davide.costa`
 (Bologna), `chiara.marino` (Napoli) and `luca.ferrari` (Firenze), the last five
 at one credit each:

@@ -134,7 +134,7 @@ proposal; the other participant answers once and it becomes `ACCEPTED` or
 | `POST /send-agreement-response` | `{agreementId, response: true\|false}` | The answer, once. `true` → `ACCEPTED`, `false` → `REFUSED`. `409` when the agreement is no longer `PENDING` or this participant already answered |
 | `POST /send-agreement-details` | `{agreementId, fromRemote, startDate, endDate}` | The delivery sheet on an `ACCEPTED` agreement. `serviceId` and `beneficiaryId` are **no longer read**: since 2026-11-15 the manager takes the service and the beneficiary from the agreement itself, so sending them changes nothing. `400` when a field is missing or the end date does not come after the start date, `404` when the agreement is not accepted. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` and the beneficiary gets an `AGREEMENT_DETAILS` notification |
 | `POST /accept-agreement-details/{agreementId}` | — | The beneficiary's confirmation of the sheet: sets `beneficiaryAccepted` (the row is already `COMPILED`, written by the route above) and notifies the provider with `AGREEMENT_DETAILS_ACCEPTED`. `404` when the agreement is unknown, the caller is not the beneficiary, or there is no sheet; `500` when it was already accepted (the backend answers an exception, not a `409`) |
-| `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `CANCELLED` (before 2026-11-15 it became `VOID`). `404` when the caller is not a participant. A queue-born exchange refunds or increments a credit on this path |
+| `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `CANCELLED` (before 2026-11-15 it became `VOID`). `404` when the caller is not a participant. A queue-born exchange refunds or increments a credit on this path. **Only an `ACCEPTED` agreement is touched**: any other status answers `200 {"success": …}` and changes nothing, and since backend `cccd44c` the `AGREEMENT_CANCELLED` notification is sent inside that branch only — before, a cancel on a `PENDING`/`REFUSED` agreement changed no row and still told the counterpart the exchange had been called off. The app offers the action on `ACCEPTED` rows only, so it never reaches the no-op branch |
 
 The details route used to be a `GET` that read a JSON body, which a browser
 cannot send: the sheet was unreachable from the app. It is a `POST` now, and
@@ -269,9 +269,9 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 
 | Call | Body | Notes |
 | --- | --- | --- |
-| `POST /create-service-queue` | `{queueType: "OFFER"\|"REQUEST"}` | `201`. A `REQUEST` queue costs one credit: `400 {error: "Not enough credits"}` when the account has none |
+| `POST /create-service-queue` | `{queueType: "OFFER"\|"REQUEST"}` | `201`. **One active queue per account, of either type** since backend `4c90ccd`: while a non-`CLOSED` queue exists, a second create throws `User already has an active queue.`, which the controller cannot catch (`backend-gaps.md` G13) and answers **`500`** to the client (`backend-gaps.md` G23). A `REQUEST` queue costs one credit: `400 {error: "Not enough credits"}` when the account has none — the one-queue guard runs **first**, so a refused second queue costs nothing |
 | `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back. It always answers `200`, **even when nothing happened** (unknown id, another account's queue, an already closed one): the app prints «Coda annullata» off that status, so a no-op reads as a success (`backend-gaps.md` G21) |
-| `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`, `queueStatus` is `OPEN`, `IN_PROGRESS` or `CLOSED` |
+| `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`. The repository keeps only rows whose status is **not `CLOSED`** (`ServiceQueueRepository::getServiceQueuesByUser`), so the list carries `OPEN` and `IN_PROGRESS` only: a cancelled queue disappears from it instead of appearing as history |
 
 Matching compares `location` with **exact equality**, so the app must always
 send the same composed string it uses everywhere else: `Comune - Provincia`
@@ -290,8 +290,17 @@ reads it, so the app carries a verbatim copy
 upstream file) and the upstream file stays read-only.
 
 The queue surface is the `match` tab (`Frontend/src/app/(tabs)/match.jsx`, second
-cycle). Four facts decide how a client must talk to these routes:
+cycle). Five facts decide how a client must talk to these routes:
 
+- **A second active queue is refused, and it is refused with a `500`.** Since
+  backend `4c90ccd` `createServiceQueue` asks
+  `ServiceQueueRepository::getActiveQueueByUser` first and throws when the answer
+  is not `null`, before the credit is spent and before the service lookup; the
+  throw is a plain `\Exception`, the controller's `catch (Exception)` names
+  `App\Controller\Exception` and never matches (`G13`), so the client reads the
+  refusal as a server fault (`backend-gaps.md` G23). A client that knows the
+  current queues can avoid the call entirely — one active queue is the whole
+  rule, `OFFER` and `REQUEST` alike — but nothing but a `500` says it otherwise.
 - **`GET /get-queues` answers `404` when the list is empty** (`if (!$queuesDTO)`
   in `QueueController::getQueues`): a client reads `404` as `[]`, not as an error
   (`backend-gaps.md` G17).
@@ -323,10 +332,11 @@ and translate the refusal.
 | Cancel a queue-born agreement | +1 | `AgreementManager::cancelAgreement:187-193`, credited to the proposal's user | Nothing to show: the credit goes to the counterpart, and no route returns a balance |
 | Complete a queue-born agreement | +1 | `AgreementEndDateChecker:57-63` | Nothing to show, and it cannot happen in the local stack: no worker consumes the scheduler (`G12`) |
 
-Two guards the app owes and keeps: it never creates a queue when the account does
-not have **exactly one** service of that type (G19 spends the credit before the
-lookup), and it never displays a balance, because inventing one would be a
-number the backend does not confirm.
+Three guards the app owes and keeps: it never creates a queue when the account
+does not have **exactly one** service of that type (G19 spends the credit before
+the lookup), it never asks for a **second active queue** (G23 answers a `500`
+that reads like a server fault), and it never displays a balance, because
+inventing one would be a number the backend does not confirm.
 
 A dry verification of the whole cycle, with an account that has exactly one offer
 and one request (`luca.ferrari` / `demo1234`, in the seed): `create REQUEST` →
