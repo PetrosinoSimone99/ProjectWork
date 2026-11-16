@@ -162,9 +162,18 @@ mounted around the `Stack` in `src/app/_layout.jsx`, `0e22832`).
 dataset is parsed on first paint for every user, including one who never touches
 the location filter. Web builds pay it as download; native pays it as startup
 work.
-Judgment: the picker needs the data only when it opens. A `require()` inside the
-opening handler (or a per-province split) removes it from the critical path. This
-is the clearest single performance win in the project and it needs no backend.
+Judgment (measured, corrected 2026-11-16): the picker is **not** the only
+consumer. The home tab renders `ServiceCard` → `localitaPerDisplay` →
+`analizzaLocalita`, so the dataset is needed at first paint, not when a filter
+opens. A `require()` inside an accessor is resolved by Metro at build time: no
+byte leaves the chunk and the JSON does not leave the home route's module graph
+— only the evaluation moves, by ~1 ms. **`npx expo export -p web` on 2026-11-16:**
+the dataset sits in `__common-*.js` (736.675 B) shared by every route; it is
+112.357 B minified, 41.591 B gzip; parsing that payload in V8 costs ~1 ms, and
+the 110 province names alone weigh 1.225 B. Removing it from the initial payload
+needs an async `import()` (async display functions) or dropping the canonical
+spelling — both change behaviour. Closed as not worth it: W6, and the reason is
+the measurement above.
 
 ### B9. Screens above the file-size rule — P3
 
@@ -422,7 +431,14 @@ layout plus the gate, nothing more.
 
 ### W6 — Lazy-load the province/comune dataset
 
-`Stato: TODO`
+`Stato: N/A` (2026-11-16) — closed with a measurement, not implemented; see B8
+for the numbers. The item's own constraint ("the refactor must not touch
+semantics", API shape unchanged) makes the promised win unreachable: a
+synchronous `require()` removes nothing from the chunk or from the home route's
+module graph, and every other route that renders a location needs the dataset at
+first paint. Reopen only if the display contract changes (a location shown
+without canonical spelling, or an async formatter), which is a product decision,
+not a refactor.
 
 - Edit: `src/services/italian-locations.js` (module accessor that `require`s the
   JSON on first use, keeping the pure API identical), consumers if they import the
@@ -538,7 +554,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | 2 | W2 notification/queue links | data already in memory, highest UX return per line |
 | 3 | ~~W1 chat~~ | **done** 2026-11-16: plan in `docs/briefs/w1-chat/`, landed in `82b22c0`…`0b0e722` |
 | 4 | W3 public profile | closes G3's remaining half, endpoint ready |
-| 5 | W6 lazy dataset | measurable payload win, no backend |
+| 5 | ~~W6 lazy dataset~~ | **closed N/A** 2026-11-16: measured, the win claimed here does not exist (B8) |
 | 6 | W4 staff surface | documentation already promises it |
 | 7 | W10 unread polling | small, but it makes the inbox feel alive |
 | 8 | W7 hook tests | before W9's renames, so the refactor has a net |

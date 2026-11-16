@@ -6,7 +6,42 @@ documents/code touched.
 
 ---
 
-## 2026-11-16 (latest) — W3: the public profile of another person
+## 2026-11-16 (latest) — W6: the lazy dataset was measured, not built
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 291 ahead of `origin/main`, 0 behind. No merge needed.
+
+### Why
+
+Audit W6 asked to load `province-comuni.json` lazily so the home route would not
+pay for it. Before writing code the premise was measured, and it does not hold.
+
+### What the measurement showed
+
+`npx expo export -p web` (2026-11-16, `dist/` is gitignored) puts the dataset in
+`__common-*.js`, the 736.675 B chunk **every** route loads: 112.357 B minified,
+41.591 B gzip, and parsing it in V8 costs about 1 ms. The home tab renders
+`ServiceCard` → `localitaPerDisplay` → `analizzaLocalita`, so the dataset is
+needed at first paint; `FilterBar` is not the only consumer, as B8 assumed. A
+`require()` inside an accessor is resolved by Metro at build time, so it removes
+no byte from the chunk and does not take the JSON out of the home route's module
+graph: it only moves the evaluation. The two ways to really remove it — an async
+`import()` behind async display functions, or dropping the canonical spelling
+(`roma - roma` → `Roma - Roma`) — change what the user reads, which W6 forbade.
+
+### What landed
+
+No code. `docs/audits/frontend-gap-analysis-2026-11-16.md`: B8's judgment is
+corrected with the numbers above, W6 moves to `Stato: N/A` with the reason, and
+the suggested run order marks it closed. `src/services/italian-locations.js` is
+untouched: it is pure, 100% covered and behaves as documented.
+
+The item reopens only if the display contract changes (a location shown without
+canonical spelling, or an async formatter) — a product decision, not a refactor.
+
+---
+
+## 2026-11-16 — W3: the public profile of another person
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
 `origin/andrea-frontend`; **283 ahead** of `origin/main`, 0 behind. No merge
