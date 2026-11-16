@@ -32,6 +32,13 @@ const TITOLI_SECONDARI = {
   '/staff-users': 'Utenti',
 };
 
+/**
+ * Le rotte con un id nel percorso: il titolo è quello della famiglia, non
+ * dell'id. `/chat/7` è la chat dell'accordo 7 e si chiama `Chat`, come un
+ * qualsiasi accordo si chiama col nome della sua sezione.
+ */
+const TITOLI_CON_ID = [{ prefisso: '/chat/', titolo: 'Chat' }];
+
 /** Il percorso senza barra finale, la forma con cui si confrontano le rotte. */
 function percorsoNormalizzato(pathname) {
   if (typeof pathname !== 'string' || pathname === '') {
@@ -49,6 +56,9 @@ function percorsoNormalizzato(pathname) {
 export function titoloDocumento(pathname) {
   const percorso = percorsoNormalizzato(pathname);
   const rotta = TAB_ROUTES.find((voce) => voce.path === percorso);
-  const nome = rotta?.title ?? TITOLI_SECONDARI[percorso] ?? null;
+  const famiglia = TITOLI_CON_ID.find(
+    (voce) => percorso.startsWith(voce.prefisso) && percorso.length > voce.prefisso.length,
+  );
+  const nome = rotta?.title ?? TITOLI_SECONDARI[percorso] ?? famiglia?.titolo ?? null;
   return nome === null ? NOME_APP : `${nome} · ${NOME_APP}`;
 }

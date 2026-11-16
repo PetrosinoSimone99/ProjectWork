@@ -29,6 +29,15 @@ describe('titoloDocumento', () => {
     expect(titoloDocumento('/login//')).toBe(titoloDocumento('/login'));
   });
 
+  // The chat lives at `/chat/<agreementId>`: the id selects the exchange, not
+  // the name of the page, so the tab, the bookmark and the history entry say
+  // the family name. `/chat` with no id is not a route and stays anonymous.
+  it('names a route with an id after its family', () => {
+    expect(titoloDocumento('/chat/7')).toBe('Chat · Baratto-lo');
+    expect(titoloDocumento('/chat/7/')).toBe('Chat · Baratto-lo');
+    expect(titoloDocumento('/chat')).toBe('Baratto-lo');
+  });
+
   it('names the home route from the root, with or without the slash', () => {
     expect(titoloDocumento('/')).toBe('Servizi · Baratto-lo');
     expect(titoloDocumento('')).toBe('Servizi · Baratto-lo');
