@@ -643,3 +643,46 @@ export function normalizeQueues(response) {
   const rows = Array.isArray(response?.queues) ? response.queues : [];
   return rows.map(normalizeQueue).filter(Boolean);
 }
+
+/**
+ * One `messages[]` row of `GET /chats/agreement/{agreementId}`.
+ *
+ * The backend DTO carries `{id, chatId, username, message, creationDate}`
+ * (`Backend/src/DTO/ChatMessageDTO.php`); the row keeps the backend's own order
+ * (the query sorts by `creation_date ASC`) and adds nothing. A message with no
+ * text is dropped like every other row the UI could not draw: `send-message`
+ * accepts an empty string today because the entity has no constraint, so only
+ * the client refuses it, and an old empty row must not become an blank bubble.
+ */
+export function normalizeChatMessage(row) {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+  const id = toIntegerOrNull(row.id);
+  const testo = toTextOrNull(row.message);
+  if (id === null || testo === null) {
+    return null;
+  }
+  return {
+    id,
+    chatId: toIntegerOrNull(row.chatId),
+    autore: toTextOrNull(row.username),
+    testo,
+    inviatoIl: toTextOrNull(row.creationDate),
+  };
+}
+
+/**
+ * `GET /chats/agreement/{agreementId}` -> `{chatId, messaggi}`.
+ *
+ * `chatId` is `null` when the backend did not return one, and the screen reads
+ * that as "cannot send yet": `POST /chats/send-message/{chatId}` needs it, and
+ * the id only exists after the first history call created the chat.
+ */
+export function normalizeChatHistory(response) {
+  const rows = Array.isArray(response?.messages) ? response.messages : [];
+  return {
+    chatId: toIntegerOrNull(response?.chatId),
+    messaggi: rows.map(normalizeChatMessage).filter(Boolean),
+  };
+}
