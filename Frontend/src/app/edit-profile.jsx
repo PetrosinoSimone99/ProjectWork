@@ -16,11 +16,11 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
 import { ListSelector } from '@/components/ListSelector';
 import {
-  REGIONI,
+  PROVINCE,
   analizzaLocalita,
+  comuniPerProvincia,
   formattaLocalita,
-  provincePerRegione,
-} from '@/services/italian-regions';
+} from '@/services/italian-locations';
 import { maxLengthError, photoUrlError, requiredError } from '@/validation';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -66,8 +66,8 @@ function formVuoto() {
   return {
     nome: '',
     cognome: '',
-    regione: null,
     provincia: null,
+    comune: null,
     bio: '',
     immagineProfilo: '',
   };
@@ -147,8 +147,8 @@ export default function EditProfileScreen() {
       setForm({
         nome: values.nome,
         cognome: values.cognome,
-        regione: pair?.regione ?? null,
         provincia: pair?.provincia ?? null,
+        comune: pair?.comune ?? null,
         bio: values.bio,
         immagineProfilo: values.immagineProfilo,
       });
@@ -187,8 +187,8 @@ export default function EditProfileScreen() {
   }, [utente, form, initial, legacyLocation, router]);
 
   function update(field, value) {
-    setForm((current) => (field === 'regione'
-      ? { ...current, regione: value, provincia: null }
+    setForm((current) => (field === 'provincia'
+      ? { ...current, provincia: value, comune: null }
       : { ...current, [field]: value }));
     setFieldErrors((current) => ({ ...current, [field]: null }));
     if (field === 'immagineProfilo') {
@@ -197,10 +197,10 @@ export default function EditProfileScreen() {
   }
 
   // Derived, never stored: what would travel, and whether it differs.
-  const composedLocation = formattaLocalita(form.provincia, form.regione);
+  const composedLocation = formattaLocalita(form.comune, form.provincia);
   const locationChanged =
-    form.regione !== null &&
     form.provincia !== null &&
+    form.comune !== null &&
     composedLocation !== null &&
     composedLocation !== (initial.localita ?? '');
   const changes = {};
@@ -231,8 +231,8 @@ export default function EditProfileScreen() {
 
   const nameError = fieldErrors.nome;
   const surnameError = fieldErrors.cognome;
-  const provinceError =
-    form.regione !== null && form.provincia === null ? 'Seleziona la provincia.' : null;
+  const comuneError =
+    form.provincia !== null && form.comune === null ? 'Seleziona il comune.' : null;
   const locationError =
     composedLocation !== null && composedLocation.length > LIMITS.localita
       ? `La località può avere al massimo ${LIMITS.localita} caratteri.`
@@ -242,7 +242,7 @@ export default function EditProfileScreen() {
   const valid =
     !nameError &&
     !surnameError &&
-    !provinceError &&
+    !comuneError &&
     !locationError &&
     !bioError &&
     !photoError;
@@ -358,24 +358,24 @@ export default function EditProfileScreen() {
           </View>
 
           <ListSelector
-            label="Regione"
-            valore={form.regione}
-            opzioni={REGIONI.map((region) => region.nome)}
-            onChange={(value) => update('regione', value)}
+            label="Provincia"
+            valore={form.provincia}
+            opzioni={PROVINCE}
+            onChange={(value) => update('provincia', value)}
             disabled={saving}
           />
           <ListSelector
-            label="Provincia"
-            placeholder={form.regione ? 'Scegli' : 'Scegli prima la regione'}
-            valore={form.provincia}
-            opzioni={provincePerRegione(form.regione)}
-            onChange={(value) => update('provincia', value)}
-            disabled={!form.regione || saving}
-            errore={provinceError}
+            label="Comune"
+            placeholder={form.provincia ? 'Scegli' : 'Scegli prima la provincia'}
+            valore={form.comune}
+            opzioni={comuniPerProvincia(form.provincia)}
+            onChange={(value) => update('comune', value)}
+            disabled={!form.provincia || saving}
+            errore={comuneError}
           />
           {legacyLocation ? (
             <AppText variant="small" tone="secondary">
-              {`Valore attuale: ${legacyLocation} — scegli regione e provincia per aggiornarlo.`}
+              {`Valore attuale: ${legacyLocation} — scegli provincia e comune per aggiornarlo.`}
             </AppText>
           ) : null}
           {locationError ? (

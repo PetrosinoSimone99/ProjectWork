@@ -4,7 +4,7 @@ import { AppText } from './AppText';
 import { Banner } from './Banner';
 import { EntryEditor } from './EntryEditor';
 import { ListSelector } from './ListSelector';
-import { REGIONI, provincePerRegione } from '@/services/italian-regions';
+import { PROVINCE, comuniPerProvincia } from '@/services/italian-locations';
 import { TIPI_VOCE, validaVoce } from '@/services/offer-request';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -76,30 +76,30 @@ export function EntryForm({
       />
 
       <ListSelector
-        label="Regione"
-        placeholder="Tutte le regioni"
-        opzioni={REGIONI.map((regione) => regione.nome)}
-        valore={voce.regione ?? ''}
+        label="Provincia"
+        placeholder="Tutte le province"
+        opzioni={PROVINCE}
+        valore={voce.provincia ?? ''}
         onChange={(valore) => {
-          // Cascata: la provincia della regione precedente non vale più.
-          onCambia('regione', valore);
-          onCambia('provincia', '');
+          // Cascata: il comune della provincia precedente non vale più.
+          onCambia('provincia', valore);
+          onCambia('comune', '');
         }}
       />
 
       <ListSelector
-        label="Provincia"
-        placeholder={voce.regione ? 'Tutte le province' : 'Scegli prima una regione'}
-        opzioni={provincePerRegione(voce.regione)}
-        valore={voce.provincia ?? ''}
-        disabled={!voce.regione}
+        label="Comune"
+        placeholder={voce.provincia ? 'Tutti i comuni' : 'Scegli prima una provincia'}
+        opzioni={comuniPerProvincia(voce.provincia)}
+        valore={voce.comune ?? ''}
+        disabled={!voce.provincia}
         errore={fieldErrors.localita ?? null}
-        onChange={(valore) => onCambia('provincia', valore)}
+        onChange={(valore) => onCambia('comune', valore)}
       />
 
       <AppText variant="small" tone="secondary">
-        {`La località è facoltativa e si completa scegliendo la provincia: nel profilo appare come Provincia (Regione).${
-          voce.regione && !voce.provincia ? ' Scegli anche la provincia per completare la località.' : ''
+        {`La località è facoltativa e si completa scegliendo il comune: nel profilo appare come Comune - Provincia.${
+          voce.provincia && !voce.comune ? ' Scegli anche il comune per completare la località.' : ''
         }`}
       </AppText>
 

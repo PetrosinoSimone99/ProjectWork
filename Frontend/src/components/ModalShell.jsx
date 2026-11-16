@@ -46,7 +46,7 @@ const pilaAperta = [];
  * L'involucro unico dei pannelli modali.
  *
  * Prima di questo componente ogni pannello (dettaglio servizio, conferma,
- * selettore di categoria, selettore di regione, campanella degli accordi,
+ * selettore di categoria, selettore di località, campanella degli accordi,
  * scheda di revisione staff) ricostruiva da sé sfondo, chiusura e modo di
  * uscire: quattro modi diversi di chiudere lo stesso tipo di pannello (audit UX
  * F38) e, su web, tre difetti che nessuno di loro poteva correggere da solo —

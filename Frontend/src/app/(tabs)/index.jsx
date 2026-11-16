@@ -31,7 +31,7 @@ const NOTA_FILTRO_AREA =
 /**
  * Home dei servizi: il catalogo delle offerte pubblicate e attive **degli
  * altri** (`GET /api/services`), con i filtri in cima (testo, categoria, area —
- * regione o provincia — e modalità) e «Carica altri» in fondo alla lista.
+ * provincia o comune — e modalità) e «Carica altri» in fondo alla lista.
  *
  * Testo, categoria, area e modalità sono tutti richieste al server: il backend
  * ordina il catalogo per rilevanza (le categorie delle mie richieste prima)
@@ -152,12 +152,12 @@ export default function HomeScreen() {
   const haFiltri = numeroFiltri > 0;
   const soloTesto = numeroFiltri === 1 && filtriApplicati.testo.trim() !== '';
 
-  // Il filtro area (regione e/o provincia) è attivo: solo allora il vuoto può
+  // Il filtro area (provincia e/o comune) è attivo: solo allora il vuoto può
   // essere «ingiusto», perché le voci vecchie non hanno la località e non
   // comparirebbero mai. Con filtri misti la frase compare lo stesso.
   const filtroAreaAttivo =
-    (typeof filtriApplicati.regione === 'string' && filtriApplicati.regione.trim() !== '') ||
-    (typeof filtriApplicati.provincia === 'string' && filtriApplicati.provincia.trim() !== '');
+    (typeof filtriApplicati.provincia === 'string' && filtriApplicati.provincia.trim() !== '') ||
+    (typeof filtriApplicati.comune === 'string' && filtriApplicati.comune.trim() !== '');
   const descrizioneVuotoFiltri = soloTesto
     ? null
     : `Prova a toglierne uno: ${descriviFiltri(filtriApplicati, categorie)}.` +

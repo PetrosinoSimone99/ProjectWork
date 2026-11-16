@@ -4,7 +4,7 @@ import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { formatIsoDate } from '@/services/dates';
 import { etichettaModalita, nomePersona } from '@/services/offer-request';
-import { localitaPerDisplay } from '@/services/italian-regions';
+import { localitaPerDisplay } from '@/services/italian-locations';
 import { space, useTokens } from '@/theme/tokens';
 
 /**

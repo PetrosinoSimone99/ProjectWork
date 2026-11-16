@@ -6,7 +6,7 @@ import {
   toIntegerOrNull,
 } from '../normalizers';
 import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/services/offer-request';
-import { formattaLocalita } from '@/services/italian-regions';
+import { formattaLocalita } from '@/services/italian-locations';
 
 /**
  * Own services area: the viewer's offers and requests.
@@ -17,7 +17,7 @@ import { formattaLocalita } from '@/services/italian-regions';
  * through `PATCH`, which is why there is no separate endpoint for it.
  *
  * This file translates the form shape (`tipo`, `mansione`, `idCategoria`,
- * `daRemoto`, `provincia`/`regione`) into the contract shape
+ * `daRemoto`, `provincia`/`comune`) into the contract shape
  * (`type`, `description`, `categoryIds`, `isRemote`, `location`); the screens
  * never see a backend key.
  */
@@ -81,9 +81,9 @@ function serviceRoute(type, id) {
   return null;
 }
 
-/** The location of the service as `Provincia (Regione)`, or `null`. */
+/** The location of the service as `Comune - Provincia`, or `null`. */
 function entryLocation(entry) {
-  return formattaLocalita(entry?.provincia, entry?.regione) ?? null;
+  return formattaLocalita(entry?.comune, entry?.provincia) ?? null;
 }
 
 /**

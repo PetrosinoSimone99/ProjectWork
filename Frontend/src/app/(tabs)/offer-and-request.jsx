@@ -21,7 +21,7 @@ import {
   senzaChiave,
   validaVoce,
 } from '@/services/offer-request';
-import { analizzaLocalita } from '@/services/italian-regions';
+import { analizzaLocalita } from '@/services/italian-locations';
 import { useRefresh } from '@/hooks/useRefresh';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -224,13 +224,13 @@ export default function OfferAndRequestScreen() {
     const voce = apertura.voce ?? nuovaVoce(apertura.tipo);
     // La località di una voce nuova nasce da quella della persona, se la
     // sessione la conosce; in modifica si rilegge dalla voce salvata. Si legge
-    // la coppia provincia/regione dal valore formattato e si precompilano le due
+    // la coppia provincia/comune dal valore formattato e si precompilano le due
     // tendine: un valore legacy non conforme lascia le tendine vuote.
     const coppia = analizzaLocalita(apertura.voce ? apertura.voce.localita : utente?.localita);
     const voceAperta = {
       ...voce,
-      regione: coppia?.regione ?? '',
       provincia: coppia?.provincia ?? '',
+      comune: coppia?.comune ?? '',
     };
     // La copia iniziale serve a capire se il form è stato toccato: il confronto
     // è sul contenuto, così la sostituzione si chiede solo quando c'è qualcosa

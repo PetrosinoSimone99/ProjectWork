@@ -13,7 +13,7 @@ import {
   SCELTE_FILTRO_MODALITA,
   valoreDaEtichettaModalita,
 } from '@/services/offer-request';
-import { REGIONI, provincePerRegione } from '@/services/italian-regions';
+import { PROVINCE, comuniPerProvincia } from '@/services/italian-locations';
 import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
@@ -24,8 +24,8 @@ import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
 const SOGLIA_LAYOUT_STRETTO = 480;
 
 /**
- * La barra dei filtri della home: testo, categoria, area (regione →
- * provincia) e **modalità** (Tutti / solo da remoto / solo in presenza).
+ * La barra dei filtri della home: testo, categoria, area (provincia →
+ * comune) e **modalità** (Tutti / solo da remoto / solo in presenza).
  * I filtri e le callback arrivano dall'hook (`useServiceCatalog`), così quello
  * che c'è nella barra è anche quello che produce la lista — una sola verità.
  * Eccezione: la bozza del testo vive qui (`bozzaTesto`), così ogni tasto
@@ -41,8 +41,8 @@ const SOGLIA_LAYOUT_STRETTO = 480;
  *   produrrebbe una richiesta e una raffica di risposte da scartare. Finché il
  *   testo digitato differisce da quello applicato, un chip di attesa nel posto
  *   sempre visibile dice che la ricerca non è ancora partita;
- * - **categoria, regione, provincia e modalità** al tocco: sono scelte discrete
- *   e non hanno costo. L'azzeramento di provincia al cambio regione lo fa
+ * - **categoria, provincia, comune e modalità** al tocco: sono scelte discrete
+ *   e non hanno costo. L'azzeramento del comune al cambio provincia lo fa
  *   l'hook.
  *
  * Il piede è **sempre visibile**, fuori dal pannello: con i filtri attivi dice
@@ -218,26 +218,26 @@ export function FilterBar({
             }}
           >
             <ListSelector
-              label="Regione"
-              placeholder="Tutte le regioni"
-              opzioni={REGIONI.map((r) => r.nome)}
-              valore={filtri.regione}
-              etichettaAzzera="Tutte le regioni"
+              label="Provincia"
+              placeholder="Tutte le province"
+              opzioni={PROVINCE}
+              valore={filtri.provincia}
+              etichettaAzzera="Tutte le province"
               onChange={(valore) => {
-                onCambiaScelta('regione', valore);
+                onCambiaScelta('provincia', valore);
                 chiudiSeStretto();
               }}
               style={{ flex: flessibile }}
             />
             <ListSelector
-              label="Provincia"
-              placeholder={filtri.regione === '' ? 'Scegli prima una regione' : 'Tutte le province'}
-              opzioni={provincePerRegione(filtri.regione)}
-              valore={filtri.provincia}
-              etichettaAzzera="Tutte le province"
-              disabled={filtri.regione === ''}
+              label="Comune"
+              placeholder={filtri.provincia === '' ? 'Scegli prima una provincia' : 'Tutti i comuni'}
+              opzioni={comuniPerProvincia(filtri.provincia)}
+              valore={filtri.comune}
+              etichettaAzzera="Tutti i comuni"
+              disabled={filtri.provincia === ''}
               onChange={(valore) => {
-                onCambiaScelta('provincia', valore);
+                onCambiaScelta('comune', valore);
                 chiudiSeStretto();
               }}
               style={{ flex: flessibile }}
@@ -258,7 +258,7 @@ export function FilterBar({
           {/* La nota spiega le etichette sopra: sta **dentro** il pannello,
               non fuori dalla card (F10). */}
           <AppText variant="small" tone="secondary">
-            Nessuna scelta: tutti i servizi. Regione e provincia restringono la
+            Nessuna scelta: tutti i servizi. Provincia e comune restringono la
             località, la modalità l'ambito («Tutti» non restringe).
           </AppText>
 

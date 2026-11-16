@@ -11,7 +11,7 @@ import {
   nomeCategoria,
   tonoStatoPubblicazione,
 } from '@/services/offer-request';
-import { localitaPerDisplay } from '@/services/italian-regions';
+import { localitaPerDisplay } from '@/services/italian-locations';
 import { space, useTokens } from '@/theme/tokens';
 
 /**

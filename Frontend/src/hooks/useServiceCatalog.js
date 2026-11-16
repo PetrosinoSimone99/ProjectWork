@@ -148,8 +148,8 @@ export function useServiceCatalog({ token, utenteId }) {
   );
 
   /**
-   * Categoria, regione e provincia: scelte discrete, quindi chiedono subito.
-   * Cambiare regione azzera la provincia (cascata): le province della regione
+   * Categoria, provincia e comune: scelte discrete, quindi chiedono subito.
+   * Cambiare provincia azzera il comune (cascata): i comuni della provincia
    * vecchia non hanno senso nella nuova. Una sola richiesta, mai due.
    *
    * Come `cambiaModalita`, la richiesta parte dai filtri **applicati**, non
@@ -160,12 +160,12 @@ export function useServiceCatalog({ token, utenteId }) {
   const cambiaScelta = useCallback(
     (campo, valore) => {
       const prossimi =
-        campo === 'regione'
-          ? { ...filtriApplicatiRef.current, regione: valore, provincia: '' }
+        campo === 'provincia'
+          ? { ...filtriApplicatiRef.current, provincia: valore, comune: '' }
           : { ...filtriApplicatiRef.current, [campo]: valore };
       setFiltri((correnti) =>
-        campo === 'regione'
-          ? { ...correnti, regione: valore, provincia: '' }
+        campo === 'provincia'
+          ? { ...correnti, provincia: valore, comune: '' }
           : { ...correnti, [campo]: valore },
       );
       void esegui(prossimi);
@@ -203,7 +203,7 @@ export function useServiceCatalog({ token, utenteId }) {
 
   /**
    * Modalità: scelta discreta, quindi chiede subito al server (come categoria,
-   * regione e provincia). `filtriDaQuery` la traduce in `isRemote=true|false`:
+   * provincia e comune). `filtriDaQuery` la traduce in `isRemote=true|false`:
    * la lista visibile la decide il backend, pagine comprese.
    *
    * La richiesta parte dai filtri **applicati**, non dai correnti: il testo

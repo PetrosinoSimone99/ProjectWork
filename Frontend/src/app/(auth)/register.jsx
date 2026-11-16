@@ -30,7 +30,7 @@ import { Card } from '@/components/Card';
 import { EntriesSection } from '@/components/EntriesSection';
 import { ListSelector } from '@/components/ListSelector';
 import { TextLink } from '@/components/TextLink';
-import { REGIONI, formattaLocalita, provincePerRegione } from '@/services/italian-regions';
+import { PROVINCE, comuniPerProvincia, formattaLocalita } from '@/services/italian-locations';
 import { space } from '@/theme/tokens';
 
 /**
@@ -39,8 +39,8 @@ import { space } from '@/theme/tokens';
  * Le voci di offerta e ricerca sono la versione strutturata del vecchio «servizio
  * che offri»: categoria (da una lista che arriva dal backend), mansione in testo
  * libero e casella «da remoto». La località invece è della **persona**, non della
- * voce: si sceglie la regione e poi la provincia, e le due si salvano in un'unica
- * stringa `Provincia (Regione)` nel campo `location` del backend (`users.location`
+ * voce: si sceglie la provincia e poi il comune, e i due si salvano in un'unica
+ * stringa `Comune - Provincia` nel campo `location` del backend (`users.location`
  * è `varchar(255)` e non ha campi separati).
  *
  * Le regole delle voci stanno in `src/services/offer-request.js`; qui restano
@@ -64,8 +64,8 @@ const FORM_VUOTO = {
   username: '',
   email: '',
   password: '',
-  regione: '',
   provincia: '',
+  comune: '',
 };
 
 /** Le due sezioni ripetibili, con i testi che le distinguono. */
@@ -91,7 +91,7 @@ const SEZIONI = [
 /**
  * Account fields, validated with the shared rules of `src/validation/`.
  * Località is mandatory (`AuthController` rejects an empty `location`) and is
- * chosen as region + province: the first missing value gives one error, not two.
+ * chosen as province + comune: the first missing value gives one error, not two.
  */
 function validaAnagrafica(form) {
   const errori = {};
@@ -135,10 +135,10 @@ function validaAnagrafica(form) {
   if (passwordErrore) {
     errori.password = passwordErrore;
   }
-  if (!form.regione) {
-    errori.regione = 'Seleziona la regione.';
-  } else if (!form.provincia) {
+  if (!form.provincia) {
     errori.provincia = 'Seleziona la provincia.';
+  } else if (!form.comune) {
+    errori.comune = 'Seleziona il comune.';
   }
   return errori;
 }
@@ -248,12 +248,12 @@ export default function RegisterScreen() {
   }
 
   /**
-   * Al cambio di regione la provincia scelta prima non vale più: si azzera
+   * Al cambio di provincia il comune scelto prima non vale più: si azzera
    * (copia, mai mutazione) e si tolgono gli errori di entrambi i campi.
    */
-  function cambiaRegione(valore) {
-    setForm((correnti) => ({ ...correnti, regione: valore, provincia: '' }));
-    setFieldErrors((correnti) => senzaChiave(senzaChiave(correnti, 'regione'), 'provincia'));
+  function cambiaProvincia(valore) {
+    setForm((correnti) => ({ ...correnti, provincia: valore, comune: '' }));
+    setFieldErrors((correnti) => senzaChiave(senzaChiave(correnti, 'provincia'), 'comune'));
   }
 
   function cambiaVoce(chiave, indice, campo, valore) {
@@ -324,7 +324,7 @@ export default function RegisterScreen() {
         username: form.username.trim(),
         email: form.email.trim(),
         password: form.password,
-        location: formattaLocalita(form.provincia, form.regione),
+        location: formattaLocalita(form.comune, form.provincia),
         offers: offersEntries,
         requests: requestEntries,
       });
@@ -399,21 +399,21 @@ export default function RegisterScreen() {
           error={fieldErrors.password ?? null}
         />
         <ListSelector
-          label="Regione"
-          placeholder="Scegli la regione"
-          valore={form.regione}
-          opzioni={REGIONI.map((r) => r.nome)}
-          onChange={cambiaRegione}
-          errore={fieldErrors.regione ?? null}
+          label="Provincia"
+          placeholder="Scegli la provincia"
+          valore={form.provincia}
+          opzioni={PROVINCE}
+          onChange={cambiaProvincia}
+          errore={fieldErrors.provincia ?? null}
         />
         <ListSelector
-          label="Provincia"
-          placeholder={form.regione ? 'Scegli la provincia' : 'Scegli prima la regione'}
-          valore={form.provincia}
-          opzioni={provincePerRegione(form.regione)}
-          onChange={(valore) => cambiaCampo('provincia', valore)}
-          disabled={!form.regione}
-          errore={fieldErrors.provincia ?? null}
+          label="Comune"
+          placeholder={form.provincia ? 'Scegli il comune' : 'Scegli prima la provincia'}
+          valore={form.comune}
+          opzioni={comuniPerProvincia(form.provincia)}
+          onChange={(valore) => cambiaCampo('comune', valore)}
+          disabled={!form.provincia}
+          errore={fieldErrors.comune ?? null}
         />
         <AppText variant="small" tone="secondary">
           La vedono le persone che ti contattano.

@@ -6,7 +6,7 @@ import { Card, Chip } from './Card';
 import { EmptyState } from './EmptyState';
 import { formatIsoDate } from '@/services/dates';
 import { TIPI_VOCE, nomeCategoria } from '@/services/offer-request';
-import { localitaPerDisplay } from '@/services/italian-regions';
+import { localitaPerDisplay } from '@/services/italian-locations';
 import { space, useTokens } from '@/theme/tokens';
 
 /**

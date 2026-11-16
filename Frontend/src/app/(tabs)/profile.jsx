@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { formatOrarioScadenza, tokenExpiresAt } from '@/auth/token-store';
 import { getProfile } from '@/api';
-import { localitaPerDisplay } from '@/services/italian-regions';
+import { localitaPerDisplay } from '@/services/italian-locations';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 import { useRefresh } from '@/hooks/useRefresh';
 import { useUnreadCount } from '@/hooks/useNotifications';

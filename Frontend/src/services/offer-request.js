@@ -9,7 +9,7 @@
  * Nessuna funzione muta i dati ricevuti: copia, trasforma, restituisce.
  */
 
-import { formattaLocalita } from '@/services/italian-regions';
+import { formattaLocalita } from '@/services/italian-locations';
 
 /** I due tipi di voce. Stringhe, perché viaggiano in JSON e finiscono nelle query. */
 export const TIPI_VOCE = { OFFERTA: 'OFFERTA', RICERCA: 'RICERCA' };
@@ -82,9 +82,9 @@ export const ETICHETTE_STATO_PUBBLICAZIONE = {
  * @property {number|null} idCategoria  null finché non scelta; è l'unica cosa che fa match
  * @property {string} mansione      testo libero
  * @property {boolean} daRemoto     false = in presenza (la casella ha sempre un valore)
- * @property {string} regione       regione scelta nel form (nome del dataset), '' = non scelta
- * @property {string} provincia     provincia scelta nel form (nome del dataset), '' = non scelta
- * @property {string} localita      valore che viaggia: `Provincia (Regione)` derivato da regione/provincia; '' in registrazione
+ * @property {string} provincia      provincia scelta nel form (nome del dataset), '' = non scelta
+ * @property {string} comune        comune scelto nel form (nome del dataset), '' = non scelto
+ * @property {string} localita      valore che viaggia: `Comune - Provincia` derivato da comune/provincia; '' in registrazione
  * @property {string|null} stato    stato di pubblicazione: null finché arriva dall'elenco
  * @property {number|null} id       id del server: null in registrazione e nel form
  */
@@ -105,8 +105,8 @@ export function nuovaVoce(tipo) {
     idCategoria: null,
     mansione: '',
     daRemoto: false,
-    regione: '',
     provincia: '',
+    comune: '',
     localita: '',
     stato: null,
     id: null,
@@ -114,16 +114,17 @@ export function nuovaVoce(tipo) {
 }
 
 /**
- * La località di una voce nella forma che viaggia: `Provincia (Regione)`, oppure
- * '' se manca la provincia (la sola regione non è un valore di località, formato
+ * La località di una voce nella forma che viaggia: `Comune - Provincia`, oppure
+ * '' se manca una delle due metà (metà sola non è un valore di località, formato
  * imposto dal piano). Helper unico: form, validazione e payload usano questa.
  *
- * Nota di design: un valore `localita` legacy non conforme (testo libero scritto
- * prima del piano) si perde alla prima modifica della voce. Accettato e deciso
- * il 2026-10-13: il database di deploy sarà fresco e conterrà solo valori conformi.
+ * Nota di design: un valore `localita` legacy non conforme (testo libero o
+ * `Provincia (Regione)` scritto prima del piano) si perde alla prima modifica
+ * della voce. Accettato e deciso il 2026-10-13: il database di deploy sarà
+ * fresco e conterrà solo valori conformi.
  */
 export function localitaDaVoce(voce) {
-  return formattaLocalita(voce?.provincia, voce?.regione) ?? '';
+  return formattaLocalita(voce?.comune, voce?.provincia) ?? '';
 }
 
 /** Copia della voce con un solo campo cambiato. */
@@ -223,7 +224,7 @@ export function validaVoce(voce, categorie = []) {
     errori.mansione = `Massimo ${LIMITE_MANSIONE} caratteri.`;
   }
 
-  // La località è facoltativa e derivata da regione/provincia: si controlla solo
+  // La località è facoltativa e derivata da provincia/comune: si controlla solo
   // la lunghezza, come rete di sicurezza se il dataset cambiasse.
   const localita = localitaDaVoce(voce);
   if (localita.length > LIMITE_LOCALITA) {
@@ -341,9 +342,9 @@ export function senzaPrefisso(oggetto, prefisso) {
 // accenti, quali campi guarda il testo) non sta qui: è una decisione del backend
 // (`ServiceRepository::paginateHomepageOffers` fa le LIKE su `description` e
 // sulla località del servizio, `service.location`). Il filtro località non è più testo libero: è
-// regione + provincia dal dataset statico, composti in una stringa (stessa
-// semantica `LIKE` del backend: sola regione = regione intera, regione +
-// provincia = quella provincia).
+// provincia + comune dal dataset statico, composti in una stringa (stessa
+// semantica `LIKE` del backend: sola provincia = l'intera provincia, provincia +
+// comune = quel comune).
 //
 // Il filtro **modalità** va al server: `GET /api/services` accetta
 // `isRemote=true|false` (assente = entrambe le modalità), e l'ordinamento per
@@ -386,8 +387,8 @@ export function nuoviFiltri() {
   return {
     testo: '',
     idCategoria: null,
-    regione: '',
     provincia: '',
+    comune: '',
     modalita: VALORI_MODALITA.TUTTE,
   };
 }
@@ -401,11 +402,11 @@ export function contaFiltri(filtri) {
   if (Number.isInteger(filtri.idCategoria)) {
     quanti += 1;
   }
-  // La località è una condizione sola: regione più provincia è una ricerca più
+  // La località è una condizione sola: provincia più comune è una ricerca più
   // precisa, non due filtri.
   if (
-    (typeof filtri.regione === 'string' && filtri.regione.trim() !== '') ||
-    (typeof filtri.provincia === 'string' && filtri.provincia.trim() !== '')
+    (typeof filtri.provincia === 'string' && filtri.provincia.trim() !== '') ||
+    (typeof filtri.comune === 'string' && filtri.comune.trim() !== '')
   ) {
     quanti += 1;
   }
@@ -424,12 +425,12 @@ export function contaFiltri(filtri) {
  */
 export function filtriDaQuery(filtri) {
   const testo = typeof filtri.testo === 'string' ? filtri.testo.trim() : '';
-  const regione = typeof filtri.regione === 'string' ? filtri.regione.trim() : '';
   const provincia = typeof filtri.provincia === 'string' ? filtri.provincia.trim() : '';
-  // Provincia (se c'è) formattata con la regione, altrimenti la sola regione:
+  const comune = typeof filtri.comune === 'string' ? filtri.comune.trim() : '';
+  // Comune (se c'è) composto con la provincia, altrimenti la sola provincia:
   // `location` resta una stringa sola, come vuole il contratto, e il backend la
   // confronta con un LIKE su `service.location` (non più su quella della persona).
-  const localita = provincia ? formattaLocalita(provincia, regione) : regione;
+  const localita = comune ? formattaLocalita(comune, provincia) : provincia;
   return {
     ...(testo ? { q: testo } : {}),
     ...(Number.isInteger(filtri.idCategoria) ? { categoryIds: filtri.idCategoria } : {}),
@@ -452,13 +453,13 @@ export function descriviFiltri(filtri, categorie = []) {
   if (categoria) {
     parti.push(`categoria ${categoria}`);
   }
-  const regione = typeof filtri.regione === 'string' ? filtri.regione.trim() : '';
+  const comune = typeof filtri.comune === 'string' ? filtri.comune.trim() : '';
   const provincia = typeof filtri.provincia === 'string' ? filtri.provincia.trim() : '';
-  const localita = provincia ? formattaLocalita(provincia, regione) : null;
+  const localita = comune ? formattaLocalita(comune, provincia) : null;
   if (localita) {
     parti.push(`località ${localita}`);
-  } else if (regione) {
-    parti.push(`regione ${regione}`);
+  } else if (provincia) {
+    parti.push(`provincia ${provincia}`);
   }
   if (filtri.modalita === VALORI_MODALITA.REMOTO) {
     parti.push('solo da remoto');

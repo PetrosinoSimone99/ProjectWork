@@ -6,7 +6,7 @@ import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { queueStatusLabel, queueTypeLabel } from '@/services/queues';
-import { localitaPerDisplay } from '@/services/italian-regions';
+import { localitaPerDisplay } from '@/services/italian-locations';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
