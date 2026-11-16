@@ -93,6 +93,7 @@ function RootNavigator() {
           {utente ? <Stack.Screen name="edit-profile" /> : null}
           {utente ? <Stack.Screen name="notifications" /> : null}
           {utente ? <Stack.Screen name="chat/[agreementId]" /> : null}
+          {utente ? <Stack.Screen name="user/[id]" /> : null}
           {utente ? <Stack.Screen name="report" /> : null}
           {utente ? <Stack.Screen name="staff" /> : null}
           {utente ? <Stack.Screen name="staff-users" /> : null}

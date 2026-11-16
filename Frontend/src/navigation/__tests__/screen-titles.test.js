@@ -38,6 +38,12 @@ describe('titoloDocumento', () => {
     expect(titoloDocumento('/chat')).toBe('Baratto-lo');
   });
 
+  // The public profile lives at `/user/<id>`: the id picks the person, not the
+  // name of the page, so the tab says the family name.
+  it('names the public profile after its family', () => {
+    expect(titoloDocumento('/user/7')).toBe('Profilo · Baratto-lo');
+  });
+
   it('names the home route from the root, with or without the slash', () => {
     expect(titoloDocumento('/')).toBe('Servizi · Baratto-lo');
     expect(titoloDocumento('')).toBe('Servizi · Baratto-lo');

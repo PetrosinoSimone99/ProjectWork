@@ -36,8 +36,14 @@ const TITOLI_SECONDARI = {
  * Le rotte con un id nel percorso: il titolo è quello della famiglia, non
  * dell'id. `/chat/7` è la chat dell'accordo 7 e si chiama `Chat`, come un
  * qualsiasi accordo si chiama col nome della sua sezione.
+ *
+ * `/user/<id>` è la stessa forma: l'id sceglie la persona, non il nome della
+ * pagina, che resta `Profilo` per chiunque si apra.
  */
-const TITOLI_CON_ID = [{ prefisso: '/chat/', titolo: 'Chat' }];
+const TITOLI_CON_ID = [
+  { prefisso: '/chat/', titolo: 'Chat' },
+  { prefisso: '/user/', titolo: 'Profilo' },
+];
 
 /** Il percorso senza barra finale, la forma con cui si confrontano le rotte. */
 function percorsoNormalizzato(pathname) {
