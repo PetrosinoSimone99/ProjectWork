@@ -44,4 +44,15 @@ class ServiceQueueRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function getActiveQueueByUser(User $user): ?ServiceQueue
+    {
+        return $this->createQueryBuilder('sq')
+            ->where('sq.user = :user')
+            ->andWhere('sq.queueStatus != :status')
+            ->setParameter('status', 'CLOSED')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }
