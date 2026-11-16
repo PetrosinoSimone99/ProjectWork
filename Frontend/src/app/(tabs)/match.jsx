@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { cancelQueue, createQueue, listMyServices, listQueues } from '@/api';
@@ -99,6 +99,7 @@ const EMPTY_DESCRIPTION =
  */
 export default function MatchScreen() {
   const { token } = useAuth();
+  const router = useRouter();
 
   // `null` until the first answer, so "still loading" and "loaded and empty"
   // stay apart and the create buttons only appear once the services are known.
@@ -263,7 +264,13 @@ export default function MatchScreen() {
       {firstLoadDone && queues.length > 0 ? (
         <View style={{ gap: space.sm }}>
           {queues.map((queue) => (
-            <QueueCard key={queue.id} coda={queue} occupata={busy} onAnnulla={cancel} />
+            <QueueCard
+              key={queue.id}
+              coda={queue}
+              occupata={busy}
+              onAnnulla={cancel}
+              onApri={() => router.push('/agreements')}
+            />
           ))}
         </View>
       ) : null}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
@@ -44,6 +44,12 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  * says so: the money moved by the backend is not visible anywhere else
  * (`backend-gaps.md` G15).
  *
+ * When `coda.agreementId` is not null and `onApri` is a function, the
+ * informational blocks below (type, description, category, place, status)
+ * become one pressable button labelled `Apri lo scambio collegato a questa
+ * coda`; the cancel action and its modal stay outside that pressable, so a tap
+ * there can only cancel.
+ *
  * Data and callbacks only: no network, no mutation of the input. `occupata`
  * is the screen's "an action is in flight" flag: while it is true no queue
  * can be cancelled again. The modal stays open (its confirm button showing
@@ -68,7 +74,7 @@ function confermaAnnullamento(coda) {
   return 'Annullando questa coda non appare più nel match.';
 }
 
-export function QueueCard({ coda, occupata = false, onAnnulla }) {
+export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) {
   const t = useTokens();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -85,8 +91,15 @@ export function QueueCard({ coda, occupata = false, onAnnulla }) {
 
   const confirmMessage = confermaAnnullamento(coda);
 
-  return (
-    <Card style={{ gap: space.sm }}>
+  // One pressable around the informational blocks only when there is somewhere
+  // to go: a linked agreement and a caller able to take it there. The cancel
+  // action and the modal stay outside it — on react-native-web a press inside a
+  // nested pressable bubbles up, so wrapping the whole card would make
+  // "Annulla coda" navigate.
+  const apribile = coda.agreementId !== null && typeof onApri === 'function';
+
+  const bloccoInformativo = (
+    <>
       <Chip background={typeColor.background}>
         <AppText variant="caption" style={{ color: typeColor.color }}>
           {queueTypeLabel(coda.tipo)}
@@ -130,6 +143,23 @@ export function QueueCard({ coda, occupata = false, onAnnulla }) {
           </AppText>
         ) : null}
       </View>
+    </>
+  );
+
+  return (
+    <Card style={{ gap: space.sm }}>
+      {apribile ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Apri lo scambio collegato a questa coda"
+          onPress={onApri}
+          style={{ gap: space.sm }}
+        >
+          {bloccoInformativo}
+        </Pressable>
+      ) : (
+        bloccoInformativo
+      )}
 
       <AppButton
         label="Annulla coda"
