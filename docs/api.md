@@ -265,13 +265,15 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 | `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back. It always answers `200`, **even when nothing happened** (unknown id, another account's queue, an already closed one): the app prints «Coda annullata» off that status, so a no-op reads as a success (`backend-gaps.md` G21) |
 | `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`, `queueStatus` is `OPEN`, `IN_PROGRESS` or `CLOSED` |
 
-Matching compares `location` with **exact equality**, so `"Milano (Lombardia)"`
-and `"Milano"` never meet: the frontend must always send the same composed
-string it uses everywhere else (`italian-regions.js`). Upstream `7408f52`
-adds `Context_and_DB_V2/province-comuni.json` (province → comuni, 8.116 lines):
-no endpoint serves it and no `Backend/` code reads it, it is raw material for
-a comune-level picker, which only pays off once the composed format is decided
-(`docs/database.md`).
+Matching compares `location` with **exact equality**, so the app must always
+send the same composed string it uses everywhere else: `Comune - Provincia`
+(`Frontend/src/services/italian-locations.js`, e.g. `Milano - Milano`,
+`Sesto San Giovanni - Milano`). `Context_and_DB_V2/province-comuni.json`
+(upstream `7408f52`, province → comuni, 110 provinces and 7.894 comuni) is the
+dataset the picker reads from; no endpoint serves it and no `Backend/` code
+reads it, so the app carries a verbatim copy
+(`Frontend/src/services/data/province-comuni.json`) and the upstream file stays
+read-only.
 
 The queue surface is the `match` tab (`Frontend/src/app/(tabs)/match.jsx`, second
 cycle). Four facts decide how a client must talk to these routes:
@@ -293,6 +295,24 @@ cycle). Four facts decide how a client must talk to these routes:
 - **`400 {"error": "Not enough credits"}`** is the only way to learn that the
   account has no credit: no route exposes the balance (`G15`). The app matches
   that body and shows its own sentence; it never displays a number.
+
+### Credits: the four paths and what the app does with each
+
+A new account starts at `credits = 1` (`Backend/src/Entity/User.php:73`). Four
+paths move the number, and the app never reads it: it can only describe the cost
+and translate the refusal.
+
+| Path | Movement | Where it lives | What the app does |
+| --- | --- | --- | --- |
+| Create a `REQUEST` queue | −1 | `ServiceQueueManager::createServiceQueue:69-77`, spent **before** the service lookup | States the cost under the button (`REQUEST_COST_COPY`), refuses anything but the two exact types before calling, and maps `Not enough credits` to its own sentence (`api/areas/queues.js`) |
+| Cancel a `REQUEST` queue with no agreement | +1 | `ServiceQueueManager::cancelServiceQueue:97-101` | The confirm modal and the outcome banner say the credit comes back, and only on that row: `OFFER` queues never spent one, and an agreement queue takes the agreement, not the credit |
+| Cancel a queue-born agreement | +1 | `AgreementManager::cancelAgreement:187-193`, credited to the proposal's user | Nothing to show: the credit goes to the counterpart, and no route returns a balance |
+| Complete a queue-born agreement | +1 | `AgreementEndDateChecker:57-63` | Nothing to show, and it cannot happen in the local stack: no worker consumes the scheduler (`G12`) |
+
+Two guards the app owes and keeps: it never creates a queue when the account does
+not have **exactly one** service of that type (G19 spends the credit before the
+lookup), and it never displays a balance, because inventing one would be a
+number the backend does not confirm.
 
 A dry verification of the whole cycle, with an account that has exactly one offer
 and one request (`coda.demo` / `demo`, in the seed): `create REQUEST` → `201` and

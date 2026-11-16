@@ -39,7 +39,10 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  * The confirm message names the real consequence of `POST /cancel-queue/{id}`:
  * when the queue carries an agreement the backend cancels that agreement too
  * (`ServiceQueueManager::cancelServiceQueue`), so a user who only meant to
- * close a queue learns what else disappears before tapping.
+ * close a queue learns what else disappears before tapping. A `REQUEST` queue
+ * with no agreement gets its credit back on the same route, and the message
+ * says so: the money moved by the backend is not visible anywhere else
+ * (`backend-gaps.md` G15).
  *
  * Data and callbacks only: no network, no mutation of the input. `occupata`
  * is the screen's "an action is in flight" flag: while it is true no queue
@@ -47,6 +50,24 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  * `loading`) until `onAnnulla` settles — closing it at tap time would hide the
  * only progress indicator of the action.
  */
+/**
+ * What the confirm modal says the cancel does.
+ *
+ * One early return per consequence, because the three cases are different
+ * sentences and not three branches of the same one: an agreement goes with the
+ * queue, a request queue gives the credit back, an offer queue only leaves the
+ * match.
+ */
+function confermaAnnullamento(coda) {
+  if (coda.agreementId !== null) {
+    return 'Questa coda è collegata a uno scambio: annullandola annulli anche lo scambio.';
+  }
+  if (coda.tipo === 'REQUEST') {
+    return 'Annullando questa coda non appare più nel match e il credito che ha speso torna disponibile.';
+  }
+  return 'Annullando questa coda non appare più nel match.';
+}
+
 export function QueueCard({ coda, occupata = false, onAnnulla }) {
   const t = useTokens();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -62,10 +83,7 @@ export function QueueCard({ coda, occupata = false, onAnnulla }) {
       ? 'Da remoto'
       : 'Località non indicata';
 
-  const confirmMessage =
-    coda.agreementId !== null
-      ? 'Questa coda è collegata a uno scambio: annullandola annulli anche lo scambio.'
-      : 'Annullando questa coda non appare più nel match.';
+  const confirmMessage = confermaAnnullamento(coda);
 
   return (
     <Card style={{ gap: space.sm }}>

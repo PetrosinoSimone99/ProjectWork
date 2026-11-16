@@ -37,6 +37,20 @@ function manyServicesReason(tipo, quanti) {
 /** The cost of a request queue, in words: a balance figure does not exist. */
 const REQUEST_COST_COPY = 'Una coda di ricerca costa un credito.';
 
+/**
+ * Whether cancelling this queue gives a credit back.
+ *
+ * The backend refunds only a `REQUEST` queue that has no agreement
+ * (`ServiceQueueManager::cancelServiceQueue`: the `IncreaseOrRefundCredit` sits
+ * in the `else if ($queue->getQueueType() === QueueType::REQUEST)` branch), and
+ * an `OFFER` queue never spent one. `GET /get-queues` excludes `CLOSED` rows
+ * (`ServiceQueueRepository::getServiceQueuesByUser`), so every row on screen is
+ * one where the cancel really acts: the sentence is always true when it appears.
+ */
+function rimborsaUnCredito(coda) {
+  return coda.tipo === 'REQUEST' && coda.agreementId === null;
+}
+
 /** The empty list says what to do next, without pretending the tab is broken. */
 const EMPTY_TITLE = 'Nessuna coda attiva';
 const EMPTY_DESCRIPTION =
@@ -167,7 +181,11 @@ export default function MatchScreen() {
         // The banner names the queue that left the list; its description is
         // the only human identifier a row has.
         const label = queue.descrizione?.trim() || queueTypeLabel(queue.tipo).toLowerCase();
-        setOutcome(`Coda annullata: ${label}.`);
+        setOutcome(
+          `Coda annullata: ${label}.${
+            rimborsaUnCredito(queue) ? ' Il credito della coda è tornato disponibile.' : ''
+          }`,
+        );
         await load();
       } catch (err) {
         setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
