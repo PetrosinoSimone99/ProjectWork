@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getCategories } from '@/api';
@@ -197,6 +197,7 @@ function messaggioCategorie(stato, dettaglio) {
 
 export default function RegisterScreen() {
   const { signUp, token } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState(FORM_VUOTO);
   const [offerte, setOfferte] = useState(() => [nuovaVoce(TIPI_VOCE.OFFERTA)]);
   const [ricerche, setRicerche] = useState(() => [nuovaVoce(TIPI_VOCE.RICERCA)]);
@@ -328,7 +329,14 @@ export default function RegisterScreen() {
         offers: offersEntries,
         requests: requestEntries,
       });
-      // A registrazione riuscita la root navigation passa da sola ai tab.
+      // A registrazione riuscita si va alla home, e la navigazione ha **un solo**
+      // proprietario: questa riga. Non basta contare sullo `Stack` radice che
+      // scambia (auth) con (tabs): da nativo quel cambio porta con sé la
+      // schermata, sul web l'URL resta `/register` e chi si è appena registrato
+      // resta sul modulo — con il menu della home disegnato sopra, perché la
+      // sessione esiste già (segnalato il 2026-11-16). Stessa regola e stessa
+      // ragione documentate nel login (`login.jsx`).
+      router.replace('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
