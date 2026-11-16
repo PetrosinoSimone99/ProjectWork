@@ -69,11 +69,11 @@ restituisce niente (audit B7, verificato di nuovo in questo ciclo: 0 hit).
 
 ## Piano
 
-- 1. Scrivere `AppErrorBoundary` (classe + `ErrorFallback`) con reset, retry con chiave, `router.replace('/')`, `accessibilityRole="alert"`, log solo in `__DEV__` | files: Frontend/src/components/AppErrorBoundary.jsx | done: il file esporta `AppErrorBoundary`, non contiene colori letterali, `console.error` compare solo dentro un `if (__DEV__)` | Stato: TODO
-- 2. Scrivere il test con `react-test-renderer` che prova fallback al posto di schermata bianca, retry che rimonta, reset a `/`, log solo in dev | files: Frontend/src/components/__tests__/AppErrorBoundary.test.js | done: `npx jest AppErrorBoundary` verde, 4 test, nessun warning di `act` | Stato: TODO
-- 3. Montare il boundary attorno allo `Stack` in `_layout.jsx`, senza spostare gli avvisi globali | files: Frontend/src/app/_layout.jsx | done: `<AppErrorBoundary>` avvolge `<Stack>` e nient'altro; `npx expo lint` e `npx tsc --noEmit` verdi | Stato: TODO
-- 4. Docs: voce in `docs/changelog.md` (sessione, cosa, perché, touched) e chiusura di W5 nell'audit, che è ancora untracked e va nel commit | files: docs/changelog.md,docs/audits/frontend-gap-analysis-2026-11-16.md | done: changelog in testa con data 2026-11-16 e commit del ciclo; W5 marcata chiusa con il suo commit | Stato: TODO
-- 5. Gate completo e review a contesto fresco (correttezza / accessibilità e dati / coerenza col brief) | files: - | done: lint + tsc + jest verdi; verdetto Merge con P0/P1/P2 su file:linea | Stato: TODO
+- 1. Scrivere `AppErrorBoundary` (classe + `ErrorFallback`) con reset, retry con chiave, `router.replace('/')`, `accessibilityRole="alert"`, log solo in `__DEV__` | files: Frontend/src/components/AppErrorBoundary.jsx | done: il file esporta `AppErrorBoundary`, non contiene colori letterali, `console.error` compare solo dentro un `if (__DEV__)` | Stato: fatto — `0e22832`
+- 2. Scrivere il test con `react-test-renderer` che prova fallback al posto di schermata bianca, retry che rimonta, reset a `/`, log solo in dev | files: Frontend/src/components/__tests__/AppErrorBoundary.test.js | done: `npx jest AppErrorBoundary` verde, 4 test, nessun warning di `act` | Stato: fatto, ma non come scritto qui — vedi «Il test rosso» sotto
+- 3. Montare il boundary attorno allo `Stack` in `_layout.jsx`, senza spostare gli avvisi globali | files: Frontend/src/app/_layout.jsx | done: `<AppErrorBoundary>` avvolge `<Stack>` e nient'altro; `npx expo lint` e `npx tsc --noEmit` verdi | Stato: fatto — `0e22832`
+- 4. Docs: voce in `docs/changelog.md` (sessione, cosa, perché, touched) e chiusura di W5 nell'audit, che è ancora untracked e va nel commit | files: docs/changelog.md,docs/audits/frontend-gap-analysis-2026-11-16.md | done: changelog in testa con data 2026-11-16 e commit del ciclo; W5 marcata chiusa con il suo commit | Stato: fatto, nello stesso commit che ha riparato il test
+- 5. Gate completo e review a contesto fresco (correttezza / accessibilità e dati / coerenza col brief) | files: - | done: lint + tsc + jest verdi; verdetto Merge con P0/P1/P2 su file:linea | Stato: fatto — `expo lint` e `tsc --noEmit` puliti, `jest` 18 suite / 235 test verdi
 
 Lanes: `single`. Condizione che manca per le lane: i tre file di codice sono in
 dipendenza stretta (il test importa il componente, `_layout.jsx` monta il
@@ -86,3 +86,19 @@ scrive il padre.
 `git status --porcelain` prima di tutto: i file sporchi sono il blocco in corso.
 Poi `grep 'Stato: TODO'` su questo file e si parte dal primo TODO con
 condizione vera.
+
+## Il test rosso (chiuso)
+
+Il quarto test era rosso: `remounts the children on Riprova` trovava il figlio
+già recuperato prima di premere. Causa, letta dal `renderLog` e non intuita:
+React 19 **ripete** a priorità sincrona il render che lancia, quindi un figlio
+«lancia solo al primo tentativo» non arriva mai al boundary — il secondo
+tentativo, che è la ripetizione automatica, riesce. Il contatore dei render non
+è una condizione di crash.
+
+Riparazione: il figlio lancia da un gate di modulo (`shouldCrash`), non da un
+contatore, e il crash viene provocato **dopo** il mount con
+`renderer.update(...)`. Così il test prova ciò che il piano voleva provare e in
+più qualcosa di più forte: il figlio montato (uno `useEffect` di mount
+registrato), poi il crash su update, poi `Riprova` → secondo mount reale
+(`mounts` da 1 a 2), non una ridipintura dell'albero.

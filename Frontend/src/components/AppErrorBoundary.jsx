@@ -17,7 +17,9 @@ export class AppErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    if (__DEV__) { console.error('Unhandled render error', error, info); }
+    if (__DEV__) {
+      console.error('Unhandled render error', error, info);
+    }
   }
 
   reset = () => this.setState((prev) => ({ error: null, retryKey: prev.retryKey + 1 }));

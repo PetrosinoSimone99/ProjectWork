@@ -6,7 +6,81 @@ documents/code touched.
 
 ---
 
-## 2026-11-16 (latest) — Upstream pushed twice: one queue per account, and a cancel that only notifies when it cancels
+## 2026-11-16 (latest) — No white screen left: a global error boundary around the Stack
+
+Session start: `git fetch origin`. `andrea-frontend` was **17 commits ahead** of
+`origin/andrea-frontend`, **0 behind**; **259 ahead** of `origin/main`, 0 behind.
+No merge needed, nothing pushed to `main`.
+
+### Why
+
+Audit B7 (`docs/audits/frontend-gap-analysis-2026-11-16.md`):
+`grep -rn "ErrorBoundary\|componentDidCatch" Frontend/src` returned nothing, so any
+throw inside a render — a normalizer returning an unexpected shape, a token
+payload that parses to `null`, a locale API missing on web — unmounted the tree
+and left a blank screen with no way back except a manual reload. Every data path
+in the app is explicit about loading/empty/error; this was the last unhandled
+class of failure. W5 closes it.
+
+### What landed
+
+1. **`src/components/AppErrorBoundary.jsx` (new).** A class boundary
+   (`getDerivedStateFromError` + `componentDidCatch`) plus the `ErrorFallback`
+   function in the same file, because the fallback needs `useRouter()` and the
+   class cannot use hooks. State is `{ error, retryKey }`: `Riprova` resets
+   `error` and bumps `retryKey`, and the children are rendered inside a
+   `<Fragment key={retryKey}>` so the retry **remounts** the subtree instead of
+   repainting the fallback. `Torna ai servizi` resets and then
+   `router.replace('/')` — without the reset the fallback would stay on screen
+   after the navigation.
+2. **Mount point.** `src/app/_layout.jsx` wraps **only** the `Stack` in the
+   boundary, inside `ThemeProvider` + `AuthProvider` + `RootNavigator`: the shell
+   above it (`WebNavMenu`, `SessionExpiryBanner`) keeps working while a screen is
+   on the fallback.
+3. **Copy and accessibility.** Italian, honest, no stack or exception message on
+   screen; the container is `accessibilityRole="alert"`, the title is
+   `AppText variant="title"` and both commands are `AppButton` (50 px tall,
+   `accessibilityRole="button"`, so reachable by keyboard on web and announced).
+   No literal colours: `useTokens` + `space`. The only log is `console.error`
+   under `__DEV__`.
+4. **Four tests** (`src/components/__tests__/AppErrorBoundary.test.js`, new):
+   fallback instead of a blank tree with the alert role and the dev log, retry
+   remounting the children, `replace('/')` on `Torna ai servizi`, and no error
+   text on screen.
+
+### The red test, and why the first version was wrong
+
+The cycle arrived with 1 of 4 tests failing on disk. Cause, read from the log and
+not guessed: the retry test used a child that threw on its first render only, and
+**the crash never reached the boundary** — React 19 replays a render that throws
+at sync priority, so that replay was the child's "second attempt" and it
+succeeded (3 renders logged, 0 errors caught). A render counter is not a crash
+condition. The test now throws from a module gate and provokes the crash **after**
+the child mounted, via `renderer.update(...)`, so `Riprova` is proven to produce a
+second real mount (a `useEffect` mount log going 1 → 2), which is the property the
+plan asked for and a stronger one than "it re-renders".
+
+Stated limit, not a coverage claim: the test mounts the boundary itself, so it
+does not prove `_layout.jsx` keeps it mounted. That is the `grep` on the layout
+plus the gate.
+
+### Gate
+
+`npx expo lint` clean, `npx tsc --noEmit` clean (syntax/imports only, D010),
+`npx jest` **18 suites / 235 tests green** (was 17 / 231). No new dependency:
+`react-test-renderer` was already there.
+
+### Touched
+
+`Frontend/src/components/AppErrorBoundary.jsx` (new),
+`Frontend/src/components/__tests__/AppErrorBoundary.test.js` (new),
+`Frontend/src/app/_layout.jsx`, `docs/briefs/global-error-boundary/plan.md` (new),
+`docs/audits/frontend-gap-analysis-2026-11-16.md` (new; W5 and B7 marked closed),
+`docs/changelog.md`. No backend file, no schema, no rename (that is W9).
+
+---
+
+## 2026-11-16 (later) — Upstream pushed twice: one queue per account, and a cancel that only notifies when it cancels
 
 Session start: `git fetch origin`. `andrea-frontend` was **11 commits ahead** of
 `origin/andrea-frontend` and **2 behind** `origin/main`; nobody had pushed to the
@@ -75,7 +149,7 @@ Docs touched: `api.md` (create/cancel/get queue rows, the five facts, the third
 client guard), `backend-gaps.md` (new G23 + how the app lives with it),
 `setup.md` (the demo account), `decisions.md` (D025), this entry.
 
-## 2026-11-16 (later) — A location is Comune - Provincia, the credits verified, the registration fixed
+## 2026-11-16 (earlier) — A location is Comune - Provincia, the credits verified, the registration fixed
 
 Class **L**, 28 files (5 new, 1 deleted), contract and plan in
 [`briefs/location-comune/`](briefs/location-comune/). Branch `andrea-frontend`,

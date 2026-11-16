@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
@@ -11,16 +12,24 @@ function Exploding() {
   throw new Error('boom');
 }
 
-/** Fails only on the first render: a retry that remounts it recovers. */
-let attempts = 0;
-const renderLog = [];
-function Flaky() {
-  renderLog.push(`before=${attempts}`);
-  attempts += 1;
-  renderLog.push(`after=${attempts}`);
-  if (attempts === 1) {
+// React replays a render that throws, so "throw on the first attempt" is not a
+// crash the boundary ever sees: the gate has to be a condition, not a counter.
+let shouldCrash = false;
+const mounts = [];
+
+function Gated() {
+  if (shouldCrash) {
     throw new Error('boom');
   }
+  return <Stable />;
+}
+
+/** Records its own mounts: a second mount is how a retry proves it remounted
+ * the children instead of repainting the tree it already had. */
+function Stable() {
+  useEffect(() => {
+    mounts.push('Stable');
+  }, []);
   return <View accessibilityLabel="recovered" />;
 }
 
@@ -31,6 +40,8 @@ beforeEach(() => {
   // quiet but record the calls so the test can assert on them.
   consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   mockRouter.replace.mockClear();
+  shouldCrash = false;
+  mounts.length = 0;
 });
 
 afterEach(() => {
@@ -44,6 +55,12 @@ function renderBounded(child) {
     renderer = create(<AppErrorBoundary>{child}</AppErrorBoundary>);
   });
   return renderer;
+}
+
+/** How many nodes carry the recovered child's label (composite + host). */
+function recoveredCount(renderer) {
+  return renderer.root.findAll((node) => node.props?.accessibilityLabel === 'recovered')
+    .length;
 }
 
 /** The control carrying this accessibility label, pressed the way a tap would. */
@@ -83,19 +100,29 @@ describe('AppErrorBoundary fallback', () => {
     );
   });
 
-  it('remounts the children on Riprova so a first-render failure can recover', () => {
-    attempts = 0;
-    renderLog.length = 0;
-    const renderer = renderBounded(<Flaky />);
-    expect(
-      renderer.root.findAll((node) => node.props?.accessibilityLabel === 'recovered').length,
-    ).toBe(0);
+  it('remounts the children on Riprova after a crash that happened once they were mounted', () => {
+    const renderer = renderBounded(<Gated />);
+    expect(recoveredCount(renderer)).toBeGreaterThan(0);
+    expect(mounts).toHaveLength(1);
 
+    // A crash on a later render: the mounted child is torn down and replaced.
+    shouldCrash = true;
+    act(() => {
+      renderer.update(
+        <AppErrorBoundary>
+          <Gated />
+        </AppErrorBoundary>,
+      );
+    });
+    expect(recoveredCount(renderer)).toBe(0);
+    expect(mounts).toHaveLength(1);
+
+    // The condition is gone: a retry brings the children back as a fresh mount.
+    shouldCrash = false;
     press(renderer, 'Riprova');
 
-    expect(
-      renderer.root.findAll((node) => node.props?.accessibilityLabel === 'recovered').length,
-    ).toBe(1);
+    expect(recoveredCount(renderer)).toBeGreaterThan(0);
+    expect(mounts).toHaveLength(2);
   });
 
   it('navigates to the services home when Torna ai servizi is pressed', () => {

@@ -13,9 +13,9 @@ cycle (W5, see below). State at review time:
 - Branch `andrea-frontend`: **16 commits ahead** of `origin/andrea-frontend`,
   0 behind; **258 ahead** of `origin/main`, 0 behind (main already merged in
   `153e26b`).
-- Gate: `npx expo lint` green; `npx jest` **17 suites / 231 tests green** on the
-  committed tree (the open W5 cycle adds one red suite on the working tree);
-  `npx tsc --noEmit` is syntax-only (D010).
+- Gate: `npx expo lint` green; `npx jest` **18 suites / 235 tests green** on the
+  committed tree (the W5 cycle this review opened has since landed, `0e22832`
+  and the fix after it; `npx tsc --noEmit` is syntax-only (D010).
 
 Tiers follow `docs/ui-triage.md`: **Fact** (read out of the source, with
 `path:line`), **Judgment** (a decision on whether the fact is wrong). Nothing
@@ -150,7 +150,8 @@ tree, and the user gets a blank screen with no way back except a manual reload.
 Every data path in this app is explicit about loading/empty/error; the last one is
 missing.
 Judgment: one 30-line component in the root layout closes the only unhandled class
-of failure.
+of failure. **Closed 2026-11-16** by W5 (`src/components/AppErrorBoundary.jsx`,
+mounted around the `Stack` in `src/app/_layout.jsx`, `0e22832`).
 
 ### B8. 192 KB of location data is loaded on every home open — P1
 
@@ -294,13 +295,31 @@ Complete the staff area, which is documented as complete in `docs/api.md:211-216
 
 ### W5 — Global error boundary
 
-`Stato: TODO` — cycle **open** on 2026-11-16, to be closed before another one
-starts. Plan: `docs/briefs/global-error-boundary/plan.md` (class `M`, 5 files, 2
-new). On disk, uncommitted: `_layout.jsx` modified, `AppErrorBoundary.jsx` and its
-test untracked. **It is not green:** `npx jest AppErrorBoundary` reports 1 test
-failing out of 4, and the component still contains three `console.log('DEBUG …')`
-calls the plan forbids (only `console.error` under `__DEV__`). Block 0 (commit of
-plan + audit) never happened.
+`Stato: chiuso` (2026-11-16) — landed in `0e22832` (plan, audit, boundary and
+its mount in `_layout.jsx`, `DEBUG` logs removed) plus the follow-up commit that
+made the retry test green and wrote this entry. Plan:
+`docs/briefs/global-error-boundary/plan.md` (class `M`, 5 files, 2 new).
+
+What landed: `AppErrorBoundary` (class, `getDerivedStateFromError` +
+`componentDidCatch`) renders `ErrorFallback` when a route render throws, wraps
+**only** the `Stack` in `src/app/_layout.jsx` so the nav menu and the session
+banner keep working, `Riprova` resets the state and bumps a `Fragment` key so the
+children are remounted, `Torna ai servizi` resets and then `router.replace('/')`,
+the container carries `accessibilityRole="alert"`, the copy is Italian with no
+technical detail, and the only log is `console.error` under `__DEV__`. Four tests
+in `src/components/__tests__/AppErrorBoundary.test.js`.
+
+What the red test taught (worth keeping): the first version of the retry test
+used a child that threw on its first render only, and **it never reached the
+boundary** — React 19 replays a render that throws at sync priority, so the
+replay is the "second attempt" and it succeeded. A render counter is not a crash
+condition. The test now throws from a module gate and crashes on
+`renderer.update(...)` after the child mounted, so `Riprova` is proven to produce
+a **second mount** (`useEffect` mount log 1 → 2), not a repaint.
+
+Honest limit, restated from the plan: the test mounts the boundary itself, so it
+does not prove that `_layout.jsx` keeps it mounted. That is the `grep` on the
+layout plus the gate, nothing more.
 
 - New: `src/components/AppErrorBoundary.jsx` + test.
 - Edit: `src/app/_layout.jsx`.
@@ -427,7 +446,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 
 | # | Item | Why now |
 | --- | --- | --- |
-| 1 | W5 error boundary | cycle already open: plan and code uncommitted, one red test, `DEBUG` logs to remove |
+| 1 | ~~W5 error boundary~~ | **done** 2026-11-16: landed in `0e22832` + the fix that made the retry test green |
 | 2 | W2 notification/queue links | data already in memory, highest UX return per line |
 | 3 | W1 chat | the only functional hole in the product lifecycle |
 | 4 | W3 public profile | closes G3's remaining half, endpoint ready |
