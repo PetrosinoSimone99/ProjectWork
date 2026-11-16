@@ -20,8 +20,19 @@ import { space, useTokens } from '@/theme/tokens';
  * `IN_REVIEW` report assigned to the caller (the label says the command opens
  * the review, F31) — and the accessibility labels name the reported
  * person so repeated cards stay distinguishable.
+ *
+ * «Dettagli» è l'unica azione su ogni card, anche su una pratica chiusa: il
+ * dettaglio (`GET /staff/reports/{id}`) è lettura completa di motivo, date,
+ * assegnazione e nota, non una decisione, quindi non dipende dallo stato.
  */
-export function StaffReportCard({ report, staffId, busy = false, onClaim, onReview }) {
+export function StaffReportCard({
+  report,
+  staffId,
+  busy = false,
+  onClaim,
+  onReview,
+  onOpenDetail,
+}) {
   const t = useTokens();
   const reported = nomePersona(report.segnalato);
   const reporter = nomePersona(report.autore);
@@ -95,6 +106,19 @@ export function StaffReportCard({ report, staffId, busy = false, onClaim, onRevi
           ) : null}
         </View>
       )}
+
+      {/* Il pannello ha una sola fonte di apertura: senza gestore il bottone
+          non esiste, invece di restare a schermo e non fare nulla. */}
+      {onOpenDetail ? (
+        <AppButton
+          label="Dettagli"
+          variant="ghost"
+          icon="information-circle-outline"
+          onPress={onOpenDetail}
+          accessibilityLabel={`Dettagli della segnalazione su ${reported}`}
+          style={{ alignSelf: 'flex-start' }}
+        />
+      ) : null}
     </Card>
   );
 }
