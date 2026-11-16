@@ -87,6 +87,9 @@ describe('normalizeStaffDeletedServices', () => {
       localita: 'Bologna (Emilia-Romagna)',
       idCategoria: 5,
       categoryIds: [5],
+      // La riga wire porta il nome della categoria: la lista staff lo mostra
+      // senza chiedere `GET /categories` (che non è una rotta dello staff).
+      categoriaNome: 'Lezioni',
       eliminataIl: '2026-11-12T08:30:00+00:00',
     });
     expect(dati.servizi[0].proprietario).toEqual({

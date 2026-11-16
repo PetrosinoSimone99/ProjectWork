@@ -82,7 +82,8 @@ export function StaffDeletedServicesSection({
 
       {rows.map((service) => {
         const isOffer = service.tipo === TIPI_VOCE.OFFERTA;
-        const category = nomeCategoria(categories, service.idCategoria);
+        const category =
+          service.categoriaNome ?? nomeCategoria(categories, service.idCategoria);
         const owner = nomePersona(service.proprietario);
         const deletedAt = formatIsoDate(service.eliminataIl);
         const mansione = service.mansione?.trim() || 'Mansione non indicata';

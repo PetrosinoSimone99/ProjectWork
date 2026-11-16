@@ -433,7 +433,13 @@ export function normalizeStaffDeletedServices(response) {
         if (!service) {
           return null;
         }
-        return { ...service, proprietario: normalizePerson(row?.owner) };
+        return {
+          ...service,
+          // La riga wire porta i nomi delle categorie; `normalizeOwnedService`
+          // tiene solo gli id perché il form ne ammette una. Qui serve il nome.
+          categoriaNome: categoryLabel(row?.categories?.[0]?.description),
+          proprietario: normalizePerson(row?.owner),
+        };
       })
       .filter(Boolean),
     paginazione: normalizePagination(response?.pagination),

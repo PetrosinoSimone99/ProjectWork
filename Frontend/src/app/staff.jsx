@@ -2,20 +2,29 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
-import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   claimStaffReport,
+  getStaffOperation,
+  getStaffReport,
+  listStaffDeletedServices,
   listStaffOperations,
   listStaffReports,
+  restoreStaffService,
   reviewStaffReport,
 } from '@/api';
 import { AppButton } from '@/components/AppButton';
-import { AppIcon } from '@/components/AppIcon';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
 import { StaffStatusBar, emptyTextForFilter } from '@/components/StaffStatusBar';
 import { StaffReportCard } from '@/components/StaffReportCard';
+import { StaffDeletedServicesSection } from '@/components/StaffDeletedServicesSection';
+import { StaffOperationsLog } from '@/components/StaffOperationsLog';
+import {
+  StaffOperationDetail,
+  StaffReportDetail,
+} from '@/components/StaffDetailPanels';
 import { ReportReviewSheet } from '@/components/ReportReviewSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -25,12 +34,17 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { BackButton } from '@/components/BackButton';
 import { Screen } from '@/components/Screen';
 import { StaffAreaGate } from '@/components/StaffAreaGate';
-import { formatIsoDate } from '@/services/dates';
-import { REVIEW_LABELS, emptyReview, operationActionLabel, operationTargetLabel, puoEntrareNellAreaStaff, validateReview } from '@/services/staff';
+import { REVIEW_LABELS, emptyReview, puoEntrareNellAreaStaff, validateReview } from '@/services/staff';
 import { statusLabel } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
 import { useRefresh } from '@/hooks/useRefresh';
 import { space, useTokens } from '@/theme/tokens';
+
+/**
+ * Quanti servizi eliminati per richiesta: il backend ferma `limit` a 50, quindi
+ * «tutti» non è una pagina sola e la sezione pagina davvero.
+ */
+const DELETED_PAGE_SIZE = 20;
 
 /**
  * "Area staff": the reports to examine.
@@ -67,7 +81,26 @@ export default function StaffScreen() {
   const [reviewErrors, setReviewErrors] = useState({});
   const [confirm, setConfirm] = useState(null);
 
+  // I servizi eliminati hanno richiesta ed esito propri: sono di tutti gli
+  // utenti e un loro guasto non deve riscrivere il significato delle
+  // segnalazioni (la stessa lezione F57 del registro).
+  const [deletedServices, setDeletedServices] = useState(null);
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [deletedPages, setDeletedPages] = useState(1);
+  const [deletedLoading, setDeletedLoading] = useState(false);
+  const [deletedLoadingMore, setDeletedLoadingMore] = useState(false);
+  const [deletedError, setDeletedError] = useState(null);
+  const [restoreTarget, setRestoreTarget] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
+
+  // I due pannelli di dettaglio: `{ riga, loading, error }`, dove `riga` è
+  // quella già in memoria e la rilettura la aggiorna o dice perché non ci è
+  // riuscita (`Dettagli non aggiornati`).
+  const [detail, setDetail] = useState(null);
+  const [operationDetail, setOperationDetail] = useState(null);
+
   const requestRef = useRef(0);
+  const deletedRequestRef = useRef(0);
   const actionRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -122,6 +155,59 @@ export default function StaffScreen() {
         requestRef.current += 1;
       };
     }, [load]),
+  );
+
+  /**
+   * Una pagina di servizi eliminati. La prima sostituisce la lista, le altre si
+   * appendono: «Carica altri 20» non deve far sparire le righe già lette.
+   */
+  const loadDeleted = useCallback(
+    async (page = 1) => {
+      if (!token) {
+        return;
+      }
+      const seq = ++deletedRequestRef.current;
+      if (page === 1) {
+        setDeletedLoading(true);
+      } else {
+        setDeletedLoadingMore(true);
+      }
+      try {
+        const result = await listStaffDeletedServices(token, {
+          page,
+          limit: DELETED_PAGE_SIZE,
+        });
+        if (seq !== deletedRequestRef.current) {
+          return;
+        }
+        setDeletedServices((previous) =>
+          page === 1 ? result.servizi : [...(previous ?? []), ...result.servizi],
+        );
+        setDeletedPage(result.paginazione.pagina ?? page);
+        setDeletedPages(result.paginazione.pagineTotali ?? page);
+        setDeletedError(null);
+      } catch (err) {
+        if (seq !== deletedRequestRef.current) {
+          return;
+        }
+        setDeletedError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      } finally {
+        if (seq === deletedRequestRef.current) {
+          setDeletedLoading(false);
+          setDeletedLoadingMore(false);
+        }
+      }
+    },
+    [token],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadDeleted(1);
+      return () => {
+        deletedRequestRef.current += 1;
+      };
+    }, [loadDeleted]),
   );
 
   // Il gesto nativo e «Aggiorna» del web sono lo stesso comando (audit §8.8):
@@ -195,6 +281,85 @@ export default function StaffScreen() {
     }
   }
 
+  /**
+   * Il dettaglio della segnalazione: si apre con la riga già in memoria e poi
+   * rilegge l'endpoint, così assegnazione e chiusura non restano quelle di
+   * quando la lista è stata caricata.
+   */
+  async function openDetail(report) {
+    setDetail({ report, loading: true, error: null });
+    try {
+      const fresh = await getStaffReport(token, report.id);
+      setDetail((current) =>
+        current && Number(current.report.id) === Number(report.id)
+          ? { report: fresh ?? current.report, loading: false, error: null }
+          : current,
+      );
+    } catch (err) {
+      setDetail((current) =>
+        current
+          ? {
+              ...current,
+              loading: false,
+              error: err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE,
+            }
+          : current,
+      );
+    }
+  }
+
+  /** Lo stesso patto per il registro: `before`/`after` esistono solo nel dettaglio. */
+  async function openOperationDetail(operation) {
+    setOperationDetail({ operation, loading: true, error: null });
+    try {
+      const fresh = await getStaffOperation(token, operation.id);
+      setOperationDetail((current) =>
+        current && Number(current.operation.id) === Number(operation.id)
+          ? { operation: fresh ?? current.operation, loading: false, error: null }
+          : current,
+      );
+    } catch (err) {
+      setOperationDetail((current) =>
+        current
+          ? {
+              ...current,
+              loading: false,
+              error: err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE,
+            }
+          : current,
+      );
+    }
+  }
+
+  function askRestore(service) {
+    setActionError(null);
+    setMessage(null);
+    setRestoreTarget(service);
+  }
+
+  /** Il ripristino vero, dopo la conferma: la riga esce dalla lista al reload. */
+  async function confirmRestore() {
+    if (!restoreTarget || actionRef.current) {
+      return;
+    }
+    actionRef.current = true;
+    setRestoringId(restoreTarget.id);
+    setActionError(null);
+    setMessage(null);
+    try {
+      await restoreStaffService(token, restoreTarget.id);
+      setMessage('Servizio ripristinato: è di nuovo online per il suo proprietario.');
+      setRestoreTarget(null);
+      await loadDeleted(1);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      setRestoreTarget(null);
+    } finally {
+      actionRef.current = false;
+      setRestoringId(null);
+    }
+  }
+
   // Due uscite prima di disegnare la schermata, ed è la ragione per cui la
   // rotta gira su ogni sessione (`app/_layout.jsx`): senza sessione si torna al
   // login, senza ruolo si dice che la sezione è riservata. Prima, senza sessione
@@ -235,6 +400,18 @@ export default function StaffScreen() {
         accessibilityLabel="Apri gli utenti dell'area staff"
         onPress={() => router.push('/staff-users')}
         style={{ alignSelf: 'flex-start' }}
+      />
+
+      <StaffDeletedServicesSection
+        services={deletedServices}
+        loading={deletedLoading}
+        error={deletedError}
+        busyId={restoringId}
+        onRetry={() => void loadDeleted(1)}
+        onRestore={askRestore}
+        onLoadMore={() => void loadDeleted(deletedPage + 1)}
+        hasMore={deletedPage < deletedPages}
+        loadingMore={deletedLoadingMore}
       />
 
       <StaffStatusBar filter={filter} onChange={setFilter} disabled={loading} />
@@ -281,6 +458,7 @@ export default function StaffScreen() {
               busy={busyOn(report)}
               onClaim={() => void claim(report)}
               onReview={() => openReview(report)}
+              onOpenDetail={() => void openDetail(report)}
             />
           </View>
         ))}
@@ -297,11 +475,12 @@ export default function StaffScreen() {
         <AppText variant="small" tone="secondary">
           Le ultime azioni fatte dallo staff, nell&apos;ordine in cui sono state registrate.
         </AppText>
-        <OperationsLog
+        <StaffOperationsLog
           operations={operations}
           error={operationError}
           loading={loading}
           onRetry={load}
+          onOpen={(operation) => void openOperationDetail(operation)}
         />
       </Card>
 
@@ -356,73 +535,54 @@ export default function StaffScreen() {
           setConfirm(null);
         }}
       />
+
+      <ConfirmModal
+        visible={restoreTarget !== null}
+        titolo="Ripristinare questo servizio?"
+        messaggio={
+          restoreTarget
+            ? `${restoreTarget.mansione.trim() || 'Servizio'} di ${nomePersona(
+                restoreTarget.proprietario,
+              )} torna nel catalogo: chi lo cerca lo rivede subito.`
+            : ''
+        }
+        etichettaConferma="Ripristina"
+        // Il ripristino non distrugge niente: il colore di conferma non deve
+        // dire «azione irreversibile» (stessa leva già usata altrove).
+        varianteConferma="primary"
+        loading={restoringId !== null}
+        onConferma={() => void confirmRestore()}
+        onAnnulla={() => setRestoreTarget(null)}
+      />
+
+      <ModalShell
+        visible={detail !== null}
+        onClose={() => setDetail(null)}
+        titolo="Dettaglio della segnalazione"
+        etichettaChiudi="Chiudi il dettaglio della segnalazione"
+      >
+        <ScrollView style={{ maxHeight: '85%' }}>
+          {detail ? (
+            <StaffReportDetail detail={detail} onRetry={() => void openDetail(detail.report)} />
+          ) : null}
+        </ScrollView>
+      </ModalShell>
+
+      <ModalShell
+        visible={operationDetail !== null}
+        onClose={() => setOperationDetail(null)}
+        titolo="Dettaglio dell'operazione"
+        etichettaChiudi="Chiudi il dettaglio dell'operazione"
+      >
+        <ScrollView style={{ maxHeight: '85%' }}>
+          {operationDetail ? (
+            <StaffOperationDetail
+              detail={operationDetail}
+              onRetry={() => void openOperationDetail(operationDetail.operation)}
+            />
+          ) : null}
+        </ScrollView>
+      </ModalShell>
     </Screen>
   );
-}
-
-/**
- * Il registro delle operazioni: sola lettura, con il suo esito.
- *
- * Un guasto si dice come un guasto e porta la sua via d'uscita; solo un endpoint
- * assente (404/501) è "non disponibile". Prima di F57 le due richieste
- * condividevano un `Promise.all`, quindi un guasto delle segnalazioni faceva
- * scrivere qui che il servizio non restituisce il registro (audit UX F57).
- */
-function OperationsLog({ operations, error, loading, onRetry }) {
-  const t = useTokens();
-
-  if (operations === null) {
-    if (loading) {
-      return (
-        <AppText variant="small" tone="secondary">
-          Carico il registro…
-        </AppText>
-      );
-    }
-    if (isEndpointUnavailable(error)) {
-      return (
-        <EmptyState
-          icon="time-outline"
-          title="Registro non disponibile"
-          description="Il servizio non restituisce il registro delle operazioni: le segnalazioni e gli utenti qui sopra funzionano lo stesso."
-          etichettaAzione="Riprova"
-          onAzione={() => void onRetry()}
-        />
-      );
-    }
-    return (
-      <EmptyState
-        icon="alert-circle-outline"
-        title="Registro non caricato"
-        description={
-          error instanceof ApiError
-            ? `${error.message} Le segnalazioni qui sopra restano valide.`
-            : `${GENERIC_ERROR_MESSAGE} Le segnalazioni qui sopra restano valide.`
-        }
-        etichettaAzione="Riprova"
-        onAzione={() => void onRetry()}
-      />
-    );
-  }
-
-  if (operations.length === 0) {
-    return (
-      <AppText variant="small" tone="secondary">
-        Nessuna operazione registrata.
-      </AppText>
-    );
-  }
-
-  return operations.map((operation) => (
-    <View key={operation.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-      <AppIcon name="time-outline" size={15} color={t.textSecondary} />
-      <AppText variant="small" tone="secondary" style={{ flexShrink: 1 }}>
-        {`${operationActionLabel(operation.azione)} · ${operationTargetLabel(
-          operation.bersaglio,
-        )} ${operation.bersaglioId ?? ''} · ${operation.staff?.username ?? 'staff'} · ${
-          formatIsoDate(operation.creataIl) ?? 'data non disponibile'
-        }`}
-      </AppText>
-    </View>
-  ));
 }
