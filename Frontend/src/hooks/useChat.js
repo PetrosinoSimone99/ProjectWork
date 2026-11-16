@@ -1,15 +1,20 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   getAgreementChat,
   getMostRecentMessageId,
   getNewChatMessages,
+  MESSAGE_MAX_LENGTH,
+  MESSAGE_TOO_LONG,
   sendChatMessage,
-} from '@/api';
+} from '@/api/areas/chat';
 
 /** How often the open chat asks the backend whether something arrived. */
 export const CHAT_POLL_MS = 15000;
+
+/** Consecutive failed polls before the screen is told something is wrong. */
+const GUASTI_PRIMA_DEL_BANNER = 2;
 
 /** `console.warn` only where a developer can read it. */
 function logInSviluppo(messaggio, dettaglio) {
@@ -29,17 +34,19 @@ function logInSviluppo(messaggio, dettaglio) {
  *    (`ChatManager::getOrCreateChat`), so `chatId` is `null` until the history
  *    arrives and the composer stays locked until then: `send-message` takes a
  *    chat id, not an agreement id.
- * 2. **The poll is a cursor, not a diff.** `check-new-messages` is global across
- *    the user's chats and never carries the caller's own messages, so the hook
- *    asks `most-recent-message` for the newest received id, then filters the
- *    answer by `chatId`. When something for this chat is newer, the history is
- *    re-read instead of merged: the backend sends no row back on send, and one
- *    reader is cheaper than a merge that can duplicate a bubble.
- * 3. **The timer lives inside `useFocusEffect`.** Leaving the screen clears it,
- *    and no interval survives a blurred chat; there is no polling without a
- *    `chatId`, and no polling without a token.
- * 4. **A failed poll is not a failed screen**: it warns in development and
- *    leaves the messages already on screen alone.
+ * 2. **The poll carries its own cursor.** `check-new-messages` answers the
+ *    messages **newer than the id it is given** (`cm.id > :recentMessageId`,
+ *    `ChatMessageRepository.php:44`) across every chat of the user, and never
+ *    the caller's own. The cursor is therefore the highest id the screen
+ *    already shows — asking `most-recent-message` on every tick would hand the
+ *    route the very id that makes its answer empty. That call is used **once**,
+ *    to seed an empty chat, where there is no displayed id to start from.
+ * 3. **The timer lives inside `useFocusEffect`.** Leaving the screen clears it;
+ *    no polling without a `chatId`, none without a token.
+ * 4. **A single failed poll is noise, not an error**: it warns in development
+ *    and keeps the messages on screen. Two in a row reach `errore`, because a
+ *    chat that quietly stops updating is worse than one that says so
+ *    (`AGENTS.md`: never silently swallow an error).
  * 5. **Reading and writing fail apart** (`errore` and `erroreInvio`): a
  *    rejected message must not wipe a conversation.
  */
@@ -54,6 +61,15 @@ export function useChat({ token, agreementId }) {
   // Incremented on every read and on blur: a response that arrives after a
   // newer request (or after leaving the screen) is stale and ignored.
   const requestSeqRef = useRef(0);
+  // Highest message id this screen knows about; `null` until it has one.
+  const cursoreRef = useRef(null);
+  const guastiRef = useRef(0);
+
+  // Another agreement means another conversation: the cursor starts over.
+  useEffect(() => {
+    cursoreRef.current = null;
+    guastiRef.current = 0;
+  }, [agreementId]);
 
   const carica = useCallback(async () => {
     if (!token || !Number.isInteger(agreementId)) {
@@ -69,6 +85,17 @@ export function useChat({ token, agreementId }) {
       }
       setChatId(storico.chatId);
       setMessaggi(storico.messaggi);
+      guastiRef.current = 0;
+      if (storico.messaggi.length > 0) {
+        cursoreRef.current = Math.max(...storico.messaggi.map((messaggio) => messaggio.id));
+      } else if (cursoreRef.current === null) {
+        // An empty chat has no displayed id to ask beyond: the newest received
+        // message of any chat is where the next poll starts.
+        const seme = await getMostRecentMessageId(token);
+        if (seq === requestSeqRef.current) {
+          cursoreRef.current = seme ?? 0;
+        }
+      }
     } catch (err) {
       if (seq !== requestSeqRef.current) {
         return;
@@ -97,16 +124,27 @@ export function useChat({ token, agreementId }) {
       return;
     }
     try {
-      const cursore = await getMostRecentMessageId(token);
-      if (cursore === null) {
-        return; // nothing was ever received: no cursor to ask beyond.
+      if (cursoreRef.current === null) {
+        // The seed call of the first read failed: take it now instead of
+        // never polling at all.
+        cursoreRef.current = (await getMostRecentMessageId(token)) ?? 0;
       }
-      const nuovi = await getNewChatMessages(token, cursore);
-      if (nuovi.some((messaggio) => messaggio.chatId === chatId)) {
-        await carica();
+      const nuovi = await getNewChatMessages(token, cursoreRef.current);
+      guastiRef.current = 0;
+      const diQuestaChat = nuovi.filter((messaggio) => messaggio.chatId === chatId);
+      if (diQuestaChat.length === 0) {
+        return;
       }
+      // Advance before reading again: if the read fails, the next tick must not
+      // hand the same id back and re-ask forever.
+      cursoreRef.current = Math.max(cursoreRef.current, ...nuovi.map((messaggio) => messaggio.id));
+      await carica();
     } catch (err) {
+      guastiRef.current += 1;
       logInSviluppo('[chat] controllo dei nuovi messaggi non riuscito', err?.message ?? err);
+      if (guastiRef.current >= GUASTI_PRIMA_DEL_BANNER) {
+        setErrore(GENERIC_ERROR_MESSAGE);
+      }
     }
   }, [token, chatId, carica]);
 
@@ -122,11 +160,17 @@ export function useChat({ token, agreementId }) {
     }, [token, chatId, sonda]),
   );
 
-  /** Sends one message: `true` when it landed, `false` when the POST failed. */
+  /** Sends one message: `true` when it landed, `false` when it did not. */
   const invia = useCallback(
     async (testo) => {
       const pulito = typeof testo === 'string' ? testo.trim() : '';
       if (!token || chatId === null || pulito === '') {
+        return false;
+      }
+      // The cap again, at the boundary: the composer is one caller, not the only
+      // one, and the backend validates nothing (`ChatMessage` has no constraint).
+      if (pulito.length > MESSAGE_MAX_LENGTH) {
+        setErroreInvio(MESSAGE_TOO_LONG);
         return false;
       }
       setInviando(true);

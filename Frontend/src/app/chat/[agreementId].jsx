@@ -78,7 +78,10 @@ export default function ChatScreen() {
         indietro={<BackButton />}
       />
 
-      {primaLettura && caricamento ? <LoadingScreen /> : null}
+      {/* `messaggi === null` is the state before the first answer lands, which
+          is also the first frame, before the focus effect has asked anything:
+          the spinner is owed there too, not only while a request flies. */}
+      {primaLettura && errore === null ? <LoadingScreen /> : null}
 
       {errore ? (
         <Banner

@@ -35,6 +35,19 @@ import {
  * calls keep the generic Italian statuses of `client.js` for the same reason.
  */
 
+/**
+ * The cap on one message, and the sentence when a caller ignores it.
+ *
+ * It is **ours**: `Backend/src/Entity/ChatMessage.php` has no constraint and the
+ * column is `text`, so the server would store a 5000-character message. The
+ * composer caps the field; the hook re-checks before the POST, because the
+ * composer is not the only possible caller.
+ */
+export const MESSAGE_MAX_LENGTH = 1000;
+
+/** The refusal the screen shows when a caller sends more than the cap. */
+export const MESSAGE_TOO_LONG = 'Il messaggio è troppo lungo (massimo 1000 caratteri).';
+
 /** Italian copy for the statuses the history and send calls can answer. */
 const MESSAGES = {
   /**
