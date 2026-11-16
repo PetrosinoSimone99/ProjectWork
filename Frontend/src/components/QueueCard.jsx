@@ -96,7 +96,22 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
   // action and the modal stay outside it — on react-native-web a press inside a
   // nested pressable bubbles up, so wrapping the whole card would make
   // "Annulla coda" navigate.
-  const apribile = coda.agreementId !== null && typeof onApri === 'function';
+  // Integer, like the notification half: a missing key would be `undefined`,
+  // which `!== null` would treat as linked.
+  const apribile = Number.isInteger(coda.agreementId) && typeof onApri === 'function';
+
+  // A `button` makes its descendants presentational, so a fixed label would stop
+  // the description, the category, the place and the status from being announced
+  // on exactly the linked rows: the name is folded out of the visible strings,
+  // the same fix F50 needed in `ServiceCard`.
+  const etichettaApri = `Apri lo scambio collegato a questa coda: ${[
+    coda.descrizione,
+    coda.categoria ?? 'Categoria non indicata',
+    place,
+    queueStatusLabel(coda.stato),
+  ]
+    .filter(Boolean)
+    .join('. ')}`;
 
   const bloccoInformativo = (
     <>
@@ -151,9 +166,9 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
       {apribile ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Apri lo scambio collegato a questa coda"
+          accessibilityLabel={etichettaApri}
           onPress={onApri}
-          style={{ gap: space.sm }}
+          style={({ pressed }) => ({ gap: space.sm, opacity: pressed ? 0.7 : 1 })}
         >
           {bloccoInformativo}
         </Pressable>

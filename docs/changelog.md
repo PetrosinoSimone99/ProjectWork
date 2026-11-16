@@ -24,31 +24,49 @@ row said something was happening and gave no way to go look.
 ### What landed
 
 1. **`NotificationRow`** (`0718c3a`): the informational block (header row plus
-   message) is one `Pressable` with `accessibilityRole="button"` and the label
-   `Apri lo scambio di questa notifica` when
-   `Number.isInteger(notifica.dati?.agreementId)`; a row without it, or with a
-   string id, renders exactly the old markup — no pressable, no role, no label.
+   message) is one `Pressable` with `accessibilityRole="button"` and the
+   composed label `Apri lo scambio di questa notifica: <tipo, data, messaggio>`
+   when `Number.isInteger(notifica.dati?.agreementId)`; a row without it, or with
+   a string id, renders exactly the old markup — no pressable, no role, no label.
    The actions row and the delete `ConfirmModal` stay outside it.
 2. **`notifications.jsx`**: owns `useRouter`, passes
    `onApri={() => router.push('/agreements')}`. The component stays data and
    callbacks only, with no `expo-router` import.
 3. **`QueueCard` + `match.jsx`** (`ca9e098`): same shape for the linked case
-   (`agreementId !== null`), label `Apri lo scambio collegato a questa coda`;
-   `Annulla coda` and its modal stay outside the pressable.
+   (`Number.isInteger(coda.agreementId)`), label
+   `Apri lo scambio collegato a questa coda: <descrizione, categoria, luogo,
+   stato>`; `Annulla coda` and its modal stay outside the pressable.
 4. **Tests**: two new cases in `NotificationRow.test.js` (integer id → one
-   actionable button that fires `onApri`; missing/`null`/`'12'` → none), and a
-   new `__tests__/QueueCard.test.js` (linked, unlinked, and the cancel path that
-   must never navigate) — the queue half had no test file at all.
+   actionable button that fires `onApri` and whose name carries the message;
+   missing/`null`/`'12'` → none), and a new `__tests__/QueueCard.test.js`
+   (linked, unlinked, and the cancel path that must never navigate) — the queue
+   half had no test file at all.
 
 Why the actions stay outside the pressable: on `react-native-web` a press inside
 a nested pressable bubbles up, so a card-wide pressable would make "Elimina" and
 "Annulla coda" navigate as well.
 
+### The review's P1 that changed the labels
+
+Fresh-context review, two angles (correctness; data, security, brief fit), both
+`MERGE WITH FIXES`. The finding they agreed on: a `Pressable` with the `button`
+role makes its descendants presentational, so a **fixed** label silenced the
+message, the type and the date on exactly the rows that could be opened — the
+same class of bug `ServiceCard` had as F50. Both names are now folded out of the
+visible strings, both tests assert the composed name carries the row's own text,
+and the pressed state got the house feedback (`opacity: pressed ? 0.7 : 1`,
+`ServiceCard`'s shape). The other P2s: the queue predicate became
+`Number.isInteger` like the notification half (a missing key would be
+`undefined`, which `!== null` treats as linked — unreachable today, cheap to
+close), and two sentences of this file and of the audit that said more than the
+code does were corrected.
+
 Two corrections to the plan, both kept in the comments: react-test-renderer
 exposes a `Pressable`'s accessibility props on the composite layers and the host
-view, so "exactly one node" counts three and the tests assert one rendered host
-node; and a new wrapper swallows the card's own `gap`, so both pressables carry
-`style={{ gap: space.sm }}` to keep the two states visually identical.
+view, so "exactly one node" counts three — `QueueCard.test.js` counts rendered
+host elements, `NotificationRow.test.js` asserts the actionable node (prefix +
+role + handler); and a new wrapper swallows the card's own `gap`, so both
+pressables carry `gap: space.sm` to keep the two states visually identical.
 
 Honest limit: `/agreements` reads no search params, so the tap lands on the tab
 and not on the single agreement. Deep-linking one agreement is its own item.

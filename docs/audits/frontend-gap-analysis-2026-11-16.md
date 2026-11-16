@@ -237,31 +237,51 @@ conclusion. Four authenticated routes exist and are unconsumed (A).
 
 ### W2 — Notifications and queues navigate to their agreement
 
-`Stato: chiuso` (2026-11-16) — landed in `0718c3a` (notification row) and
-`ca9e098` (queue card), plan: `docs/briefs/w2-agreement-links/plan.md` (class
+`Stato: chiuso` (2026-11-16) — landed in `0718c3a` (notification row),
+`ca9e098` (queue card) and the review-fix commit that composed the two
+accessible names; plan: `docs/briefs/w2-agreement-links/plan.md` (class
 `M`, 6 files, 1 new).
 
 What landed: `NotificationRow` wraps its informational block (header row plus
 message) in one `Pressable` with `accessibilityRole="button"` and the label
-`Apri lo scambio di questa notifica` when `Number.isInteger(notifica.dati?.agreementId)`,
+`Apri lo scambio di questa notifica: <tipo, data, messaggio>` when
+`Number.isInteger(notifica.dati?.agreementId)`,
 otherwise it renders today's markup with no role and no label; `notifications.jsx`
 owns `useRouter` and passes `onApri={() => router.push('/agreements')}`.
-`QueueCard` does the same for the linked case (`agreementId !== null`, label
-`Apri lo scambio collegato a questa coda`) and `match.jsx` passes the handler.
+`QueueCard` does the same for the linked case (`Number.isInteger(coda.agreementId)`,
+label `Apri lo scambio collegato a questa coda: <descrizione, categoria, luogo,
+stato>`) and `match.jsx` passes the handler.
 The action buttons (`Segna come letta`, `Elimina`, `Annulla coda`) and both
 `ConfirmModal`s stay **outside** the pressable: on `react-native-web` a press
 inside a nested pressable bubbles up, so wrapping the whole card would make the
-destructive action navigate too. A string id is treated as a backend anomaly —
-no coercion, no destination.
+destructive action navigate too.
 
-Two facts the run corrected against the plan: react-test-renderer exposes a
-`Pressable`'s accessibility props on the composite layers *and* the host view,
-so "exactly one node with that label and role" counts three; both test files
-assert one *rendered host* node instead (see `pulsantiRenderati` in
-`QueueCard.test.js`). And the sibling spacing inside the card comes from the
-card's own `gap`, which a new wrapper would swallow: both pressables carry
-`style={{ gap: space.sm }}` so the linked and unlinked cards stay
-pixel-identical.
+What the labels cost, and why they are not fixed strings: a `button` makes its
+descendants presentational, so a label like `Apri lo scambio di questa notifica`
+silences the message, the type and the date **on exactly the rows that can be
+opened** — the same defect `ServiceCard` had as F50. Both names are folded out of
+the visible strings, and the tests assert that the composed name carries the row's
+own text.
+
+On the id type: `Notification`'s `data` is a Doctrine `json` column and all eight
+backend writers (`AgreementManager`, `AgreementEndDateChecker`, `ChatManager`)
+pass a PHP `int` or `?int`, so `Number.isInteger` hides no real case — the only
+non-int possibility is `null` from `ChatManager`, correctly inert. On the queue
+side the same integer predicate guards a key that is always present after
+`normalizeQueue`, which does coerce a numeric string (`'7'` → `7`): the guard is
+there for a missing or `undefined` value, not to reject the normaliser's own
+coercion.
+
+One fact the run corrected against the plan: react-test-renderer exposes a
+`Pressable`'s accessibility props on the composite layers *and* the host view, so
+"exactly one node with that label and role" counts three. `QueueCard.test.js`
+counts rendered host elements only (`pulsantiRenderati`); `NotificationRow.test.js`
+asserts the *actionable* node (prefix + role + handler), because a host filter
+there would count the same press twice. And the sibling spacing inside the card
+comes from the card's own `gap`, which a new wrapper swallows: both pressables
+carry `gap: space.sm` plus the house pressed feedback
+(`opacity: pressed ? 0.7 : 1`, as in `ServiceCard`) so a linked row is both
+spaced and visibly pressable.
 
 Honest limit: no deep link. `/agreements` reads no search params, so the tap
 lands on the tab, not on the single agreement — opening it needs param handling

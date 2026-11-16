@@ -87,6 +87,15 @@ export function NotificationRow({
   // A string id would be a backend anomaly: no coercion, no destination.
   const apribile = Number.isInteger(notifica.dati?.agreementId) && typeof onApri === 'function';
 
+  // A `button` makes its descendants presentational, so a fixed label would
+  // stop the type, the date and the message from being announced on exactly
+  // the rows that can be opened: the name is folded out of the visible strings
+  // instead, the same fix F50 needed in `ServiceCard`.
+  const contenuto = [etichettaTipo(notifica.tipo), quando, notifica.messaggio ?? 'Notifica senza testo.']
+    .filter(Boolean)
+    .join('. ');
+  const etichettaApri = `Apri lo scambio di questa notifica: ${contenuto}`;
+
   // The informational block, one unit: it is wrapped by the pressable below
   // and stays plain content when there is nothing to open. The actions row and
   // the confirm modal are outside on purpose — on react-native-web a press
@@ -144,11 +153,11 @@ export function NotificationRow({
       {apribile ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Apri lo scambio di questa notifica"
+          accessibilityLabel={etichettaApri}
           onPress={onApri}
           // The two blocks used to be direct children of the card, which spaced
           // them: without this the message would sit against the header row.
-          style={{ gap: space.sm }}
+          style={({ pressed }) => ({ gap: space.sm, opacity: pressed ? 0.7 : 1 })}
         >
           {informativa}
         </Pressable>

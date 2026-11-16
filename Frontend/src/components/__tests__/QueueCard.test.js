@@ -2,8 +2,8 @@ import { act, create } from 'react-test-renderer';
 
 import { QueueCard } from '../QueueCard';
 
-/** The label the linked card announces to assistive technology. */
-const ETICHETTA_APRI = 'Apri lo scambio collegato a questa coda';
+/** The label the linked card announces to assistive technology, before its content. */
+const PREFISSO_APRI = 'Apri lo scambio collegato a questa coda';
 
 /**
  * One row of `GET /get-queues` as the card receives it: every field the card
@@ -43,6 +43,33 @@ function premi(renderer, accessibilityLabel) {
   });
 }
 
+/** The controls announcing the open affordance, matched on the label prefix. */
+function conEtichettaApri(renderer, hostOnly = false) {
+  return renderer.root.findAll(
+    (node) =>
+      (!hostOnly || typeof node.type === 'string') &&
+      typeof node.props?.accessibilityLabel === 'string' &&
+      node.props.accessibilityLabel.startsWith(PREFISSO_APRI),
+  );
+}
+
+/** The actionable node of the open affordance: label, button role and a handler. */
+function premiApri(renderer) {
+  const nodo = renderer.root
+    .findAll(
+      (node) =>
+        typeof node.props?.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith(PREFISSO_APRI) &&
+        node.props?.accessibilityRole === 'button' &&
+        typeof node.props.onPress === 'function',
+    )
+    .at(0);
+  expect(nodo).toBeDefined();
+  act(() => {
+    nodo.props.onPress();
+  });
+}
+
 /** Buttons as they render: host elements only, so one button counts once. */
 function pulsantiRenderati(renderer) {
   return renderer.root.findAll(
@@ -57,15 +84,17 @@ describe('QueueCard agreement link', () => {
 
     // The count is taken over rendered elements: the memo/function layers of
     // the one Pressable repeat the same props, so they are not three buttons.
-    const apribili = renderer.root.findAll(
-      (node) =>
-        typeof node.type === 'string' &&
-        node.props?.accessibilityLabel === ETICHETTA_APRI &&
-        node.props?.accessibilityRole === 'button',
+    const apribili = conEtichettaApri(renderer, true).filter(
+      (node) => node.props?.accessibilityRole === 'button',
     );
     expect(apribili).toHaveLength(1);
 
-    premi(renderer, ETICHETTA_APRI);
+    // The name carries the card's own text: a `button` makes its descendants
+    // presentational, so a fixed label silences the description, the category,
+    // the place and the status on the linked rows (F50).
+    expect(apribili[0].props.accessibilityLabel).toContain(CODA.descrizione);
+
+    premiApri(renderer);
     expect(onApri).toHaveBeenCalledTimes(1);
   });
 
@@ -73,23 +102,14 @@ describe('QueueCard agreement link', () => {
     const onApri = jest.fn();
     const renderer = renderCoda({ ...CODA, agreementId: null }, { onApri });
 
-    const conEtichetta = renderer.root.findAll(
-      (node) => node.props?.accessibilityLabel === ETICHETTA_APRI,
-    );
-    expect(conEtichetta).toHaveLength(0);
-
-    const conRuolo = renderer.root.findAll(
-      (node) =>
-        node.props?.accessibilityLabel === ETICHETTA_APRI &&
-        node.props?.accessibilityRole === 'button',
-    );
-    expect(conRuolo).toHaveLength(0);
+    expect(conEtichettaApri(renderer)).toHaveLength(0);
 
     // The cancel AppButton is always a button, so inertness means it is the
     // only one: no informational block gained the role.
     expect(pulsantiRenderati(renderer).map((node) => node.props.accessibilityLabel)).toEqual([
       'Annulla questa coda',
     ]);
+    expect(renderer.root.findAll((node) => node.props?.onPress === onApri)).toHaveLength(0);
   });
 
   it('never opens the agreement from the cancel button', async () => {

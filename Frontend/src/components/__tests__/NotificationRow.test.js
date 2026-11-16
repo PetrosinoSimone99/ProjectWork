@@ -183,16 +183,25 @@ describe('NotificationRow rendering', () => {
  * The open affordance of the row: the informational block is a button only
  * for an integer `agreementId`, and only the screen's `onApri` can fire it.
  */
-const ETICHETTA_APRI = 'Apri lo scambio di questa notifica';
+const PREFISSO_APRI = 'Apri lo scambio di questa notifica';
 
 /** The one actionable node exposing the open affordance: label, button role and a handler. */
 function nodiApri(renderer) {
   return renderer.root.findAll(
     (node) =>
-      node.props?.accessibilityLabel === ETICHETTA_APRI &&
+      typeof node.props?.accessibilityLabel === 'string' &&
+      node.props.accessibilityLabel.startsWith(PREFISSO_APRI) &&
       node.props?.accessibilityRole === 'button' &&
       typeof node.props.onPress === 'function',
   );
+}
+
+function premiApri(renderer) {
+  const nodo = nodiApri(renderer).at(0);
+  expect(nodo).toBeDefined();
+  act(() => {
+    nodo.props.onPress();
+  });
 }
 
 describe('NotificationRow opening', () => {
@@ -201,7 +210,12 @@ describe('NotificationRow opening', () => {
     const renderer = renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
 
     expect(nodiApri(renderer)).toHaveLength(1);
-    premi(renderer, ETICHETTA_APRI);
+    // The name carries the row's own text: a `button` makes its descendants
+    // presentational, so a fixed label silences the message on the only rows
+    // that can be opened (F50, the same fix `ServiceCard` needed).
+    expect(nodiApri(renderer)[0].props.accessibilityLabel).toContain(NOTIFICA.messaggio);
+
+    premiApri(renderer);
     expect(onApri).toHaveBeenCalledTimes(1);
   });
 
@@ -217,7 +231,9 @@ describe('NotificationRow opening', () => {
       const renderer = renderRiga(notifica, { onApri });
 
       const conEtichetta = renderer.root.findAll(
-        (node) => node.props?.accessibilityLabel === ETICHETTA_APRI,
+        (node) =>
+          typeof node.props?.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith(PREFISSO_APRI),
       );
       expect(conEtichetta).toHaveLength(0);
       // The host nodes under `Pressable` re-expose its accessibility props, so

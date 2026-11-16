@@ -117,6 +117,29 @@ rule there already covers role/label/state).
 - 10. Push to the working branch only | files: none | done: `git status -sb` shows `andrea-frontend` 0 ahead of `origin/andrea-frontend`; `origin/main` untouched | Stato: TODO
 
 
+### Correzioni dopo la review (2026-11-16)
+
+Le due etichette fissate nel lock 3 non sono più stringhe fisse, e la review è il
+motivo. Un `Pressable` con `accessibilityRole="button"` rende presentazionali i
+suoi discendenti: con `Apri lo scambio di questa notifica` come unico nome, il
+messaggio, il tipo e la data smettevano di essere annunciati **proprio sulle
+righe apribili** — lo stesso difetto che `ServiceCard` ha chiuso come F50. Il nome
+ora si compone dalle stringhe visibili (`Apri lo scambio di questa notifica:
+<tipo, data, messaggio>`, `Apri lo scambio collegato a questa coda: <descrizione,
+categoria, luogo, stato>`), e i test lo verificano.
+
+Il lock 4 prevedeva `coda.agreementId !== null`; è diventato
+`Number.isInteger(coda.agreementId)`, simmetrico alla metà notifiche, perché una
+chiave assente sarebbe `undefined` e `!== null` la tratterebbe come collegata.
+Comportamento identico oggi (`normalizeQueue` scrive sempre la chiave), foro
+chiuso per il chiamante di domani.
+
+Aggiunto anche il feedback di pressione della casa
+(`opacity: pressed ? 0.7 : 1`, la forma di `ServiceCard`): senza, su nativo una
+riga apribile era indistinguibile da una inerte.
+
+---
+
 ### Lanes
 
 - **lane A** (steps 1-2): `Frontend/src/components/NotificationRow.jsx`,
