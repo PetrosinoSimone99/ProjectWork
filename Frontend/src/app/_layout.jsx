@@ -3,6 +3,7 @@ import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
+import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { FocusRing } from '@/components/FocusRing';
 import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -82,14 +83,20 @@ function RootNavigator() {
           {inScadenza ? <SessionExpiryBanner scadenzaMs={scadenzaMs} /> : null}
         </View>
       ) : null}
-      <Stack screenOptions={{ headerShown: false }}>
-        {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
-        {utente ? <Stack.Screen name="edit-profile" /> : null}
-        {utente ? <Stack.Screen name="notifications" /> : null}
-        {utente ? <Stack.Screen name="report" /> : null}
-        {utente ? <Stack.Screen name="staff" /> : null}
-        {utente ? <Stack.Screen name="staff-users" /> : null}
-      </Stack>
+      {/* A throw inside any route render would otherwise unmount the tree and
+          leave a blank screen. The boundary wraps the `Stack` only: the global
+          shell above it (nav menu, session banner) stays usable while a screen
+          is on the fallback. */}
+      <AppErrorBoundary>
+        <Stack screenOptions={{ headerShown: false }}>
+          {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
+          {utente ? <Stack.Screen name="edit-profile" /> : null}
+          {utente ? <Stack.Screen name="notifications" /> : null}
+          {utente ? <Stack.Screen name="report" /> : null}
+          {utente ? <Stack.Screen name="staff" /> : null}
+          {utente ? <Stack.Screen name="staff-users" /> : null}
+        </Stack>
+      </AppErrorBoundary>
     </View>
   );
 }
