@@ -1,9 +1,9 @@
 import { View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { useUserServices } from '@/hooks/useUserServices';
-import { AppIcon } from '@/components/AppIcon';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
+import { ServiceGroup } from '@/components/ServiceGroup';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /** How many rows the card shows before it just counts the rest. */
@@ -35,36 +35,6 @@ const GRUPPI = [
   { chiave: 'offerte', titolo: 'Offre', icona: 'pricetag-outline' },
   { chiave: 'richieste', titolo: 'Cerca', icona: 'search-outline' },
 ];
-
-function Gruppo({ titolo, icona, servizi }) {
-  const t = useTokens();
-  if (!Array.isArray(servizi) || servizi.length === 0) {
-    return null;
-  }
-  const visibili = servizi.slice(0, RIGHE_VISIBILI);
-  const resto = servizi.length - visibili.length;
-
-  return (
-    <View style={{ gap: space.xs }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-        <AppIcon name={icona} size={14} color={t.textSecondary} />
-        <AppText variant="small" style={{ fontWeight: '600' }}>
-          {titolo}
-        </AppText>
-      </View>
-      {visibili.map((servizio) => (
-        <AppText key={servizio.chiave} variant="small" tone="secondary" numberOfLines={1}>
-          {`- ${servizio.descrizione}`}
-        </AppText>
-      ))}
-      {resto > 0 ? (
-        <AppText variant="small" tone="secondary">
-          {`e ${resto} altr${resto === 1 ? 'a' : 'e'}`}
-        </AppText>
-      ) : null}
-    </View>
-  );
-}
 
 /**
  * «Cosa offre e cerca»: the person's other published services, inside the
@@ -158,11 +128,12 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEsclud
       ) : null}
 
       {GRUPPI.map((gruppo) => (
-        <Gruppo
+        <ServiceGroup
           key={gruppo.chiave}
           titolo={gruppo.titolo}
           icona={gruppo.icona}
           servizi={pubblicazioni[gruppo.chiave]}
+          limite={RIGHE_VISIBILI}
         />
       ))}
     </View>
