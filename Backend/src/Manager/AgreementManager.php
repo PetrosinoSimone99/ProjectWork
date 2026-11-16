@@ -191,11 +191,12 @@ class AgreementManager{
                 $this->userManager->IncreaseOrRefundCredit($agreementProposal->getUser());
                 $this->closeQueueUseCase->execute($user, $agreement);
             }
+            $otherParticipant = $this->agreementProposalRepository->findOtherParticipant($agreementId, $user);
+            $this->notificationService->notify($otherParticipant, 'AGREEMENT_CANCELLED', 'Accordo annullato da: '.$user->getUsername(),
+            ['agreementId' => $agreementId]);
         }
 
-        $otherParticipant = $this->agreementProposalRepository->findOtherParticipant($agreementId, $user);
-        $this->notificationService->notify($otherParticipant, 'AGREEMENT_CANCELLED', 'Accordo annullato da: '.$user->getUsername(),
-        ['agreementId' => $agreementId]);
+        
     }
 
     public function acceptAgreementDetails(User $user, int $agreementId){
