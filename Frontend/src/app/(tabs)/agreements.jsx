@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { acceptAgreementSheet, sendAgreementSheet } from '@/api';
@@ -155,6 +156,7 @@ export default function AgreementsScreen() {
   const { token, utente } = useAuth();
   const t = useTokens();
   const myUsername = utente?.username ?? null;
+  const router = useRouter();
   const [pannelloAperto, setPannelloAperto] = useState(false);
   const [sezioneAttiva, setSezioneAttiva] = useState(SECTIONS[0].key);
 
@@ -298,6 +300,9 @@ export default function AgreementsScreen() {
                 azioneInCorso={azioneInCorso}
                 onInviaScheda={inviaScheda}
                 onConfermaScheda={confermaScheda}
+                onApriChat={
+                  accordo.stato === 'ACCEPTED' ? () => router.push(`/chat/${accordo.id}`) : null
+                }
               />
             ))
           )}

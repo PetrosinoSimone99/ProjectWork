@@ -27,7 +27,7 @@ import { space, useTokens } from '@/theme/tokens';
  * error belong to the screen, so the button draws its in-flight state from
  * `azioneInCorso` (`null` when idle, `{id, nome}` while an action flies).
  *
- * Data and callbacks only: no network, no mutation of the input.
+ * Data and callbacks only: no network, no router, no mutation of the input.
  */
 export function AgreementCard({
   accordo,
@@ -36,6 +36,7 @@ export function AgreementCard({
   azioneInCorso = null,
   onInviaScheda = null,
   onConfermaScheda = null,
+  onApriChat = null,
 }) {
   const t = useTokens();
   const [confermaAperta, setConfermaAperta] = useState(false);
@@ -77,6 +78,10 @@ export function AgreementCard({
     isSheetCompiled(altra) &&
     altra.beneficiarioAccettato !== true &&
     onConfermaScheda !== null;
+
+  // Only `ACCEPTED`: the chat is the step after acceptance, even though the backend route would create it for any agreement id.
+  const puoAprireChat =
+    accordo.stato === 'ACCEPTED' && Number.isInteger(accordo.id) && onApriChat !== null;
 
   // Cancellation: accepted only, id present, the screen opted in, and no sheet
   // call of this card in flight.
@@ -144,6 +149,17 @@ export function AgreementCard({
           </AppText>
         </View>
       )}
+
+      {puoAprireChat ? (
+        <AppButton
+          label="Apri chat"
+          icon="chatbubble-ellipses-outline"
+          variant="secondary"
+          accessibilityLabel="Apri la chat di questo scambio"
+          onPress={() => onApriChat(accordo.id)}
+          disabled={occupato}
+        />
+      ) : null}
 
       {puoAnnullare ? (
         <>
