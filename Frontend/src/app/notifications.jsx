@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { useNotifications } from '@/hooks/useNotifications';
 import { BackButton } from '@/components/BackButton';
@@ -28,6 +29,7 @@ import { space } from '@/theme/tokens';
  * screen kept), and the per-row action state (`inCorso`).
  */
 export default function NotificationsScreen() {
+  const router = useRouter();
   const { token } = useAuth();
   const {
     elementi,
@@ -84,6 +86,7 @@ export default function NotificationsScreen() {
               inCorso={azioneInCorso?.id === notifica.id ? azioneInCorso : null}
               onLetta={() => void segnaLetta(notifica.id)}
               onElimina={() => void elimina(notifica.id)}
+              onApri={() => router.push('/agreements')}
             />
           ))}
         </View>

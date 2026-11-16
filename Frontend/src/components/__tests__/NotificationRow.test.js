@@ -178,3 +178,56 @@ describe('NotificationRow rendering', () => {
     expect(testoDellaRiga.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * The open affordance of the row: the informational block is a button only
+ * for an integer `agreementId`, and only the screen's `onApri` can fire it.
+ */
+const ETICHETTA_APRI = 'Apri lo scambio di questa notifica';
+
+/** The one actionable node exposing the open affordance: label, button role and a handler. */
+function nodiApri(renderer) {
+  return renderer.root.findAll(
+    (node) =>
+      node.props?.accessibilityLabel === ETICHETTA_APRI &&
+      node.props?.accessibilityRole === 'button' &&
+      typeof node.props.onPress === 'function',
+  );
+}
+
+describe('NotificationRow opening', () => {
+  it('opens the agreement when the notification carries an integer id', () => {
+    const onApri = jest.fn();
+    const renderer = renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
+
+    expect(nodiApri(renderer)).toHaveLength(1);
+    premi(renderer, ETICHETTA_APRI);
+    expect(onApri).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays inert when the id is missing, null or a string', () => {
+    const onApri = jest.fn();
+    const casi = [
+      { ...NOTIFICA },
+      { ...NOTIFICA, dati: { agreementId: null } },
+      { ...NOTIFICA, dati: { agreementId: '12' } },
+    ];
+
+    for (const notifica of casi) {
+      const renderer = renderRiga(notifica, { onApri });
+
+      const conEtichetta = renderer.root.findAll(
+        (node) => node.props?.accessibilityLabel === ETICHETTA_APRI,
+      );
+      expect(conEtichetta).toHaveLength(0);
+      // The host nodes under `Pressable` re-expose its accessibility props, so
+      // the open affordance is asserted on the actionable node: label, button
+      // role and handler together — the button role alone also belongs to the
+      // action buttons, which must keep rendering untouched.
+      expect(nodiApri(renderer)).toHaveLength(0);
+      expect(renderer.root.findAll((node) => node.props?.onPress === onApri)).toHaveLength(0);
+    }
+
+    expect(onApri).not.toHaveBeenCalled();
+  });
+});

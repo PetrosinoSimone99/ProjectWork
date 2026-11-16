@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
@@ -21,6 +21,9 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * case, which the normaliser upper-cases). Unknown types are not an error: they
  * keep the generic label and the bell icon, so a backend that adds an event
  * tomorrow shows up as a readable row instead of a blank one.
+ *
+ * The informational block (header row plus message) is a button only when the
+ * notification carries an integer `agreementId`.
  */
 const TIPI = {
   AGREEMENT_PROPOSAL: { etichetta: 'Proposta', icona: 'swap-horizontal-outline' },
@@ -68,27 +71,29 @@ export function quandoNotifica(value) {
   return giorno === null ? null : `${giorno}, ${ora}`;
 }
 
-export function NotificationRow({ notifica, inCorso = null, onLetta = null, onElimina = null }) {
+export function NotificationRow({
+  notifica,
+  inCorso = null,
+  onLetta = null,
+  onElimina = null,
+  onApri = null,
+}) {
   const t = useTokens();
   const quando = quandoNotifica(notifica.creataIl);
   const occupata = inCorso !== null;
   const lettaInCorso = inCorso?.nome === 'letta';
   const eliminaInCorso = inCorso?.nome === 'elimina';
   const [confermaAperta, setConfermaAperta] = useState(false);
+  // A string id would be a backend anomaly: no coercion, no destination.
+  const apribile = Number.isInteger(notifica.dati?.agreementId) && typeof onApri === 'function';
 
-  return (
-    <Card
-      style={{
-        gap: space.sm,
-        // The card keeps the surface in both themes: the unread state is the
-        // accent border plus the leading dot below, because `serviceBg` is
-        // reserved to data marks (docs/DESIGN.md).
-        backgroundColor: t.surface,
-        borderWidth: 1,
-        borderColor: notifica.letta ? t.border : t.primary,
-        borderRadius: radius.input,
-      }}
-    >
+  // The informational block, one unit: it is wrapped by the pressable below
+  // and stays plain content when there is nothing to open. The actions row and
+  // the confirm modal are outside on purpose — on react-native-web a press
+  // inside a nested Pressable bubbles up, so wrapping the whole card would
+  // make "Elimina" navigate too.
+  const informativa = (
+    <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
         {/* The unread marker: one dot on the leading edge, in front of the
             type chip, so the state reads without filling the whole card. */}
@@ -120,6 +125,36 @@ export function NotificationRow({ notifica, inCorso = null, onLetta = null, onEl
       </View>
 
       <AppText>{notifica.messaggio ?? 'Notifica senza testo.'}</AppText>
+    </>
+  );
+
+  return (
+    <Card
+      style={{
+        gap: space.sm,
+        // The card keeps the surface in both themes: the unread state is the
+        // accent border plus the leading dot below, because `serviceBg` is
+        // reserved to data marks (docs/DESIGN.md).
+        backgroundColor: t.surface,
+        borderWidth: 1,
+        borderColor: notifica.letta ? t.border : t.primary,
+        borderRadius: radius.input,
+      }}
+    >
+      {apribile ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Apri lo scambio di questa notifica"
+          onPress={onApri}
+          // The two blocks used to be direct children of the card, which spaced
+          // them: without this the message would sit against the header row.
+          style={{ gap: space.sm }}
+        >
+          {informativa}
+        </Pressable>
+      ) : (
+        informativa
+      )}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
         {notifica.letta ? null : (
