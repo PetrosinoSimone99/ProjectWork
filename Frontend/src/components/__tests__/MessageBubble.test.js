@@ -125,7 +125,7 @@ describe('MessageBubble time', () => {
     const renderer = renderBolla(MESSAGGIO);
     const ora = formatIsoDateTime(MESSAGGIO.inviatoIl);
 
-    // The formatter itself is covered by the dates tests; here it only has to
+    // The formatter itself is covered by `src/services/__tests__/dates.test.js`; here it only has to
     // be a formatted local time, not the raw ISO string.
     expect(ora).not.toBeNull();
     expect(ora).toContain(':');

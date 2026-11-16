@@ -26,7 +26,9 @@ import { radius, space, useTokens } from '@/theme/tokens';
  */
 export function MessageBubble({ messaggio, myUsername }) {
   const t = useTokens();
-  const mio = messaggio.autore === myUsername;
+  // Without a session username nothing can be "mine": a row whose author is
+  // unknown must not be drawn as the reader's own message.
+  const mio = myUsername !== null && myUsername !== undefined && messaggio.autore === myUsername;
   const ora = formatIsoDateTime(messaggio.inviatoIl);
   // Own ink: the whole bubble speaks in the service tone, name included.
   const inchiostro = mio ? { color: t.serviceText } : undefined;
