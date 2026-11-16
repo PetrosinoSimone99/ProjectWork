@@ -66,7 +66,30 @@ business, not a W3 residue.
   disponibile», the same state as a person the backend does not know.
 - The plan's gate baseline (19 suites / 240 tests) was stale — it came from W2's
   close, and W1 added 8 suites after it. The gate on the final tree is **27
-  suites / 294 tests**, lint clean, `tsc --noEmit` exit 0.
+  suites / 298 tests**, lint clean, `tsc --noEmit` exit 0.
+
+### Review
+
+Three fresh-context angles, one model each: correctness (`deepseek-v4.1-flash`),
+security and data (`deepseek-v4.1-flash`), brief fit (`glm-5.3-flash`). Two
+`MERGE WITH FIXES`, one `MERGE`, no open P0. What the accepted fixes changed:
+
+- The panel closed **after** the push, so it stayed on top of the profile it had
+  just opened and the tap looked like it did nothing.
+- The profile's rows were capped to a single line by the mini card's rule:
+  `ServiceGroup` gained `righe` next to `limite` — the summary truncates, the
+  page shows the description whole.
+- The new button was about 22 pt tall; it now takes `target.min` and centres its
+  row.
+- `@username` printed twice for a person with no name, a broken photo survived a
+  move to another person, `limite <= 0` counted rows it did not hide, and the
+  `403` sentence claimed the profile existed. One line each.
+
+Still open, recorded rather than fixed: the screen's five states and the modal's
+gating have no render test (the reviewer who found the P0 noted that one would
+have caught it), and the id is checked as a number rather than as canonical
+digits (`0x7` reaches `/users/7`; the endpoint answers `404`, so nothing is
+shown).
 
 ### Touched
 

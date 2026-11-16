@@ -1,7 +1,7 @@
 # W3 — Public profile of another user: contract
 
 Source: `docs/audits/frontend-gap-analysis-2026-11-16.md:319-341` (W3), closes the
-second half of `docs/backend-gaps.md` G3. Class `L` (11 product files, 4 new).
+second half of `docs/backend-gaps.md` G3. Class `L` (11 product files, 5 new).
 
 ## Objective
 
@@ -67,7 +67,7 @@ screen needs already exists.
 - No agreement-side entry point (decision 1), no username route (2), no pressable
   rows (5), no "Segnala"/"Invia proposta" on the profile, no service detail
   opened from the profile, no photo upload, no change to `UserServicesMiniCard`'s
-  own behaviour or `UserStudiesMiniCard.test.js`.
+  own behaviour or `UserServicesMiniCard.test.js`.
 - No backend change, no `Backend/**` file, no `Context_and_DB_V2/**` file.
 
 Stile: full

@@ -76,7 +76,7 @@ export default function PublicProfileScreen() {
         <EmptyState
           icon="lock-closed-outline"
           title="Account non attivo"
-          description="Il tuo account non è attivo: il profilo esiste, ma il server non lo mostra a un account inattivo. Rivolgiti alla staff per riattivarlo."
+          description="Il tuo account non è attivo: una pagina di un'altra persona non è visibile a un account inattivo. Rivolgiti alla staff per riattivarlo."
         />
       ) : null}
 
@@ -104,10 +104,23 @@ export default function PublicProfileScreen() {
 
       {dati !== null && !senzaPubblicazioni ? (
         <View style={{ gap: space.md }}>
-          {/* `limite={null}`: the page shows every publication. The cap belongs
-              to the mini card inside the service detail, not here. */}
-          <ServiceGroup titolo="Offre" icona="pricetag-outline" servizi={offerte} limite={null} />
-          <ServiceGroup titolo="Cerca" icona="search-outline" servizi={richieste} limite={null} />
+          {/* `limite={null}` e `righe={null}`: la pagina mostra ogni
+              pubblicazione, e la mostra intera. Il taglio a tre righe e a una
+              riga appartiene alla mini-card dentro il dettaglio servizio. */}
+          <ServiceGroup
+            titolo="Offre"
+            icona="pricetag-outline"
+            servizi={offerte}
+            limite={null}
+            righe={null}
+          />
+          <ServiceGroup
+            titolo="Cerca"
+            icona="search-outline"
+            servizi={richieste}
+            limite={null}
+            righe={null}
+          />
         </View>
       ) : null}
     </Screen>

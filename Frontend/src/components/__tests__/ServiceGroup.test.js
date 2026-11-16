@@ -58,4 +58,19 @@ describe('ServiceGroup — the rows it is allowed to draw', () => {
     expect(render({ servizi: [] }).toJSON()).toBeNull();
     expect(render({ servizi: undefined }).toJSON()).toBeNull();
   });
+
+  it('treats a limit of zero or less as no limit at all', () => {
+    // A cap that hides the rows it claims to show is not a cap: the caller
+    // either truncates for real or shows everything.
+    expect(righe(render({ servizi: SERVIZI, limite: 0 }))).toHaveLength(5);
+    expect(contatore(render({ servizi: SERVIZI, limite: -2 }))).toHaveLength(0);
+  });
+
+  it('draws one line per row by default and the whole description on request', () => {
+    const numeriDiRiga = (renderer) =>
+      renderer.root.findAllByType(Text).filter((node) => node.props.numberOfLines !== undefined);
+
+    expect(numeriDiRiga(render({ servizi: SERVIZI }))[0].props.numberOfLines).toBe(1);
+    expect(numeriDiRiga(render({ servizi: SERVIZI, righe: null }))).toHaveLength(0);
+  });
 });

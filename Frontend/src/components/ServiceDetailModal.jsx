@@ -10,7 +10,7 @@ import { Chip } from './Card';
 import { formatIsoDate } from '@/services/dates';
 import { etichettaModalita, nomePersona } from '@/services/offer-request';
 import { localitaPerDisplay } from '@/services/italian-locations';
-import { space, useTokens } from '@/theme/tokens';
+import { space, target, useTokens } from '@/theme/tokens';
 
 /**
  * The service detail panel of the home catalog.
@@ -190,8 +190,14 @@ export function ServiceDetailModal({
                 accessibilityRole="button"
                 accessibilityLabel={`Apri il profilo di ${nomeProfilo}`}
                 onPress={() => onOpenProfile(owner)}
-                // The house feedback of an openable row (`ServiceCard`).
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                // The house feedback of an openable row (`ServiceCard`), and the
+                // house touch target: a pressable row is not exempt from the
+                // 44 pt rule just because it is a line of text.
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.7 : 1,
+                  minHeight: target.min,
+                  justifyContent: 'center',
+                })}
               >
                 {rigaProprietario}
               </Pressable>

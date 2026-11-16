@@ -314,8 +314,14 @@ export default function HomeScreen() {
         onProposalSent={propostaInviata}
         // Apre il profilo pubblico della persona che ha pubblicato il servizio
         // (W3). La rotta è del genitore, non del pannello: il modale riceve la
-        // persona e non conosce né `/user/[id]` né il router.
-        onOpenProfile={(persona) => router.push(`/user/${persona.id}`)}
+        // persona e non conosce né `/user/[id]` né il router. Il pannello si
+        // chiude PRIMA del push: la home resta montata sotto la rotta nuova, e
+        // un modale ancora aperto coprirebbe il profilo appena aperto (il tocco
+        // sembrerebbe non fare niente).
+        onOpenProfile={(persona) => {
+          setDettaglio(null);
+          router.push(`/user/${persona.id}`);
+        }}
       />
 
       {/* La conferma della proposta sta fuori dalla lista (F11): sopra la

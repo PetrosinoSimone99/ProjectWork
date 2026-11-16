@@ -37,8 +37,10 @@ export function ProfileSummary({ utente }) {
   const location = utente?.localita ?? null;
   const bio = utente?.bio ?? null;
   const photo = utente?.immagineProfilo ?? null;
-  // The photo URL may point at nothing: an explicit state says so.
-  const [photoBroken, setPhotoBroken] = useState(false);
+  // The photo URL may point at nothing: an explicit state says so. The state is
+  // the *address* that failed, not a boolean, so a screen that moves to another
+  // person does not carry the previous person's broken photo with it.
+  const [fotoRotta, setFotoRotta] = useState(null);
 
   const composedName = [name, surname].filter(Boolean).join(' ') || null;
   // Without a name the username takes its place; without either, the initials
@@ -49,6 +51,7 @@ export function ProfileSummary({ utente }) {
     `${name?.charAt(0) ?? ''}${surname?.charAt(0) ?? ''}`.toUpperCase() ||
     (username?.charAt(0) ?? '').toUpperCase() ||
     '?';
+  const photoBroken = photo !== null && fotoRotta === photo;
   const showPhoto = photo !== null && !photoBroken;
 
   return (
@@ -58,7 +61,7 @@ export function ProfileSummary({ utente }) {
           <Image
             source={{ uri: photo }}
             accessibilityLabel="Immagine del profilo"
-            onError={() => setPhotoBroken(true)}
+            onError={() => setFotoRotta(photo)}
             style={{ width: AVATAR, height: AVATAR, borderRadius: radius.pill }}
           />
         ) : (
@@ -88,7 +91,9 @@ export function ProfileSummary({ utente }) {
         ) : null}
 
         {displayName !== null ? <AppText variant="heading">{displayName}</AppText> : null}
-        {username !== null ? (
+        {/* The second line is the username *unless* the first line already is
+            it: a person with no name would otherwise read `@marco.rossi` twice. */}
+        {username !== null && composedName !== null ? (
           <AppText variant="small" tone="secondary">
             @{username}
           </AppText>

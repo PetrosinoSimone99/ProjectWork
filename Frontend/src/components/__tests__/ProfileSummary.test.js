@@ -138,4 +138,32 @@ describe('ProfileSummary', () => {
     expect(testo.some((riga) => riga.includes('non si carica'))).toBe(true);
     expect(foto(renderer)).toBeUndefined();
   });
+
+  it('does not repeat the username when it is already the name line', () => {
+    // A person with no name reads `@marco.rossi` once, not twice.
+    const renderer = renderUtente({ ...UTENTE, nome: null, cognome: null });
+
+    const quante = righe(renderer).filter((riga) => riga === '@marco.rossi').length;
+    expect(quante).toBe(1);
+  });
+
+  it('does not carry a broken photo over to the next person', () => {
+    // `/user/7` and `/user/9` are the same component with other props: the
+    // failure belongs to the address that failed, not to the component.
+    const renderer = renderUtente({ ...UTENTE, immagineProfilo: 'https://example.invalid/a.jpg' });
+    act(() => {
+      foto(renderer).props.onError();
+    });
+
+    act(() => {
+      renderer.update(
+        <ProfileSummary
+          utente={{ ...UTENTE, id: 9, immagineProfilo: 'https://example.invalid/b.jpg' }}
+        />,
+      );
+    });
+
+    expect(foto(renderer)).toBeDefined();
+    expect(righe(renderer).some((riga) => riga.includes('non si carica'))).toBe(false);
+  });
 });

@@ -320,7 +320,7 @@ and expand/scroll inside the tab, a second work item.
 
 `Stato: chiuso` (2026-11-16) — plan:
 [`../briefs/w3-public-profile/plan.md`](../briefs/w3-public-profile/plan.md)
-(class `L` by the file count: 9 product files, 4 new), contract in
+(class `L` by the file count: 11 product files, 5 new), contract in
 `plan-brief.md` next to it.
 
 What landed: the row group moved out of the mini card into
