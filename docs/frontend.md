@@ -135,7 +135,7 @@ errors; it does not type-check JavaScript, so it is a syntax net, not a type
 check.
 
 Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library).
-The tree holds 32 test suites and 348 tests, all green: seven under `api/`, ten
+The tree holds 32 test suites and 356 tests, all green: seven under `api/`, ten
 under `components/`, seven under `services/`, four under `hooks/`, and one each
 under `app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
 

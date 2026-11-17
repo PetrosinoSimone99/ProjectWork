@@ -2,7 +2,6 @@ import { act, create } from 'react-test-renderer';
 
 import { ApiError } from '@/api/client';
 import { AgreementSheet } from '../AgreementSheet';
-import { AppInput } from '../AppInput';
 import { DateField } from '../DateField';
 
 /**
@@ -149,7 +148,14 @@ describe('AgreementSheet — read-only and confirmation', () => {
   it('draws no form when the action is not the viewer’s to take', () => {
     const renderer = render(null, { scheda: SCHEDA_COMPILATA });
 
-    expect(renderer.root.findAllByType(AppInput)).toHaveLength(0);
+    expect(renderer.root.findAllByType(DateField)).toHaveLength(0);
+    expect(
+      renderer.root.findAll(
+        (node) =>
+          node.props?.accessibilityLabel === 'Invia la scheda' &&
+          typeof node.props.onPress === 'function',
+      ),
+    ).toHaveLength(0);
     // Only the end date: the schema resets `start_date` on every update, so the
     // row says the start is unavailable instead of claiming a date nobody chose
     // (backend-gaps.md G20).
