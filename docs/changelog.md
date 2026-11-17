@@ -6,6 +6,67 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — The seven accessibility defects of the mobile audit
+
+Session start: `git fetch origin`, `andrea-frontend` even with `origin` and 331
+commits ahead of `origin/main`. Contract and steps:
+[`briefs/accessibility-fixlist/plan.md`](briefs/accessibility-fixlist/plan.md)
+with [`plan-brief.md`](briefs/accessibility-fixlist/plan-brief.md) next to it.
+The list is the one in
+[`audits/check-2026-11-17.md`](audits/check-2026-11-17.md) §"Accessibility — the
+fix list", and each item now carries its closure there.
+
+- `components/ModalShell.jsx` — saves `document.activeElement` on open,
+  restores it on close, and keeps Tab inside the panel with an explicit trap
+  (wrap at both edges, panel as the fallback when it holds no focusable). The
+  trap is explicit, not `inert` on the background: `react-native-web` mounts the
+  Modal in a portal under `document.body`, so switching the background off means
+  switching off every other body child, Expo Router's roots included. The
+  native branch (`AccessibilityInfo.setAccessibilityFocus`) is untouched, and
+  the trap stays on while `chiudibile` is false — the work is in flight, the
+  focus must not walk onto the covered page.
+- `components/AppButton.jsx`, `app/(tabs)/_layout.jsx` — `numberOfLines={1}` is
+  gone from the label (it truncated every label at 200% text) and the pill grows
+  on `minHeight`, with the text centred; the tab bar label lost its
+  `fontSize: 11` and keeps only the weight.
+- `components/NotificationRow.jsx` — the unread state says «Non letta» in the
+  header row next to the dot and the accent border, and the words enter the name
+  of the rows that can be opened (a `button` makes its descendants
+  presentational, so a marker outside the label would be announced on the wrong
+  rows only). Colour is no longer the only carrier (WCAG 1.4.1).
+- `components/ConfirmModal.jsx`, `components/AgreementSheet.jsx` —
+  `etichettaConferma` is a required prop with no default: the eight-call-site
+  count in the first draft was wrong, the tree has **eleven** and every one of
+  them named the act except `AgreementSheet`, which said «Conferma». The default
+  was already dead code; removing it is what stops the generic label from coming
+  back silently.
+- `app/(auth)/register.jsx` — every text field submits on Enter, like
+  `login.jsx:115`.
+- **Session expiry: the documentation was aligned, not the code.** `Backend/`
+  issues a one-hour JWT with no renewal route (`token_ttl: 3600`), so a button in
+  `SessionExpiryBanner` would be a control that does nothing. `accessibility.md`
+  now states 2.2.1 as *partly* met — announced, not extendable — at the criteria
+  table and in the checklist line; nothing was deleted to make the code pass.
+- `docs/accessibility.md` — the duplicated automated-check row is one row again,
+  and it no longer claims that no test asserts roles and labels:
+  `MessageComposer.test.js:38,70` and `AppErrorBoundary.test.js:92` do. The rows
+  for 1.4.1, 1.4.4, 2.1.1/2.1.2/2.4.3 were updated to what the code now does.
+- Tests: `NotificationRow.test.js` +2 cases (the words and the open label),
+  `AgreementSheet.test.js` presses the panel's own confirm through a new
+  `premiUltimo` helper and asserts the two nodes that share the name. No suite
+  added, no assertion relaxed: 32 suites, 348 tests (was 346). Counts in
+  `frontend.md` unchanged.
+
+Gate: `npx expo lint` and `npx tsc --noEmit` green on every commit, `npx jest`
+green at the end (one pre-existing flake of `AgreementSheet.test.js` under full
+parallelism was seen at baseline and three isolated re-runs were green).
+`Backend/` and `Context_and_DB_V2/` untouched; G24/G25/G26 read and left to the
+backend. Five lanes (four in the first wave, `register.jsx` alone in the second:
+the session fan-out caps a wave at four children) plus the shared documents
+written by the parent.
+
+---
+
 ## 2026-11-17 — PHP 8.4 and the current dump: the two files outside `docs/`
 
 Follow-up to the audit of the same day. Two documents outside `docs/` still said

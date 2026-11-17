@@ -64,7 +64,7 @@ signature.
 | 1.4.13 Content on hover or focus | Web-only: dismissible, hoverable, persistent | Panels open to the side, close on Escape or outside tap | A tooltip that disappears before it can be read |
 | 2.1.1 Keyboard | Web build fully operable from the keyboard | `Pressable` mapped to focusable elements, no `onPress` on `View` | An action reachable only by touch |
 | 2.1.2 No keyboard trap | Focus can always leave | Modals restore focus to the trigger on close | A modal that swallows Tab |
-| 2.2.1 Timing adjustable | Session expiry is announced and extendable | `SessionExpiryBanner` warns before the session drops | A silent logout in the middle of a form |
+| 2.2.1 Timing adjustable | A time limit can be turned off, adjusted or extended before it expires | `SessionExpiryBanner` announces the expiry five minutes ahead, with the hour (`useSessionExpiry`); the session itself **cannot** be extended — the backend issues a one-hour JWT with no renewal route (`token_ttl: 3600`, `Backend/config/packages/lexik_jwt_authentication.yaml`) and re-authenticating is the only recovery | A silent logout in the middle of a form |
 | 2.4.3 Focus order | Focus follows a meaningful order | DOM order, trigger before the panel it opens | Focus jumping to the top on every filter change |
 | 2.4.7 Focus visible | Focus indicator always visible | `FocusRing` injects a 2 px token-coloured `:focus-visible` outline | A custom outline removed for looks |
 | 2.5.5 / 2.5.8 Target size | At least 44 pt here (project rule, stricter than the 24 CSS px minimum) | `target.min` from the tokens | An icon button at 20 pt with no `hitSlop` |
@@ -177,7 +177,7 @@ Run with the [`ux.md`](ux.md) checklist before a UI change is called done.
 - [ ] Contrast: 4.5:1 text, 3:1 large text and control boundaries, both themes.
 - [ ] No information carried by colour alone.
 - [ ] Targets at least 44 pt.
-- [ ] Async results announced; session expiry warned and extendable.
+- [ ] Async results announced; session expiry warned in advance (announced, not extendable: 2.2.1).
 - [ ] Irreversible actions confirmed.
 - [ ] Error messages name the cause and the fix.
 - [ ] Delivered documents: real text, tags, alt texts, header rows, Italian
@@ -196,18 +196,20 @@ status below is counted in
 (the second reading: no accessibility finding survives a code read). This is
 **not** a conformance claim: the re-measurement is a code reading with the gate
 green, and VoiceOver, TalkBack, native dynamic type and the exported web build
-were not exercised. §Status of the remediation lists what would verify them.
+were not exercised. A third reading on **2026-11-17** closed the seven defects of
+[`audits/check-2026-11-17.md`](audits/check-2026-11-17.md) by reading the code and
+running the gate; §Status of the remediation lists what would verify them.
 
 | Criterion | Status |
 | --- | --- |
 | 1.1.1, 4.1.2 Roles and labels | Holds in code: `AppInput` gives its `TextInput` the visible label, marks it invalid and links the error with `nativeID`/`aria-describedby` (F14); decorative icons are hidden by `AppIcon` (F22); the title variants of `AppText` are headings and the collections carry `list`/`listitem` (F19). The announcement itself needs a screen reader |
 | 1.4.3, 1.4.11 Contrast | Holds: every pair was recomputed from the tokens, and the one failure is fixed — dark `primaryPressed` `#42966C` gives 4.75:1 on `onPrimary` (F18). The disabled primary button moved from 1.66:1 to 3.29:1 light / 3.60:1 dark, so the label that says "not available" can be read (F24). Both values are hand-computed from the hex tokens, not measured on a device |
+| 1.4.1 Use of colour | Holds in code since 2026-11-17: the unread notification carries the words «Non letta» in the header row, next to the accent border and the dot, and the words enter the name of the rows that can be opened. Colour is no longer the only carrier |
+| 2.2.1 Timing adjustable | Partly, and declared: the expiry is announced five minutes ahead with its hour, so a form is not interrupted silently; the session cannot be extended because the backend has no renewal route (criteria table above). What would close it is a backend change, not a UI one |
 | 2.4.7 Focus visible | Holds: `FocusRing` injects the 2 px token outline globally; no component removes it |
 | 2.5.5, 2.5.8 Target size | Holds against the project's 44 pt rule: pills, checkbox row, icon-only buttons, the filter clear and every modal close are `target.min` (F17). Satisfied in code; not measured with a finger |
 | 4.1.3 Status messages | Holds in code: the `Banner` is a real `aria-live="polite"` region, the catalog count and each appended page are written into one polite region (F21), and every write that has an outcome says it (F43, F35). What VoiceOver or TalkBack actually announce is unverified |
-| 1.4.4 Resize text | Fixed in code: the fixed `height` around text became `minHeight` (`WebNavMenu`, the agreements badges, F23), so dynamic type cannot clip a label. The native 200 % pass is still open |
-| 2.1.1, 2.1.2, 2.4.3 Keyboard and focus order | Fixed in code: `ModalShell` binds Escape on the web, moves the focus into the panel on open and keeps the backdrop out of the assistive tree, and all six panels use it (F15, F16). The browser walk of the new shell is in the remediation's not-verified table |
+| 1.4.4 Resize text | Fixed in code: the fixed `height` around text became `minHeight` (`WebNavMenu`, the agreements badges, F23), so dynamic type cannot clip a label; since 2026-11-17 no component rule truncates a label either — `AppButton` no longer clamps to one line and the tab bar label has no fixed `fontSize`. The native 200 % pass is still open |
+| 2.1.1, 2.1.2, 2.4.3 Keyboard and focus order | Fixed in code: `ModalShell` binds Escape on the web, moves the focus into the panel on open, keeps the backdrop out of the assistive tree, gives the focus back to the element that opened the panel and keeps Tab inside it with an explicit trap (2026-11-17; the trap is explicit because react-native-web mounts the Modal in a portal under `document.body`, so `inert` on the background would have to switch off every other body child). All six panels use it (F15, F16). The browser walk of the new shell is in the remediation's not-verified table |
 | 3.1.1 Language of page | Holds in source: `app/+html.jsx` renders `<html lang="it">` (F20). Not yet checked on the exported build, which is the only place it can be confirmed |
-| Automated check | Gap: no linter or test asserts these rules; conformance rests on the manual procedure above. The gate is `expo lint` + `tsc --noEmit` + `jest`, none of which sees a role or a contrast pair |
-
-| Automated check | Gap: no linter or test asserts these rules; conformance rests on the manual procedure above |
+| Automated check | Partly: no linter covers contrast pairs or focus order, but tests do assert roles and labels — `components/__tests__/MessageComposer.test.js:38,70` (role and name of the send control) and `components/__tests__/AppErrorBoundary.test.js:92` (the `alert` role of the fallback). The gate is `expo lint` + `tsc --noEmit` + `jest`; `tsc` reads `.js` as syntax only (`allowJs` without `checkJs`) |
