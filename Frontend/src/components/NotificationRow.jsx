@@ -43,6 +43,13 @@ const TIPI = {
 
 const TIPO_SCONOSCIUTO = { etichetta: 'Notifica', icona: 'notifications-outline' };
 
+/**
+ * The words of the unread state. One spelling, used by the header row and by
+ * the open label: a `button` makes its descendants presentational, so the dot
+ * and the words outside the label would be announced on the wrong rows only.
+ */
+const ETICHETTA_NON_LETTA = 'Non letta';
+
 /** The Italian label of a notification type, generic for an unknown one. */
 export function etichettaTipo(tipo) {
   return TIPI[typeof tipo === 'string' ? tipo.toUpperCase() : '']?.etichetta ?? TIPO_SCONOSCIUTO.etichetta;
@@ -91,7 +98,12 @@ export function NotificationRow({
   // stop the type, the date and the message from being announced on exactly
   // the rows that can be opened: the name is folded out of the visible strings
   // instead, the same fix F50 needed in `ServiceCard`.
-  const contenuto = [etichettaTipo(notifica.tipo), quando, notifica.messaggio ?? 'Notifica senza testo.']
+  const contenuto = [
+    notifica.letta ? null : ETICHETTA_NON_LETTA,
+    etichettaTipo(notifica.tipo),
+    quando,
+    notifica.messaggio ?? 'Notifica senza testo.',
+  ]
     .filter(Boolean)
     .join('. ');
   const etichettaApri = `Apri lo scambio di questa notifica: ${contenuto}`;
@@ -104,8 +116,10 @@ export function NotificationRow({
   const informativa = (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
-        {/* The unread marker: one dot on the leading edge, in front of the
-            type chip, so the state reads without filling the whole card. */}
+        {/* The unread marker: one dot on the leading edge plus the words
+            "Non letta", in front of the type chip, so the state reads without
+            filling the whole card and without relying on the colour alone
+            (WCAG 1.4.1). */}
         {notifica.letta ? null : (
           <View
             style={{
@@ -115,6 +129,11 @@ export function NotificationRow({
               backgroundColor: t.primary,
             }}
           />
+        )}
+        {notifica.letta ? null : (
+          <AppText variant="caption" style={{ color: t.primary }}>
+            {ETICHETTA_NON_LETTA}
+          </AppText>
         )}
         <AppIcon name={iconaTipo(notifica.tipo)} size={16} color={t.textSecondary} />
         <Chip background={notifica.letta ? t.background : t.serviceBg}>
@@ -142,8 +161,9 @@ export function NotificationRow({
       style={{
         gap: space.sm,
         // The card keeps the surface in both themes: the unread state is the
-        // accent border plus the leading dot below, because `serviceBg` is
-        // reserved to data marks (docs/DESIGN.md).
+        // accent border plus the leading dot and the words "Non letta" in the
+        // header row — never the colour alone (WCAG 1.4.1) — because `serviceBg`
+        // is reserved to data marks (docs/DESIGN.md).
         backgroundColor: t.surface,
         borderWidth: 1,
         borderColor: notifica.letta ? t.border : t.primary,

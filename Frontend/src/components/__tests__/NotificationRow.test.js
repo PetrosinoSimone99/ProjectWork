@@ -153,6 +153,19 @@ describe('NotificationRow rendering', () => {
     expect(stileLetto.borderColor).toBe(tokens.border);
   });
 
+  it('marks an unread row with the words "Non letta", which a read row never shows', () => {
+    // The border and the dot are colour: the words are the state a reader who
+    // cannot see the colour, or who listens to a row that cannot be opened,
+    // still gets (WCAG 1.4.1).
+    const nonLetta = renderRiga({ ...NOTIFICA, letta: false });
+    expect(
+      nonLetta.root.findAll((node) => node.props?.children === 'Non letta').length,
+    ).toBeGreaterThan(0);
+
+    const letta = renderRiga(NOTIFICA);
+    expect(letta.root.findAll((node) => node.props?.children === 'Non letta')).toHaveLength(0);
+  });
+
   it('fires the delete callback only from the confirm panel', () => {
     const onElimina = jest.fn();
     const renderer = renderRiga(NOTIFICA, { onElimina });
@@ -217,6 +230,25 @@ describe('NotificationRow opening', () => {
 
     premiApri(renderer);
     expect(onApri).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries the unread state in the open label, and leaves a read row without it', () => {
+    const onApri = jest.fn();
+    const nonLetta = renderRiga(
+      { ...NOTIFICA, letta: false, dati: { agreementId: 12 } },
+      { onApri },
+    );
+
+    expect(nodiApri(nonLetta)).toHaveLength(1);
+    // The header row sits inside the `button`, so it is presentational: the
+    // words reach the reader only through the open label. The type, the date
+    // and the message stay in it, untouched.
+    expect(nodiApri(nonLetta)[0].props.accessibilityLabel).toContain('Non letta');
+    expect(nodiApri(nonLetta)[0].props.accessibilityLabel).toContain(NOTIFICA.messaggio);
+
+    const letta = renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
+    expect(nodiApri(letta)).toHaveLength(1);
+    expect(nodiApri(letta)[0].props.accessibilityLabel).not.toContain('Non letta');
   });
 
   it('stays inert when the id is missing, null or a string', () => {
