@@ -213,7 +213,9 @@ export function AgreementSheet({
                 visible={confermaAperta}
                 titolo="Confermare questa scheda?"
                 messaggio="La conferma è definitiva: non si può ritirare."
-                etichettaConferma="Conferma"
+                // Lo stesso verbo del bottone che ha aperto il pannello: la
+                // conferma dice l'atto, non «Conferma» (WCAG 3.2.4).
+                etichettaConferma="Conferma la scheda"
                 loading={inVolo}
                 onConferma={() => void conferma()}
                 onAnnulla={() => setConfermaAperta(false)}

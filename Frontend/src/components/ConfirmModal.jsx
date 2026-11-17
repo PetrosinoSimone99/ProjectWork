@@ -26,7 +26,15 @@ export function ConfirmModal({
   visible,
   titolo,
   messaggio,
-  etichettaConferma = 'Conferma',
+  /**
+   * L'atto che il pulsante conferma, nominato dal chiamante («Elimina»,
+   * «Accetta la proposta»): obbligatoria, senza default. Una label generica non
+   * dice che cosa si sta confermando, quindi chi legge il pannello non può
+   * decidere e chi ascolta un pulsante «Conferma» non sa che cosa accetta
+   * (WCAG 3.2.4). Il default `'Conferma'` è la ragione per cui il generico era
+   * tornato: finché esiste, il prossimo chiamante ci ricasca in silenzio.
+   */
+  etichettaConferma,
   etichettaAnnulla = 'No, torna indietro',
   onConferma,
   onAnnulla,

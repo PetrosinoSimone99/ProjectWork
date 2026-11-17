@@ -53,6 +53,24 @@ function premi(renderer, accessibilityLabel) {
   });
 }
 
+/**
+ * Lo stesso controllo, l'ultimo che porta quel nome: il bottone che apre un
+ * pannello e la conferma dentro il pannello possono chiamarsi uguale.
+ */
+function premiUltimo(renderer, accessibilityLabel) {
+  const controllo = renderer.root
+    .findAll(
+      (node) =>
+        node.props?.accessibilityLabel === accessibilityLabel &&
+        typeof node.props.onPress === 'function',
+    )
+    .at(-1);
+  expect(controllo).toBeDefined();
+  act(() => {
+    controllo.props.onPress();
+  });
+}
+
 /** Writes the two date fields, in the order they appear. */
 function scriviDate(renderer, inizio, fine) {
   const campi = renderer.root.findAllByType(AppInput);
@@ -149,8 +167,15 @@ describe('AgreementSheet — read-only and confirmation', () => {
     premi(renderer, 'Conferma la scheda');
     expect(onConferma).not.toHaveBeenCalled();
 
+    // Due nodi con il nome dell'atto: il bottone che ha aperto il pannello e la
+    // conferma che ci sta dentro. Il secondo è quello che conferma davvero.
+    const conQuelNome = (node) =>
+      node.props?.accessibilityLabel === 'Conferma la scheda' &&
+      typeof node.props.onPress === 'function';
+    expect(renderer.root.findAll(conQuelNome)).toHaveLength(2);
+
     await act(async () => {
-      premi(renderer, 'Conferma');
+      premiUltimo(renderer, 'Conferma la scheda');
     });
     expect(onConferma).toHaveBeenCalledTimes(1);
   });
