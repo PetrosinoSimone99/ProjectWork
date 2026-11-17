@@ -134,9 +134,30 @@ Both must pass before any push. `tsc` reads JavaScript and catches syntax
 errors; it does not type-check JavaScript, so it is a syntax net, not a type
 check.
 
-Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library)
-and cover the pure modules: `src/services/agreements.js` and `src/validation/`.
-They are **not** part of the gate yet: the suite is new and non-blocking, so a
-red test is a signal to fix before pushing, not a reason to weaken an assertion.
-`collectCoverageFrom` is limited to those two modules, and the suite runs at
-99% statements / 80% branches on them.
+Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library).
+The tree holds 32 test suites and 346 tests, all green: seven under `api/`, ten
+under `components/`, seven under `services/`, four under `hooks/`, and one each
+under `app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
+
+Coverage is collected only for the five files listed in `collectCoverageFrom`
+(`Frontend/package.json`): `services/agreements.js`,
+`services/italian-locations.js`, `validation/index.js`,
+`hooks/useAgreements.js` and `hooks/useServiceCatalog.js`. On that sample the
+run reports 95.71% statements, 90.86% branches, 95.08% functions and 95.86%
+lines; per file, statements and branches are `useAgreements` 95.16 / 77.27,
+`useServiceCatalog` 90.69 / 89.74, `agreements` 98.5 / 96.62,
+`italian-locations` 100 / 100, `validation/index` 100 / 81.57. The figure is a
+hand-picked sample, not a claim about the tree: a module outside
+`collectCoverageFrom` is not counted at all, so the percentage says nothing
+about the code it does not name.
+
+`src/hooks` holds twelve `.js` files and four of them have a suite of their own
+(`useAgreements`, `useChat`, `useNotifications`, `useServiceCatalog`). The other
+eight have no test: `useCategories`, `useDocumentTitle`, `useReducedMotion`,
+`useRefresh`, `useSessionExpiry`, `useUserServices`, `useWebColorScheme` and
+`web-chrome`. `useChat` and `useNotifications` are tested but are not in
+`collectCoverageFrom`, so their coverage is not reported either.
+
+`npx jest` is **not** part of the gate (D019), and the suite is non-blocking, so
+a red test is a signal to fix before pushing, not a reason to weaken an
+assertion.

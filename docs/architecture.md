@@ -29,7 +29,7 @@ Backend/               Symfony API (read-only reference; Docker files editable)
   src/Entity/          User, Service, Category, UserReport, Chat*, Proposal*, StaffOperationLog
   src/Repository/      query-heavy reads (catalog, staff, reports)
   src/Manager/, src/Service/   domain logic (chat, staff logger, restore)
-  src/Subscriber/      active-account guard, CORS
+  src/EventSubscriber/ active-account guard, CORS
   tests/               functional and integration suites
 Context_and_DB_V2/     authoritative schema dumps, API guide, user stories
   API docs/            the backend-written database and API guide
@@ -42,7 +42,7 @@ Frontend/              Expo app
   src/components/      presentational building blocks
   src/theme/           light/dark tokens and the preference store
   src/auth/            session context and token storage
-  src/agreements/      agreement state rules (rewritten with the new model)
+  src/validation/      pure validation helpers, one module for every form
   src/navigation/      the five tab routes, one source for bar and web menu
 ```
 
