@@ -15,14 +15,23 @@ real; the current set is Expo's plus nothing else.
 
 ## Language rules
 
-- **Code in English**: file names, directories, route paths, exported symbols,
-  components, hooks, comments, commit messages.
+- **Structure in English**: file names, directories, route paths, exported
+  symbols, components, hooks, comments, commit messages, and every local
+  identifier that describes *how* the code works (helpers, constants, flags).
+- **The internal contract in Italian, one word per concept**: the normalised
+  shape (`tipo`, `stato`, `localita`, `descrizione`, `categorie`), the return
+  object of every hook, and the props that carry that shape or that state
+  (`occupata`, `azioneInCorso`, `onAnnulla`). The same concept keeps the same word
+  at every layer it crosses: a row named `coda` in one function and `queue` in the
+  next is the defect, not the language.
 - **UI copy in Italian**: everything the user reads, including error messages,
   empty states and accessibility labels.
-- Camel-case function and variable names inside `api/` and `services/` are still
-  Italian (`ottieniCatalogo`, `creaSegnalazione`) from the previous codebase;
-  they are renamed module by module when the file is rewritten against the real
-  endpoints. New code is English from the start.
+- Italian names inside `api/` and `services/` that are not contract words
+  (`ottieniCatalogo`, `creaSegnalazione`) are grandfathered and renamed when the
+  file is next touched, never in a sweep. Two declared leftovers sit inside the
+  Italian hook contracts (`actionError`, `refreshing`/`onRefresh` in
+  `useAgreements`) and go with that file's next touch. Reasoning:
+  [`decisions.md`](decisions.md) D013, D020, D026.
 
 ## File and function size
 
@@ -35,7 +44,9 @@ hook under `src/hooks/`.
 
 `camelCase` for variables and functions, `PascalCase` for components and types,
 `UPPER_SNAKE_CASE` for constants, `use*` for hooks, `is/has/should/can` for
-booleans. A component file exports a component with the same name as the file.
+boolean locals. A component file exports a component with the same name as the
+file. One concept keeps one word across the tree: `coda` and `queue` for the same
+row is a defect even when both names are readable (D026).
 
 ## States are explicit
 

@@ -251,3 +251,38 @@ becomes one per type and the copy points at the other type instead of at the
 cancel button. Nothing else in the app changes: `GET /get-queues` already
 excludes `CLOSED` rows, so "active" and "listed" are the same set and the gate
 needs no extra request.
+
+**D026 — 2026-11-17 — Two layers of naming: English structure, Italian contract.**
+D001 and D013 ask for English identifiers, but the tree has never worked that way
+at its boundary layers. The five object-returning hooks are Italian from their
+first commit (`accordi`, `caricamento`, `errore`, `rispondi`, `azioneInCorso` in
+`useAgreements`; `elementi`, `nonLette`, `ricarica`, `segnaLetta` in
+`useNotifications`; `useServiceCatalog`, `useUserServices` and `useSessionExpiry`
+the same), the component props are Italian (`occupata` on four components,
+`onAnnulla` on eight, `titolo`/`messaggio` on `ConfirmModal`), and
+`api/normalizers.js:10-12` documents the Italian UI shape as the single contract
+every screen reads. The defect the 2026-11-16 audit found in B6 is not that
+Italian exists; it is that one concept had two names in the same file — the same
+queue row is `queue` in `match.jsx:189` and `coda` at `:269` — while `api/` and
+`services/` already call the concept `queue` (`listQueues`, `hasActiveQueue`,
+`QueueCard`).
+*Decision:* two layers, one vocabulary.
+(1) **Structure is English**: file names, directories, route paths, exported
+symbols, comments, commit messages, and every local identifier that describes
+*how* the code works — helpers, constants, flags (`busy`, `canOpen`, `openLabel`,
+`refundsCredit`).
+(2) **The internal contract is Italian**, with the same word at every layer it
+crosses: the normalised shape (`tipo`, `stato`, `localita`, `descrizione`,
+`categoria`, `daRemoto`, `nonLette`), the return object of every hook, and the
+props that carry that shape or that state (`occupata`, `azioneInCorso`,
+`onAnnulla`). Renaming a contract word at one layer only — `occupata` to `busy`
+in one card while three other components keep `occupata` — is the defect, not the
+Italian.
+*Consequences:* W9 renames nothing inside the hooks: their contract is legal and
+shared with the screens that consume it. It closes the name collisions in the new
+files and makes `AGENTS.md`, `docs/frontend.md` and the code state the same rule.
+No sweep: an Italian name that is not a contract word is renamed when its file is
+next touched, which is D013's mechanism unchanged. Declared leftovers inside the
+Italian hook contracts: `actionError` and `refreshing`/`onRefresh` in
+`useAgreements`, renamed with that file's next touch. D013 stays as history and is
+read through this entry.
