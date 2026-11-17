@@ -184,6 +184,12 @@ export function ModalShell({
   // Escape e Tab sul web: `onRequestClose` è la strada documentata di React
   // Native ma su web non arriva al `Modal` (verificato nell'audit, F15); il Tab
   // invece uscirebbe dal pannello e finirebbe sulla pagina coperta.
+  //
+  // L'ascoltatore è in fase di **cattura** (`true`): react-native-web ferma la
+  // propagazione del `keydown` alla prima riga del suo `TextInput`, quindi un
+  // ascoltatore in bolla non vedrebbe mai un Tab premuto dentro un campo — e i
+  // pannelli con un campo di ricerca (`ListSelector`, `CategorySelector`) hanno
+  // il campo come ultimo focusabile proprio quando il filtro non trova niente.
   useEffect(() => {
     if (!visible) {
       return undefined;
@@ -214,8 +220,8 @@ export function ModalShell({
       event.stopPropagation();
       onClose();
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [visible, chiudibile, onClose, idIstanza]);
 
   // Focus dentro il pannello all'apertura e di nuovo sul comando che l'ha
