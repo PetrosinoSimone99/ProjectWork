@@ -55,7 +55,9 @@
     "collectCoverageFrom": [
       "src/services/agreements.js",
       "src/services/italian-locations.js",
-      "src/validation/index.js"
+      "src/validation/index.js",
+      "src/hooks/useAgreements.js",
+      "src/hooks/useServiceCatalog.js"
     ]
   }
 }
