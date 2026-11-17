@@ -560,8 +560,15 @@ const styles = StyleSheet.create({
   // dentro una barra da 48»: la barra è 48, quindi 44 entra, e il comando
   // «Menu» è l'unica navigazione del web, cio
   // è il controllo più premuto dell'app (audit UX F5, `DESIGN.md` § Touch).
+  // Anche la larghezza è fissata a `target.min`, per la stessa ragione ma per
+  // un altro stato: sotto i 380 px l'etichetta «Aggiorna» collassa e resta la
+  // sola icona, quindi senza `minWidth` la scatola si stringeva a 42 — icona da
+  // 18 più i due padding da 12 — sotto il minimo che il dito deve trovare (F2).
+  // Con l'etichetta la larghezza la fa comunque il contenuto; il «Menu», più
+  // largo di 44 in entrambi i casi, non si muove.
   controllo: {
     minHeight: target.min,
+    minWidth: target.min,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
