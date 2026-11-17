@@ -28,9 +28,16 @@ was executed in one cycle, **re-measuring before touching anything**.
 - **F5 is a backend gap, not a fix**: `G27` in [`backend-gaps.md`](backend-gaps.md)
   — a `CHAT_MESSAGE` notification carries no preview, so the inbox cannot be
   triaged.
-- Re-measure evidence: `audits/screens-mobile-2026-11-17-remisura/` (the numbers,
-  plus the `/staff` capture). The harness now takes `AUDIT_OUT`, so a re-run no
-  longer overwrites the record's captures.
+- Re-measure evidence: `audits/screens-mobile-2026-11-17-remisura/` (before) and
+  `audits/screens-mobile-2026-11-17-remisura-dopo/` (after) — the numbers, plus
+  the `/staff` capture of each run. The harness now takes `AUDIT_OUT`, so a
+  re-run no longer overwrites the record's captures.
+- Review at a fresh context (three angles) found one real defect in the new
+  field: iOS fires `onValueChange` at **every** change and never `onDismiss`, so
+  unmounting on the first one closed the field mid-choice and left the `Fatto`
+  row unreachable. Only Android closes on its own confirmation now. The rest was
+  documentation that had stopped being true (`agreements.js` still said "the
+  form has no date picker") and one assertion that had become vacuous.
 - Gate: `expo lint`, `tsc --noEmit` and `jest` green (32 suites, 356 tests); the
   iOS bundle still exports, which is what proves the picker's native import.
 

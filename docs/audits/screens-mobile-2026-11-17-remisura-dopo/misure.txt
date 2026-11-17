@@ -1,0 +1,61 @@
+iphone-se/01-catalogo: {"overflow":0,"piccoli":"0/13","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Servizi"]}
+iphone-se/02-match: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Match"]}
+iphone-se/03-offro-e-cerco: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Offro e cerco"]}
+iphone-se/04-accordi: {"overflow":0,"piccoli":"0/6","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accordi"]}
+iphone-se/05-profilo: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Profilo"]}
+iphone-se/06-notifiche: {"overflow":0,"piccoli":"0/15","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Notifiche"]}
+iphone-se/07-modifica-profilo: {"overflow":0,"piccoli":"0/9","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Modifica profilo"]}
+iphone-se/08-segnala: {"overflow":0,"piccoli":"0/3","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Segnala alla staff"]}
+iphone-se/09-staff: {"overflow":0,"piccoli":"0/2","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Area staff"]}
+iphone-se/10-staff-utenti: {"overflow":0,"piccoli":"0/2","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Utenti"]}
+iphone-se/11-login: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accedi"]}
+iphone-se/12-registrati: {"overflow":0,"piccoli":"1/18","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Crea il tuo profilo"]}
+iphone-se/13-non-trovata: {"overflow":0,"piccoli":"0/0","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":[]}
+  passo fallito: login: invio a vuoto: "locator.click: Timeout 30000ms exceeded."
+  passo fallito: registrati: invio a vuoto: "locator.click: Timeout 30000ms exceeded."
+iphone-se: errori console: "[\"Failed to load resource: the server responded with a status of 403 (Forbidden)\"]"
+iphone-14-pro/01-catalogo: {"overflow":0,"piccoli":"0/13","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Servizi"]}
+iphone-14-pro/02-match: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Match"]}
+iphone-14-pro/03-offro-e-cerco: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Offro e cerco"]}
+iphone-14-pro/04-accordi: {"overflow":0,"piccoli":"0/6","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accordi"]}
+iphone-14-pro/05-profilo: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Profilo"]}
+iphone-14-pro/06-notifiche: {"overflow":0,"piccoli":"0/15","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Notifiche"]}
+iphone-14-pro/07-modifica-profilo: {"overflow":0,"piccoli":"0/9","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Modifica profilo"]}
+iphone-14-pro/08-segnala: {"overflow":0,"piccoli":"0/3","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Segnala alla staff"]}
+iphone-14-pro/09-staff: {"overflow":0,"piccoli":"0/2","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Area staff"]}
+iphone-14-pro/10-staff-utenti: {"overflow":0,"piccoli":"0/2","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Utenti"]}
+iphone-14-pro/14-catalogo-filtro-categorie: {"overflow":0,"piccoli":"0/19","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Servizi"]}
+iphone-14-pro/15-catalogo-dettaglio-servizio: {"overflow":0,"piccoli":"0/13","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Servizi"]}
+iphone-14-pro/19-accordi-in-corso: {"overflow":0,"piccoli":"0/12","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accordi"]}
+  passo fallito: accordi: filtro e scheda: "locator.textContent: Timeout 30000ms exceeded."
+iphone-14-pro/21-notifiche: {"overflow":0,"piccoli":"0/4","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Notifiche"]}
+iphone-14-pro/22-notifiche-conferma-elimina: "nessun bottone Elimina visibile"
+iphone-14-pro/23-voce-editor: "nessun bottone di modifica trovato"
+iphone-14-pro/24-profilo-scuro: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Profilo"]}
+iphone-14-pro/25-catalogo-scuro: {"overflow":0,"piccoli":"0/13","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Servizi"]}
+iphone-14-pro/26-accordi-scuro: {"overflow":0,"piccoli":"0/6","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accordi"]}
+iphone-14-pro/27-notifiche-scuro: {"overflow":0,"piccoli":"0/15","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Notifiche"]}
+iphone-14-pro/28-match-scuro: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Match"]}
+iphone-14-pro/29-segnala: {"overflow":0,"piccoli":"0/3","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Segnala alla staff"]}
+iphone-14-pro/11-login: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accedi"]}
+iphone-14-pro/12-registrati: {"overflow":0,"piccoli":"1/18","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Crea il tuo profilo"]}
+iphone-14-pro/13-non-trovata: {"overflow":0,"piccoli":"0/0","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":[]}
+  passo fallito: login: invio a vuoto: "locator.click: Timeout 30000ms exceeded."
+  passo fallito: registrati: invio a vuoto: "locator.click: Timeout 30000ms exceeded."
+iphone-14-pro: errori console: "[]"
+pixel-7/01-catalogo: {"overflow":0,"piccoli":"0/13","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Servizi"]}
+pixel-7/02-match: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Match"]}
+pixel-7/03-offro-e-cerco: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Offro e cerco"]}
+pixel-7/04-accordi: {"overflow":0,"piccoli":"0/6","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accordi"]}
+pixel-7/05-profilo: {"overflow":0,"piccoli":"0/8","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Profilo"]}
+pixel-7/06-notifiche: {"overflow":0,"piccoli":"0/15","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Notifiche"]}
+pixel-7/07-modifica-profilo: {"overflow":0,"piccoli":"0/9","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Modifica profilo"]}
+pixel-7/08-segnala: {"overflow":0,"piccoli":"0/3","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Segnala alla staff"]}
+pixel-7/09-staff: {"overflow":0,"piccoli":"0/2","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Area staff"]}
+pixel-7/10-staff-utenti: {"overflow":0,"piccoli":"0/2","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Utenti"]}
+pixel-7/11-login: {"overflow":0,"piccoli":"0/5","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Accedi"]}
+pixel-7/12-registrati: {"overflow":0,"piccoli":"1/18","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":["Crea il tuo profilo"]}
+pixel-7/13-non-trovata: {"overflow":0,"piccoli":"0/0","sfondano":0,"troncati":0,"contrasti":0,"senzaNome":0,"caricamento":0,"h1":[]}
+  passo fallito: login: invio a vuoto: "locator.click: Timeout 30000ms exceeded."
+  passo fallito: registrati: invio a vuoto: "locator.click: Timeout 30000ms exceeded."
+pixel-7: errori console: "[\"Failed to load resource: the server responded with a status of 403 (Forbidden)\"]"

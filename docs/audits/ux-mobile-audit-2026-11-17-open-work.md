@@ -184,15 +184,17 @@ apart from G27.
 ## 7. Outcome
 
 Re-measured first (fresh export of `bc94e08`, same harness, same demo data, 51
-measurements): `screens-mobile-2026-11-17-remisura/misure.json`. Verdicts with
-the numbers are in the record, §"The fix cycle — outcome".
+measurements) and once more after the fixes (49 of 51, two modal states lost to a
+harness timeout): `screens-mobile-2026-11-17-remisura/misure.json` and
+`screens-mobile-2026-11-17-remisura-dopo/misure.json`, both committed. Verdicts
+with the before/after pairs are in the record, §"The fix cycle — outcome".
 
 | id | outcome |
 | --- | --- |
 | F4 | closed by `7c4a760` — `DateField`: platform picker on native, real `input[type=date]` on web, `GG/MM/AAAA` on screen, ISO day on the wire, `periodoValido` untouched |
-| F2 | closed by `5edfd46` — 44×44 at 320 and 375, was 42×44 |
-| F1 | closed by `391a8de` — no element crosses a 320 px viewport on `/edit-profile` or `/register`; the fix is `minWidth: 0` on the input inside `AppInput`, not the form row (the re-measure moved the fix) |
-| F7 | closed by `6d84820` — one way back on `/staff` |
+| F2 | closed by `5edfd46` — 320 px catalog: 0 controls under 44 (was 1, the refresh control at 42×44) |
+| F1 | closed by `391a8de` — 0 elements cross a 320 px viewport on `/edit-profile` or `/register` (was 1 on each); the fix is `minWidth: 0` on the input inside `AppInput`, not the form row (the re-measure moved the fix) |
+| F7 | closed by `6d84820` — one way back on `/staff`: 2 interactive nodes, was 3 |
 | F9 | **withdrawn** — same screen, same 8 controls, `troncati: []` against 4 truncations at audit time: `667815a` had already fixed it |
 | F5 | open, filed as **G27** in `backend-gaps.md`; no frontend change |
 | F3 | no action, as decided |

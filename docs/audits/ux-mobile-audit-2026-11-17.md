@@ -48,12 +48,20 @@ measurements, three profiles. Numbers in
 only the capture that carries a verdict a number cannot — the two exits on
 `/staff` — was kept, the rest of that run is numbers.
 
+After the fixes the same harness ran again on the fixed tree, same data:
+[`screens-mobile-2026-11-17-remisura-dopo/misure.json`](screens-mobile-2026-11-17-remisura-dopo/misure.json),
+**49** of the 51 measurements (two iPhone 14 Pro modal states —
+`22-notifiche-conferma-elimina`, `23-voce-editor` — lost to a harness timeout on
+the `accordi: filtro e scheda` step; neither carries a verdict). Every number
+below is a before/after pair from those two files, and each pair is on the same
+screen, so the difference is the change and not the data.
+
 | id | outcome | evidence |
 | --- | --- | --- |
-| F4 | **closed** by `7c4a760` | after the fix `/agreements` renders exactly two `input[type=date]`, `aria-label` «Inizio» and «Fine», on web; the native graph still exports an iOS bundle; `periodoValido` and `dataDaInput` are untouched and the boundary conversions are tested (`services/__tests__/dates.test.js`) |
-| F2 | **closed** by `5edfd46` | the «Aggiorna» control measures **44×44** at 320 and at 375, was 42×44 |
-| F1 | **closed** by `391a8de` | `/edit-profile` and `/register` at 320 px: **0** elements cross the viewport, was `INPUT` left 179 / right 348 on `innerWidth` 320 |
-| F7 | **closed** by `6d84820` | `/staff` with a non-staff account has two interactive nodes — the nav menu and «Torna al profilo»; «← Indietro» is gone |
+| F4 | **closed** by `7c4a760` | web: the sheet renders exactly two `input[type=date]`, `aria-label` «Inizio» and «Fine», and the browser paints its own date skeleton; native: the iOS bundle still exports, which is what proves the picker's import resolves in the native graph. What a thing this big cannot show is the picker on a phone — §4 of this record says so |
+| F2 | **closed** by `5edfd46` | the catalog at 320 px reports **0** controls under 44 in `13` (was 1: the refresh control at 42×44); 393 was already clean and stays clean |
+| F1 | **closed** by `391a8de` | `/edit-profile` and `/register` at 320 px: **0** elements cross the viewport (was `INPUT` left 179 / right 348 on `innerWidth` 320, on both screens) |
+| F7 | **closed** by `6d84820` | `/staff` with a non-staff account: **2** interactive nodes — the nav menu and «Torna al profilo»; was 3, the pair of captures is committed in both run directories |
 | F9 | **withdrawn** | the same `/offro-e-cerco` screen at 320 px, with the same **8** interactive nodes: `troncati: []`, against the four truncations this record measured (`Modifica` 52/60, `Sospendi` 52/62, twice). `667815a` removed the one-line clamp: no fix was needed, so none was made |
 | F5 | **open, filed as G27** | `backend-gaps.md` G27 states what the payload does not carry and what the inbox cannot do until it does. No frontend change was possible, and none was made |
 
