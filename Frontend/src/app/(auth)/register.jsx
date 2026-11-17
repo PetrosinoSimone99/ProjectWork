@@ -301,8 +301,21 @@ export default function RegisterScreen() {
   }
 
   async function handleSubmit() {
+    // Invio da un campo può arrivare due volte (tasto tenuto premuto, focus
+    // rimesso a mano): la registrazione è già partita, non se ne manda una
+    // seconda che finirebbe in 409 su un account appena creato.
+    if (submitting) {
+      return;
+    }
     setError(null);
     if (!validate()) {
+      return;
+    }
+    // Le voci si scelgono dalle categorie del backend: senza, il modulo non è
+    // compilabile e l'errore giusto è quello delle categorie, non quello delle
+    // voci mancanti (il pulsante lo dice già, l'Invio no).
+    if (!categoriePronte) {
+      setError("Aspetto le categorie dal servizio: senza non posso creare l'account.");
       return;
     }
     // The backend rejects an empty `offers`/`requests` array today
