@@ -17,6 +17,7 @@
  *
  * Uso:
  *   NODE_PATH=<npx-cache>/node_modules node docs/audits/scripts/audit-mobile-360.js [--full]
+ *   AUDIT_OUT=<dir> ... node docs/audits/scripts/audit-mobile-360.js   # re-run, new captures
  */
 const fs = require('fs');
 const path = require('path');
@@ -26,7 +27,12 @@ const BASE = 'http://localhost:8083';
 const API = 'http://localhost:8000/api';
 const USERNAME = 'giulia.bianchi';
 const PASSWORD = 'demo1234';
-const OUT = path.join(__dirname, '..', 'screens-mobile-2026-11-17');
+// `AUDIT_OUT` writes a re-run elsewhere: the committed captures in
+// `screens-mobile-2026-11-17/` are the record's evidence and a second run must
+// not overwrite them.
+const OUT = process.env.AUDIT_OUT
+  ? path.resolve(process.env.AUDIT_OUT)
+  : path.join(__dirname, '..', 'screens-mobile-2026-11-17');
 const FULL = process.argv.includes('--full');
 
 const PROFILI = [
