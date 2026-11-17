@@ -26,11 +26,12 @@ const SEGNAPOSTO = 'GG/MM/AAAA';
  *   label, so the field keeps a name a screen reader can announce.
  * - Native: a `Pressable` row showing `GG/MM/AAAA` that mounts
  *   `@expo/ui/community/datetime-picker` on press. Android's
- *   `presentation="dialog"` opens on mount and answers `onValueChange` on
- *   confirmation or `onDismiss` on cancel, so the picker is unmounted on
- *   either; iOS ignores the prop and draws the picker inline, so there the row
- *   also offers `Fatto` to unmount it once the wheel is where the reader wants
- *   it.
+ *   `presentation="dialog"` opens on mount and answers `onValueChange` once, on
+ *   confirmation, or `onDismiss` on cancel — so there the picker is unmounted
+ *   on either. iOS ignores that prop and draws the picker inline, in its
+ *   compact style: `onValueChange` fires at **every** change and `onDismiss`
+ *   never fires, so closing on the first change would throw the reader out
+ *   mid-choice — there the picker stays mounted and the `Fatto` row closes it.
  *
  * `disabled` mirrors the sheet's busy state: the row keeps its place and its
  * label, it just refuses the press.
@@ -124,7 +125,12 @@ export function DateField({ etichetta, valore, onCambia, disabled = false }) {
             negativeButton={{ label: 'Annulla' }}
             onValueChange={(_evento, data) => {
               scegli(data);
-              setPickerAperto(false);
+              // Solo su Android: lì il dialog risponde una volta, alla conferma.
+              // Su iOS il picker è inline e chiama ad ogni cambio, quindi
+              // chiuderlo qui renderebbe `Fatto` irraggiungibile.
+              if (Platform.OS !== 'ios') {
+                setPickerAperto(false);
+              }
             }}
             onDismiss={() => setPickerAperto(false)}
           />
