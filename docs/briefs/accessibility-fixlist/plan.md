@@ -36,7 +36,7 @@ Contract: [`plan-brief.md`](plan-brief.md). One field per step: `Stato:`
 - 7. `docs/accessibility.md`: align 2.2.1 (`:67`, `:180`) to the fact that the expiry is announced and not extendable, with the reason and the `token_ttl` citation; collapse the duplicated automated-check row (`:211`, `:213`) into one corrected row that cites the tests which do assert roles and labels; update the status rows for 1.4.4, 2.1.2 and 1.4.1 to what steps 2-4 changed | files: docs/accessibility.md,docs/audits/check-2026-11-17.md | done: the file states nothing the tree contradicts, `:211`/`:213` are one row, no claim was deleted to make code pass | Stato: DONE
 - 8. `docs/changelog.md`: session entry for this cycle (date 2026-11-17, above the previous entry) | files: docs/changelog.md | done: one entry naming the seven items, the files touched, the docs duty and the exclusion on Backend security gaps | Stato: DONE
 - 9. Review at fresh context, three angles, one model per angle, on the cycle's commits | files: docs/briefs/accessibility-fixlist/plan.md | done: the Review section records the three verdicts and every P0/P1, or says a row is empty | Stato: DONE
-- 10. Gate and push | files: — | done: `npx expo lint` and `npx tsc --noEmit` green, the two touched suites green, `git status --porcelain` clean, pushed to `andrea-frontend` (never `main`) | Stato: TODO
+- 10. Gate and push | files: — | done: `npx expo lint` and `npx tsc --noEmit` green, the two touched suites green, `git status --porcelain` clean, pushed to `andrea-frontend` (never `main`) | Stato: DONE
 
 Lanes: five, disjoint files. Wave 1 (the session fan-out cap is four children per
 wave): A, B, C, D. Wave 2: E. No lane may write the `shared` documents.
