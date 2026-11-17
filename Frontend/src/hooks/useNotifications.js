@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { AppState } from 'react-native';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   deleteNotification,
@@ -137,13 +138,38 @@ export function useNotifications({ token }) {
   };
 }
 
+/** How often the profile badge asks again. */
+export const UNREAD_POLL_MS = 30000;
+
+/** `console.warn` only where a developer can read it. */
+function logInSviluppo(messaggio, dettaglio) {
+  if (typeof __DEV__ === 'undefined' || __DEV__) {
+    console.warn(messaggio, dettaglio);
+  }
+}
+
 /**
  * The unread count alone, for the profile row that opens the inbox.
  *
  * It asks for one row (`limit: 1`) instead of the page: the profile needs the
  * number, not the list, and a full page would be twenty rows the screen throws
- * away. A failure is silent here on purpose — the row stays neutral and the
- * inbox itself reports the error when it opens.
+ * away.
+ *
+ * It asks again every `UNREAD_POLL_MS` while the screen is focused, so a
+ * notification that arrived from another device moves the row without the user
+ * touching anything. The timer lives inside `useFocusEffect` (leaving the tab
+ * clears it) and a tick does nothing while `AppState` is not `'active'`, so a
+ * backgrounded app sends no request; coming back to the foreground reads at
+ * once instead of waiting a whole interval. The inbox is not covered here — it
+ * uses `useNotifications`, which reads on focus.
+ *
+ * The count still comes from the response, never from a local counter: a
+ * counter would be a second truth, and a notification that arrived from another
+ * device would never reach it.
+ *
+ * A failure leaves the row neutral (`null`, not `0`) and warns in development
+ * through `logInSviluppo` — no banner on the profile, the inbox itself reports
+ * the error when it opens.
  *
  * `ricarica` exists because the profile's pull-to-refresh must move this number
  * too: a gesture that refreshes the profile and leaves the badge at the old
@@ -163,12 +189,21 @@ export function useUnreadCount({ token }) {
       if (seq === richiestaRef.current) {
         setNonLette(risposta.nonLette);
       }
-    } catch {
+    } catch (err) {
       if (seq === richiestaRef.current) {
         setNonLette(null);
+        logInSviluppo('[notifiche] conteggio non lette non riuscito', err?.message ?? err);
       }
     }
   }, [token]);
+
+  /** One poll tick: nothing to ask while the app is in the background. */
+  const sonda = useCallback(() => {
+    if (AppState.currentState !== 'active') {
+      return;
+    }
+    void carica();
+  }, [carica]);
 
   useFocusEffect(
     useCallback(() => {
@@ -176,6 +211,29 @@ export function useUnreadCount({ token }) {
       return () => {
         richiestaRef.current += 1;
       };
+    }, [carica]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) {
+        return undefined;
+      }
+      const timer = setInterval(() => {
+        void sonda();
+      }, UNREAD_POLL_MS);
+      return () => clearInterval(timer);
+    }, [token, sonda]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const sottoscrizione = AppState.addEventListener('change', (stato) => {
+        if (stato === 'active') {
+          void carica();
+        }
+      });
+      return () => sottoscrizione.remove();
     }, [carica]),
   );
 
