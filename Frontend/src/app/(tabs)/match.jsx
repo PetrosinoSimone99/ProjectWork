@@ -29,9 +29,9 @@ const GATE_NEED_ONE = {
  * here is the only honest option: the button cannot work, and a `500` after a
  * tap would charge the credit first.
  */
-function manyServicesReason(tipo, quanti) {
-  const voce = tipo === 'OFFER' ? 'offerta' : 'ricerca';
-  return `Hai ${quanti} servizi di questo tipo: il server crea una coda di ${voce} solo se ne hai uno (limite noto).`;
+function manyServicesReason(tipo, count) {
+  const typeWord = tipo === 'OFFER' ? 'offerta' : 'ricerca';
+  return `Hai ${count} servizi di questo tipo: il server crea una coda di ${typeWord} solo se ne hai uno (limite noto).`;
 }
 
 /** The cost of a request queue, in words: a balance figure does not exist. */
@@ -125,28 +125,30 @@ export default function MatchScreen() {
     // Two independent answers, so one failing does not throw away the other: a
     // list that arrived stays on screen even when the own-services call did not,
     // and the banner names the failure that costs something.
-    const [esitoCode, esitoServizi] = await Promise.allSettled([
+    const [outcomeQueues, outcomeServices] = await Promise.allSettled([
       listQueues(token),
       listMyServices(token),
     ]);
     if (seq !== requestSeqRef.current) {
       return;
     }
-    if (esitoCode.status === 'fulfilled') {
-      setQueues(esitoCode.value);
+    if (outcomeQueues.status === 'fulfilled') {
+      setQueues(outcomeQueues.value);
     }
-    if (esitoServizi.status === 'fulfilled') {
-      setServices(esitoServizi.value);
+    if (outcomeServices.status === 'fulfilled') {
+      setServices(outcomeServices.value);
     }
     // A failed reload keeps what is on screen: blanking a list that had rows a
     // second ago is worse than a banner that says why.
-    const guasto =
-      esitoCode.status === 'rejected'
-        ? esitoCode.reason
-        : esitoServizi.status === 'rejected'
-          ? esitoServizi.reason
+    const failure =
+      outcomeQueues.status === 'rejected'
+        ? outcomeQueues.reason
+        : outcomeServices.status === 'rejected'
+          ? outcomeServices.reason
           : null;
-    setLoadError(guasto === null ? null : guasto instanceof ApiError ? guasto.message : GENERIC_ERROR_MESSAGE);
+    setLoadError(
+      failure === null ? null : failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE,
+    );
     setLoading(false);
   }, [token]);
 
