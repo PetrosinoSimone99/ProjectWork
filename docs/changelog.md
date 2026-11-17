@@ -6,6 +6,80 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — Whole-set documentation audit, and three security gaps recorded
+
+Session start: `git fetch origin`. `andrea-frontend` compared against
+`origin/main` (**0 behind, 330 ahead**) and `origin/andrea-frontend` (**0/0**).
+Working tree clean. Nothing pushed to `main`. **No frontend or backend code was
+touched.**
+
+### Why
+
+Nine days of fast iteration left doubts about the documentation set: three
+features reported as missing had been built, several version numbers had drifted,
+and nobody had re-read the whole set against the backend since the schema moved
+to `barattolo_15112026.sql`. The pass ran read-only, before planning anything.
+
+### What changed
+
+- `docs/audits/check-2026-11-17.md` — new: the audit lane by lane, the contract
+  verdict, the open gaps with evidence, the security summary, the frontend debt
+  and the accessibility fix list. This is the artefact the next session works
+  from.
+- `docs/overview.md` — the Match tab, the sheet form and the chat screen are
+  described as they are (all three shipped), not as missing; the agreements
+  sections say "in progress", which is the tab's real label.
+- `docs/backend-gaps.md` — G8 no longer claims the chat screen does not exist;
+  G18's measurement is dated to the seed it was taken on; **new G25** (`500`
+  bodies carry the exception message, the general form of the probe's A3) and
+  **new G26** (login has no rate limit, the probe's A5); the cross-cutting rules
+  gain "a `5xx` body never carries an exception message or SQL fragment".
+- `docs/setup.md` — registration requires one offer and one request today
+  (`backend-gaps.md` G9); `EXPO_PUBLIC_API_PORT` on the Metro port produces a
+  warning, not a stop.
+- `docs/architecture.md` — React Native 0.88, PHP 8.4, the 15-table
+  `barattolo_15112026.sql` instead of "schema v3.1", full route list.
+- `docs/frontend.md` — Expo SDK 58 / RN 0.88; `EmptyState` has no `variante`
+  prop any more.
+- `docs/ux.md` — no compensation tokens; no `EmptyState` variants.
+- `docs/decisions.md` — D016, D017 and D018 annotated with what has happened
+  since; D023 no longer names a region selector (D024 removed it).
+- `docs/database.md` — `agreement_details.start_date` is a `timestamp` with
+  `ON UPDATE CURRENT_TIMESTAMP`; the missing columns and enums added; new
+  section "Migrations are not the schema", with the three dormant entities and
+  the functional test that depends on the migration-built schema.
+- `docs/README.md` — file map completed with `DESIGN.md`, `audits/` and
+  `briefs/`; it now covers the whole directory.
+- `docs/ui-triage.md` — the "there is no fake-data mode" correction (a
+  correction of a sentence that no longer exists) becomes the operational fact
+  it carried: one mode, seeded demo users, stack up.
+
+### Security
+
+The two chat IDORs were already reproduced and written down today
+([`audits/api-authz-2026-11-17.md`](audits/api-authz-2026-11-17.md), A1/A2); this
+session confirmed them from the source and turned the two findings that lived
+only in the probe into durable gaps (**G25**, **G26**) so the request reaches the
+backend maintainer from the file he reads. Nothing was patched: `Backend/` is
+read-only here.
+
+### Two findings for their owners
+
+- `AGENTS.md:119` still says "PHP 8.3 dev container". The image is PHP 8.4. A
+  root file: not edited without authorization.
+- `Backend/README.md:34` names the wrong dump. `Backend/` is read-only for this
+  side: reported, not edited.
+
+### What did not change
+
+The frontend ↔ backend contract held up: 33 calls checked one by one, all
+matching route, body and response, including the documented quirks. The frontend
+debt the audit recorded (seven screens between 288 and 559 lines, inline `api/`
+calls in seven screens, a partial D026 rename) is a work list, not a doc edit: the
+conventions describe the target, so they stay as they are.
+
+---
+
 ## 2026-11-17 — Three UI hypotheses closed with a measurement, none of them a defect
 
 Session start: `git fetch origin`. `andrea-frontend` compared against

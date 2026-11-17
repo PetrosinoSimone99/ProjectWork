@@ -122,8 +122,9 @@ One tick is enough to check the scheduler:
 | `EXPO_PUBLIC_API_PORT` | `8000` | normal dev: the host is taken from the Expo dev server, so the address follows the network |
 | `EXPO_PUBLIC_API_URL` | e.g. `http://192.168.1.20:8000` | only for tunnels, built bundles, or a dev server that is not on the API machine |
 
-`src/api/config.js` reads them at build time (`EXPO_PUBLIC_*`) and stops with an
-explicit warning when `EXPO_PUBLIC_API_PORT` is set to the Metro port (8081).
+`src/api/config.js` reads them at build time (`EXPO_PUBLIC_*`) and warns on the
+console when `EXPO_PUBLIC_API_PORT` is set to the Metro port (8081); the warning
+does not stop the build, it keeps the value and says which one to fix.
 There is no fake-data switch any more: the app always talks to the real
 backend.
 
@@ -143,7 +144,8 @@ npx expo start
 
 ## 4. Verify end to end
 
-1. Register from `/register` (location is mandatory; services are optional).
+1. Register from `/register` (location is mandatory; one offer and one request
+   are required today, `backend-gaps.md` G9).
 2. Log in: the JWT (1 hour) is stored with `expo-secure-store`.
 3. Publish one offer and one request from "Offro e cerco".
 4. Filter the home and open a service detail.

@@ -113,6 +113,9 @@ the agreed `end_date` has passed; a service that is not delivered becomes
 `CONTESTED` and goes to staff.
 *Consequences:* no schema change; the chat becomes inaccessible at conclusion;
 a service delivered earlier cannot be closed early without a new decision.
+*Superseded in part:* `COMPLETED` **is** in the reference schema today
+(`barattolo_15112026.sql`) and the end-date scheduler writes it; what still
+misses is the worker that runs the scheduler (`backend-gaps.md` G12).
 
 **D017 — 2026-11-07 — The chat is reachable only through an accepted agreement.**
 The legacy chat endpoints (keyed by proposals that no longer exist) are not
@@ -121,12 +124,18 @@ built on the agreement id.
 *Consequences:* no chat surface until the backend exposes G8 in
 `backend-gaps.md`; the design decisions (bubbles, composer, sheet inside the
 chat) are kept in this documentation, not in dead code.
+*Status:* G8 landed 2026-11-15 and the screen exists since W1 (2026-11-16,
+`Frontend/src/app/chat/[agreementId].jsx`). "Accepted agreement only" is a UI rule,
+not an enforced one: the backend checks the token but not participation
+(`backend-gaps.md` G24).
 
 **D018 — 2026-11-07 — Documentation set: nine files plus the gap list.**
 `project-structure.md` was absorbed into `architecture.md` and `ux.md` into
 `frontend.md`; `backend-gaps.md` is new and holds the requests to the backend.
 *Consequences:* one file per job; the gap list is the artefact handed to the
 backend maintainer.
+*Superseded by D022:* `ux.md` and `accessibility.md` are separate normative files
+again, and the set is fourteen files today (`docs/README.md`).
 
 **D019 — 2026-11-09 — Jest (jest-expo) covers the pure modules, outside the gate.**
 `jest` + `jest-expo` (and the peer packages they need: `@react-native/jest-preset`,
@@ -184,8 +193,8 @@ unchanged (no accessibility linter added, that is a separate decision with a new
 dependency); `docs/README.md` and `docs/frontend.md` link the two files.
 
 **D023 — 2026-11-10 — One modal shell, and lists that own their scrolling.**
-Every panel (service detail, confirmation, category selector, region selector,
-agreements bell, staff review sheet) now goes through
+Every panel (service detail, confirmation, category selector, province/comune
+selectors, agreements bell, staff review sheet) now goes through
 `src/components/ModalShell.jsx`: it binds Escape on the web build, moves the focus
 into the panel on open, keeps the backdrop out of the assistive tree and draws
 header, close and footer in one place. Data screens with a growing collection

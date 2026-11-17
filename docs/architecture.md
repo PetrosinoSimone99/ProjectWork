@@ -3,14 +3,14 @@
 ## System shape
 
 ```text
-Expo app (React Native 0.86 + expo-router, JavaScript)
+Expo app (React Native 0.88 + expo-router, JavaScript)
         │  HTTP + JSON, JWT Bearer
         ▼
-Symfony 7.4 backend (Backend/, PHP 8.3/8.4 container)
+Symfony 7.4 backend (Backend/, PHP 8.4 container)
   Controllers → repositories/managers → Doctrine ORM
         │  PDO mysql
         ▼
-MySQL 8.0 ("barattolo", schema v3.1)
+MySQL 8.0 ("barattolo", the 15 tables of `barattolo_15112026.sql`)
 ```
 
 - The **frontend** runs on the host with Node and Expo; no container.
@@ -57,9 +57,10 @@ Frontend/              Expo app
 | `src/components/**` | Presentational building blocks | Props in, no data fetching |
 | `src/theme/**` | Colour and spacing tokens, light/dark preference | Screens read tokens, never hard-code colours |
 
-The route paths are English (`/match`, `/offer-and-request`, `/agreements`,
-`/profile`, `/edit-profile`, `/report`, `/staff`, `/staff-users`); tab titles
-are Italian because the user reads them.
+The route paths are English (`/`, `/match`, `/offer-and-request`, `/agreements`,
+`/profile`, `/edit-profile`, `/notifications`, `/report`, `/staff`, `/staff-users`,
+`/login`, `/register`, and the dynamic `/chat/[agreementId]` and `/user/[id]`);
+tab titles are Italian because the user reads them.
 
 ## Data flow
 

@@ -125,23 +125,13 @@ Backend behaviour, and anything under `Backend/`, `Context_and_DB_V2/` or
 users carry only `ROLE_USER`, so those three stay out until a staff user exists
 (`php bin/console app:create-staff`, see `docs/setup.md`).
 
-## Correction: there is no fake-data mode
+## Data mode
 
-This section was written while `AGENTS.md` documented `EXPO_PUBLIC_DATI_FINTI=1`
-in `Frontend/.env.local` as the fake-vs-real switch. The variable does not
-exist: `src/api/config.js` never reads it, no branch in `src/` references it,
-and both `docs/decisions.md` (D011) and `docs/setup.md` record that the layer
-was removed. Setting the variable changes nothing. The sentence in `AGENTS.md`
-has since been corrected — `AGENTS.md:130` now says the mode was removed — and
-W8 closed the point on 2026-11-17
-(`docs/audits/frontend-gap-analysis-2026-11-16.md`).
-
-The app always talks to the real backend. The Docker stack is up
-(`backend-backend-1` on :8000, `backend-database-1` healthy), so a sweep runs
-against seeded data: six demo users, password `demo1234`, e.g. `marco.ricci`,
+There is one mode: the app always talks to the real backend (`docs/decisions.md`
+D011 — `src/api/config.js` reads only `EXPO_PUBLIC_API_PORT` and
+`EXPO_PUBLIC_API_URL`, and no branch in `src/` references a fake-data switch).
+A sweep therefore runs against seeded data: six demo users, password `demo1234`,
 one per city (`giulia.bianchi` Roma, `marco.ricci` Milano, `sara.mancini`
 Torino, `davide.costa` Bologna, `chiara.marino` Napoli, `luca.ferrari` Firenze).
-
-Reasoning that starts from "check both data modes" is therefore still wrong,
-but the repo rules no longer say it: `AGENTS.md`, `docs/decisions.md` and the
-code agree that there is one mode.
+The Docker stack is up (`backend-backend-1` on :8000, `backend-database-1`
+healthy).

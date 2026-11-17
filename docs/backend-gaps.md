@@ -107,7 +107,11 @@ card shows as "Il server non ha accettato la scheda".
 the four routes are authenticated: `GET /chats/agreement/{id}`,
 `POST /chats/send-message/{chatId}` with `{message}`, `GET /chats/most-recent-message`,
 `GET /chats/check-new-messages/{recentMessageId}`. Sending creates a
-`CHAT_MESSAGE` notification. The remaining gap is ours: no chat screen exists.
+`CHAT_MESSAGE` notification. Consumed by the frontend since W1 (2026-11-16):
+`Frontend/src/app/chat/[agreementId].jsx` opens the history of an accepted
+agreement, sends, and polls `check-new-messages` while the screen is focused. The
+remaining gap is authorisation: no route checks that the caller participates
+(`G24`).
 
 ## G9 — Registration with optional services
 
@@ -230,8 +234,10 @@ and each call resolves the participant's service with
 than one service of that type throws `NonUniqueResultException` on the second
 call: the first sheet row is already flushed, the agreement is already
 `ACCEPTED`, and the route answers `500` (`Backend/src/Manager/AgreementManager.php:140-147`).
-Measured on `mario.rossi` (seven offers): the pair ends up with one sheet row out
-of two. The app copes — it draws the row that exists and offers only the action
+Measured on `mario.rossi` (seven offers) with the pre-2026-11-16 demo seed: the
+pair ends up with one sheet row out of two. Today's seed gives every account
+exactly one offer and one request, so the case needs two services of the same
+type to reproduce. The app copes — it draws the row that exists and offers only the action
 that row allows — but the missing second row is not a UI state, it is a lost
 write. Same root cause as G19. Requested: `setMaxResults(1)` (with a documented
 choice) or a deterministic "primary service" per type.
@@ -379,11 +385,39 @@ state); with a participant check in place at G24's suggestion, the remaining
 case is a person reading a chat of their own exchange, which the product may
 accept. Recorded so nobody reads the "ACCEPTED only" rule as enforced.
 
+## G25 — A `500` body carries the exception message
+
+Five handlers append `$e->getMessage()` to the `500` sentence: the three chat
+routes (`Backend/src/Controller/ChatController.php:44,71,120`) and both details
+routes of an agreement (`Backend/src/Controller/AgreementController.php:264,285`).
+This is the general form of **A3** in `audits/api-authz-2026-11-17.md` (reproduced
+there on an unknown `agreementId`). The status sentence the app shows comes from
+`api/client.js`, never from the body, but the text still leaves the server: it
+reaches any caller and any proxy log, and it can name a table, a query or an
+internal path. Requested: log the message on the server with the rest of the
+context and answer a fixed sentence, as every other controller already does.
+
+Found by the read-only documentation audit of 2026-11-17
+(`docs/audits/check-2026-11-17.md`, §Security). Nothing in the frontend depends
+on that text.
+
+## G26 — Login has no rate limit
+
+`POST /auth/login` compares the password and answers; there is no `rate_limiter`
+in `Backend/config/**` and no per-account or per-IP counter. Measured in
+`audits/api-authz-2026-11-17.md` (**A5**): fifteen wrong passwords in a row cost
+nothing and the next correct one succeeds. Requested: a login throttle
+(`RateLimiter` or a counter in the user row) answering `429`, so a password list
+is not free to run. The app already maps `429` to «Troppe richieste in poco
+tempo» (`Frontend/src/api/client.js`), so nothing changes on this side.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id
   from the body.
 - Errors keep the existing shape `{"error": "<text>"}`; the frontend maps the
   status, not the text.
+- A `5xx` body never carries an exception message or a SQL fragment: the detail
+  belongs in the server log (`G25`).
 - Any endpoint that can be called twice must be idempotent or answer `409`, so
   the app can retry a failed request without creating duplicates.

@@ -32,32 +32,53 @@ previous schema and filename (`docs/backend-gaps.md`).
 | `Archive/DB_pre_November/` | The v2 dumps. Rollback material only |
 | `Archive/API_docs_Prima_della_verifica_stronati/` | The chain/token API documentation, same reason |
 
-Nothing under `Archive/` describes the current product, with one exception the
-seed still depends on: the November demo dump keeps the column order the
-reference schema uses. Reading the rest of `Archive/` to decide how to build
-something is how the team ends up implementing a feature that no longer exists.
+Nothing under `Archive/` describes the current product. Reading it to decide how
+to build something is how the team ends up implementing a feature that no longer
+exists.
+
+## Migrations are not the schema
+
+The stack is built by importing the dump, not by running migrations, and the two
+have diverged: `Backend/migrations/` never creates nine of the tables the app uses
+(`agreements`, `agreement_details`, `agreement_proposal`, `chat`,
+`chat_messages`, `chat_participants`, `notifications`, `service_queues`,
+`messenger_messages`) and still creates four the dump dropped (`proposals`,
+`proposal_participants`, `swipe_decisions`, `token_redemptions`), with
+`utf8mb4_unicode_ci` instead of the dump's `utf8mb4_general_ci`. So
+`doctrine:migrations:migrate` must not be run against a database imported from
+the dump.
+
+Three ORM classes are dormant for the same reason: `Proposal`,
+`ProposalParticipant` and `MatchCandidate` map tables that do not exist, and
+`ProposalRepository` is still resolved by
+`Backend/tests/Functional/MarketplaceControllerTest.php` — a test that only
+passes on a schema built from the migrations. No production code path reads
+them.
 
 ## Table map (15 tables)
 
 | Table | Responsibility |
 | --- | --- |
-| `users` | Identity: name, surname, optional location, unique username and email, password hash, `roles` JSON, `account_status`, `credits` (default 0), `bio`, `profile_image_url` |
-| `services` | One table for both types through `type` (`OFFER`/`REQUEST`); owner, description, `is_remote`, `is_suspended`, `location`, `deleted_at` (soft delete), `is_used` |
+| `users` | Identity: name, surname, optional location, unique username and email, password hash, `roles` JSON, `account_status` (varchar, `ACTIVE`/`INACTIVE`), `credits` (column default 0; a new account is created with 1), `bio`, `profile_image_url`, `creation_date` |
+| `services` | One table for both types through `type` (`OFFER`/`REQUEST`, a varchar validated by the application, not a DB enum); owner, description, `is_remote`, `is_suspended`, `location`, `deleted_at` (soft delete), `is_used` |
 | `categories`, `service_categories` | Category catalog and the many-to-many link to services |
 | `service_queues` | A service waiting for a counterpart: `user_id`, `type` (`OFFER`/`REQUEST`), `service_id`, `location` (**varchar(100)**, the only location column that is not 255), `status` (`OPEN`/`IN_PROGRESS`/`CLOSED`), `agreement_created` |
-| `agreements` | The exchange unit: `status` (`PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`, `VOID`, `CANCELLED`, `COMPLETED`), `from_queue` |
+| `agreements` | The exchange unit: `status` (`PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`, `VOID`, `CANCELLED`, `COMPLETED`), `from_queue`, `creation_date` |
 | `agreement_proposal` | Per-participant proposal: user, `role` (`Provider`/`Beneficiary`), `response`, `response_date` |
-| `agreement_details` | The delivery itself: provider, service provided, beneficiary, `from_remote`, start and end datetime, `beneficiary_accepted`, `status` (`COMPILED`/`UNCOMPILED`), `is_completed` |
-| `chat`, `chat_messages`, `chat_participants` | One chat per agreement, its messages, and per-participant read marker (`last_message_read`) |
-| `notifications` | One row per event and recipient: `type` (free text), `message`, `data` (JSON), `read_at` |
+| `agreement_details` | The delivery itself: provider, service provided, beneficiary, `from_remote`, start and end `timestamp`, `beneficiary_accepted`, `status` (`COMPILED`/`UNCOMPILED`), `is_completed`. **`start_date` carries `ON UPDATE CURRENT_TIMESTAMP`**: any update of the row that does not set it explicitly silently resets it (`backend-gaps.md` G20) |
+| `chat`, `chat_messages`, `chat_participants` | One chat per agreement (there is no `UNIQUE` on `chat.agreement_id`: the rule is the application's), `chat.status` (`OPEN`/`CLOSED`) and `creation_date`, the messages, and the per-participant read marker (`last_message_read`) |
+| `notifications` | One row per event and recipient: `user_id` (FK, cascade), `type` (varchar(100), free text — `AGREEMENT_*`, `MATCH_CREATED`, `CHAT_MESSAGE`, `REPORT_*`, `USER_*`, `SERVICE_RESTORED`, plus a lowercase `agreement_completed` written by the scheduler), `message`, `data` (JSON, `CHECK json_valid`), `created_at`, `read_at` |
 | `messenger_messages` | The `async` transport's table: `App\Message\QueueId` lands here until a worker consumes it |
-| `user_reports` | Reports against users with claim and assignment (`PENDING` → `IN_REVIEW` → `CONFIRMED`/`REJECTED`) |
-| `staff_operation_logs` | Audit trail of staff actions, with historical ids kept after the subjects are deleted |
+| `user_reports` | Reports against users with claim and assignment (`PENDING` → `IN_REVIEW` → `CONFIRMED`/`REJECTED`), with `reason`, `creation_date`, `review_note`, `reviewed_at`, `reviewed_by_id`, `assigned_to_id`, `assigned_at` |
+| `staff_operation_logs` | Audit trail of staff actions (`staff_id`, `staff_username`, `action`, `target_type`, `target_id`, `before_values`, `after_values`, `created_at`), with historical ids kept after the subjects are deleted |
 
-`match_candidates` and `queue_associated_agreements` are **gone**: the queue now
-points at the agreement it produced through `service_queues.agreement_created`.
-The `tokens` and `token_redemptions` tables of the reversed design are gone too
-and survive only in the v3.1 file, which is no longer imported.
+`match_candidates` and `queue_associated_agreements` are **gone** from the
+schema: the queue now points at the agreement it produced through
+`service_queues.agreement_created`. The `tokens`, `token_redemptions`,
+`proposals`, `proposal_participants` and `swipe_decisions` tables of the reversed
+design are gone from the dump but **not from the repository**: the v3.1 file, the
+migrations and three dormant entity classes still carry them (see *Migrations are
+not the schema* above).
 
 ## What the schema does not have
 

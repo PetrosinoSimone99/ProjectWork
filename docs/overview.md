@@ -22,9 +22,9 @@ just independent agreements that happen to line up.
 | # | Tab | What it does | State today |
 | --- | --- | --- | --- |
 | 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is computed by the backend (`backend-gaps.md` G1 landed) |
-| 2 | **Match** | Automatic matching of requests against offers | Placeholder in the app. The backend now has queues and a matchmaker (`POST /create-service-queue`, `GET /get-queues`), but the app has no queue UI and nothing consumes the `async` transport in the local stack |
+| 2 | **Match** | Queues: a standing offer or request the backend will match in the background | Working: the tab creates and cancels a queue and lists the account's own; the server refuses a second active queue and the UI gates both create actions (`decisions.md` D025). No match ever arrives, because nothing consumes the `async` transport in the local stack (`backend-gaps.md` G12) |
 | 3 | **Offro e cerco** | The user's own services: create, edit, suspend and reactivate, delete, and restore from a "Deleted" section | Working |
-| 4 | **Accordi** | Three sections (sent, accepted, concluded) plus a bell with the proposals waiting for an answer | Working: proposals, answers, cancellation and the sheet's confirmation all exist; the sheet form itself is still missing (`backend-gaps.md` G6) |
+| 4 | **Accordi** | Three sections (sent, in progress, concluded) plus a bell with the proposals waiting for an answer | Working: proposals, answers, cancellation, both sheet routes (each side fills its own row and confirms the other's) and the chat. What remains of `backend-gaps.md` G6 is the missing `serviceId` and the counterpart id |
 | 5 | **Profilo** | Name, surname, location, bio, profile photo URL, theme, logout, staff entry when the role allows it | Working |
 
 Outside the tab bar: the notifications inbox, the report screen and the staff
@@ -51,10 +51,10 @@ area (reports list, user list), all reachable from the profile.
    opened. A service that is not delivered is a contested agreement, which is
    staff territory.
 
-The routes exist for steps 1 to 4 (`docs/api.md`); what is missing is UI: no
-sheet form (the rows carry no ids, `backend-gaps.md` G6) and no chat screen. The
-conclusion in step 5 is written by the backend's end-date scheduler, which needs
-a worker nobody starts yet (`backend-gaps.md` G12).
+Every step has a screen today (`docs/api.md`): the sheet form, the confirmation
+and the chat inside an accepted agreement. The conclusion in step 5 is written by
+the backend's end-date scheduler, which needs a worker nobody starts yet
+(`backend-gaps.md` G12).
 
 ## What is deliberately not in the product
 

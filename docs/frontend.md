@@ -9,7 +9,7 @@ how it is written.
 
 ## Stack
 
-Expo SDK 57, React Native 0.86, React 19, expo-router. **JavaScript only**: no
+Expo SDK 58, React Native 0.88, React 19, expo-router. **JavaScript only**: no
 TypeScript files, no `.ts`/`.tsx`. Dependencies are added only when the need is
 real; the current set is Expo's plus nothing else.
 
@@ -60,7 +60,7 @@ Every screen that loads data shows exactly one of:
 | State | Rule |
 | --- | --- |
 | Loading | `LoadingScreen` for the first load, inline indicator for a refresh |
-| Empty | `EmptyState` with a variant that matches the situation (`dati`, `mercato`, `non-disponibile`) and an action only when the user can do something |
+| Empty | `EmptyState` with icon, title, one sentence and an action only when the user can do something |
 | Error | `Banner` with the message and a "Riprova" button that repeats the failed request as it was |
 | Not available | "coming soon" copy when the endpoint does not exist; never invented data, never a dead button that pretends to work |
 

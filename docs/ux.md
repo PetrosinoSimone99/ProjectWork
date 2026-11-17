@@ -92,7 +92,7 @@ finding, not a matter of taste.
 | 7 | Flexibility and efficiency of use | The frequent path is short: the catalog opens on the relevant default, filters are one tap, the staff list is searchable rather than scrolled. | Count the taps for the two most frequent tasks; a frequent task takes more than three taps only with a reason |
 | 8 | Aesthetic and minimalist design | One primary action per screen, no decoration that carries information, no text explaining the interface instead of labelling it. | Every element earns its place: remove it and the task still works? Then it goes |
 | 9 | Help users recognise, diagnose and recover from errors | Errors say what happened and what to do next, in Italian, without codes; the retry repeats the failed request as it was. | Force each error state (invented temporary failure is not allowed: a debug-only branch); the message names the next action |
-| 10 | Help and documentation | Where the model is not obvious (what an agreement implies, what a token/credit means, what staff can see), a short inline explanation exists at the point of doubt. | Every non-obvious rule has its line of copy on the screen that needs it, not in a separate help page |
+| 10 | Help and documentation | Where the model is not obvious (what an agreement implies, what a credit means, what staff can see), a short inline explanation exists at the point of doubt. | Every non-obvious rule has its line of copy on the screen that needs it, not in a separate help page |
 
 ## Dark patterns: refused by design
 
@@ -201,7 +201,7 @@ a running screen, it says so instead of claiming it.
 
 | Rule | Status |
 | --- | --- |
-| Explicit loading, empty, error and not-available states | Holds: `LoadingScreen`, `EmptyState` with its three variants, `Banner` + "Riprova", and the "not available" copy are present and distinct on every data screen, and the two exceptions the first audit found are closed: the operations log says why it is unavailable and offers a retry (`staff.jsx`), and "SERVIZI · N di M" comes from the pagination payload (`ServicesSection.jsx`, F32, F34) |
+| Explicit loading, empty, error and not-available states | Holds: `LoadingScreen`, `EmptyState` (icon, title, one sentence, action only when there is one), `Banner` + "Riprova", and the "not available" copy are present and distinct on every data screen, and the two exceptions the first audit found are closed: the operations log says why it is unavailable and offers a retry (`staff.jsx`), and "SERVIZI · N di M" comes from the pagination payload (`ServicesSection.jsx`, F32, F34) |
 | One place per state vocabulary (chip tones) | Holds: `ToneChip` maps semantic tones; state is carried by text, not colour alone. The account state has one name and one verb pair — "Sospeso", "Sospendi"/"Riattiva" — and "Esamina e chiudi" replaced the "Chiudi" that opened a review (F31) |
 | Tokens only, no hard-coded colours in components | Holds: no hex or `rgba()` literal outside `src/theme/tokens.js`, and the four `borderRadius: 999` plus the off-scale spacing literals now use `radius.pill` and `space.*` (F39) |
 | Touch target at least 44 pt | Holds: pills, the checkbox row, the icon-only buttons and the modal close are all `target.min` (`PillBar.jsx`, `AppCheckbox.jsx`, `FilterBar.jsx`, `EntryEditor.jsx`, `ModalShell.jsx`, F17). Not re-measured with a finger on a device: the rule is satisfied in code |
