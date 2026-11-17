@@ -17,10 +17,10 @@ physical device, web = `npx expo start --web`.
 
 | # | What the code says | Where |
 | --- | --- | --- |
-| F1 | `layout.maxContent` is 560 and applies to every screen except the home catalog, which passes `larga` for 720 | `src/theme/tokens.js` · `src/components/Screen.jsx:68-74` |
-| F2 | `AppButton`'s icon carries `marginLeft: -space.xs` inside a `justifyContent: 'center'` row with `gap: space.sm`; 33 call sites pass `icon` | `src/components/AppButton.jsx:83` |
+| F1 | `layout.maxContent` is 560 and applies to every screen except the home catalog, which passes `larga` for 720 | `src/theme/tokens.js:153` · `src/components/Screen.jsx:81` |
+| F2 | `AppButton`'s icon carries `marginLeft: -space.xs` inside a `justifyContent: 'center'` row with `gap: space.sm`; 33 call sites pass `icon` | `src/components/AppButton.jsx:87` |
 | F3 | **closed 2026-11-16 (W1)**: the chat screen now exists at `src/app/chat/[agreementId].jsx`, so the `Screen.jsx` paragraph about "a bar anchored at the bottom (chat)" and `bottomSpacing` describes a real screen; `_layout.jsx` lists the route and names no screen it lacks | `src/components/Screen.jsx:52` · `src/app/_layout.jsx:96` |
-| F4 | **closed 2026-11-17: wrong premise.** Both rows do use `alignItems: 'baseline'`, but `AppInput` pairs 13/600 with 13/400 (one scale, two weights, measured offset 0.00 px) and `PageHeader`'s 12/600 + 13 pair never renders: the only call site passes `frase`, never `titolo` | `src/components/AppInput.jsx:115` · `src/components/PageHeader.jsx:44` · `src/components/ServicesSection.jsx:105` |
+| F4 | **closed 2026-11-17: wrong premise.** Both rows do use `alignItems: 'baseline'`, but `AppInput` pairs 13/600 with 13/400 (one scale, two weights, measured offset 0.00 px) and `PageHeader`'s 12/600 + 13 pair never renders: the only call site passes `frase`, never `titolo` | `src/components/AppInput.jsx:122` · `src/components/PageHeader.jsx:74` · `src/components/ServicesSection.jsx:105` |
 | F5 | Every route file under `src/app` is listed in the route table, and every `router.push` / `router.replace` target resolves to an existing route | `src/app/_layout.jsx` |
 
 F5 says a static reading exposes no redirect defect. It does **not** say
@@ -36,19 +36,22 @@ the next session needs the number that retired it, not the absence of a number.
 - **H1 (from F1) — dismissed.** The column is 560 at 1280 with 360 of margin on
   each side, 560 at 1920 with 680, and 720 on the catalog; at 768 it is 560 (720
   on the catalog) and at 375 it is the whole window. The same numbers in both
-  themes and in the empty state — this is the measure `docs/DESIGN.md` §Measures
-  declares, `PageHeader`'s band included, so the sweep finds no gap between the
-  system and the render. The wide margins at 1280/1920 are that measure doing its
-  job. What stays a judgment, and was always the judgment rather than the number,
-  is whether a reading measure belongs on a surface that is scanned.
+  themes — this is the two-measure system `docs/DESIGN.md` §Measures declares
+  (560/720, set at `tokens.js:153`), page band included, so the sweep finds no
+  gap between the system and the render. The wide margins at 1280/1920 are that
+  measure doing its job. What stays a judgment, and was always the judgment
+  rather than the number, is whether a reading measure belongs on a surface that
+  is scanned.
 - **H2 (from F2) — dismissed as a defect, confirmed as a number.** 136
-  measurements: the ink centre sits between 0.92 and 1.96 px left of the pill's
-  centre, median 1.42 px left, and the composite's box is exactly 2.00 px left,
-  which is the arithmetic of `marginLeft: -space.xs` (-4 px against a
-  `gap: space.sm` of 8). Without the margin the residual would be about +0.6 px,
-  so **the margin creates the offset it was meant to remove.** Not touched:
-  1.4 px on a pill from 118 to 528 px is not visible, and `DESIGN.md` fixes no
-  optical centre for it to violate.
+  measurements — of 222 measured buttons, those whose icon carries the
+  `-space.xs` margin — and the ink centre sits between 0.92 and 1.96 px left of
+  the pill's centre, median 1.42 px left. The composite's box is 2.00 px left
+  (2.01 on 28 of the 136, where the layout lands sub-pixel), which is the
+  arithmetic of `marginLeft: -space.xs` (-4 px against a `gap: space.sm` of 8).
+  Without the margin the residual would be about +0.6 px, so **the margin creates
+  the offset it was meant to remove.** Not touched: 1.4 px on a pill from 118 to
+  528 px is not visible, and `DESIGN.md` fixes no optical centre for it to
+  violate.
 - **H3 (from F4) — dismissed on the premise, not on the alignment.** `AppInput`
   pairs 13/600 with 13/400 — one scale, two weights — and the baseline offset is
   0.00 px in all 24 measured rows, across the eight viewport/theme combinations.
@@ -94,18 +97,26 @@ a capture at known dimensions.
 The pass measured seven authenticated routes (catalog, match, offer and request,
 agreements, profile, notifications, edit profile) and the three anonymous ones
 (login, register, not found), at 375 / 768 / 1280 / 1920 in both themes. States:
-loading and error on the profile (a delayed and then an aborted `/api/**`), empty
-on the catalog (a search with no results). The app's boot screen is not among
-the captures, so the `booting` gate stays unmeasured.
+loading and error on the profile (a delayed and then an aborted `/api/**`). The
+app's boot screen is not among the captures, so the `booting` gate stays
+unmeasured.
+
+The empty catalog is **seen but not measured**. The step exists (a search with no
+results) and four captures came out of it at 375 and 1920 in both themes, but
+`dati.json` holds no record for that state: the recorded run timed out filling
+the search field at 375 and 1280 in both themes, so no column was ever written
+down. The H1 verdict therefore claims the two themes and not the empty state; the
+band, read on the captures at 1280/1920, is likewise not in the numeric probe,
+which recorded the column.
 
 Two routes stay unseen, and not for lack of trying: **`/user/[id]` and
 `/chat/[agreementId]`**. The sweep runs against the exported web build, which
 generates no page per id, and no link in the rendered nav carries an `href`
-towards one, so there is nothing to open — the pass logs it as "no `/user/` link
-on the page" and "no `/chat/` link on the page" at every viewport. Measuring
-them needs a navigable entry point (a link from a card) or a deep link with a
-known id, which is a code change and not a wider sweep. Until then they are
-**not seen**, not "clean".
+towards one, so there is nothing to open — the pass records it as *nessun link
+`/user/` in pagina* and *nessun link `/chat/` in pagina* at every viewport.
+Measuring them needs a navigable entry point (a link from a card) or a deep link
+with a known id, which is a code change and not a wider sweep. Until then they
+are **not seen**, not "clean".
 
 ## Out of scope
 

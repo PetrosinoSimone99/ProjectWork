@@ -19,7 +19,7 @@ here). Nothing pushed to `main`.
 until measured, and `docs/audits/frontend-gap-analysis-2026-11-16.md` §D said so
 in as many words. The sweep ran on 2026-11-17 against the exported web build:
 seven authenticated routes and three anonymous ones, 375 / 768 / 1280 / 1920,
-both themes, plus the loading, error and empty states. This session wrote the
+both themes, plus the loading and error states. This session wrote the
 verdicts. **No frontend code was touched**: two of the three conclusions are
 "not a defect", and the third is a design judgment that needs none either.
 
@@ -42,13 +42,14 @@ verdicts. **No frontend code was touched**: two of the three conclusions are
 
 - **H1, column width: dismissed.** 560 at 1280 with 360 of margin per side, 560
   at 1920 with 680, catalog 720, 768 → 560 (720), 375 → the whole window;
-  identical in both themes and in the empty state, `PageHeader`'s band included.
-  That is the measure `DESIGN.md` §Measures declares, so the wide margins are the
-  measure working. Whether a reading measure suits a surface that is scanned
-  stays a judgment, and was never the number.
+  identical in both themes, page band included. That is the two-measure system
+  `DESIGN.md` §Measures declares (560/720, set at `tokens.js:153`), so the wide
+  margins are the measure working. Whether a reading measure suits a surface
+  that is scanned stays a judgment, and was never the number.
 - **H2, icon off-centre: dismissed as a defect, confirmed as a number.** 136
-  measurements, ink centre 0.92–1.96 px left of the pill centre, median 1.42;
-  the composite box is exactly 2.00 px left, which is the arithmetic of
+  measurements (of 222 buttons, the ones whose icon carries the margin), ink
+  centre 0.92–1.96 px left of the pill centre, median 1.42; the composite box is
+  2.00 px left (2.01 on 28 of the 136, sub-pixel), which is the arithmetic of
   `marginLeft: -space.xs` against `gap: space.sm` — so the margin creates the
   offset it was meant to remove (without it the residual would be ~+0.6 px).
   Left alone: 1.4 px on a pill from 118 to 528 px, against no committed optical
@@ -63,10 +64,12 @@ verdicts. **No frontend code was touched**: two of the three conclusions are
 
 `/user/[id]` and `/chat/[agreementId]` cannot be measured on the exported web
 build: no page is generated per id and no link in the rendered nav carries an
-`href` towards one, so the pass logs "no link on the page" at every viewport and
-moves on. They stay **unseen, not clean**, until a card links to them or a deep
-link with a known id exists — a code change, not a wider sweep. The `/staff`
-screens stay out for the older reason: demo users carry `ROLE_USER` only.
+`href` towards one, so the pass records *nessun link `/user/` in pagina* at every
+viewport and moves on. They stay **unseen, not clean**, until a card links to
+them or a deep link with a known id exists — a code change, not a wider sweep.
+The empty catalog is seen but not measured: four captures exist and `dati.json`
+holds no record of it. The `/staff` screens stay out for the older reason: demo
+users carry `ROLE_USER` only.
 
 ---
 

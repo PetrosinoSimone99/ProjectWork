@@ -21,7 +21,6 @@ Tiers follow `docs/ui-triage.md`: **Fact** (read out of the source, with
 `path:line`), **Judgment** (a decision on whether the fact is wrong). Nothing
 below is a hypothesis dressed as a fact; the three items that *were* hypotheses
 were measured on 2026-11-17 and are closed in section D.
-
 ---
 
 ## How this file is consumed
@@ -754,13 +753,15 @@ only so this section cannot be read as still open.
 
 | Item | Verdict |
 | --- | --- |
-| H1 column width `560` at 1280/1920 (`theme/tokens.js`, `Screen.jsx:68-74`) | **dismissed.** 560 measured at 1280 with 360 of margin each side, 560 at 1920 with 680, catalog 720; 768 gives 560 (720 on the catalog), 375 the whole window. Identical in both themes and in the empty state, band included: it is the measure `DESIGN.md` §Measures declares. What stays arguable is using a reading measure on a scanned surface, which is a design judgment, not a defect |
-| H2 icon off-centre in `AppButton` (`AppButton.jsx:83`) | **dismissed as a defect, confirmed as a number.** 136 measurements: ink centre 0.92–1.96 px left of the pill centre, median 1.42; the composite box is exactly 2.00 px left, the arithmetic of `marginLeft: -space.xs` against `gap: space.sm`, so the margin creates what it was meant to remove (without it the residual is ~+0.6 px). Invisible at 118–528 px, and no optical centre is committed to violate |
-| H3 baseline between two type scales (`AppInput.jsx:115`, `PageHeader.jsx:44`) | **dismissed on the premise.** `AppInput` pairs 13/600 with 13/400 — one scale, two weights — offset 0.00 px everywhere; `PageHeader`'s 12/600 + 13 pair never renders, because the only `variante="sezione"` call site (`ServicesSection.jsx:105`) passes `frase`, never `titolo`. F4 is the wrong fact |
+| H1 column width `560` at 1280/1920 (`theme/tokens.js:153`, `Screen.jsx:81`) | **dismissed.** 560 measured at 1280 with 360 of margin each side, 560 at 1920 with 680, catalog 720; 768 gives 560 (720 on the catalog), 375 the whole window. Identical in both themes: it is the two-measure system `DESIGN.md` §Measures declares, page band included. What stays arguable is using a reading measure on a scanned surface, which is a design judgment, not a defect |
+| H2 icon off-centre in `AppButton` (`AppButton.jsx:87`) | **dismissed as a defect, confirmed as a number.** 136 measurements (of 222 buttons, those whose icon carries the margin): ink centre 0.92–1.96 px left of the pill centre, median 1.42; the composite box is 2.00 px left (2.01 on 28 of the 136, sub-pixel), the arithmetic of `marginLeft: -space.xs` against `gap: space.sm`, so the margin creates what it was meant to remove (without it the residual is ~+0.6 px). Invisible at 118–528 px, and no optical centre is committed to violate |
+| H3 baseline between two type scales (`AppInput.jsx:122`, `PageHeader.jsx:74`) | **dismissed on the premise.** `AppInput` pairs 13/600 with 13/400 — one scale, two weights — offset 0.00 px everywhere; `PageHeader`'s 12/600 + 13 pair never renders, because the only `variante="sezione"` call site (`ServicesSection.jsx:105`) passes `frase`, never `titolo`. F4 is the wrong fact |
 
-Coverage gap, recorded on purpose: `/user/[id]` and `/chat/[agreementId]` are not
+Coverage gaps, recorded on purpose. `/user/[id]` and `/chat/[agreementId]` are not
 measurable on the exported web build — no page is generated per id and the nav
-carries no `href` towards one — so they stay **unseen**, not clean.
+carries no `href` towards one — so they stay **unseen**, not clean. The empty
+catalog is **seen but not measured**: four captures exist, `dati.json` holds no
+record for that state, so nothing about it is claimed here.
 
 ---
 

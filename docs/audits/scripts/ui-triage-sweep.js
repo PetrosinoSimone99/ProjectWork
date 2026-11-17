@@ -6,6 +6,11 @@
  * H3 baseline alignment between two type scales (AppInput labelRow, PageHeader sezione)
  *
  * Evidence = geometry measured in the DOM + a capture at known dimensions.
+ *
+ * Needs the exported web build served on 8083 — the same surface
+ * `cycle2-web.js` uses — with the Docker backend up:
+ *   cd Frontend && npx expo export -p web && npx expo serve dist --port 8083
+ * Override with SWEEP_BASE if it listens elsewhere.
  * Run with NODE_PATH pointing at a Playwright install:
  *   NODE_PATH=<npx-cache>/node_modules node docs/audits/scripts/ui-triage-sweep.js
  *
@@ -16,7 +21,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'http://localhost:8083';
+const BASE = process.env.SWEEP_BASE || 'http://localhost:8083';
 const OUT = path.join(__dirname, '..', '..', '..', '.playwright-mcp', 'ui-triage', 'captures');
 const USERNAME = 'giulia.bianchi';
 const PASSWORD = 'demo1234';

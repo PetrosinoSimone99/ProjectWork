@@ -91,9 +91,32 @@ Stile: lite
 - 2. Chiudere §D in `docs/audits/frontend-gap-analysis-2026-11-16.md`: al posto di "hypotheses that need a measurement" il verdetto delle tre, nessuna promossa a work item, rimando a `docs/ui-triage.md` | files: docs/audits/frontend-gap-analysis-2026-11-16.md | done: il paragrafo non chiede più una misura e cita gli stessi numeri del blocco 1 | Stato: DONE
 - 3. Committare la sweep come `docs/audits/scripts/ui-triage-sweep.js` con output dentro `.playwright-mcp/ui-triage/captures` | files: docs/audits/scripts/ui-triage-sweep.js | done: `node --check` verde, `OUT` punta a `.playwright-mcp/ui-triage/captures`, nessun path assoluto di macchina nel file | Stato: DONE
 - 4. Voce in `docs/changelog.md` (2026-11-17, sopra la voce dell'audit mobile) | files: docs/changelog.md | done: la voce dice cosa è cambiato, i tre verdetti in una riga ciascuno, la copertura mancante, i documenti toccati e che nessun codice è stato toccato | Stato: DONE
-- 5. Gate e push | files: — | done: `npx expo lint` e `npx tsc --noEmit` verdi, `git status --porcelain` pulito, push su `andrea-frontend` | Stato: TODO
+- 5. Gate e push | files: — | done: `npx expo lint` e `npx tsc --noEmit` verdi, `git status --porcelain` pulito, push su `andrea-frontend` | Stato: DONE
 
 Lanes: nessuna. I tre documenti condividono gli stessi numeri e si citano a
 vicenda, quindi sono un solo scrittore in sequenza; zero figli, per una modifica
 documentale non c'è nulla da parallelizzare. File condivisi: tutti e tre i
 documenti (`docs/ui-triage.md`, §D, `docs/changelog.md`).
+
+## Review (2026-11-17)
+
+Tre angoli a contesto fresco sul commit `3e5e0bd`: correttezza, sicurezza e
+dati, coerenza col brief. Verdetto unanime: **OK with notes**, nessun P0.
+
+Un P1 accettato, ed è l'unico che ha cambiato una conclusione: **il catalogo
+vuoto non è stato misurato**. `dati.json` non ha alcun record per quello stato
+(`h1`/`pagine` finiscono a `11-profilo-errore`) e il run registrato va in
+timeout sul `fill` a 375 e 1280 in entrambi i temi; le quattro catture esistono,
+la misura no. "Identico anche nello stato vuoto" era quindi una frase senza
+prova: tolta dai tre documenti, e la copertura ora dice *seen but not measured*.
+
+Cinque P2 accettati e applicati: `136` misure erano un sottoinsieme di 222
+(dichiarato); "exactly 2.00" diventa 2,00 con 2,01 su 28 righe; quattro
+citazioni `path:line` corrette (`AppInput.jsx:122`, `PageHeader.jsx:74`,
+`AppButton.jsx:87`, `Screen.jsx:81`); la riga di log citata in inglese era
+italiana nel codice; `BASE` della sweep non era documentato (porta 8083, ora
+nel header e sovrascrivibile con `SWEEP_BASE`).
+
+Non accettato: nulla. Il P2 sull'ancoraggio a `DESIGN.md` §Measures è stato
+assorbito aggiungendo `tokens.js:153`, perché §Measures dichiara il sistema di
+misure e non ripete i due numeri.
