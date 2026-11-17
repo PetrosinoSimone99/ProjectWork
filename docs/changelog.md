@@ -6,6 +6,64 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — W7: the two stateful hooks and the match gate have tests
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 304 ahead of `origin/main`, 0 behind. No merge needed,
+nothing pushed to `main`. Plan:
+[`briefs/w7-hook-tests/plan.md`](briefs/w7-hook-tests/plan.md).
+
+### Why
+
+Audit W7 (`docs/audits/frontend-gap-analysis-2026-11-16.md:500`) named
+`useAgreements` and `useServiceCatalog` as the frontend's two state machines and
+noted that neither had a test: the rules they claim in their own docstrings — a
+stale response never overwrites a newer one, a failed reload keeps what is on
+screen, an action is single-flight — were enforced by nobody. `match.jsx` carried
+the whole create-queue gate (one service of the type, no active queue, nothing in
+flight) with no test either.
+
+### What landed
+
+1. **Two hook test files, 20 tests** (`src/hooks/__tests__/`): the stale-response
+drop, the failed reload that keeps the rows, the busy slot that names the
+agreement, the reload and the sentence after an action, the action failure that
+lands in `actionError` and leaves the list alone, the retry that repeats the
+request that failed, append-in-copy for «Carica altri», the province that clears
+the comune, the focus reload that skips itself while filters are applied.
+2. **A screen test for `match.jsx`, 5 tests**: zero services of the type, more
+than one, an active queue that closes both buttons, and a second create that
+never starts while the first is in flight. It renders the real screen with
+`useAuth`, `expo-router`, `@/api` and `react-native-safe-area-context` mocked —
+no production file changed.
+3. **Coverage that names what it measures** (`Frontend/package.json:55-61`):
+`collectCoverageFrom` gained `useAgreements.js` and `useServiceCatalog.js`, the
+two files W7 tests. Measured: **0% → 91.93%** and **0% → 90.69%** statements.
+The folder-wide `src/hooks/**` was rejected on purpose: 80% there needs tests on
+eight hooks this cycle did not touch, so the number would be decoration.
+4. **`Frontend/.gitignore`** gained `coverage/`: `npx jest --coverage` writes its
+HTML report there and the tree stopped being clean after every measurement.
+
+Gate at close: `npx expo lint` clean, `npx tsc --noEmit` clean, `npx jest`
+**32 suites / 345 tests green** (from 29 / 320).
+
+### Residuals this session found and did not fix
+
+`useAgreements.eseguiAzione` (`useAgreements.js:97`) has no internal
+single-flight guard: it writes `azioneInCorso` without checking whether it is
+already set, so the "one action at a time" rule is enforced only by the disabled
+buttons in `agreements.jsx:178,554`. `match.jsx:170` does carry the guard. Adding
+it to the hook is a behaviour change on two fast taps, so it belongs to an item
+that can decide that on purpose. `useNotifications.js` stays at 37% statements
+(the poll is tested, the list hook is not), and the coverage sentence in
+`docs/frontend.md:120-126` is still wrong — that is W8's B5.
+
+### Commits
+
+`2f35741` plan · `2db7613` tests · `ce4fad4` coverage · `692ae04` gitignore.
+
+---
+
 ## 2026-11-17 — W10: the profile badge asks again on its own
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**

@@ -119,6 +119,11 @@ what the doc implies: **11 files in `src/hooks/` have zero tests**, and
 `collectCoverageFrom` does not include them, so the reported 99% is measured on a
 sample chosen by hand.
 Judgment: the document measures the wrong thing and reads as a coverage claim.
+W7 (2026-11-17) closed the hooks half of this: `useAgreements.js` and
+`useServiceCatalog.js` went from 0% to 91.93%/90.69% statements and are now in
+`collectCoverageFrom`. The wording in `docs/frontend.md:120-126` is still wrong
+and is W8's to fix — the folder holds nine hooks with no test, not eleven, and
+the JSON lists five files, not two.
 
 ### B6. New code is written in Italian, against the repo's own rule — P2
 
@@ -499,19 +504,47 @@ not a refactor.
 
 ### W7 — Tests on the stateful layer
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-17) — plan:
+[`../briefs/w7-hook-tests/plan.md`](../briefs/w7-hook-tests/plan.md) (class `M`:
+three new test files, and the item as written was one file further along than it
+knew — `useNotifications.test.js` had already been created by W10).
+
+What landed: 25 tests in three files — `useAgreements.test.js` (9),
+`useServiceCatalog.test.js` (11) and `src/app/(tabs)/__tests__/match.test.js` (5,
+which renders the screen and presses the two create buttons by their
+`accessibilityLabel`). Measured with `npx jest --coverage src/hooks/__tests__`:
+**91.93% statements** on `useAgreements.js` (0% before) and **90.69%** on
+`useServiceCatalog.js` (0% before), and `Frontend/package.json:55-61` now lists
+both hooks in `collectCoverageFrom`. The suite went from 29 suites / 320 tests to
+32 / 345, all green; no production file was touched.
+
+Three things the item asked for that did not survive contact with the tree.
+(a) `collectCoverageFrom` covers **the two hooks that have tests**, not
+`src/hooks/**`: taken literally, 80% on the whole folder needs tests on eight
+hooks this cycle did not touch, and a threshold on a folder nobody exercises is a
+number, not a guard. (b) The **fourth new file** was `useNotifications.test.js`,
+which W10 already created; it was left alone, so `useNotifications.js` (37%
+statements) stays out of coverage. (c) **`useAgreements` has no internal
+single-flight guard**: `eseguiAzione` (`useAgreements.js:97`) writes
+`azioneInCorso` without checking whether it is already set, so "an action is
+single-flight" is true only because `agreements.jsx:178,554` disables the
+buttons. The tests assert what the hook does — the busy slot names the agreement,
+the action reloads the list, a failure lands in `actionError` and keeps the rows
+— and the guard was **not** added: that is a behaviour change on two taps, not a
+test. Residual for a later item.
 
 - New: `src/hooks/__tests__/useAgreements.test.js`,
-  `useNotifications.test.js`, `useServiceCatalog.test.js`,
-  `src/app/(tabs)/__tests__/match.test.js` (via `react-test-renderer`, already
-  installed).
-- Edit: `Frontend/package.json` `collectCoverageFrom` (add `src/hooks/**`).
+  `useServiceCatalog.test.js`, `src/app/(tabs)/__tests__/match.test.js` (via
+  `react-test-renderer`, already installed).
+- Edit: `Frontend/package.json` `collectCoverageFrom` (the two covered hooks, not
+  `src/hooks/**` — see (a) above).
 - Target the three rules every hook claims to keep: a stale response never
   overwrites a newer one, a failed reload keeps what is on screen, an action is
-  single-flight. `match.jsx` deserves its own test for the triple gate
-  (`exactly one service of the type`, `hasActiveQueue`, in-flight).
-- Done: ≥80% statements on `src/hooks/**`, tests described by behaviour not by
-  number, no assertion relaxed to pass.
+  single-flight (see (c): only `match.jsx` carries that guard). `match.jsx`
+  deserved its own test for the triple gate (`exactly one service of the type`,
+  `hasActiveQueue`, in-flight) and it has one.
+- Done: ≥80% statements on the two covered hooks — met, numbers above; tests
+  described by behaviour not by number; no assertion relaxed to pass.
 - Ship: `M: 5 file (4 nuovi), 2 figli, ~2 h` → `/ship "test sui hook critici"`
 
 ### W8 — Documentation drift
@@ -621,7 +654,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | 5 | ~~W6 lazy dataset~~ | **closed N/A** 2026-11-16: measured, the win claimed here does not exist (B8) |
 | 6 | ~~W4 staff surface~~ | **done** 2026-11-17: the four documented endpoints are wired, plan in `docs/briefs/w4-staff-surface/` |
 | 7 | ~~W10 unread polling~~ | **done** 2026-11-17: the profile badge polls every 30 s while focused, plan in `docs/briefs/w10-unread-polling/` |
-| 8 | W7 hook tests | before W9's renames, so the refactor has a net |
+| 8 | ~~W7 hook tests~~ | **done** 2026-11-17: 25 tests on the two stateful hooks and the match gate, plan in `docs/briefs/w7-hook-tests/` |
 | 9 | W9 naming + W8 docs | last: both touch many files and depend on the decisions above |
 
 Grouping that is safe in one `/ship` run (disjoint files, no shared decisions):
