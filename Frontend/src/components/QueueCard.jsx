@@ -44,7 +44,7 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  * says so: the money moved by the backend is not visible anywhere else
  * (`backend-gaps.md` G15).
  *
- * When `coda.agreementId` is not null and `onApri` is a function, the
+ * When `queue.agreementId` is not null and `onOpen` is a function, the
  * informational blocks below (type, description, category, place, status)
  * become one pressable button labelled `Apri lo scambio collegato a questa
  * coda`; the cancel action and its modal stay outside that pressable, so a tap
@@ -64,32 +64,32 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  * queue, a request queue gives the credit back, an offer queue only leaves the
  * match.
  */
-function confermaAnnullamento(coda) {
-  if (coda.agreementId !== null) {
+function cancelConfirmMessage(queue) {
+  if (queue.agreementId !== null) {
     return 'Questa coda è collegata a uno scambio: annullandola annulli anche lo scambio.';
   }
-  if (coda.tipo === 'REQUEST') {
+  if (queue.tipo === 'REQUEST') {
     return 'Annullando questa coda non appare più nel match e il credito che ha speso torna disponibile.';
   }
   return 'Annullando questa coda non appare più nel match.';
 }
 
-export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) {
+export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null }) {
   const t = useTokens();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const typeColor = (TYPE_COLORS[coda.tipo] ?? NEUTRAL_COLORS)(t);
-  const statusColor = (STATUS_COLORS[coda.stato] ?? NEUTRAL_COLORS)(t);
+  const typeColor = (TYPE_COLORS[queue.tipo] ?? NEUTRAL_COLORS)(t);
+  const statusColor = (STATUS_COLORS[queue.stato] ?? NEUTRAL_COLORS)(t);
 
   // Same rule as the service detail: the location when there is one, the mode
   // when the service is remote, and "not indicated" when neither says anything.
-  const place = coda.localita
-    ? localitaPerDisplay(coda.localita)
-    : coda.daRemoto === true
+  const place = queue.localita
+    ? localitaPerDisplay(queue.localita)
+    : queue.daRemoto === true
       ? 'Da remoto'
       : 'Località non indicata';
 
-  const confirmMessage = confermaAnnullamento(coda);
+  const confirmMessage = cancelConfirmMessage(queue);
 
   // One pressable around the informational blocks only when there is somewhere
   // to go: a linked agreement and a caller able to take it there. The cancel
@@ -98,37 +98,37 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
   // "Annulla coda" navigate.
   // Integer, like the notification half: a missing key would be `undefined`,
   // which `!== null` would treat as linked.
-  const apribile = Number.isInteger(coda.agreementId) && typeof onApri === 'function';
+  const canOpen = Number.isInteger(queue.agreementId) && typeof onOpen === 'function';
 
   // A `button` makes its descendants presentational, so a fixed label would stop
   // the description, the category, the place and the status from being announced
   // on exactly the linked rows: the name is folded out of the visible strings,
   // the same fix F50 needed in `ServiceCard`.
-  const etichettaApri = `Apri lo scambio collegato a questa coda: ${[
-    coda.descrizione,
-    coda.categoria ?? 'Categoria non indicata',
+  const openLabel = `Apri lo scambio collegato a questa coda: ${[
+    queue.descrizione,
+    queue.categoria ?? 'Categoria non indicata',
     place,
-    queueStatusLabel(coda.stato),
+    queueStatusLabel(queue.stato),
   ]
     .filter(Boolean)
     .join('. ')}`;
 
-  const bloccoInformativo = (
+  const infoBlock = (
     <>
       <Chip background={typeColor.background}>
         <AppText variant="caption" style={{ color: typeColor.color }}>
-          {queueTypeLabel(coda.tipo)}
+          {queueTypeLabel(queue.tipo)}
         </AppText>
       </Chip>
 
-      {coda.descrizione ? (
-        <AppText numberOfLines={2}>{coda.descrizione}</AppText>
+      {queue.descrizione ? (
+        <AppText numberOfLines={2}>{queue.descrizione}</AppText>
       ) : null}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="pricetag-outline" size={14} color={t.textSecondary} />
         <AppText variant="small" tone="secondary">
-          {coda.categoria ?? 'Categoria non indicata'}
+          {queue.categoria ?? 'Categoria non indicata'}
         </AppText>
       </View>
 
@@ -149,10 +149,10 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
       >
         <Chip background={statusColor.background}>
           <AppText variant="caption" style={{ color: statusColor.color }}>
-            {queueStatusLabel(coda.stato)}
+            {queueStatusLabel(queue.stato)}
           </AppText>
         </Chip>
-        {coda.agreementId !== null ? (
+        {queue.agreementId !== null ? (
           <AppText variant="small" tone="secondary">
             Collegata a uno scambio
           </AppText>
@@ -163,17 +163,17 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
 
   return (
     <Card style={{ gap: space.sm }}>
-      {apribile ? (
+      {canOpen ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={etichettaApri}
-          onPress={onApri}
+          accessibilityLabel={openLabel}
+          onPress={onOpen}
           style={({ pressed }) => ({ gap: space.sm, opacity: pressed ? 0.7 : 1 })}
         >
-          {bloccoInformativo}
+          {infoBlock}
         </Pressable>
       ) : (
-        bloccoInformativo
+        infoBlock
       )}
 
       <AppButton
@@ -191,7 +191,7 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
         loading={occupata}
         onConferma={() => {
           void (async () => {
-            await onAnnulla(coda);
+            await onAnnulla(queue);
             setConfirmOpen(false);
           })();
         }}

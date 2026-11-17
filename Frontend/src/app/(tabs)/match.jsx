@@ -59,8 +59,8 @@ const ACTIVE_QUEUE_REASON =
  * (`ServiceQueueRepository::getServiceQueuesByUser`), so every row on screen is
  * one where the cancel really acts: the sentence is always true when it appears.
  */
-function rimborsaUnCredito(coda) {
-  return coda.tipo === 'REQUEST' && coda.agreementId === null;
+function refundsCredit(queue) {
+  return queue.tipo === 'REQUEST' && queue.agreementId === null;
 }
 
 /** The empty list says what to do next, without pretending the tab is broken. */
@@ -200,7 +200,7 @@ export default function MatchScreen() {
         const label = queue.descrizione?.trim() || queueTypeLabel(queue.tipo).toLowerCase();
         setOutcome(
           `Coda annullata: ${label}.${
-            rimborsaUnCredito(queue) ? ' Il credito della coda è tornato disponibile.' : ''
+            refundsCredit(queue) ? ' Il credito della coda è tornato disponibile.' : ''
           }`,
         );
         await load();
@@ -220,7 +220,7 @@ export default function MatchScreen() {
   const requestCount = servicesOfQueueType(services, 'REQUEST').length;
   // One active queue closes both create actions: the backend counts the two
   // types together and answers a `500` to the second call (G23).
-  const codaAttiva = hasActiveQueue(queues);
+  const activeQueue = hasActiveQueue(queues);
   const busy = actionInFlight !== null;
 
   return (
@@ -251,7 +251,7 @@ export default function MatchScreen() {
         <CreateQueueActions
           offerCount={offerCount}
           requestCount={requestCount}
-          codaAttiva={codaAttiva}
+          activeQueue={activeQueue}
           busy={busy}
           actionInFlight={actionInFlight}
           onCreate={(tipo) => void create(tipo)}
@@ -266,10 +266,10 @@ export default function MatchScreen() {
           {queues.map((queue) => (
             <QueueCard
               key={queue.id}
-              coda={queue}
+              queue={queue}
               occupata={busy}
               onAnnulla={cancel}
-              onApri={() => router.push('/agreements')}
+              onOpen={() => router.push('/agreements')}
             />
           ))}
         </View>
@@ -295,9 +295,9 @@ export default function MatchScreen() {
  * also carries an explicit accessibility name, because "Offerta" alone does not
  * say what pressing it does.
  */
-function CreateQueueActions({ offerCount, requestCount, codaAttiva, busy, actionInFlight, onCreate }) {
-  const offerDisabled = codaAttiva || offerCount !== 1;
-  const requestDisabled = codaAttiva || requestCount !== 1;
+function CreateQueueActions({ offerCount, requestCount, activeQueue, busy, actionInFlight, onCreate }) {
+  const offerDisabled = activeQueue || offerCount !== 1;
+  const requestDisabled = activeQueue || requestCount !== 1;
 
   return (
     <View style={{ gap: space.xs }}>
@@ -311,7 +311,7 @@ function CreateQueueActions({ offerCount, requestCount, codaAttiva, busy, action
             loading={actionInFlight === 'create:OFFER'}
             accessibilityLabel="Crea una coda per la tua offerta"
           />
-          {!codaAttiva && offerDisabled ? (
+          {!activeQueue && offerDisabled ? (
             <AppText variant="small" tone="secondary">
               {offerCount === 0 ? GATE_NEED_ONE.OFFER : manyServicesReason('OFFER', offerCount)}
             </AppText>
@@ -329,14 +329,14 @@ function CreateQueueActions({ offerCount, requestCount, codaAttiva, busy, action
           <AppText variant="small" tone="secondary">
             {REQUEST_COST_COPY}
           </AppText>
-          {!codaAttiva && requestDisabled ? (
+          {!activeQueue && requestDisabled ? (
             <AppText variant="small" tone="secondary">
               {requestCount === 0 ? GATE_NEED_ONE.REQUEST : manyServicesReason('REQUEST', requestCount)}
             </AppText>
           ) : null}
         </View>
       </View>
-      {codaAttiva ? (
+      {activeQueue ? (
         <AppText variant="small" tone="secondary">
           {ACTIVE_QUEUE_REASON}
         </AppText>

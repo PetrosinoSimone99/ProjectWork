@@ -44,11 +44,11 @@ const BUTTON_OFFER = 'Crea una coda per la tua offerta';
 const BUTTON_REQUEST = 'Crea una coda per la tua ricerca';
 
 /** One row of `listMyServices`: only `tipo` takes part in the gate. */
-const SERVIZIO_OFFERTA = { id: 11, tipo: 'OFFERTA' };
-const SERVIZIO_RICERCA = { id: 12, tipo: 'RICERCA' };
+const OFFER_SERVICE = { id: 11, tipo: 'OFFERTA' };
+const REQUEST_SERVICE = { id: 12, tipo: 'RICERCA' };
 
 /** One active row of `GET /get-queues`, as the card below the buttons reads it. */
-const CODA_ATTIVA = {
+const ACTIVE_QUEUE = {
   id: 42,
   tipo: 'OFFER',
   stato: 'OPEN',
@@ -86,7 +86,7 @@ async function renderMatch({ queues = [], services = [] } = {}) {
  * `accessibilityState`) is not the one the assertions read.
  */
 function pressable(renderer, accessibilityLabel) {
-  const nodo = renderer.root
+  const node = renderer.root
     .findAll(
       (candidate) =>
         candidate.props?.accessibilityLabel === accessibilityLabel &&
@@ -94,8 +94,8 @@ function pressable(renderer, accessibilityLabel) {
         typeof candidate.props.onPress === 'function',
     )
     .at(0);
-  expect(nodo).toBeDefined();
-  return nodo;
+  expect(node).toBeDefined();
+  return node;
 }
 
 /** Whether the button announces itself as disabled, on native and on web. */
@@ -109,27 +109,27 @@ function isDisabled(renderer, accessibilityLabel) {
 
 /** Presses the control the way a tap would, then lets the action settle. */
 async function press(renderer, accessibilityLabel) {
-  const pulsante = pressable(renderer, accessibilityLabel);
+  const button = pressable(renderer, accessibilityLabel);
   await act(async () => {
-    pulsante.props.onPress();
+    button.props.onPress();
   });
 }
 
 /** Every word the screen renders, in order, for the copy assertions. */
 function visibleText(renderer) {
-  const raccogli = (nodo) => {
-    if (typeof nodo === 'string') {
-      return nodo;
+  const collect = (node) => {
+    if (typeof node === 'string') {
+      return node;
     }
-    if (Array.isArray(nodo)) {
-      return nodo.map(raccogli).join('');
+    if (Array.isArray(node)) {
+      return node.map(collect).join('');
     }
-    if (!nodo || typeof nodo !== 'object') {
+    if (!node || typeof node !== 'object') {
       return '';
     }
-    return raccogli(nodo.children);
+    return collect(node.children);
   };
-  return raccogli(renderer.toJSON());
+  return collect(renderer.toJSON());
 }
 
 beforeEach(() => {
@@ -144,17 +144,17 @@ describe('match — the create-queue gate', () => {
   it('enables a create button only when the account has exactly one service of that type', async () => {
     // One offer and no request: only the offer queue has a single service for
     // `POST /create-service-queue` to find.
-    const unaSolaOfferta = await renderMatch({ services: [SERVIZIO_OFFERTA] });
+    const singleOffer = await renderMatch({ services: [OFFER_SERVICE] });
 
-    expect(isDisabled(unaSolaOfferta, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(unaSolaOfferta, BUTTON_REQUEST)).toBe(true);
+    expect(isDisabled(singleOffer, BUTTON_OFFER)).toBe(false);
+    expect(isDisabled(singleOffer, BUTTON_REQUEST)).toBe(true);
 
-    const unServizioPerTipo = await renderMatch({
-      services: [SERVIZIO_OFFERTA, SERVIZIO_RICERCA],
+    const oneServicePerType = await renderMatch({
+      services: [OFFER_SERVICE, REQUEST_SERVICE],
     });
 
-    expect(isDisabled(unServizioPerTipo, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(unServizioPerTipo, BUTTON_REQUEST)).toBe(false);
+    expect(isDisabled(oneServicePerType, BUTTON_OFFER)).toBe(false);
+    expect(isDisabled(oneServicePerType, BUTTON_REQUEST)).toBe(false);
   });
 
   it('says why the button is disabled when there is no service of that type', async () => {
@@ -163,18 +163,18 @@ describe('match — the create-queue gate', () => {
     expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
     expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
 
-    const testo = visibleText(renderer);
-    expect(testo).toContain(
+    const text = visibleText(renderer);
+    expect(text).toContain(
       'Per una coda di offerta ti serve un servizio pubblicato in «Offro e cerco».',
     );
-    expect(testo).toContain(
+    expect(text).toContain(
       'Per una coda di ricerca ti serve un servizio pubblicato in «Offro e cerco».',
     );
   });
 
   it('says how many services of that type exist when there is more than one', async () => {
     const renderer = await renderMatch({
-      services: [SERVIZIO_OFFERTA, { id: 13, tipo: 'OFFERTA' }],
+      services: [OFFER_SERVICE, { id: 13, tipo: 'OFFERTA' }],
     });
 
     expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
@@ -189,8 +189,8 @@ describe('match — the create-queue gate', () => {
     // One service of each type would enable both buttons on their own, so only
     // the active queue can be what closes them.
     const renderer = await renderMatch({
-      queues: [CODA_ATTIVA],
-      services: [SERVIZIO_OFFERTA, SERVIZIO_RICERCA],
+      queues: [ACTIVE_QUEUE],
+      services: [OFFER_SERVICE, REQUEST_SERVICE],
     });
 
     expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
@@ -205,7 +205,7 @@ describe('match — the create-queue gate', () => {
     // whole test, which is the only way to observe the guard.
     createQueue.mockReturnValue(new Promise(() => {}));
     const renderer = await renderMatch({
-      services: [SERVIZIO_OFFERTA, SERVIZIO_RICERCA],
+      services: [OFFER_SERVICE, REQUEST_SERVICE],
     });
 
     await press(renderer, BUTTON_OFFER);

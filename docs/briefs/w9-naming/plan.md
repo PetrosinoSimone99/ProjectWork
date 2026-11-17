@@ -64,26 +64,28 @@ nessun cambio di comportamento, nessun test nuovo (i test esistenti sono la veri
 ## Piano
 
 - 0. Commit del contratto e del piano | files: `docs/briefs/w9-naming/plan.md` | done: `git log -1
-  --name-only` elenca solo il plan.md e `git status --porcelain` è vuoto | Stato: TODO
+  --name-only` elenca solo il plan.md e `git status --porcelain` è vuoto | Stato: DONE
 - 1. Scrivere D026 in coda a `docs/decisions.md`, riscrivere le righe 18-28 di `docs/frontend.md`
   (code language + naming) sui due strati, voce in `docs/changelog.md` | files:
-  `docs/decisions.md`,`docs/frontend.md`,`docs/changelog.md` | done: ogni affermazione di D026 è
+  `docs/decisions.md`,`docs/frontend.md` | done: ogni affermazione di D026 è
   verificabile su un file citato (hook, `normalizers.js:10-12`, props) e nessuna riga di
-  `frontend.md` contraddice D026 | Stato: TODO
+  `frontend.md` contraddice D026 | Stato: DONE — la voce di `changelog.md` è passata al passo 6, insieme ai
+  fatti finali (rinomine e review), per non scriverla due volte
 - 2. `QueueCard.jsx`: prop `coda`→`queue`, `onApri`→`onOpen`, `confermaAnnullamento`→
   `cancelConfirmMessage`, `apribile`→`canOpen`, `etichettaApri`→`openLabel`,
   `bloccoInformativo`→`infoBlock`; le chiavi lette (`queue.tipo`, `queue.stato`, `queue.localita`,
   `queue.descrizione`, `queue.categoria`, `queue.daRemoto`, `queue.agreementId`) restano la shape
-  italiana | files: `Frontend/src/components/QueueCard.jsx` | done: `grep -n "coda\|apribile\|etichettaApri\|bloccoInformativo"` sul file → solo stringhe utente | Stato: TODO
+  italiana | files: `Frontend/src/components/QueueCard.jsx` | done: `grep -n "coda\|apribile\|etichettaApri\|bloccoInformativo"` sul file → solo stringhe utente | Stato: DONE
 - 3. `match.jsx`: call site `coda={`→`queue={`, `onApri`→`onOpen`, `rimborsaUnCredito`→
   `refundsCredit` (param `queue`), `codaAttiva`→`activeQueue` | files:
   `Frontend/src/app/(tabs)/match.jsx` | done: nessun `codaAttiva`/`rimborsaUnCredito` residuo,
-  `npx jest match` verde | Stato: TODO
+  `npx jest match` verde | Stato: DONE
 - 4. Test: `QueueCard.test.js` (`CODA`→`QUEUE`, `renderCoda`→`renderCard`,
   `PREFISSO_APRI`→`OPEN_LABEL_PREFIX`, `premi`→`press`, `pulsante`→`button`, prop `queue`/`onOpen`)
   e la fixture `CODA_ATTIVA`→`ACTIVE_QUEUE` in `match.test.js` | files:
   `Frontend/src/components/__tests__/QueueCard.test.js`,`Frontend/src/app/(tabs)/__tests__/match.test.js`
-  | done: `npx jest QueueCard match` verde, 25+17 test invariati nel numero | Stato: TODO
+  | done: `npx jest --testPathPatterns "match|QueueCard"` verde con 8 test (3 + 5), invariati nel numero,
+  e nessuna stringa utente toccata: le rinomine non passano mai dentro la copy | Stato: DONE
 - 5. `AGENTS.md` (root) sezione "Code language": due strati in ≤6 righe, nessuna affermazione
   contraddetta da D026 | files: `AGENTS.md` | done: la sezione nomina i due strati e il criterio "un
   concetto, una parola" | Stato: TODO — **approvazione richiesta: Q2**
