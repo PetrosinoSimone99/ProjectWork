@@ -411,6 +411,31 @@ nothing and the next correct one succeeds. Requested: a login throttle
 is not free to run. The app already maps `429` to «Troppe richieste in poco
 tempo» (`Frontend/src/api/client.js`), so nothing changes on this side.
 
+## G27 — A notification carries no message preview
+
+A notification row is `{id, type, message, data, createdAt, readAt}`
+(`docs/api.md` §Notifications). For `CHAT_MESSAGE` the backend writes
+`message = "Nuovo messaggio da: <username>"` and nothing else: `data` carries the
+`{agreementId}` and no part of the text that arrived. Two messages from the same
+person are therefore two identical rows and only the minute tells them apart —
+measured in `audits/ux-mobile-audit-2026-11-17.md` (**F5**), screenshot
+`iphone-14-pro/06-notifiche.png`.
+
+What the inbox cannot do until the payload carries it: triage. The only way to
+know which message is waiting is to open the agreement, so the notification's
+whole value — deciding *whether* to open anything — is lost for the most
+frequent type. Nothing on this side can paper over it: guessing a subject from
+the agreement would print a fact the payload does not hold.
+
+The text is available where the row is written (notifications are created
+synchronously inside the request that causes them, `docs/api.md` §Notifications),
+so no new query is needed. Requested: for `CHAT_MESSAGE` (and for
+`AGREEMENT_*` rows where a description exists), add the first ~60 characters of
+the body as one more field of the row — a server-truncated, single-line, plain
+text preview — escaping or stripping newlines server-side. The app already
+prints `message` as text, so this side changes once, when the field exists;
+until then the row stays untriageable on purpose rather than approximate.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id
