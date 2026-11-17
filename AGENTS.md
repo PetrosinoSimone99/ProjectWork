@@ -116,7 +116,7 @@ care of someone who owns them. Session-level changes append to
 ## Docker (local environment)
 
 Database and backend **must** run in Docker Desktop. The stack lives in
-`Backend/compose.yaml` (MySQL 8.0 seeded from the reference dump + PHP 8.3
+`Backend/compose.yaml` (MySQL 8.0 seeded from the reference dump + PHP 8.4
 dev container serving Symfony on port 8000).
 
 - Owner: Andrea. AI may start/stop/configure the stack on request.

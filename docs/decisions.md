@@ -32,7 +32,7 @@ dump compatibility (utf8mb4, MySQL dialect) and backend examples required it.
 `serverVersion=8.0` in `DATABASE_URL`; Postgres configs must not return.
 
 **D005 — 2025-11-03 — Backend PHP served from a dev-only container.**
-`Backend/docker/Dockerfile` (php:8.3-cli + intl/zip/pdo_mysql + composer)
+`Backend/docker/Dockerfile` (php:8.4-cli + intl/zip/pdo_mysql + composer)
 replaces host-based MAMP/Laragon setups in the team's local flow, backend
 service fixed at host port 8000.
 *Consequences:* single dev stack under Docker Desktop; production image

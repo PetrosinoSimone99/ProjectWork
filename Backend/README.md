@@ -6,7 +6,7 @@ This directory contains the first Symfony backend for Baratto-lo: public registr
 
 ## Requirements
 
-- PHP 8.3 with `pdo_mysql`, `openssl`, `mbstring`, and `intl` enabled.
+- PHP 8.4 with `pdo_mysql`, `openssl`, `mbstring`, and `intl` enabled.
 - MySQL 8.0 or a compatible MariaDB version.
 - Composer.
 
@@ -31,7 +31,7 @@ This directory contains the first Symfony backend for Baratto-lo: public registr
    chmod 600 config/jwt/private.pem
    ```
 
-4. Use the SQL dump selected by `../Context_and_DB_V2/LAST_DB_TO_USE.txt` for a fresh database. Currently this is `barattolo_14112026_notifications.sql`, containing structure only, including notifications. For an existing database based on `barattolo_14112026.sql`, import only `add_notifications.sql` once. See [notification API and integration instructions](../Context_and_DB_V2/NOTIFICATIONS.md). Historical migrations target earlier schemas; do not run them or Doctrine schema-update commands over the selected dump.
+4. Use the SQL dump selected by `../Context_and_DB_V2/LAST_DB_TO_USE.txt` for a fresh database. Currently this is `barattolo_15112026.sql`: structure only, no rows, and it already contains the notifications, chat and queue tables. `add_notifications.sql` belonged to the previous dump and is not imported on top of this one. The Docker stack seeds demo rows separately (`docker/seed-demo.sql`). Historical migrations target earlier schemas; do not run them or Doctrine schema-update commands over the selected dump. See [notification API and integration instructions](../Context_and_DB_V2/NOTIFICATIONS.md).
 
 5. Configure the web server. In MAMP, XAMPP, and Laragon, create a local virtual host whose document root is the `Backend/public` directory. Do not point Apache to the `Backend` directory itself. Enable Apache `mod_rewrite` and allow `.htaccess` overrides; `public/.htaccess` forwards `/api/...` routes to Symfony.
 

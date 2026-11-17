@@ -6,6 +6,31 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — PHP 8.4 and the current dump: the two files outside `docs/`
+
+Follow-up to the audit of the same day. Two documents outside `docs/` still said
+something false; both edits were authorized by Andrea in the same session.
+
+- `AGENTS.md` — "MySQL 8.0 seeded from the reference dump + **PHP 8.3** dev
+  container" → PHP 8.4, which is what `Backend/docker/Dockerfile:7` builds and
+  what `setup.md` already documented. This file is read at every session start, so
+  the wrong version was repeated in every plan.
+- `Backend/README.md` — step 4 of the local setup named
+  `barattolo_14112026_notifications.sql` and told the reader to import
+  `add_notifications.sql` on top of it. The reference dump is
+  `barattolo_15112026.sql` (per `Context_and_DB_V2/LAST_DB_TO_USE.txt`): structure
+  only, no rows, with the notifications, chat and queue tables included, so the
+  patch script is obsolete. The requirements list also said PHP 8.3 → 8.4.
+  **Backend file edited with explicit authorization**, reported here for the
+  backend maintainer; no code, config or test was touched.
+- `docs/decisions.md` D005 — `php:8.3-cli` → `php:8.4-cli`, the same drift in the
+  decision log.
+
+`docs/audits/check-2026-11-17.md` records these under "Documentation corrected
+outside `docs/`".
+
+---
+
 ## 2026-11-17 — Whole-set documentation audit, and three security gaps recorded
 
 Session start: `git fetch origin`. `andrea-frontend` compared against
