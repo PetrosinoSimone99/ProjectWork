@@ -67,7 +67,7 @@ Oggi il frontend non chiama quattro endpoint documentati
    leggibili. Stati espliciti: caricamento, errore con retry, 404.
 4. **Forma delle righe e nomi**: si riusa `normalizeOwnedService` e si aggiunge
    `proprietario: normalizePerson(owner)` in un nuovo
-   `normalizeStaffDeletedServices(response, fallbackDeletedAt?)` dentro
+   `normalizeStaffDeletedServices(response)` dentro
    `normalizers.js`: `normalizePerson` è privata del modulo, quindi il nuovo
    normalizzatore vive lì e non in `areas/staff.js`. `restoreStaffService` riusa
    `normalizeServiceEnvelope` perché la risposta è `{service:…}`.
@@ -110,7 +110,7 @@ Oggi il frontend non chiama quattro endpoint documentati
 - 4. Scrivere la sezione dei servizi eliminati con ripristino dietro conferma | files: Frontend/src/components/StaffDeletedServicesSection.jsx, Frontend/src/components/StaffReportCard.jsx | done: la sezione esporta `StaffDeletedServicesSection` con caricamento/vuoto/errore espliciti; la card espone l'apertura del dettaglio | Stato: DONE — `38eff76`
 - 5. Cablare la schermata: sezione eliminati, pannello dettaglio segnalazione, pannello dettaglio operazione | files: Frontend/src/app/staff.jsx, Frontend/src/components/StaffDetailPanels.jsx | done: `/staff` rende le tre superfici, `npx expo lint` e `npx tsc --noEmit` verdi | Stato: DONE — `83e6396`; criterio `wc -l` < 500 **non raggiunto**: `staff.jsx` misura 588. Il pannello di dettaglio è uscito in `StaffDetailPanels.jsx` (due export) e il registro in `StaffOperationsLog.jsx`; sotto 500 servirebbe estrarre anche il flusso di revisione, un refactor fuori perimetro. Tetto del repo: 800 righe
 - 6. Documentazione: voce di changelog, W4 chiusa nell'audit | files: docs/changelog.md, docs/audits/frontend-gap-analysis-2026-11-16.md | done: changelog in testa datato 2026-11-17 con i commit del ciclo; W4 `Stato: chiuso` con cosa è atterrato | Stato: DONE — con questo commit
-- 7. Gate completo e review a contesto fresco (correttezza+sicurezza/dati, coerenza col brief) | files: - | done: lint + tsc + jest verdi; verdetto Merge con P0/P1/P2 su file:linea | Stato: TODO
+- 7. Gate completo e review a contesto fresco (correttezza+sicurezza/dati, coerenza col brief) | files: - | done: lint + tsc + jest verdi; verdetto Merge con P0/P1/P2 su file:linea | Stato: DONE — `Merge: sì` dai tre angoli, nessun P0; 3 P1 + 7 P2 accettati e chiusi in `e211683`; gate 28 suite / 315 test, `expo lint` e `tsc --noEmit` puliti
 
 ## How to resume
 

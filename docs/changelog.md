@@ -51,8 +51,27 @@ review flow as well, which is a refactor this item did not ask for. The repo
 ceiling is 800 (`docs/frontend.md`), so this is declared, not hidden: the plan's
 step 5 is marked `DONE` with the measured number next to it.
 
-Gate: `npx expo lint`, `npx tsc --noEmit` clean, `npx jest` 28 suites / 313
-tests. Plan and contract: `docs/briefs/w4-staff-surface/plan.md`.
+### Review a contesto fresco, and what it caught
+
+Three reviewers on distinct angles (deepseek for correctness, deepseek for
+security and data, glm for brief coherence) read the cycle against the
+contract. Merge: yes from all three, no P0. The fixes that landed in
+`e211683`: the detail panel now ignores a late answer for a row it is no longer
+showing (open A, then B, and A's failure no longer writes into B's panel);
+«Carica altri 20» cannot start while page 1 is reloading, and appended pages
+dedupe by `chiave` because offset pagination shifts under a restore; a fresh
+answer of `null` is now reported as stale instead of being read as fresh;
+`restoringId` is cleared before the reload so the other rows do not stay
+disabled; the row shows `daRemoto` instead of deducing it from a missing
+location; a service restored while suspended now says «Sospesa» and the copy
+stopped promising the catalog (`ServiceRestorer` only clears `deletedAt`,
+`Service.php:74`); `listStaffDeletedServices` and `getStaffUser` joined the
+other calls behind `withActionMessage`, so a `403` speaks Italian; the
+operation panel redacts `password|token|secret|jwt|hash` keys and renders
+nested values as JSON instead of `[object Object]`.
+
+Gate after the fixes: `npx expo lint`, `npx tsc --noEmit` clean, `npx jest` 28
+suites / 315 tests. Plan and contract: `docs/briefs/w4-staff-surface/plan.md`.
 
 ---
 

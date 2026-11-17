@@ -406,10 +406,15 @@ item misses.
 Non-staff behaviour needed no work: the route is registered for every session
 and `StaffAreaGate` plus the mapped `403` already refuse it (`staff.jsx:314`).
 
-Tests: 15 in `src/api/__tests__/staff.test.js` with `apiFetch` mocked — URL and
-method, the built query, the normalised shape, `403` in Italian, an empty
-answer as an empty list, `before`/`after` null when absent. Gate: 28 suites /
-313 tests, `expo lint` and `tsc --noEmit` clean.
+Tests: 17 in `src/api/__tests__/staff.test.js` with `apiFetch` mocked — URL and
+method, the built query, the normalised shape, `403`/`404` in Italian, an empty
+answer as an empty list, `before`/`after` null when absent. Three reviewers
+(correctness, security and data, brief coherence) read the cycle before the
+push: Merge yes, no P0, and the accepted fixes went in `e211683` — stale-detail
+guard per row, no load-more during a page-1 reload, dedupe on append, `daRemoto`
+read instead of deduced, suspended restores shown as «Sospesa», `403` in
+Italian on every call, redacted log keys. Gate: 28 suites / 315 tests,
+`expo lint` and `tsc --noEmit` clean.
 
 The request as written, for the record:
 
