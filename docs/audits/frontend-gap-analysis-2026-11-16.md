@@ -593,7 +593,7 @@ The item also had to fix its own list: "`docs/ui-triage.md` (F3 stays open until
 W1)" was stale — F3 is `closed 2026-11-16 (W1)`.
 
 - Edit: `docs/architecture.md:45` and `:32`,
-  `docs/frontend.md:136-142` (the item's `:120-126` had drifted),
+  `docs/frontend.md:136-158` (the item's `:120-126` had drifted),
   `docs/ui-triage.md` (the correction section, not F3),
   `src/components/ServiceDetailModal.jsx:34-38` and `src/components/Screen.jsx:52`
   (docstrings). Same item also amends `AGENTS.md`'s fake-data paragraph if it is

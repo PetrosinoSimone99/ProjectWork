@@ -112,8 +112,28 @@ nuovo ciclo di doc.
 - 6. Chiusura nell'audit: W8 `Stato: chiuso` (2026-11-17) con cosa è atterrato; B2/B4/B5 marcati chiusi in §B; riga 9 di §E aggiornata | files: docs/audits/frontend-gap-analysis-2026-11-16.md | done: `grep -n "Stato: TODO" ` non trova W8; B2/B4/B5 dicono «closed» | Stato: DONE
 - 7. Entry in changelog (newest-first, dopo l'header): W8, cosa è cambiato, perché, numeri, file toccati, verifica | files: docs/changelog.md | done: `head -15 docs/changelog.md` mostra la entry sopra quella di W9 | Stato: DONE
 - 8. Gate + commit di 6+7 | files: docs/audits/frontend-gap-analysis-2026-11-16.md, docs/changelog.md | done: `npx expo lint` e `npx tsc --noEmit` verdi in `Frontend/`, commit con i 2 file | Stato: DONE
-- 9. Review a contesto fresco, 2 angoli in parallelo: correttezza (`deepseek-v4.1-flash`) e coerenza col brief (`glm-5.3-flash`); angolo sicurezza `N/A` (nessun codice, nessun dato, nessuna superficie auth) | files: nessuno | done: due verdetti con file:riga, P0/P1/P2 applicati o rifiutati con motivo | Stato: TODO
-- 10. Push su `andrea-frontend` (mai `main`) | files: nessuno | done: albero pulito, `git log origin/andrea-frontend..HEAD --oneline` = i commit attesi | Stato: TODO
+- 9. Review a contesto fresco, 2 angoli in parallelo: correttezza (`deepseek-v4.1-flash`) e coerenza col brief (`glm-5.3-flash`); angolo sicurezza `N/A` (nessun codice, nessun dato, nessuna superficie auth) | files: nessuno | done: due verdetti con file:riga, P0/P1/P2 applicati o rifiutati con motivo | Stato: DONE
+- 10. Push su `andrea-frontend` (mai `main`) | files: nessuno | done: albero pulito, `git log origin/andrea-frontend..HEAD --oneline` = i commit attesi | Stato: DONE
+
+## Esito review (2026-11-17)
+
+Due verdetti `pass`, nessun P0/P1. Applicati e rifiutati:
+
+- **P2 accettato** — l'audit citava `docs/frontend.md:136-142`, il blocco riscritto
+  arriva a 158. Citazione corretta a `136-158`.
+- **P2 rifiutato** (fuori scope, registrato) — `docs/architecture.md:31`
+  (`src/Manager/, src/Service/`) allinea la descrizione alla colonna 28 invece che
+  24 come ogni fratello. Difetto preesistente, non introdotto qui: una riga da
+  sistemare alla prossima passata sull'albero, non vale un ciclo di W8.
+- **P2 rifiutato** (lettera vs intenzione del criterio) — il criterio grep dice
+  che `src/agreements` deve restare solo nell'audit e nel piano; compare anche
+  nella entry di changelog, come menzione storica («non esisteva, ora è
+  `src/validation/`»). Il criterio è «nessun documento descrive un file che
+  l'albero non mostra», e una menzione storica non descrive: nulla da editare.
+- **Cifre rimisurate ad HEAD** dopo la review, su albero pulito: 32 suite, 346
+  test, totali e per-file identici a quelli pubblicati (95.71 / 90.86 / 95.08 /
+  95.86; useAgreements 95.16 / 77.27; useServiceCatalog 90.69 / 89.74;
+  agreements 98.5 / 96.62; italian-locations 100 / 100; validation 100 / 81.57).
 
 ## Lanes:
 
