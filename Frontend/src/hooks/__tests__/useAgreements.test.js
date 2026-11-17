@@ -1,13 +1,24 @@
 import { act, create } from 'react-test-renderer';
 import { ApiError, NETWORK_ERROR_MESSAGE } from '@/api/client';
 import { cancelAgreement, listAgreements, respondToAgreement } from '@/api';
+import { __focusi as focusi } from 'expo-router';
 import { useAgreements } from '../useAgreements';
 
-jest.mock('expo-router', () => ({
-  // `useFocusEffect` needs a navigator; in this test the screen is always the
-  // focused one, so it is an effect that re-runs when its callback changes.
-  useFocusEffect: (callback) => require('react').useEffect(callback, [callback]),
-}));
+jest.mock('expo-router', () => {
+  // `useFocusEffect` needs a navigator. Here it is an effect, and the cleanup the
+  // hook returns (what a blur runs) is kept so a test can fire the blur without
+  // unmounting the component.
+  const focusi = [];
+  return {
+    __focusi: focusi,
+    useFocusEffect: (callback) =>
+      require('react').useEffect(() => {
+        const uscita = callback();
+        focusi.push({ callback, uscita });
+        return uscita;
+      }, [callback]),
+  };
+});
 
 jest.mock('@/api', () => ({
   listAgreements: jest.fn(),
@@ -38,7 +49,13 @@ const accordo = (id, stato, proposte) => ({
 
 /** `PENDING` with my answer still missing: it waits for me. */
 const DA_RISPONDERE = accordo(11, 'PENDING', [proposta(MY_USERNAME, null)]);
-/** `PENDING` already answered by me: it waits for the counterpart. */
+/** `PENDING` already answered by me: it waits for the counterpart.
+ *
+ * `services/agreements.js:15-16` documents this state as the `sent` bucket, and
+ * `api/areas/agreements.js:104-106` says one answer moves the agreement to
+ * `ACCEPTED`/`REFUSED`. Both cannot be true with real data; the fixture follows
+ * the classifier, which is the piece under test here. Recorded as a residual.
+ */
 const INVIATO = accordo(12, 'PENDING', [proposta(MY_USERNAME, true)]);
 /** `ACCEPTED` with no sheet yet: an exchange in progress, not a closed one. */
 const IN_CORSO = accordo(13, 'ACCEPTED', [proposta(MY_USERNAME, true)]);
@@ -78,6 +95,9 @@ async function settle() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // A mount of a previous test leaves a dead callback behind; the blur test
+  // reads the last one, so the list must start empty.
+  focusi.length = 0;
   listAgreements.mockResolvedValue([DA_RISPONDERE, INVIATO, IN_CORSO]);
   respondToAgreement.mockResolvedValue(undefined);
   cancelAgreement.mockResolvedValue(undefined);
@@ -110,6 +130,26 @@ describe('useAgreements — the list request', () => {
     expect(reading.accordi).toEqual([IN_CORSO]);
   });
 
+  it('drops the response in flight and stops the spinner when the tab is left', async () => {
+    const pending = deferred();
+    listAgreements.mockReturnValueOnce(pending.promise);
+    const reading = {};
+    mount(reading);
+    await settle();
+    expect(reading.caricamento).toBe(true);
+
+    act(() => {
+      focusi[focusi.length - 1].uscita();
+    });
+    // Leaving the tab cannot leave a spinner behind for a response nobody wants.
+    expect(reading.caricamento).toBe(false);
+
+    await act(async () => {
+      pending.resolve([DA_RISPONDERE]);
+    });
+    expect(reading.accordi).toBeNull();
+  });
+
   it('keeps the agreements on screen when a reload fails and says why', async () => {
     const reading = {};
     mount(reading);
@@ -140,7 +180,7 @@ describe('useAgreements — the list request', () => {
       pending.resolve([DA_RISPONDERE]);
     });
 
-    expect(reading.classificati).not.toBeNull();
+    expect(reading.classificati.toAnswer).toEqual([DA_RISPONDERE]);
   });
 
   it('splits the list into the three sections once a response arrives', async () => {

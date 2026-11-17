@@ -30,8 +30,11 @@ const TOKEN = 'jwt';
 const UTENTE_ID = 5;
 const MESSAGGIO_500 = 'Il servizio ha avuto un problema. Riprova tra poco.';
 
-/** One catalog row: the hook only passes the list through, it never reads it. */
-const voce = (id) => ({ id, mansione: `servizio ${id}` });
+/**
+ * One catalog row in the shape `normalizeCatalogOffer` produces: the hook only
+ * passes the list through and never reads a field.
+ */
+const voce = (id) => ({ id, descrizione: `servizio ${id}` });
 
 const paginazione = (pagina, pagineTotali) => ({
   pagina,
@@ -50,6 +53,10 @@ let richieste;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // The callbacks of the mounts of the tests before this one are dead. Keeping
+  // them made `tornaInFocus` fire the previous renderer's effect as soon as a
+  // test mounted more than once, and nothing failed.
+  focusCallbacks.length = 0;
   richieste = [];
   // Every answer waits for the test: that is what makes an out-of-order
   // response (slow one arriving after a newer one) possible to reproduce.
