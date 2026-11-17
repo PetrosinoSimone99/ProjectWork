@@ -23,17 +23,19 @@ copied dump. It covers **fourteen** of the fifteen tables — everything but
 | --- | --- | --- |
 | `categories` | 50 | the shared catalog: the app only picks from it |
 | `users` | 7 | six people registered from the web build, plus `demo.staff` created by `app:create-staff` |
-| `services`, `service_categories` | 14, 14 | one offer and one request each, `demo.staff` included; the form posts them |
+| `services`, `service_categories` | 14, 14 | one offer and one request each, `demo.staff` included; `luca.ferrari`'s request was soft-deleted through `DELETE /requests/{id}` so the deleted-entries sections have a row |
 | `service_queues` | 2 | `POST /create-service-queue` (the second one spends no credit: it is an `OFFER` queue) |
-| `agreements`, `agreement_proposal` | 5, 10 | `POST /create-exchange-agreement` + `POST /send-agreement-response` |
-| `agreement_details` | 6 | two sheets per agreement that went through `ACCEPTED`, the later-cancelled one included; one of the six was compiled by `POST /send-agreement-details` |
+| `agreements`, `agreement_proposal` | 7, 14 | `POST /create-exchange-agreement` + `POST /send-agreement-response` + `POST /cancel-agreement/{id}`; the `COMPLETED` one was closed by `messenger:consume scheduler_default --limit=1` |
+| `agreement_details` | 8 | two sheets per agreement that reached `ACCEPTED`, the cancelled and the completed one included; compiled by `POST /send-agreement-details` |
 | `chat`, `chat_participants`, `chat_messages` | 3, 6, 10 | `GET /chats/agreement/{id}` creates the chat, `POST /chats/send-message/{chatId}` the messages |
-| `notifications` | 8 | written by the routes above (four left unread) |
+| `notifications` | 11 | written by the routes above (four left unread) |
 | `user_reports` | 2 | `POST /reports` (one of them `CONFIRMED` through the staff routes) |
 | `staff_operation_logs` | 2 | the claim and the review the staff routes recorded |
 
-So a fresh database carries an app in use: five agreements across the states
-worth showing, three chats, a queue each for `giulia.bianchi` and `demo.staff`,
+So a fresh database carries an app in use: seven agreements that put
+`demo.staff` in every state worth showing (proposed and received proposals, sheets
+to compile and to confirm, completed, cancelled, refused), three chats, a queue
+each for `giulia.bianchi` and `demo.staff`,
 two reports and an inbox with unread rows. Nothing is hand-written: the rows were
 created by driving the API with a throwaway script (2026-11-17), and this file
 is the `mysqldump --no-create-info --complete-insert --skip-extended-insert
@@ -42,10 +44,12 @@ used, and the stack was rebuilt from it twice, counting the rows each time
 (`setup.md` has the count table). Tables are dumped parents first because the
 schema carries foreign keys and the import keeps them enabled.
 
-Two known artifacts of that choice: `messenger_messages` is empty after a
+Three known artifacts of that choice: `messenger_messages` is empty after a
 rebuild (the match job the queue creation queued is a pending message, not a
-row worth restoring), and a compiled `agreement_details` row shows the moment of
-its last write as `start_date`, because the column carries
+row worth restoring); no queue carries an `agreement_created`, because the
+matching worker cannot run at all (`backend-gaps.md` G28); and a compiled
+`agreement_details` row shows the moment of its last write as `start_date`,
+because the column carries
 `ON UPDATE CURRENT_TIMESTAMP` (G20). The generator
 `Backend/tools/create-demo-database.php` cannot do this job: it targets the
 previous schema and filename (`docs/backend-gaps.md`).

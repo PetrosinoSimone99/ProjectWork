@@ -44,39 +44,53 @@ from.
 | --- | --- | --- |
 | `categories` | 50 | the shared catalog |
 | `users` | 7 | the six demo people plus `demo.staff` |
-| `services` | 14 | one offer and one request each, `demo.staff` included |
+| `services` | 14 | one offer and one request each, `demo.staff` included; `luca.ferrari`'s request is soft-deleted, so the deleted-entries sections have a row |
 | `service_categories` | 14 | the category of each service |
 | `service_queues` | 2 | `giulia.bianchi`'s OPEN request, `demo.staff`'s OPEN offer |
-| `agreements` | 5 | one per state worth showing (see below) |
-| `agreement_proposal` | 10 | two per agreement, with their responses |
-| `agreement_details` | 6 | two sheets per agreement that went through `ACCEPTED` (the later-cancelled one included); one of the six is `COMPILED` |
-| `chat`, `chat_participants` | 3, 6 | one chat per accepted or cancelled agreement |
+| `agreements` | 7 | one per state worth showing (see below) |
+| `agreement_proposal` | 14 | two per agreement, with their responses |
+| `agreement_details` | 8 | two per agreement that reached `ACCEPTED` (the cancelled and the completed one included); one of the eight waits for its beneficiary |
+| `chat`, `chat_participants` | 3, 6 | one chat per agreement that carried a conversation |
 | `chat_messages` | 10 | five in each of the two populated chats; the third chat is empty |
-| `notifications` | 8 | four of them unread |
+| `notifications` | 11 | four of them unread, eight in `demo.staff`'s inbox |
 | `user_reports` | 2 | one PENDING, one CONFIRMED |
 | `staff_operation_logs` | 2 | the claim and the review of that report |
 | `messenger_messages` | 0 | the async transport, not app data |
 
-The five agreements: one `PENDING` proposed by `giulia.bianchi` and still
-unanswered by `demo.staff`, one `PENDING` proposed by `demo.staff` and still
-unanswered by `giulia.bianchi`, one `ACCEPTED` with both delivery sheets blank
-(`marco.ricci` and `demo.staff`), one `ACCEPTED` with `davide.costa`'s sheet
-compiled and waiting for `chiara.marino` to confirm it, and one `CANCELLED`
-(`sara.mancini` called off the exchange with `luca.ferrari`). A card compiled in
-the seed shows the moment of its last write as the start date: that is schema
-defect G20 (`backend-gaps.md`), not a seed mistake.
+The seven agreements, with `demo.staff` a party in every one of them: `PENDING`
+proposed by `giulia.bianchi` and still unanswered, `PENDING` proposed by
+`demo.staff` and still unanswered by her, `ACCEPTED` with both delivery sheets
+compiled and confirmed (`marco.ricci`), `ACCEPTED` with `demo.staff`'s own sheet
+still blank and `davide.costa`'s sheet waiting for its confirmation, `CANCELLED`
+(`demo.staff` called off the exchange with `sara.mancini`), `COMPLETED`
+(`chiara.marino`, both sheets dated in the past) and `REFUSED`
+(`luca.ferrari` said no). A sheet compiled in the seed shows the moment of its
+last write as the start date: that is schema defect G20 (`backend-gaps.md`), not
+a seed mistake.
+
+`COMPLETED` is not written by the seed: the two sheets of that agreement carry
+dates in the past and the backend's own scheduler closed it, run once with
+`docker compose exec backend php bin/console messenger:consume scheduler_default
+--limit=1`. Re-running that command on a fresh volume therefore changes nothing
+(it has nothing left to close) — the status is already in the dump.
 
 ### The account that can open everything (`demo.staff` / `demo1234`, local only)
 
-Ideal for a demo that must not stop at a permission error. It holds
-`ROLE_STAFF`, so `/staff` and `/staff-users` (seven accounts) answer, and it is
-a party in three of the five agreements, in one chat, in the staff report queue
-and in one pending report of its own: from a single login you see the catalog,
-the match tab with a queue, the three agreements it is part of (two states), a chat
-with five messages, an inbox with four rows and a badge of three, the review
-queue and the audit trail those actions wrote. It cannot show everything:
-the two agreements it is not part of (`demo.staff` is a party in three, by
-decision D3) need `chiara.marino` and `sara.mancini` to be opened.
+Ideal for a demo that must not stop at a permission error, and chosen so that
+**one login reaches every state the product has**. It holds `ROLE_STAFF`, so
+`/staff` and `/staff-users` (seven accounts) answer, and it is a party in all
+seven agreements: from a single session you see the catalog, the match tab with
+its own queue, the proposal someone else sent (with Accetta/Rifiuta), the one it
+sent, two exchanges in progress (one sheet to compile, one to confirm), and the
+closed ones — completed, cancelled, refused. Plus a chat with five messages, an
+inbox with eight rows and a badge of three, the review queue with both reports,
+the audit trail those actions wrote, and the deleted service on the staff
+restore screen.
+
+Two things it cannot show, and neither is a data problem: **no queue is ever
+matched** (the worker that matches reads a per-category dictionary that does not
+exist, `backend-gaps.md` G28 — the match tab shows an OPEN queue, not a match),
+and the G20 card above shows a start date that is the moment of the last write.
 
 It was created with the backend's own command, not with SQL, so a local staff
 account can be recreated at any time:
@@ -159,14 +173,16 @@ not the app, and it is why the Playwright pass of this cycle waits for the loade
 state instead of the frame
 (`docs/audits/native-parity-2026-11-15.md`).
 
-The new backend routes `App\Message\QueueId` to the `async` transport
+The backend routes `App\Message\QueueId` to the `async` transport
 (`doctrine://default`, i.e. the `messenger_messages` table) and schedules
 `App\Schedule\AgreementEndDateChecker`. Nothing consumes either inside the
-stack: queues created through `POST /api/create-service-queue` stay unmatched
-and `COMPLETED` is never assigned until a worker is started by hand —
-`docker compose exec backend php bin/console messenger:consume async scheduler_default`.
-One tick is enough to check the scheduler:
-`messenger:consume scheduler_default --limit=1`.
+stack, so a queue created through `POST /api/create-service-queue` stays `OPEN`.
+The scheduler works when you start it by hand —
+`docker compose exec backend php bin/console messenger:consume scheduler_default
+--limit=1` closes every accepted agreement whose sheets are all past their end
+date, which is exactly how the seed's `COMPLETED` row was produced. The `async`
+worker does **not** work: it dies on the missing dictionaries (`backend-gaps.md`
+G28), so matching cannot be demonstrated locally whatever the data says.
 
 ## 2. Configure the frontend
 

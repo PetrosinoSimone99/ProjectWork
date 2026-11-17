@@ -26,9 +26,9 @@ services:
       # messenger included). That dump is STRUCTURE ONLY, so the demo rows come
       # from the next mount: ./docker/seed-demo.sql carries 50 categories, seven
       # accounts (password `demo1234`) with one offer and one request each, two
-      # OPEN queues, and the rows the app writes through its own routes — five
-      # agreements across the states worth showing, three chats, eight
-      # notifications, two reports and the staff account `demo.staff`. Without it
+      # OPEN queues, and the rows the app writes through its own routes — seven
+      # agreements that put `demo.staff` in every state worth showing, three
+      # chats, eleven notifications, two reports and one deleted service. Without it
       # the app cannot register or log in, because /api/categories would answer
       # with an empty list.
       # docker-entrypoint-initdb.d runs the files in name order and only on an

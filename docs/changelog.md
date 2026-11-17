@@ -6,6 +6,45 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — Every state, from one login
+
+Follow-up to the entry below, asked by Andrea once the first cut landed: the
+demo account sat outside two of the five exchanges, three sections still had
+nothing in them (no completed exchange, no refused proposal, nothing deleted),
+and the matchmaking could not be exercised at all. The scenario now covers
+everything the backend can actually produce.
+
+- **`demo.staff` is a party in all seven agreements** (D3 is revised): the two
+  halves of "proposte" — received with Accetta/Rifiuta, sent — two exchanges in
+  progress (one with its own sheet to compile, one with the counterpart's sheet
+  to confirm), and the closed ones: completed, cancelled, refused. One login
+  reaches every state the product has.
+- **`COMPLETED` is real, not typed.** The two sheets of that agreement carry end
+  dates in the past and the backend's own scheduler closed it
+  (`messenger:consume scheduler_default --limit=1`). The two
+  `agreement_completed` notifications come from that run.
+- **The empty sections are gone**: `luca.ferrari` soft-deleted his request
+  through `DELETE /requests/{id}`, so "voci eliminate" and the staff restore
+  screen have a row to show and an action to perform.
+- **The matching cannot be fixed from here, and is now written down.** Running
+  the async worker proves it: `QueueHandler` reads
+  `src/Dictionaries/<category description>.json`, that directory holds a single
+  file, and every run dies on "Failed to open stream". `backend-gaps.md` G28
+  carries the evidence and the request; the seed leaves two queues that already
+  satisfy the location and type rule, so the first working worker has something
+  to match. `Backend/src` is out of scope for this cycle, so nothing was patched
+  around it.
+- Proof: `down -v` plus up twice, identical row counts in both rebuilds and equal
+  to the measurement taken before the dump, for the fourteen seeded tables
+  (`setup.md` has the table: 7 agreements, 14 proposals, 8 sheets, 11
+  notifications, one of them a soft-deleted service).
+- Files: `Backend/docker/seed-demo.sql` and `Backend/compose.yaml` (the Docker
+  exception, owned by the frontend owner — this entry is the backend
+  maintainer's notice), `docs/setup.md`, `docs/database.md`,
+  `docs/backend-gaps.md`, `docs/briefs/live-demo-seed/plan.md`.
+
+---
+
 ## 2026-11-17 — The local database stops looking empty
 
 The seed carried the accounts and their services, then nothing: agreements,

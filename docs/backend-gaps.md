@@ -436,6 +436,41 @@ text preview — escaping or stripping newlines server-side. The app already
 prints `message` as text, so this side changes once, when the field exists;
 until then the row stays untriageable on purpose rather than approximate.
 
+## G28 — The matchmaking worker cannot match anything
+
+`App\Handler\QueueHandler::extractKeywordsFromDescription` reads
+`src/Dictionaries/<category description>.json` for the category of the queue's
+service. That directory holds **one** file, `Programmazione.json`, and no
+category in the catalog is called `Programmazione` (there are
+`Programmazione web` and `Programmazione Python`). So `file_get_contents`
+warns and returns `false`, `json_decode` yields `null`, `array_keys(null)`
+throws, and Messenger retries the message until it fails.
+
+Evidence (2026-11-17, local stack). One account with exactly one offer created a
+queue through `POST /create-service-queue` (201), then:
+
+```text
+$ docker compose exec backend php bin/console messenger:consume async --limit=1 -v
+[warning] Error thrown while handling message App\Message\QueueId. Sending for retry #2 ...
+Error: "Handling "App\Message\QueueId" failed: Warning:
+file_get_contents(/app/src/Handler/../Dictionaries/Assistenza computer.json):
+Failed to open stream: No such file or directory"
+```
+
+No `agreements` row appears, neither queue moves to `IN_PROGRESS`, no
+`agreement_created` is written and no `MATCH_CREATED` notification exists. The
+failure is independent of the data: it happens before the location, category,
+remote and keyword rules are applied at all, because the keyword extraction runs
+unconditionally on the queue being handled.
+
+Requested: ship a dictionary per category description, or make the lookup
+tolerant (a missing file means "no keywords" instead of a fatal error) and lean
+on the category/remote/location rule the handler already applies. Until then the
+local stack has **no matchmaking**: the match tab can show a queue, never a
+match. The demo seed carries two queues that already satisfy the location and
+type rule (`giulia.bianchi`'s OPEN request and `demo.staff`'s OPEN offer), so the
+first working worker has something to do without new data (`docs/setup.md`).
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id
