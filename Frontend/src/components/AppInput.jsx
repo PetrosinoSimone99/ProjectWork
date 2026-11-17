@@ -128,6 +128,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     paddingHorizontal: space.md,
   },
-  input: { flex: 1, minHeight: 48, fontSize: 15, paddingVertical: space.sm },
+  // Su web un flex item ha `min-width: auto`: la larghezza intrinseca del campo
+  // vince sul contenitore e a 320 px l'input sfonda il viewport (audit UX F1).
+  // `minWidth: 0` è il comportamento che native ha già di default.
+  input: { flex: 1, minWidth: 0, minHeight: 48, fontSize: 15, paddingVertical: space.sm },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
 });
