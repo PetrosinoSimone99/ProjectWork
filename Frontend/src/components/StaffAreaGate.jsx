@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { AppButton } from './AppButton';
 import { EmptyState } from './EmptyState';
 import { PageHeader } from './PageHeader';
 import { Screen } from './Screen';
@@ -32,13 +31,6 @@ export function StaffAreaGate({ titolo, descrizione }) {
         description="Segnalazioni e utenti si gestiscono solo con il ruolo staff: il tuo account non ce l'ha. Se ti serve, chiedilo a chi amministra il progetto."
         etichettaAzione="Torna al profilo"
         onAzione={() => router.replace('/profile')}
-      />
-      <AppButton
-        label="Indietro"
-        variant="ghost"
-        icon="arrow-back-outline"
-        onPress={() => router.back()}
-        style={{ alignSelf: 'flex-start' }}
       />
     </Screen>
   );
