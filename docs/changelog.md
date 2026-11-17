@@ -6,6 +6,66 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — API authorization probe: two confirmed chat IDORs
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 322 ahead of `origin/main`, 0 behind. Working tree clean.
+No merge needed, nothing pushed to `main`.
+
+### Why
+
+The question was whether an offensive skill bundle was worth installing to test
+whether the app is safe. It was not, but the question surfaced a real gap: nobody
+had ever probed the API's authorization from a second account. Two `curl`
+accounts were enough.
+
+### What was found
+
+[`audits/api-authz-2026-11-17.md`](audits/api-authz-2026-11-17.md) records six
+findings, all reproduced against the running stack or cited to `path:line`:
+
+- **A1** `GET /chats/agreement/{id}` has no participant check — any logged-in
+  account reads any conversation and can even trigger its creation.
+- **A2** `POST /chats/send-message/{chatId}` has no participant check — any
+  account writes into any chat and the victim gets a `CHAT_MESSAGE`
+  notification. Reproduced end to end, then the test row and its notification
+  were deleted, so the seed is back to its committed state.
+- **A3** an unknown `agreementId` returns `500` with the exception text, because
+  `getAgreementById` is dereferenced without a null check and the controller
+  appends `$e->getMessage()` to the body.
+- **A4** `POST /cancel-queue/{id}` on another account's queue returns `200` and
+  changes nothing — this is `backend-gaps.md` G21, confirmed, no new request.
+- **A5** `POST /auth/login` has no rate limit: 15 failures in a row cost nothing
+  and the next correct password succeeds. No `rate_limiter` key exists in
+  `Backend/config/**`.
+- **A6** `POST /send-agreement-details` never calls `isParticipant`, so a stranger
+  reaching an `ACCEPTED` agreement by id gets a `500` instead of a `404`
+  (`AgreementManager.php:149`). Source-read, not reproduced: the seed's only
+  agreement is `PENDING`.
+
+The rest of the id-taking surface was probed and holds: notifications, offers,
+requests, staff routes and the agreement response/accept paths all answer
+`404`/`403` across accounts and leave the data unchanged, login does not
+enumerate users, and registration enforces 8-char passwords. The full table is in
+the audit. The pattern is consistent: newer controllers resolve the row through
+the viewer, and only the older `ChatManager` loads by id and never asks who is
+calling.
+
+### What was touched
+
+`docs/audits/api-authz-2026-11-17.md` (new) and this entry. No product code: the
+defects are in `Backend/`, which is read-only here, so the audit closes with four
+proposals for the backend maintainer rather than a patch. No frontend change is
+needed either — the app already calls these endpoints correctly; it is the server
+that does not check who is asking.
+
+### Environment note
+
+The API answers on `127.0.0.1:8000` but not on `localhost:8000` on this host
+(`curl` exit 7), while the commands in [`setup.md`](setup.md) use `localhost`.
+Recorded in the audit; `setup.md` was left alone because the failure looks
+machine-specific (IPv6 resolution), not a defect in the documented stack.
+
 ## 2026-11-17 — W8: the documents describe the tree that exists
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
