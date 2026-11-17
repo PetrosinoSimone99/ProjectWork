@@ -16,6 +16,12 @@ rispetto a `origin/andrea-frontend`; **304 avanti, 0 indietro** rispetto a
   `auth-context.test.js` oltre il timeout di 5 s per test (misurato: 2 falliti con
   `--coverage`, 0 senza). La coverage si misura solo sui test dei hook:
   `npx jest --coverage src/hooks/__tests__`.
+- Trappola: `jest` legge il path come regex, quindi `npx jest "src/app/(tabs)/…"`
+  risponde `No tests found` con exit 0 (verde falso). Il path si cita sempre
+  escapato: `npx jest "src/app/\(tabs\)/__tests__/match.test.js"`.
+- Trappola: rendere `match.jsx` richiede `react-native-safe-area-context` mockato
+  (`Screen` chiama `useSafeAreaInsets()` e senza provider lancia
+  `No safe area value available`).
 - Prima di tutto `git status --porcelain`: i file modificati sono il lavoro in
   corso dell'ultimo blocco, si rileggono e si continua da lì.
 - Il contratto è **questo file**, non c'è `plan-brief.md` separato (classe M).
@@ -131,7 +137,7 @@ toccata: `git diff --stat` del ciclo nomina solo `__tests__/`, `package.json` e
 ## Passi
 
 - 0. Commit del contratto e del piano | files: docs/briefs/w7-hook-tests/plan.md | done: il commit esiste e `git status --porcelain` è vuoto | Stato: DONE
-- 1. Onda 1 — i tre file di test, un `worker` per file | files: Frontend/src/hooks/__tests__/useAgreements.test.js, Frontend/src/hooks/__tests__/useServiceCatalog.test.js, Frontend/src/app/(tabs)/__tests__/match.test.js | done: i tre file esistono; `npx jest src/hooks/__tests__ "src/app/(tabs)/__tests__"` verde; ogni `it` ha un nome comportamentale e nessun test è saltato o `.todo` | Stato: TODO
+- 1. Onda 1 — i tre file di test, un `worker` per file | files: Frontend/src/hooks/__tests__/useAgreements.test.js, Frontend/src/hooks/__tests__/useServiceCatalog.test.js, Frontend/src/app/(tabs)/__tests__/match.test.js | done: i tre file esistono; `npx jest src/hooks/__tests__ "src/app/(tabs)/__tests__/match.test.js"` verde; ogni `it` ha un nome comportamentale e nessun test è saltato o `.todo` | Stato: DONE
 - 1b. Riscrivere `useNotifications.test.js` | files: Frontend/src/hooks/__tests__/useNotifications.test.js | done: nessuna modifica, il file è di W10 (decisione 2) | Stato: N/A
 - 2. Coverage dichiarata | files: Frontend/package.json | done: `collectCoverageFrom` elenca i due hook di W7; `npx jest --coverage src/hooks/__tests__` riporta ≥80% statements su entrambi e nessun altro file nel report | Stato: TODO
 - 3. Documenti | files: docs/audits/frontend-gap-analysis-2026-11-16.md, docs/changelog.md | done: W7 è `Stato: chiuso` con cosa è atterrato e la coverage misurata; la restrizione di `collectCoverageFrom` è scritta; il residuo single-flight di `useAgreements` è registrato; B5 rimanda a W8 e resta aperto; changelog con voce nuova in testa | Stato: TODO
