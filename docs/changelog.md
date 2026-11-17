@@ -6,6 +6,70 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — Three UI hypotheses closed with a measurement, none of them a defect
+
+Session start: `git fetch origin`. `andrea-frontend` compared against
+`origin/main` (**0 behind, 327 ahead**) and `origin/andrea-frontend` (**1 ahead**:
+the mobile-audit commit of another session, carried by this push, not authored
+here). Nothing pushed to `main`.
+
+### Why
+
+`docs/ui-triage.md` carried three hypotheses that could not become work items
+until measured, and `docs/audits/frontend-gap-analysis-2026-11-16.md` §D said so
+in as many words. The sweep ran on 2026-11-17 against the exported web build:
+seven authenticated routes and three anonymous ones, 375 / 768 / 1280 / 1920,
+both themes, plus the loading, error and empty states. This session wrote the
+verdicts. **No frontend code was touched**: two of the three conclusions are
+"not a defect", and the third is a design judgment that needs none either.
+
+### What changed
+
+- `docs/ui-triage.md` — H1, H2 and H3 replaced by their verdicts with the
+  numbers; F4 closed as a wrong premise; the Report tier loses the two items the
+  sweep retired; a new "What the 2026-11-17 sweep covered, and what it could
+  not" section declares the coverage instead of implying it.
+- `docs/audits/frontend-gap-analysis-2026-11-16.md` §D — "hypotheses that need a
+  measurement" becomes the measured verdict table. **None of the three becomes a
+  work item**, which is the point of writing it down.
+- `docs/audits/scripts/ui-triage-sweep.js` — new: the sweep itself, so the
+  numbers can be reproduced rather than believed. It writes captures and
+  `dati.json` to `.playwright-mcp/ui-triage/captures`, which is gitignored: the
+  numbers live in the audit, the images stay out of the repo, and no document
+  links a path a reader cannot open.
+
+### The three verdicts, one line each
+
+- **H1, column width: dismissed.** 560 at 1280 with 360 of margin per side, 560
+  at 1920 with 680, catalog 720, 768 → 560 (720), 375 → the whole window;
+  identical in both themes and in the empty state, `PageHeader`'s band included.
+  That is the measure `DESIGN.md` §Measures declares, so the wide margins are the
+  measure working. Whether a reading measure suits a surface that is scanned
+  stays a judgment, and was never the number.
+- **H2, icon off-centre: dismissed as a defect, confirmed as a number.** 136
+  measurements, ink centre 0.92–1.96 px left of the pill centre, median 1.42;
+  the composite box is exactly 2.00 px left, which is the arithmetic of
+  `marginLeft: -space.xs` against `gap: space.sm` — so the margin creates the
+  offset it was meant to remove (without it the residual would be ~+0.6 px).
+  Left alone: 1.4 px on a pill from 118 to 528 px, against no committed optical
+  centre.
+- **H3, baseline between two scales: dismissed on the premise.** `AppInput` pairs
+  13/600 with 13/400 — one scale, two weights — offset 0.00 px at every viewport
+  and theme; `PageHeader`'s 12/600 + 13 pair never renders, because the only
+  `variante="sezione"` call site (`ServicesSection.jsx:105`) passes `frase`,
+  never `titolo`. F4 was the wrong fact, not the alignment.
+
+### Coverage gap, recorded rather than hidden
+
+`/user/[id]` and `/chat/[agreementId]` cannot be measured on the exported web
+build: no page is generated per id and no link in the rendered nav carries an
+`href` towards one, so the pass logs "no link on the page" at every viewport and
+moves on. They stay **unseen, not clean**, until a card links to them or a deep
+link with a known id exists — a code change, not a wider sweep. The `/staff`
+screens stay out for the older reason: demo users carry `ROLE_USER` only.
+
+---
+
 ## 2026-11-17 — A mobile audit that says what a Windows machine can prove
 
 Session start: `git fetch origin`. `andrea-frontend` compared against

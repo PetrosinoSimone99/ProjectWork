@@ -87,10 +87,10 @@ Stile: lite
 
 ## Blocks
 
-- 1. Chiudere H1/H2/H3 con i numeri e correggere F4 in `docs/ui-triage.md`, e dichiarare la copertura mancante | files: docs/ui-triage.md | done: le tre voci di Hypothesis sono verdetti con le cifre (560/720 e gutter, 136 misure e −2,00, 13/600 vs 13/400 e offset 0,00), F4 dice che la premessa è falsa, esiste una sezione che nomina `/user/[id]` e `/chat/[agreementId]` come non viste | Stato: TODO
-- 2. Chiudere §D in `docs/audits/frontend-gap-analysis-2026-11-16.md`: al posto di "hypotheses that need a measurement" il verdetto delle tre, nessuna promossa a work item, rimando a `docs/ui-triage.md` | files: docs/audits/frontend-gap-analysis-2026-11-16.md | done: il paragrafo non chiede più una misura e cita gli stessi numeri del blocco 1 | Stato: TODO
-- 3. Committare la sweep come `docs/audits/scripts/ui-triage-sweep.js` con output dentro `.playwright-mcp/ui-triage/captures` | files: docs/audits/scripts/ui-triage-sweep.js | done: `node --check` verde, `OUT` punta a `.playwright-mcp/ui-triage/captures`, nessun path assoluto di macchina nel file | Stato: TODO
-- 4. Voce in `docs/changelog.md` (2026-11-17, sopra la voce dell'audit mobile) | files: docs/changelog.md | done: la voce dice cosa è cambiato, i tre verdetti in una riga ciascuno, la copertura mancante, i documenti toccati e che nessun codice è stato toccato | Stato: TODO
+- 1. Chiudere H1/H2/H3 con i numeri e correggere F4 in `docs/ui-triage.md`, e dichiarare la copertura mancante | files: docs/ui-triage.md | done: le tre voci di Hypothesis sono verdetti con le cifre (560/720 e gutter, 136 misure e −2,00, 13/600 vs 13/400 e offset 0,00), F4 dice che la premessa è falsa, esiste una sezione che nomina `/user/[id]` e `/chat/[agreementId]` come non viste | Stato: DONE
+- 2. Chiudere §D in `docs/audits/frontend-gap-analysis-2026-11-16.md`: al posto di "hypotheses that need a measurement" il verdetto delle tre, nessuna promossa a work item, rimando a `docs/ui-triage.md` | files: docs/audits/frontend-gap-analysis-2026-11-16.md | done: il paragrafo non chiede più una misura e cita gli stessi numeri del blocco 1 | Stato: DONE
+- 3. Committare la sweep come `docs/audits/scripts/ui-triage-sweep.js` con output dentro `.playwright-mcp/ui-triage/captures` | files: docs/audits/scripts/ui-triage-sweep.js | done: `node --check` verde, `OUT` punta a `.playwright-mcp/ui-triage/captures`, nessun path assoluto di macchina nel file | Stato: DONE
+- 4. Voce in `docs/changelog.md` (2026-11-17, sopra la voce dell'audit mobile) | files: docs/changelog.md | done: la voce dice cosa è cambiato, i tre verdetti in una riga ciascuno, la copertura mancante, i documenti toccati e che nessun codice è stato toccato | Stato: DONE
 - 5. Gate e push | files: — | done: `npx expo lint` e `npx tsc --noEmit` verdi, `git status --porcelain` pulito, push su `andrea-frontend` | Stato: TODO
 
 Lanes: nessuna. I tre documenti condividono gli stessi numeri e si citano a

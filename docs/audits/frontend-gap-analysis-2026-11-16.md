@@ -19,8 +19,8 @@ cycle (W5, see below). State at review time:
 
 Tiers follow `docs/ui-triage.md`: **Fact** (read out of the source, with
 `path:line`), **Judgment** (a decision on whether the fact is wrong). Nothing
-below is a hypothesis dressed as a fact; the three items that *are* hypotheses are
-marked as such in section D.
+below is a hypothesis dressed as a fact; the three items that *were* hypotheses
+were measured on 2026-11-17 and are closed in section D.
 
 ---
 
@@ -745,13 +745,22 @@ Do not plan these; they are already written up in `docs/backend-gaps.md`.
 | **G12** | See `COMPLETED` written, and any queue-born credit; the scheduler has no worker in the local stack |
 | — | Refresh the JWT. One hour, no renewal: the app warns 5 minutes ahead (`useSessionExpiry`) and cannot do better |
 
-**Hypotheses that need a measurement before becoming work items** (from
-`docs/ui-triage.md`, still unmeasured): F1/H1 column width `560` at 1280/1920
-(`theme/tokens.js`, `Screen.jsx:68-74`); H2 icon off-centre in `AppButton`
-(`AppButton.jsx:83`, `marginLeft: -space.xs` in a centred row, 33 call sites);
-H3 baseline alignment between two type scales (`AppInput.jsx:115`,
-`PageHeader.jsx:44`). Measure at 375/768/1280/1920 in both themes before writing
-code, and judge against `docs/DESIGN.md` rather than taste.
+**Hypotheses closed by measurement** (2026-11-17). This paragraph used to say
+"measure before writing code"; the measurement happened — four viewports
+(375 / 768 / 1280 / 1920) in both themes, script in
+`docs/audits/scripts/ui-triage-sweep.js` — and **none of the three becomes a
+work item**. `docs/ui-triage.md` is the source; the numbers are repeated here
+only so this section cannot be read as still open.
+
+| Item | Verdict |
+| --- | --- |
+| H1 column width `560` at 1280/1920 (`theme/tokens.js`, `Screen.jsx:68-74`) | **dismissed.** 560 measured at 1280 with 360 of margin each side, 560 at 1920 with 680, catalog 720; 768 gives 560 (720 on the catalog), 375 the whole window. Identical in both themes and in the empty state, band included: it is the measure `DESIGN.md` §Measures declares. What stays arguable is using a reading measure on a scanned surface, which is a design judgment, not a defect |
+| H2 icon off-centre in `AppButton` (`AppButton.jsx:83`) | **dismissed as a defect, confirmed as a number.** 136 measurements: ink centre 0.92–1.96 px left of the pill centre, median 1.42; the composite box is exactly 2.00 px left, the arithmetic of `marginLeft: -space.xs` against `gap: space.sm`, so the margin creates what it was meant to remove (without it the residual is ~+0.6 px). Invisible at 118–528 px, and no optical centre is committed to violate |
+| H3 baseline between two type scales (`AppInput.jsx:115`, `PageHeader.jsx:44`) | **dismissed on the premise.** `AppInput` pairs 13/600 with 13/400 — one scale, two weights — offset 0.00 px everywhere; `PageHeader`'s 12/600 + 13 pair never renders, because the only `variante="sezione"` call site (`ServicesSection.jsx:105`) passes `frase`, never `titolo`. F4 is the wrong fact |
+
+Coverage gap, recorded on purpose: `/user/[id]` and `/chat/[agreementId]` are not
+measurable on the exported web build — no page is generated per id and the nav
+carries no `href` towards one — so they stay **unseen**, not clean.
 
 ---
 
