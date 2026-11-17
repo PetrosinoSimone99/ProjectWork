@@ -1,0 +1,2122 @@
+{
+  "riepilogo": [
+    {
+      "chiave": "iphone-se/01-catalogo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Servizi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/02-match",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Match"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/03-offro-e-cerco",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/8",
+        "sfondano": 0,
+        "troncati": 4,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Offro e cerco"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/04-accordi",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/6",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accordi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/05-profilo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/8",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/06-notifiche",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/15",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Notifiche"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/07-modifica-profilo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/9",
+        "sfondano": 1,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Modifica profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/08-segnala",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Segnala alla staff"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/09-staff",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Area staff"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/10-staff-utenti",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Utenti"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/11-login",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accedi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/12-registrati",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/18",
+        "sfondano": 1,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Crea il tuo profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-se/13-non-trovata",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/0",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": []
+      }
+    },
+    {
+      "chiave": "  passo fallito: login: invio a vuoto",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "  passo fallito: registrati: invio a vuoto",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "iphone-se: errori console",
+      "valore": "[\"Failed to load resource: the server responded with a status of 403 (Forbidden)\"]"
+    },
+    {
+      "chiave": "iphone-14-pro/01-catalogo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Servizi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/02-match",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Match"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/03-offro-e-cerco",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/8",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Offro e cerco"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/04-accordi",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/6",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accordi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/05-profilo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/8",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/06-notifiche",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/15",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Notifiche"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/07-modifica-profilo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/9",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Modifica profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/08-segnala",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Segnala alla staff"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/09-staff",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Area staff"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/10-staff-utenti",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Utenti"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/14-catalogo-filtro-categorie",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/18",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Servizi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/15-catalogo-dettaglio-servizio",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Servizi"
+        ]
+      }
+    },
+    {
+      "chiave": "  passo fallito: match: crea e annulla coda",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "iphone-14-pro/19-accordi-in-corso",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accordi"
+        ]
+      }
+    },
+    {
+      "chiave": "  passo fallito: accordi: filtro e scheda",
+      "valore": "locator.textContent: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "iphone-14-pro/21-notifiche",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/15",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Notifiche"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/22-notifiche-conferma-elimina",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/21",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 3,
+        "caricamento": 0,
+        "h1": [
+          "Notifiche",
+          "Eliminare questa notifica?"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/23-voce-editor",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Offro e cerco"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/24-profilo-scuro",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/8",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/25-catalogo-scuro",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Servizi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/26-accordi-scuro",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/6",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accordi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/27-notifiche-scuro",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/15",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Notifiche"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/28-match-scuro",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Match"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/29-segnala",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Segnala alla staff"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/11-login",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accedi"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/12-registrati",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/18",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Crea il tuo profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "iphone-14-pro/13-non-trovata",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/0",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": []
+      }
+    },
+    {
+      "chiave": "  passo fallito: login: invio a vuoto",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "  passo fallito: registrati: invio a vuoto",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "iphone-14-pro: errori console",
+      "valore": "[]"
+    },
+    {
+      "chiave": "pixel-7/01-catalogo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/12",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Servizi"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/02-match",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Match"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/03-offro-e-cerco",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/8",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Offro e cerco"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/04-accordi",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/6",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accordi"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/05-profilo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/8",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/06-notifiche",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/15",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Notifiche"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/07-modifica-profilo",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/9",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Modifica profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/08-segnala",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Segnala alla staff"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/09-staff",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Area staff"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/10-staff-utenti",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/3",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Utenti"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/11-login",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/5",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Accedi"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/12-registrati",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "1/18",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": [
+          "Crea il tuo profilo"
+        ]
+      }
+    },
+    {
+      "chiave": "pixel-7/13-non-trovata",
+      "valore": {
+        "overflow": 0,
+        "piccoli": "0/0",
+        "sfondano": 0,
+        "troncati": 0,
+        "contrasti": 0,
+        "senzaNome": 0,
+        "caricamento": 0,
+        "h1": []
+      }
+    },
+    {
+      "chiave": "  passo fallito: login: invio a vuoto",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "  passo fallito: registrati: invio a vuoto",
+      "valore": "locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "chiave": "pixel-7: errori console",
+      "valore": "[\"Failed to load resource: the server responded with a status of 403 (Forbidden)\"]"
+    }
+  ],
+  "dettagli": [
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [
+        {
+          "testo": "Aggiorna i dati della schermata",
+          "w": 42,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Servizi"
+      ],
+      "etichetta": "iphone-se/01-catalogo",
+      "attesaMs": 3696,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [
+        {
+          "testo": "Aggiorna i dati della schermata",
+          "w": 42,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Match"
+      ],
+      "etichetta": "iphone-se/02-match",
+      "attesaMs": 2057,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [
+        {
+          "testo": "Aggiorna i dati della schermata",
+          "w": 42,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [
+        {
+          "testo": "Modifica",
+          "client": 52,
+          "scroll": 60
+        },
+        {
+          "testo": "Sospendi",
+          "client": 52,
+          "scroll": 62
+        },
+        {
+          "testo": "Modifica",
+          "client": 52,
+          "scroll": 60
+        },
+        {
+          "testo": "Sospendi",
+          "client": 52,
+          "scroll": 62
+        }
+      ],
+      "troncatiTotale": 4,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Offro e cerco"
+      ],
+      "etichetta": "iphone-se/03-offro-e-cerco",
+      "attesaMs": 3685,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 6,
+      "piccoli": [
+        {
+          "testo": "Aggiorna i dati della schermata",
+          "w": 42,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accordi"
+      ],
+      "etichetta": "iphone-se/04-accordi",
+      "attesaMs": 1649,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [
+        {
+          "testo": "Aggiorna i dati della schermata",
+          "w": 42,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Profilo"
+      ],
+      "etichetta": "iphone-se/05-profilo",
+      "attesaMs": 435,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 15,
+      "piccoli": [
+        {
+          "testo": "Aggiorna i dati della schermata",
+          "w": 42,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Notifiche"
+      ],
+      "etichetta": "iphone-se/06-notifiche",
+      "attesaMs": 822,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 9,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [
+        {
+          "nodo": "INPUT.css-11aywtz",
+          "testo": "",
+          "left": 179,
+          "right": 348
+        }
+      ],
+      "sfondanoTotale": 1,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Modifica profilo"
+      ],
+      "etichetta": "iphone-se/07-modifica-profilo",
+      "attesaMs": 431,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Segnala alla staff"
+      ],
+      "etichetta": "iphone-se/08-segnala",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Area staff"
+      ],
+      "etichetta": "iphone-se/09-staff",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Utenti"
+      ],
+      "etichetta": "iphone-se/10-staff-utenti",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accedi"
+      ],
+      "etichetta": "iphone-se/11-login",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 320,
+      "innerHeight": 568,
+      "overflow": 0,
+      "interattivi": 18,
+      "piccoli": [
+        {
+          "testo": "Accedi",
+          "w": 40,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [
+        {
+          "nodo": "INPUT.css-11aywtz",
+          "testo": "",
+          "left": 179,
+          "right": 348
+        }
+      ],
+      "sfondanoTotale": 1,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Crea il tuo profilo"
+      ],
+      "etichetta": "iphone-se/12-registrati",
+      "attesaMs": 425,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 980,
+      "innerHeight": 1739,
+      "overflow": 0,
+      "interattivi": 0,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [],
+      "etichetta": "iphone-se/13-non-trovata",
+      "attesaMs": 17,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Servizi"
+      ],
+      "etichetta": "iphone-14-pro/01-catalogo",
+      "attesaMs": 1677,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Match"
+      ],
+      "etichetta": "iphone-14-pro/02-match",
+      "attesaMs": 1251,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Offro e cerco"
+      ],
+      "etichetta": "iphone-14-pro/03-offro-e-cerco",
+      "attesaMs": 2471,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 6,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accordi"
+      ],
+      "etichetta": "iphone-14-pro/04-accordi",
+      "attesaMs": 1641,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Profilo"
+      ],
+      "etichetta": "iphone-14-pro/05-profilo",
+      "attesaMs": 435,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 15,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Notifiche"
+      ],
+      "etichetta": "iphone-14-pro/06-notifiche",
+      "attesaMs": 1238,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 9,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Modifica profilo"
+      ],
+      "etichetta": "iphone-14-pro/07-modifica-profilo",
+      "attesaMs": 433,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Segnala alla staff"
+      ],
+      "etichetta": "iphone-14-pro/08-segnala",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Area staff"
+      ],
+      "etichetta": "iphone-14-pro/09-staff",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Utenti"
+      ],
+      "etichetta": "iphone-14-pro/10-staff-utenti",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 18,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Servizi"
+      ],
+      "etichetta": "iphone-14-pro/14-catalogo-filtro-categorie",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Servizi"
+      ],
+      "etichetta": "iphone-14-pro/15-catalogo-dettaglio-servizio",
+      "attesaMs": 5,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accordi"
+      ],
+      "etichetta": "iphone-14-pro/19-accordi-in-corso",
+      "attesaMs": 1257,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 15,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Notifiche"
+      ],
+      "etichetta": "iphone-14-pro/21-notifiche",
+      "attesaMs": 20,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 21,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [
+        "DIV[role=presentation]",
+        "DIV",
+        "DIV[role=presentation]"
+      ],
+      "senzaNomeTotale": 3,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Notifiche",
+        "Eliminare questa notifica?"
+      ],
+      "etichetta": "iphone-14-pro/22-notifiche-conferma-elimina",
+      "attesaMs": 4,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Offro e cerco"
+      ],
+      "etichetta": "iphone-14-pro/23-voce-editor",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Profilo"
+      ],
+      "etichetta": "iphone-14-pro/24-profilo-scuro",
+      "attesaMs": 17,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Servizi"
+      ],
+      "etichetta": "iphone-14-pro/25-catalogo-scuro",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 6,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accordi"
+      ],
+      "etichetta": "iphone-14-pro/26-accordi-scuro",
+      "attesaMs": 3310,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 15,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Notifiche"
+      ],
+      "etichetta": "iphone-14-pro/27-notifiche-scuro",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Match"
+      ],
+      "etichetta": "iphone-14-pro/28-match-scuro",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Segnala alla staff"
+      ],
+      "etichetta": "iphone-14-pro/29-segnala",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accedi"
+      ],
+      "etichetta": "iphone-14-pro/11-login",
+      "attesaMs": 19,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 393,
+      "innerHeight": 660,
+      "overflow": 0,
+      "interattivi": 18,
+      "piccoli": [
+        {
+          "testo": "Accedi",
+          "w": 40,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Crea il tuo profilo"
+      ],
+      "etichetta": "iphone-14-pro/12-registrati",
+      "attesaMs": 835,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 980,
+      "innerHeight": 1645,
+      "overflow": 0,
+      "interattivi": 0,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [],
+      "etichetta": "iphone-14-pro/13-non-trovata",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 12,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Servizi"
+      ],
+      "etichetta": "pixel-7/01-catalogo",
+      "attesaMs": 1639,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Match"
+      ],
+      "etichetta": "pixel-7/02-match",
+      "attesaMs": 2458,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Offro e cerco"
+      ],
+      "etichetta": "pixel-7/03-offro-e-cerco",
+      "attesaMs": 823,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 6,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accordi"
+      ],
+      "etichetta": "pixel-7/04-accordi",
+      "attesaMs": 1224,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 8,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Profilo"
+      ],
+      "etichetta": "pixel-7/05-profilo",
+      "attesaMs": 830,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 15,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Notifiche"
+      ],
+      "etichetta": "pixel-7/06-notifiche",
+      "attesaMs": 1225,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 9,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Modifica profilo"
+      ],
+      "etichetta": "pixel-7/07-modifica-profilo",
+      "attesaMs": 431,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Segnala alla staff"
+      ],
+      "etichetta": "pixel-7/08-segnala",
+      "attesaMs": 14,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Area staff"
+      ],
+      "etichetta": "pixel-7/09-staff",
+      "attesaMs": 18,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 3,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Utenti"
+      ],
+      "etichetta": "pixel-7/10-staff-utenti",
+      "attesaMs": 17,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 5,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Accedi"
+      ],
+      "etichetta": "pixel-7/11-login",
+      "attesaMs": 13,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 412,
+      "innerHeight": 839,
+      "overflow": 0,
+      "interattivi": 18,
+      "piccoli": [
+        {
+          "testo": "Accedi",
+          "w": 40,
+          "h": 44
+        }
+      ],
+      "piccoliTotale": 1,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [
+        "Crea il tuo profilo"
+      ],
+      "etichetta": "pixel-7/12-registrati",
+      "attesaMs": 831,
+      "attesaOk": true
+    },
+    {
+      "innerWidth": 981,
+      "innerHeight": 1996,
+      "overflow": 0,
+      "interattivi": 0,
+      "piccoli": [],
+      "piccoliTotale": 0,
+      "sfondano": [],
+      "sfondanoTotale": 0,
+      "troncati": [],
+      "troncatiTotale": 0,
+      "contrasti": [],
+      "contrastiTotale": 0,
+      "senzaNome": [],
+      "senzaNomeTotale": 0,
+      "imgSenzaAlt": 0,
+      "caricamento": 0,
+      "h1": [],
+      "etichetta": "pixel-7/13-non-trovata",
+      "attesaMs": 14,
+      "attesaOk": true
+    }
+  ]
+}

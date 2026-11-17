@@ -6,6 +6,45 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — A mobile audit that says what a Windows machine can prove
+
+Session start: `git fetch origin`. `andrea-frontend` compared against
+`origin/andrea-frontend` — no merge or push in this session. Working tree carries
+this session's own files only. Nothing pushed to `main`.
+
+### Why
+
+Andrea asked for a 360 audit of the app on **mobile**, and asked how to run one
+from Windows. Playwright drives browsers, not native apps; a viewport is not a
+phone. The honest answer needed to be measurable rather than asserted, so this
+cycle produced the audit itself plus the line where the proof stops.
+
+### What changed
+
+- [`audits/ux-mobile-audit-2026-11-17.md`](audits/ux-mobile-audit-2026-11-17.md)
+  — 9 findings (0 sev4, 1 sev3, 6 sev2, 2 sev1), **8.8/10** by the
+  `PromptAuditUx.md` §5 formula, plus the explicit "not verified" table.
+- `audits/scripts/audit-mobile-360.js` — new: WebKit 27.2 at iPhone 14 Pro
+  (393×852) and iPhone SE (320×568) plus Chromium at Pixel 7 (412×915); per
+  screen it measures horizontal overflow, edge-crossing nodes, clipped text,
+  real contrast ratios, targets under 44 pt, unnamed focusable nodes, stuck
+  loading states and **touch occlusion** via `elementFromPoint`. Raw numbers in
+  `audits/screens-mobile-2026-11-17/misure.json`, 25 screenshots beside it.
+- No frontend code was touched. The findings are recorded, not fixed: this was an
+  audit, and `PromptAuditUx.md` §7 forbids fixes inside one.
+
+### Two things later audits must not re-learn
+
+1. `fullPage: true` screenshots place `position: fixed` chrome at the viewport
+   offset, which manufactures overlaps that do not exist. Two suspected defects
+   (nav over the profile row, FAB over the date field) were retracted by the
+   occlusion measurement: 0 occluded controls across four surfaces.
+2. The dev backend answers in 2–4 s per call (PHP dev server, debug on). An audit
+   that waits a fixed 2 s measures the loading state and calls it the screen.
+   `attendiContenuto()` waits for the loading text to leave instead.
+
+---
+
 ## 2026-11-17 — The match empty state stops promising a match that never runs
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
