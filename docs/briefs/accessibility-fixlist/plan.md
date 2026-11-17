@@ -1,0 +1,57 @@
+# Plan — the seven accessibility defects of `check-2026-11-17`
+
+Contract: [`plan-brief.md`](plan-brief.md). One field per step: `Stato:`
+(`TODO` / `DONE` / `N/A`). `Stile: full`.
+
+## How to resume
+
+- First command: `git status --porcelain`. Modified files are the last block's
+  work: read them, continue from there, do not restart.
+- Then `grep '| Stato: TODO' docs/briefs/accessibility-fixlist/plan.md` and start
+  from the **first TODO whose condition is true** (`N/A` is not a step to do).
+- Gate before every push, from `Frontend/`: `npx expo lint && npx tsc --noEmit`,
+  plus `npx jest src/components/__tests__/NotificationRow.test.js
+  src/components/__tests__/AgreementSheet.test.js`.
+- Environment traps: `jest` is not in the gate (D019) and
+  `AgreementSheet.test.js` flaked once under full parallelism — re-run it before
+  reading a red result as a regression. `tsconfig.json` has `allowJs` without
+  `checkJs`: `tsc` is a syntax net, not a type check.
+- Trap of intent: `ConfirmModal` has **eight** call sites; every one names the
+  act except `AgreementSheet.jsx:216`. Removing the default (step 5) must not
+  leave a ninth caller behind.
+- First step to execute: 0 (the pending docs from the previous session), because
+  every lane starts from a clean tree.
+
+## Steps
+
+- 0. Commit the five documentation files left modified by the previous session, as their own commit | files: AGENTS.md,Backend/README.md,docs/audits/check-2026-11-17.md,docs/changelog.md,docs/decisions.md | done: `feat`-free `docs:` commit exists, `git status --porcelain` clean, the commit touches exactly those five paths | Stato: TODO
+- 1. Commit the contract and this plan | files: docs/briefs/accessibility-fixlist/plan-brief.md,docs/briefs/accessibility-fixlist/plan.md | done: one `docs:` commit with the two files, no other path in it | Stato: TODO
+- 2. ModalShell: remember `document.activeElement` when the panel opens and restore it on close, and keep Tab inside the panel with an explicit trap (focusables collected from the panel node, wrap forward and backward, panel itself as the fallback) | files: Frontend/src/components/ModalShell.jsx | done: on `Platform.OS === 'web'` the keydown handler consumes Tab and moves the focus to the first or last focusable of the panel at the edges; the close restores the saved node if it is still in the document; the native branch (`AccessibilityInfo.setAccessibilityFocus`) unchanged; docstring updated with both behaviours and their reason | Stato: TODO
+- 3. AppButton: drop `numberOfLines={1}` so a label wraps to two lines at 200 % text, and update the comment that justified the clamp; remove the fixed `fontSize: 11` from the tab bar label style, keeping the weight | files: Frontend/src/components/AppButton.jsx,Frontend/src/app/(tabs)/_layout.jsx | done: `grep -n numberOfLines src/components/AppButton.jsx` empty, `grep -n "fontSize: 11" "src/app/(tabs)/_layout.jsx"` empty, both files still pass `expo lint` | Stato: TODO
+- 4. NotificationRow: the unread state carries the words «Non letta» in the header row next to the dot, and the words enter `etichettaApri` for the rows that can be opened | files: Frontend/src/components/NotificationRow.jsx,Frontend/src/components/__tests__/NotificationRow.test.js | done: an unread row renders the text «Non letta», a read row does not, the open label of an unread row contains it, the suite is green with two new assertions and none removed | Stato: TODO
+- 5. ConfirmModal: `etichettaConferma` becomes a required prop (no `'Conferma'` default); AgreementSheet passes the named act | files: Frontend/src/components/ConfirmModal.jsx,Frontend/src/components/AgreementSheet.jsx,Frontend/src/components/__tests__/AgreementSheet.test.js | done: no default in the signature, `grep -rn "etichettaConferma" src` shows eight call sites all naming the act, the suite green with the confirm pressed on the panel's own button instead of the string «Conferma» | Stato: TODO
+- 6. register.jsx: Enter submits from the five text fields, the way login does | files: Frontend/src/app/(auth)/register.jsx | done: every `AppInput` in the form carries `onSubmitEditing={() => void handleSubmit()}`, `grep -c onSubmitEditing "src/app/(auth)/register.jsx"` is 5 | Stato: TODO
+- 7. `docs/accessibility.md`: align 2.2.1 (`:67`, `:180`) to the fact that the expiry is announced and not extendable, with the reason and the `token_ttl` citation; collapse the duplicated automated-check row (`:211`, `:213`) into one corrected row that cites the tests which do assert roles and labels; update the status rows for 1.4.4, 2.1.2 and 1.4.1 to what steps 2-4 changed | files: docs/accessibility.md | done: the file states nothing the tree contradicts, `:211`/`:213` are one row, no claim was deleted to make code pass | Stato: TODO
+- 8. `docs/changelog.md`: session entry for this cycle (date 2026-11-17, above the previous entry) | files: docs/changelog.md | done: one entry naming the seven items, the files touched, the docs duty and the exclusion on Backend security gaps | Stato: TODO
+- 9. Review at fresh context, three angles, one model per angle, on the cycle's commits | files: docs/briefs/accessibility-fixlist/plan.md | done: the Review section records the three verdicts and every P0/P1, or says a row is empty | Stato: TODO
+- 10. Gate and push | files: — | done: `npx expo lint` and `npx tsc --noEmit` green, the two touched suites green, `git status --porcelain` clean, pushed to `andrea-frontend` (never `main`) | Stato: TODO
+
+Lanes: five, disjoint files, one wave.
+
+- **A** — step 2: `Frontend/src/components/ModalShell.jsx`.
+- **B** — step 3: `Frontend/src/components/AppButton.jsx`,
+  `Frontend/src/app/(tabs)/_layout.jsx`.
+- **C** — step 4: `Frontend/src/components/NotificationRow.jsx`,
+  `Frontend/src/components/__tests__/NotificationRow.test.js`.
+- **D** — step 5: `Frontend/src/components/ConfirmModal.jsx`,
+  `Frontend/src/components/AgreementSheet.jsx`,
+  `Frontend/src/components/__tests__/AgreementSheet.test.js`.
+- **E** — step 6: `Frontend/src/app/(auth)/register.jsx`.
+
+`shared`: `docs/accessibility.md` and `docs/changelog.md` (steps 7-8) are one
+writer, the father, **after** the wave — they describe what the lane did. No
+lane may write them.
+
+## Review
+
+Not run yet.
