@@ -28,13 +28,63 @@ First boot on an empty data volume imports the schema named by
 **15-table** schema of the current backend (agreements, chat, notifications,
 service queues, messenger included). That dump is **structure only**, so the
 demo rows come from `Backend/docker/seed-demo.sql`, mounted right after it.
-Those rows are **what the app writes**: six accounts (every password `demo1234`,
-the shortest the registration form accepts) registered from the web build by
-picking Provincia then Comune, one offer and one request each, the 50 categories
-of the shared catalog, and one OPEN `REQUEST` queue created from the match tab.
-Agreements, notifications and the rest start empty on purpose: the app is meant
-to create them through the API. The file was produced by dumping the database
-those registrations produced, so the seed and the app cannot drift.
+Those rows are **what the app writes**, and every one of them was created by a
+real route: a throwaway script logged in with the seeded accounts and called
+`/create-exchange-agreement`, `/send-agreement-response`,
+`/send-agreement-details`, `/cancel-agreement`, `/chats/agreement`,
+`/chats/send-message`, `/create-service-queue`, `/reports`,
+`/staff/reports/{id}/claim`, `/staff/reports/{id}/review` and the notification
+routes, then the database was dumped (`docs/database.md` has the provenance).
+The one row it did not create is the category catalog, which the app only picks
+from.
+
+### What a fresh database contains
+
+| Table | Rows | What they are |
+| --- | --- | --- |
+| `categories` | 50 | the shared catalog |
+| `users` | 7 | the six demo people plus `demo.staff` |
+| `services` | 14 | one offer and one request each, `demo.staff` included |
+| `service_categories` | 14 | the category of each service |
+| `service_queues` | 2 | `giulia.bianchi`'s OPEN request, `demo.staff`'s OPEN offer |
+| `agreements` | 5 | one per state worth showing (see below) |
+| `agreement_proposal` | 10 | two per agreement, with their responses |
+| `agreement_details` | 6 | two sheets per accepted agreement, one of them compiled |
+| `chat`, `chat_participants` | 3, 6 | one chat per accepted or cancelled agreement |
+| `chat_messages` | 10 | five per chat, the third chat is empty |
+| `notifications` | 8 | four of them unread |
+| `user_reports` | 2 | one PENDING, one CONFIRMED |
+| `staff_operation_logs` | 2 | the claim and the review of that report |
+| `messenger_messages` | 0 | the async transport, not app data |
+
+The five agreements: one `PENDING` proposed by `giulia.bianchi` and still
+unanswered by `demo.staff`, one `PENDING` proposed by `demo.staff` and still
+unanswered by `giulia.bianchi`, one `ACCEPTED` with both delivery sheets blank
+(`marco.ricci` and `demo.staff`), one `ACCEPTED` with `davide.costa`'s sheet
+compiled and waiting for `chiara.marino` to confirm it, and one `CANCELLED`
+(`sara.mancini` called off the exchange with `luca.ferrari`). A card compiled in
+the seed shows the moment of its last write as the start date: that is schema
+defect G20 (`backend-gaps.md`), not a seed mistake.
+
+### The account that can open everything (`demo.staff` / `demo1234`)
+
+Ideal for a demo that must not stop at a permission error. It holds
+`ROLE_STAFF`, so `/staff` and `/staff-users` (seven accounts) answer, and it is
+a party in three of the five agreements, in one chat, in the staff report queue
+and in one pending report of its own: from a single login you see the catalog,
+the match tab with a queue, the three agreement states it is part of, a chat
+with five messages, an inbox with four rows and a badge of three, the review
+queue and the audit trail those actions wrote. It cannot show everything:
+the two agreements it is not part of (`demo.staff` is a party in three, by
+decision D3) need `chiara.marino` and `sara.mancini` to be opened.
+
+It was created with the backend's own command, not with SQL, so a local staff
+account can be recreated at any time:
+
+```bash
+docker compose exec backend php bin/console app:create-staff \
+  Valentina Moretti demo.staff demo.staff@example.test demo1234
+```
 
 ### The queue demo account (`giulia.bianchi` / `demo1234`)
 
@@ -47,10 +97,11 @@ it sits at **zero credits** because that queue spent the one a new account
 starts with. Since backend `4c90ccd` she also cannot create anything at all: the
 one-queue guard fires before the credit check, so what used to answer
 `400 Not enough credits` for her now answers `500`, and cancelling her queue is
-the only way back (`backend-gaps.md` G23). The six accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
+the only way back (`backend-gaps.md` G23). The seven accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
 request queue), `marco.ricci` (Milano), `sara.mancini` (Torino), `davide.costa`
-(Bologna), `chiara.marino` (Napoli) and `luca.ferrari` (Firenze), the last five
-at one credit each:
+(Bologna), `chiara.marino` (Napoli), `luca.ferrari` (Firenze), the last five
+at one credit each, and `demo.staff` (Bologna, `ROLE_STAFF`, one credit and one
+OPEN offer queue):
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
@@ -93,8 +144,12 @@ curl http://localhost:8000/api/categories    # 200 {"categories":[...]} — GET 
 ```
 
 Reset from scratch: `docker compose down -v`, then up again (re-imports the
-schema and the demo seed on the empty volume — six demo users, password
-`demo1234`, listed above).
+schema and the demo seed on the empty volume — the seven demo accounts of the
+paragraph above, password `demo1234`). **`down -v` deletes the local database**:
+everything created by hand in it is lost, and the volume is rebuilt from the seed
+instead. That is the declared cost of shipping the demo rows in the seed rather
+than in a script: the seed only runs on an empty volume, so there is no way to
+add the new rows to a volume that already exists.
 
 **Measured latency (2026-11-15, after `down -v` + up):** the first call after a
 start reached **7.8 s**, warm calls 2.0–2.6 s, and the client's timeout is 10 s. A

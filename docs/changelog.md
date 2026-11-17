@@ -6,6 +6,46 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — The local database stops looking empty
+
+The seed carried the accounts and their services, then nothing: agreements,
+sheets, chats, messages, notifications, queues and reports were empty tables, so
+every screen reading them opened on its own empty state.
+`Backend/docker/seed-demo.sql` now holds an app in use, and one login opens most
+of it.
+
+- **The scenario** is the one [`briefs/live-demo-seed/plan.md`](briefs/live-demo-seed/plan.md)
+  fixes (D2): five agreements — PENDING received, PENDING sent, ACCEPTED with
+  blank sheets, ACCEPTED with a sheet waiting for confirmation, CANCELLED —
+  three chats (five messages, five, one empty), eight notifications with four
+  unread, two queues, two reports (one open, one reviewed). `setup.md` carries
+  the row counts per table.
+- **Every row comes from a route.** A throwaway script, outside the repo, logged
+  in as the seeded accounts and drove `/create-exchange-agreement`,
+  `/send-agreement-response`, `/send-agreement-details`, `/cancel-agreement`,
+  the chat routes, `/create-service-queue`, `/reports` and the two staff report
+  routes, asserting the status of each call; the seed is the `mysqldump` of what
+  those calls left behind. No hand-written `INSERT`, and the file's header names
+  the routes and the accounts that produced it.
+- **`demo.staff`** is created by `app:create-staff` and is both staff and a
+  party in three exchanges: from one login `/staff`, `/staff-users`, the
+  agreements with their sheets, the chat and the inbox all answer with data. It
+  does not cover the two agreements it is not part of — that is the D3 count — so
+  a full screen pass needs `chiara.marino` and `sara.mancini` as well.
+- **The cost of the reset is stated, not discovered**: the seed only runs on an
+  empty volume, so seeing the new rows means `docker compose down -v`, which
+  deletes the local database. `docs/setup.md` says so next to the count table.
+- Proof: `down -v` plus up twice, identical row counts in both rebuilds and
+  equal to the measurement taken before the dump, for the fourteen seeded
+  tables. `messenger_messages` is the documented exception: it is the async
+  transport, so it is empty after a rebuild.
+- Files: `Backend/docker/seed-demo.sql` (the Docker exception in `AGENTS.md`,
+  owned by the frontend owner — this entry is the notice the backend maintainer
+  gets: no `Backend/src`, no route and no frontend file changed),
+  `docs/setup.md`, `docs/database.md`.
+
+---
+
 ## 2026-11-17 — The residual mobile-audit fixes land
 
 Follow-up to the entry below: the worklist
