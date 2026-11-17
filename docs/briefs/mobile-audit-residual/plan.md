@@ -30,13 +30,25 @@ Stile: `lite` (four small fixes and one docs entry; the minimum that solves).
 ## Steps
 
 - 0. Commit the contract and this plan | files: docs/briefs/mobile-audit-residual/plan-brief.md,docs/briefs/mobile-audit-residual/plan.md | done: the commit exists on `andrea-frontend` and `git status --porcelain` is empty | Stato: DONE
-- 1. Re-measure gate: stop the server on `:8083`, `npx expo export --platform web` on a clean tree, serve `dist`, run `docs/audits/scripts/audit-mobile-360.js` into a new output directory (the script takes `AUDIT_OUT`) | files: docs/audits/scripts/audit-mobile-360.js | done: `misure.json` under `docs/audits/screens-mobile-2026-11-17-remisura/` and one verdict per finding (F1, F2, F7, F9) backed by a number from it | Stato: TODO
-- 2. Lane A — F4: `DateField` (native `@expo/ui` picker on press, `GG/MM/AAAA` on screen, `input[type=date]` on web), new pure helpers in `services/dates.js`, `AgreementSheet` wires the two fields | files: Frontend/src/services/dates.js,Frontend/src/components/DateField.jsx,Frontend/src/components/AgreementSheet.jsx,Frontend/src/services/__tests__/dates.test.js | done: `npx jest` green with boundary tests (ISO in, ISO out, no local-timezone day shift); pressing a field mounts the picker; the payload still carries `YYYY-MM-DD`; `periodoValido` still rejects an end before the start | Stato: TODO
-- 3. Lane B1 — F1 + F2 (only if each survives block 1) | files: Frontend/src/app/edit-profile.jsx,Frontend/src/components/WebNavMenu.jsx | done: at 320 CSS px no form input crosses the viewport; the refresh control measures at least 44×44 in both label states, nothing else in the bar moves | Stato: TODO
-- 4. Lane B2 — F7 + F9 (only if each survives block 1) | files: Frontend/src/components/StaffAreaGate.jsx,Frontend/src/components/EntryCard.jsx | done: `/staff` with a non-staff account offers exactly one way back; the entry-card action labels are complete at 320 px, targets still ≥44 pt | Stato: TODO
-- 5. F5 — new `G27` in `docs/backend-gaps.md`: what the notification payload does not carry and what the inbox cannot do until it does | files: docs/backend-gaps.md | done: `G27` sits after `G26`, names the missing field, the consequence for the reader, and the smallest backend change that closes it; zero frontend lines | Stato: TODO
-- 6. Verdicts and changelog: one line per finding in the record (closed by <commit> / withdrawn with the number / open and why), the worklist closed row by row, one changelog entry for the session | files: docs/audits/ux-mobile-audit-2026-11-17.md,docs/audits/ux-mobile-audit-2026-11-17-open-work.md,docs/changelog.md | done: every id in the worklist has exactly one verdict and each verdict is committed with the change it describes | Stato: TODO
-- 7. Gate and push | files: — | done: `npx expo lint && npx tsc --noEmit && npx jest` green from `Frontend/`, `git status --porcelain` empty, branch pushed to `andrea-frontend` | Stato: TODO
+- 1. Re-measure gate: stop the server on `:8083`, `npx expo export --platform web` on a clean tree, serve `dist`, run `docs/audits/scripts/audit-mobile-360.js` into a new output directory (the script takes `AUDIT_OUT`) | files: docs/audits/scripts/audit-mobile-360.js | done: `misure.json` under `docs/audits/screens-mobile-2026-11-17-remisura/` and one verdict per finding (F1, F2, F7, F9) backed by a number from it | Stato: DONE
+- 2. Lane A — F4: `DateField` (native `@expo/ui` picker on press, `GG/MM/AAAA` on screen, `input[type=date]` on web), new pure helpers in `services/dates.js`, `AgreementSheet` wires the two fields | files: Frontend/src/services/dates.js,Frontend/src/components/DateField.jsx,Frontend/src/components/AgreementSheet.jsx,Frontend/src/services/__tests__/dates.test.js | done: `npx jest` green with boundary tests (ISO in, ISO out, no local-timezone day shift); pressing a field mounts the picker; the payload still carries `YYYY-MM-DD`; `periodoValido` still rejects an end before the start | Stato: DONE
+- 3. Lane B1 — F2, plus the one line F1 needs where it actually breaks (both survive block 1; F1's offender is the `INPUT` inside `AppInput`, and `/register` fails with the same numbers, so the wrapper rows are not the fix) | files: Frontend/src/components/WebNavMenu.jsx,Frontend/src/components/AppInput.jsx | done: at 320 CSS px no element crosses the viewport on `/edit-profile` and `/register`; the refresh control measures at least 44×44 in both label states, nothing else in the bar moves | Stato: DONE
+- 4. Lane B2 — F7 (F9 is **N/A**: withdrawn by block 1 — the same `/offro-e-cerco` screen with the same 8 controls shows `troncati: []` today against 4 truncations at audit time) | files: Frontend/src/components/StaffAreaGate.jsx | done: `/staff` with a non-staff account offers exactly one way back | Stato: DONE
+- 5. F5 — new `G27` in `docs/backend-gaps.md`: what the notification payload does not carry and what the inbox cannot do until it does | files: docs/backend-gaps.md | done: `G27` sits after `G26`, names the missing field, the consequence for the reader, and the smallest backend change that closes it; zero frontend lines | Stato: DONE
+- 6. Verdicts and changelog: one line per finding in the record (closed by <commit> / withdrawn with the number / open and why), the worklist closed row by row, one changelog entry for the session | files: docs/audits/ux-mobile-audit-2026-11-17.md,docs/audits/ux-mobile-audit-2026-11-17-open-work.md,docs/changelog.md | done: every id in the worklist has exactly one verdict and each verdict is committed with the change it describes | Stato: DONE
+- 7. Gate and push | files: — | done: `npx expo lint && npx tsc --noEmit && npx jest` green from `Frontend/`, `git status --porcelain` empty, branch pushed to `andrea-frontend` | Stato: DONE
+
+## Deviations from this plan, as it ran
+
+- **F9 was closed `N/A`** by block 1: no change was made and none was needed.
+- **F1's file moved** from `edit-profile.jsx` to `AppInput.jsx`, because the
+  re-measure found the `INPUT` itself crossing the viewport and the same
+  overflow on `/register`. The plan's step 3 says so.
+- **Lane A was finished by the parent**: the worker wrote the helpers and the
+  component and then hit its tool budget before wiring the sheet. The wiring and
+  the boundary tests were done here rather than in a second run.
+- **Block 6 cites the fix commits**; the record was written once all the fixes
+  existed, so one document states all five verdicts instead of five fragments.
 
 ## Lanes
 
@@ -47,8 +59,10 @@ Stile: `lite` (four small fixes and one docs entry; the minimum that solves).
   `Frontend/src/components/AgreementSheet.jsx`,
   `Frontend/src/services/__tests__/dates.test.js`.
 - **lane-B (two writers, disjoint files)** — blocks 3 and 4.
-  B1: `Frontend/src/app/edit-profile.jsx`, `Frontend/src/components/WebNavMenu.jsx`.
-  B2: `Frontend/src/components/StaffAreaGate.jsx`, `Frontend/src/components/EntryCard.jsx`.
+  B1: `Frontend/src/components/WebNavMenu.jsx`, `Frontend/src/components/AppInput.jsx`.
+  B2: `Frontend/src/components/StaffAreaGate.jsx`.
+  `EntryCard.jsx` and `edit-profile.jsx` are out: F9 is withdrawn and F1's
+  offender is the shared input.
   Neither lane may touch the other's files, and git is the parent's.
 - **shared (parent, last)** — block 5 and 6: `docs/backend-gaps.md`,
   `docs/audits/ux-mobile-audit-2026-11-17.md`,

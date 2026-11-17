@@ -6,6 +6,36 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — The residual mobile-audit fixes land
+
+Follow-up to the entry below: the worklist
+[`audits/ux-mobile-audit-2026-11-17-open-work.md`](audits/ux-mobile-audit-2026-11-17-open-work.md)
+was executed in one cycle, **re-measuring before touching anything**.
+
+- **F4 (dates typed by hand) is closed.** `Frontend/src/components/DateField.jsx`
+  shows `GG/MM/AAAA`, opens the platform picker on native
+  (`@expo/ui/community/datetime-picker`, already installed) and a real
+  `input[type=date]` on web; the sheet's state, `periodoValido` and the wire keep
+  the ISO `YYYY-MM-DD` day. The conversions live in `services/dates.js` and use
+  the local getters — `toISOString()` would ship the previous day east of UTC.
+- **F9 is withdrawn, not fixed.** Same screen, same 8 controls at 320 px:
+  `troncati: []` today against four truncated labels at audit time. `667815a`
+  (no `numberOfLines` on `AppButton`) had already closed it.
+- **F1, F2, F7 closed**: `minWidth: 0` on the input inside `AppInput` (the 320 px
+  overflow hit `/edit-profile` *and* `/register`, so the fix belongs to the
+  field), `minWidth: target.min` on the web nav's refresh control (42×44 →
+  44×44), one way back on `/staff`.
+- **F5 is a backend gap, not a fix**: `G27` in [`backend-gaps.md`](backend-gaps.md)
+  — a `CHAT_MESSAGE` notification carries no preview, so the inbox cannot be
+  triaged.
+- Re-measure evidence: `audits/screens-mobile-2026-11-17-remisura/` (the numbers,
+  plus the `/staff` capture). The harness now takes `AUDIT_OUT`, so a re-run no
+  longer overwrites the record's captures.
+- Gate: `expo lint`, `tsc --noEmit` and `jest` green (32 suites, 356 tests); the
+  iOS bundle still exports, which is what proves the picker's native import.
+
+---
+
 ## 2026-11-17 — One mobile-audit finding withdrawn, one that was already fixed
 
 Review of [`audits/ux-mobile-audit-2026-11-17.md`](audits/ux-mobile-audit-2026-11-17.md)

@@ -10,6 +10,11 @@ after review" before touching any number below: two findings of the original nin
 are gone (F6 withdrawn, F8 closed by `7b5d016`), and the remaining ones were
 measured on a bundle that predates 18 commits.
 
+**Closed.** The cycle ran on `bc94e08` and its outcome is §7: F4, F1, F2 and F7
+closed, F9 withdrawn by the re-measure, F5 filed as `G27`, F3 no action. This
+file stays as the worklist that was executed, with the numbers that decided each
+row.
+
 ---
 
 ## 1. What is actually left
@@ -160,7 +165,7 @@ cosa resta aperto e perché.
 integration lane runs after both, and it is the only one that touches `docs/`
 apart from G27.
 
-## 6. Open decisions for Andrea
+## 6. Open decisions for Andrea — answered in §7
 
 1. **F4 shape** — a `DateField` component (English file name, Italian props per
    D026) or the picker inline in `AgreementSheet`? Two call sites today, both on
@@ -175,3 +180,23 @@ apart from G27.
 4. **F2 vs F3 consistency** — F3 is exempted as an inline link while F2 is fixed
    as an icon button. Confirm the line stays where it is: real controls get 44,
    inline text links do not.
+
+## 7. Outcome
+
+Re-measured first (fresh export of `bc94e08`, same harness, same demo data, 51
+measurements): `screens-mobile-2026-11-17-remisura/misure.json`. Verdicts with
+the numbers are in the record, §"The fix cycle — outcome".
+
+| id | outcome |
+| --- | --- |
+| F4 | closed by `7c4a760` — `DateField`: platform picker on native, real `input[type=date]` on web, `GG/MM/AAAA` on screen, ISO day on the wire, `periodoValido` untouched |
+| F2 | closed by `5edfd46` — 44×44 at 320 and 375, was 42×44 |
+| F1 | closed by `391a8de` — no element crosses a 320 px viewport on `/edit-profile` or `/register`; the fix is `minWidth: 0` on the input inside `AppInput`, not the form row (the re-measure moved the fix) |
+| F7 | closed by `6d84820` — one way back on `/staff` |
+| F9 | **withdrawn** — same screen, same 8 controls, `troncati: []` against 4 truncations at audit time: `667815a` had already fixed it |
+| F5 | open, filed as **G27** in `backend-gaps.md`; no frontend change |
+| F3 | no action, as decided |
+
+The four decisions of §6 went: `DateField` as its own component; a real
+`input[type=date]` on web; F9 withdrawn, so no copy change was ever needed; the
+44 pt line stays where it was (real controls 44, inline text links exempt).
