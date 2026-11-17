@@ -54,8 +54,8 @@ function premi(renderer, accessibilityLabel) {
 }
 
 /**
- * Lo stesso controllo, l'ultimo che porta quel nome: il bottone che apre un
- * pannello e la conferma dentro il pannello possono chiamarsi uguale.
+ * The same control, the last one carrying that name: the button that opens a
+ * panel and the confirm inside the panel can be called the same.
  */
 function premiUltimo(renderer, accessibilityLabel) {
   const controllo = renderer.root
@@ -167,8 +167,8 @@ describe('AgreementSheet — read-only and confirmation', () => {
     premi(renderer, 'Conferma la scheda');
     expect(onConferma).not.toHaveBeenCalled();
 
-    // Due nodi con il nome dell'atto: il bottone che ha aperto il pannello e la
-    // conferma che ci sta dentro. Il secondo è quello che conferma davvero.
+    // Two nodes carry the name of the act: the button that opened the panel and
+    // the confirm inside it. The second one is the one that confirms.
     const conQuelNome = (node) =>
       node.props?.accessibilityLabel === 'Conferma la scheda' &&
       typeof node.props.onPress === 'function';
