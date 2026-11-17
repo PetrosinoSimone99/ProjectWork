@@ -147,6 +147,16 @@ Silently having both is the defect. Note for planning: renames are **never** a
 `Lanes:` item (`ship.md`: "Mai in lane: rinomine e refactor diffusi"), so W9 runs
 single.
 
+**Correction 2026-11-17, from W9.** Two facts above do not survive `git log`:
+`match.jsx` was created on **2026-11-07** and `QueueCard.jsx` on **2026-11-15**
+(`git log --diff-filter=A`), not on 2026-11-16, and `GATE_NEED_ONE` is English —
+the list mixes flags that are English with helpers that are not. The deeper
+reading is D026: the Italian in those files is the contract layer the whole tree
+shares (hook return objects, row props, the normalised shape), so this was never
+"rename four files" — renaming them alone forks six conventions. What was really
+inconsistent is smaller: the helpers and flags invented inside the new files were
+Italian while their neighbours were English. Closed in W9 below.
+
 ### B7. No error boundary on any route — P1
 
 `grep -rn "ErrorBoundary\|componentDidCatch" Frontend/src` returns nothing. A throw
@@ -566,7 +576,10 @@ test. Residual for a later item.
 
 ### W9 — English identifiers in the new files (needs a decision first)
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-17) — plan:
+[`../briefs/w9-naming/plan.md`](../briefs/w9-naming/plan.md) (class `M`, not `L`: the
+measurement moved the item from "rename four files" to "record the rule and fix
+the helpers").
 
 - Edit: `src/app/(tabs)/match.jsx`, `src/components/QueueCard.jsx`,
   `src/hooks/useAgreements.js`, `src/hooks/useNotifications.js`, plus every import
@@ -579,6 +592,23 @@ test. Residual for a later item.
   it. Not a `Lanes:` candidate.
 - Ship: `M: 6-8 file (0 nuovi), 2 figli, ~1-2 h` →
   `/ship "naming coerente nei file nuovi"`
+
+What landed: `docs/decisions.md` D026 splits the tree in two layers — **English
+structure** (files, routes, exports, helpers, constants, flags) and an **Italian
+internal contract** (normalised shape, hook return objects, the props that carry a
+row, a state or an action) — with one word per concept and no sweep. The code
+change is the part that was really inconsistent: the helpers and flags invented
+inside the new files (`rimborsaUnCredito` → `refundsCredit`, `codaAttiva` →
+`activeQueue`, `confermaAnnullamento` → `cancelConfirmMessage`, `apribile` →
+`canOpen`, `etichettaApri` → `openLabel`, `bloccoInformativo` → `infoBlock`) and
+the test helpers (`PREFISSO_APRI` → `OPEN_LABEL_PREFIX`, `premi` → `press`,
+`pulsante` → `button`, `CODA` → `QUEUE`, `CODA_ATTIVA` → `ACTIVE_QUEUE`).
+The props were left alone on purpose: `coda`, `occupata`, `onAnnulla`, `onApri`
+are the words `ServiceCard`, `AgreementCard`, `NotificationRow` and `ConfirmModal`
+already use, and D026 turns them into the contract — renaming them in one card was
+the fork to avoid. The two hooks keep their Italian return objects for the same
+reason. `AGENTS.md` (Code language) and `docs/frontend.md:15-31` now state the two
+layers; the user-facing copy never changed.
 
 ### W10 — Unread count while the screen is open
 
@@ -655,7 +685,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | 6 | ~~W4 staff surface~~ | **done** 2026-11-17: the four documented endpoints are wired, plan in `docs/briefs/w4-staff-surface/` |
 | 7 | ~~W10 unread polling~~ | **done** 2026-11-17: the profile badge polls every 30 s while focused, plan in `docs/briefs/w10-unread-polling/` |
 | 8 | ~~W7 hook tests~~ | **done** 2026-11-17: 25 tests on the two stateful hooks and the match gate, plan in `docs/briefs/w7-hook-tests/` |
-| 9 | W9 naming + W8 docs | last: both touch many files and depend on the decisions above |
+| 9 | ~~W9 naming~~ + W8 docs | **W9 done** 2026-11-17: the rule is recorded (D026) and the helpers follow it, plan in `docs/briefs/w9-naming/`; W8 is still open |
 
 Grouping that is safe in one `/ship` run (disjoint files, no shared decisions):
 `W5 + W10` (both 2 files, no overlap) and `W2 + W3` **only if** W3 drops the
@@ -663,7 +693,8 @@ agreement entry point (both touch `AgreementCard.jsx` otherwise). Everything els
 runs on its own; `/ship` will write the `Lanes:` section for each.
 
 Every item closes with the same non-negotiables: pre-push gate green
-(`npx expo lint`, `npx tsc --noEmit`, `npx jest`), docs updated in the same commit,
+(`npx expo lint`, `npx tsc --noEmit`; `npx jest` verifies a change but is not in
+the gate, D019), docs updated in the same commit,
 `docs/changelog.md` entry, no `EXPO_PUBLIC_DATI_FINTI`, no invented data, every
 loading/empty/error state explicit, UI copy in Italian, identifiers per the
 decision taken in W9.

@@ -23,7 +23,7 @@ const QUEUE = {
 function renderCard(queue, extra = {}) {
   let renderer;
   act(() => {
-    renderer = create(<QueueCard queue={queue} {...extra} />);
+    renderer = create(<QueueCard coda={queue} {...extra} />);
   });
   return renderer;
 }
@@ -79,8 +79,8 @@ function renderedButtons(renderer) {
 
 describe('QueueCard agreement link', () => {
   it('opens the agreement when the queue is linked', () => {
-    const onOpen = jest.fn();
-    const renderer = renderCard({ ...QUEUE, agreementId: 7 }, { onOpen });
+    const onApri = jest.fn();
+    const renderer = renderCard({ ...QUEUE, agreementId: 7 }, { onApri });
 
     // The count is taken over rendered elements: the memo/function layers of
     // the one Pressable repeat the same props, so they are not three buttons.
@@ -95,12 +95,12 @@ describe('QueueCard agreement link', () => {
     expect(openable[0].props.accessibilityLabel).toContain(QUEUE.descrizione);
 
     pressOpen(renderer);
-    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onApri).toHaveBeenCalledTimes(1);
   });
 
   it('stays inert when the queue has no agreement', () => {
-    const onOpen = jest.fn();
-    const renderer = renderCard({ ...QUEUE, agreementId: null }, { onOpen });
+    const onApri = jest.fn();
+    const renderer = renderCard({ ...QUEUE, agreementId: null }, { onApri });
 
     expect(withOpenLabel(renderer)).toHaveLength(0);
 
@@ -109,23 +109,23 @@ describe('QueueCard agreement link', () => {
     expect(renderedButtons(renderer).map((node) => node.props.accessibilityLabel)).toEqual([
       'Annulla questa coda',
     ]);
-    expect(renderer.root.findAll((node) => node.props?.onPress === onOpen)).toHaveLength(0);
+    expect(renderer.root.findAll((node) => node.props?.onPress === onApri)).toHaveLength(0);
   });
 
   it('never opens the agreement from the cancel button', async () => {
-    const onOpen = jest.fn();
+    const onApri = jest.fn();
     const onAnnulla = jest.fn();
-    const renderer = renderCard({ ...QUEUE, agreementId: 7 }, { onOpen, onAnnulla });
+    const renderer = renderCard({ ...QUEUE, agreementId: 7 }, { onApri, onAnnulla });
 
     // The row's cancel button only opens the confirm panel; the panel's
     // confirm is the one that reaches `onAnnulla`.
     press(renderer, 'Annulla questa coda');
-    expect(onOpen).not.toHaveBeenCalled();
+    expect(onApri).not.toHaveBeenCalled();
 
     press(renderer, 'Annulla coda');
     await act(async () => {});
 
     expect(onAnnulla).toHaveBeenCalledTimes(1);
-    expect(onOpen).not.toHaveBeenCalled();
+    expect(onApri).not.toHaveBeenCalled();
   });
 });

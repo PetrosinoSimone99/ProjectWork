@@ -6,6 +6,53 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — W9: the naming rule now describes the tree
+
+Session start: `git fetch origin`. `andrea-frontend` was **1 ahead, 0 behind**
+`origin/andrea-frontend`; 313 ahead of `origin/main`, 0 behind. No merge needed,
+nothing pushed to `main`. Plan: [`briefs/w9-naming/plan.md`](briefs/w9-naming/plan.md).
+
+### Why
+
+Audit B6 (`docs/audits/frontend-gap-analysis-2026-11-16.md:132`) said the newest
+code is Italian against `AGENTS.md` ("all new code is written in English") and
+offered two exits: rename the files, or amend the rule. Measuring first changed
+the item. The five object-returning hooks are Italian from their first commit, the
+row props of `ServiceCard`, `AgreementCard`, `NotificationRow` and `EntryCard` are
+Italian, and `api/normalizers.js:10-12` documents the Italian UI shape as the
+single contract every screen reads: renaming the four files the item named would
+have forked six conventions the rest of the tree shares. B6 also carried two wrong
+facts — `match.jsx` is from 2026-11-07 and `QueueCard.jsx` from 2026-11-15, not
+2026-11-16, and `GATE_NEED_ONE` is English.
+
+### What landed
+
+1. **D026 — two layers, one vocabulary.** Structure is English (files, routes,
+   exports, helpers, constants, flags); the internal contract is Italian, one word
+   per concept at every layer it crosses (normalised shape, hook return objects,
+   row/state/action props); no sweeps — D013's rename-on-next-touch is unchanged.
+2. **`docs/frontend.md:15-31`** rewrote the code-language bullets and the naming
+   section on those two layers; **`AGENTS.md`** (Code language) says the same.
+3. **The helpers that really were inconsistent are English now**: `refundsCredit`
+   and `activeQueue` in `match.jsx` (the second was `codaAttiva`),
+   `cancelConfirmMessage`, `canOpen`, `openLabel` and `infoBlock` in
+   `QueueCard.jsx`, plus the test helpers of the two touched suites (`press`,
+   `button`, `node`, `renderCard`, `OPEN_LABEL_PREFIX`, `QUEUE`, `ACTIVE_QUEUE`,
+   `OFFER_SERVICE`, `REQUEST_SERVICE`).
+4. **Props deliberately not renamed.** `coda`, `occupata`, `onAnnulla` and
+   `onApri` are the words the other cards already use, and the hooks keep their
+   Italian return objects: D026 makes them the contract, so renaming one card's
+   copy of them is the fork to avoid, not the fix.
+5. **The audit document corrected**: the B6 dates and the closing line that put
+   `npx jest` in the gate (D019 keeps it outside; jest verifies a change).
+
+### Verification
+
+`npx expo lint` and `npx tsc --noEmit` green. `npx jest` green on the two touched
+suites (3 tests in `QueueCard`, 5 in `match`), no assertion changed and no test
+added: the existing ones pin every renamed symbol. No user copy touched — the
+renames never reached a string.
+
 ## 2026-11-17 — W7: the two stateful hooks and the match gate have tests
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**

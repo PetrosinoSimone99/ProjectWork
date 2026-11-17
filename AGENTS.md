@@ -75,10 +75,17 @@ API-related. Canonical sources live in `Backend/README.md` and
 
 ## Code language
 
-**All new code is written in English** — identifiers, comments, strings the
-team reads, test names, docs. Italian names may exist only in legacy modules
-already in the repo (they are grandfathered, not extended). Reply language for
-chat with Andrea is Italian; artifacts are English.
+**Two layers, one vocabulary** ([`docs/decisions.md`](docs/decisions.md) D026).
+_Structure in English_: file names, directories, route paths, exported symbols,
+comments, commit messages, and every helper, constant or flag invented inside a
+file (`busy`, `canOpen`, `refundsCredit`). _The internal contract in Italian_, with
+one word per concept at every layer it crosses: the normalised UI shape (`tipo`,
+`stato`, `localita`, `descrizione`), the return object of every hook, and the
+props that carry a row, a state or an action (`coda`, `servizio`, `occupata`,
+`azioneInCorso`, `onApri`, `onAnnulla`). A parameter or local that receives a prop
+keeps the prop's name. Nothing is renamed in a sweep: an Italian name outside that
+contract is renamed when its file is next touched. UI copy is Italian; reply
+language for chat with Andrea is Italian, artifacts are English.
 
 ## Pre-push gate (hard rule)
 

@@ -262,10 +262,13 @@ the same), the component props are Italian (`occupata` on four components,
 `onAnnulla` on eight, `titolo`/`messaggio` on `ConfirmModal`), and
 `api/normalizers.js:10-12` documents the Italian UI shape as the single contract
 every screen reads. The defect the 2026-11-16 audit found in B6 is not that
-Italian exists; it is that one concept had two names in the same file — the same
-queue row is `queue` in `match.jsx:189` and `coda` at `:269` — while `api/` and
-`services/` already call the concept `queue` (`listQueues`, `hasActiveQueue`,
-`QueueCard`).
+Italian exists. B6 read the same row as `queue` in one function of `match.jsx` and
+as `coda` at its call site as a collision; measured against the rest of the tree it
+is the boundary described below, a local against a prop. What was really
+inconsistent is smaller: the helpers and flags invented inside the new files were
+Italian (`rimborsaUnCredito`, `confermaAnnullamento`, `apribile`, `etichettaApri`,
+`bloccoInformativo`, `codaAttiva`) while their neighbours in the same files were
+English.
 *Decision:* two layers, one vocabulary.
 (1) **Structure is English**: file names, directories, route paths, exported
 symbols, comments, commit messages, and every local identifier that describes
@@ -274,13 +277,20 @@ symbols, comments, commit messages, and every local identifier that describes
 (2) **The internal contract is Italian**, with the same word at every layer it
 crosses: the normalised shape (`tipo`, `stato`, `localita`, `descrizione`,
 `categoria`, `daRemoto`, `nonLette`), the return object of every hook, and the
-props that carry that shape or that state (`occupata`, `azioneInCorso`,
-`onAnnulla`). Renaming a contract word at one layer only — `occupata` to `busy`
-in one card while three other components keep `occupata` — is the defect, not the
-Italian.
-*Consequences:* W9 renames nothing inside the hooks: their contract is legal and
-shared with the screens that consume it. It closes the name collisions in the new
-files and makes `AGENTS.md`, `docs/frontend.md` and the code state the same rule.
+props that carry that shape, that state or that action: the row props (`coda`,
+`servizio`, `accordo`, `notifica`, `voce`) and the state and action props
+(`occupata`, `azioneInCorso`, `onApri`, `onAnnulla`, `onLetta`). Renaming a
+contract word at one layer only — `occupata` to `busy` in one card while three
+other components keep `occupata` — is the defect, not the Italian. A parameter or
+local that receives a prop keeps that prop's name, so the call site needs no alias
+(`coda={queue}`, `occupata={busy}`); a flag or a helper invented inside a file is
+English (`busy`, `activeQueue`, `refundsCredit`, `canOpen`, `openLabel`,
+`infoBlock`), and so is a module constant or a test fixture (`QUEUE`,
+`OFFER_SERVICE`).
+*Consequences:* W9 renames nothing inside the hooks — their contract is legal and
+shared with the screens that consume it — and nothing on the prop boundary: it
+renames the Italian helpers and flags of the four new files and their tests, which
+makes `AGENTS.md`, `docs/frontend.md` and the code state the same rule.
 No sweep: an Italian name that is not a contract word is renamed when its file is
 next touched, which is D013's mechanism unchanged. Declared leftovers inside the
 Italian hook contracts: `actionError` and `refreshing`/`onRefresh` in

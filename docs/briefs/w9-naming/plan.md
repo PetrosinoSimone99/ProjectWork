@@ -71,29 +71,34 @@ nessun cambio di comportamento, nessun test nuovo (i test esistenti sono la veri
   verificabile su un file citato (hook, `normalizers.js:10-12`, props) e nessuna riga di
   `frontend.md` contraddice D026 | Stato: DONE — la voce di `changelog.md` è passata al passo 6, insieme ai
   fatti finali (rinomine e review), per non scriverla due volte
-- 2. `QueueCard.jsx`: prop `coda`→`queue`, `onApri`→`onOpen`, `confermaAnnullamento`→
-  `cancelConfirmMessage`, `apribile`→`canOpen`, `etichettaApri`→`openLabel`,
-  `bloccoInformativo`→`infoBlock`; le chiavi lette (`queue.tipo`, `queue.stato`, `queue.localita`,
-  `queue.descrizione`, `queue.categoria`, `queue.daRemoto`, `queue.agreementId`) restano la shape
-  italiana | files: `Frontend/src/components/QueueCard.jsx` | done: `grep -n "coda\|apribile\|etichettaApri\|bloccoInformativo"` sul file → solo stringhe utente | Stato: DONE
-- 3. `match.jsx`: call site `coda={`→`queue={`, `onApri`→`onOpen`, `rimborsaUnCredito`→
-  `refundsCredit` (param `queue`), `codaAttiva`→`activeQueue` | files:
-  `Frontend/src/app/(tabs)/match.jsx` | done: nessun `codaAttiva`/`rimborsaUnCredito` residuo,
-  `npx jest match` verde | Stato: DONE
+- 2. `QueueCard.jsx`: `confermaAnnullamento`→`cancelConfirmMessage`, `apribile`→`canOpen`,
+  `etichettaApri`→`openLabel`, `bloccoInformativo`→`infoBlock`. La prop `coda` e la chiave letta
+  `coda.tipo`/`coda.stato` **restano** (contratto, D026): un primo passaggio le aveva portate a
+  `queue`, sbagliando verso — `ServiceCard({servizio})`, `AgreementCard({accordo})`,
+  `NotificationRow({notifica})` usano la stessa forma, e la rinomina di una sola card forkava | files:
+  `Frontend/src/components/QueueCard.jsx` | done: nessun helper italiano superstite, `coda`/`onApri`
+  invariati, jest verde | Stato: DONE
+- 3. `match.jsx`: `rimborsaUnCredito`→`refundsCredit`, `codaAttiva`→`activeQueue`; call site
+  `coda={queue}` e `onApri` **invariati** (stesso motivo del passo 2) | files:
+  `Frontend/src/app/(tabs)/match.jsx` | done: nessun `codaAttiva`/`rimborsaUnCredito` residuo, `queue`
+  resta il nome delle locali, `npx jest match` verde | Stato: DONE
 - 4. Test: `QueueCard.test.js` (`CODA`→`QUEUE`, `renderCoda`→`renderCard`,
-  `PREFISSO_APRI`→`OPEN_LABEL_PREFIX`, `premi`→`press`, `pulsante`→`button`, prop `queue`/`onOpen`)
-  e la fixture `CODA_ATTIVA`→`ACTIVE_QUEUE` in `match.test.js` | files:
+  `PREFISSO_APRI`→`OPEN_LABEL_PREFIX`, `premi`→`press`, `pulsante`→`button`, `nodo`→`node`,
+  `apribili`→`openable`) e `match.test.js` (`CODA_ATTIVA`→`ACTIVE_QUEUE`,
+  `SERVIZIO_*`→`OFFER_SERVICE`/`REQUEST_SERVICE`, `unaSolaOfferta`→`singleOffer`,
+  `unServizioPerTipo`→`oneServicePerType`, `raccogli`→`collect`, `testo`→`text`); prop `<QueueCard
+  coda={...}>` invariata | files:
   `Frontend/src/components/__tests__/QueueCard.test.js`,`Frontend/src/app/(tabs)/__tests__/match.test.js`
   | done: `npx jest --testPathPatterns "match|QueueCard"` verde con 8 test (3 + 5), invariati nel numero,
   e nessuna stringa utente toccata: le rinomine non passano mai dentro la copy | Stato: DONE
 - 5. `AGENTS.md` (root) sezione "Code language": due strati in ≤6 righe, nessuna affermazione
   contraddetta da D026 | files: `AGENTS.md` | done: la sezione nomina i due strati e il criterio "un
-  concetto, una parola" | Stato: TODO — **approvazione richiesta: Q2**
+  concetto, una parola" | Stato: DONE — approvato con la risposta "approvato" (Q2)
 - 6. Audit: W9 → `Stato: chiuso 2026-11-17` con link a questo brief; in B6 correggere le date
   (`match.jsx` 11-07, `QueueCard` 11-15) e la riga finale che mette jest nel gate (D019 lo tiene
   fuori: qui jest è *verifica*, non gate) | files:
   `docs/audits/frontend-gap-analysis-2026-11-16.md` | done: nessuna affermazione del documento è
-  smentita da `git log` o da `package.json` | Stato: TODO
+  smentita da `git log` o da `package.json` | Stato: DONE — + voce in `docs/changelog.md` (fatti finali)
 - 7. Gate completo + review a contesto fresco, 3 angoli in sola lettura (correttezza, dati/sicurezza,
   coerenza col brief) | files: — | done: `npx expo lint`, `npx tsc --noEmit`, `npx jest` verdi e zero
   finding P0/P1 | Stato: TODO

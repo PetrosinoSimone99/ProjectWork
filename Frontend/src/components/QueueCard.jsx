@@ -14,7 +14,7 @@ import { space, useTokens } from '@/theme/tokens';
  * follows light and dark without a second palette.
  *
  * A type keeps the same color whatever the state (identity), a status changes
- * with it: green for a live queue, amber for one already in progress, neutral
+ * with it: green for a live coda, amber for one already in progress, neutral
  * for a closed one. An unknown word falls back to the neutral pair — the
  * label next to it says the rest.
  */
@@ -33,25 +33,25 @@ const STATUS_COLORS = {
 const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondary });
 
 /**
- * One row of `GET /get-queues`: type chip, what the queue is about, where it
+ * One row of `GET /get-queues`: type chip, what the coda is about, where it
  * stands, and the cancel action behind a `ConfirmModal`.
  *
- * The confirm message names the real consequence of `POST /cancel-queue/{id}`:
- * when the queue carries an agreement the backend cancels that agreement too
+ * The confirm message names the real consequence of `POST /cancel-coda/{id}`:
+ * when the coda carries an agreement the backend cancels that agreement too
  * (`ServiceQueueManager::cancelServiceQueue`), so a user who only meant to
- * close a queue learns what else disappears before tapping. A `REQUEST` queue
+ * close a coda learns what else disappears before tapping. A `REQUEST` coda
  * with no agreement gets its credit back on the same route, and the message
  * says so: the money moved by the backend is not visible anywhere else
  * (`backend-gaps.md` G15).
  *
- * When `queue.agreementId` is not null and `onOpen` is a function, the
+ * When `coda.agreementId` is not null and `onApri` is a function, the
  * informational blocks below (type, description, category, place, status)
  * become one pressable button labelled `Apri lo scambio collegato a questa
  * coda`; the cancel action and its modal stay outside that pressable, so a tap
  * there can only cancel.
  *
  * Data and callbacks only: no network, no mutation of the input. `occupata`
- * is the screen's "an action is in flight" flag: while it is true no queue
+ * is the screen's "an action is in flight" flag: while it is true no coda
  * can be cancelled again. The modal stays open (its confirm button showing
  * `loading`) until `onAnnulla` settles — closing it at tap time would hide the
  * only progress indicator of the action.
@@ -61,35 +61,35 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  *
  * One early return per consequence, because the three cases are different
  * sentences and not three branches of the same one: an agreement goes with the
- * queue, a request queue gives the credit back, an offer queue only leaves the
+ * coda, a request coda gives the credit back, an offer coda only leaves the
  * match.
  */
-function cancelConfirmMessage(queue) {
-  if (queue.agreementId !== null) {
+function cancelConfirmMessage(coda) {
+  if (coda.agreementId !== null) {
     return 'Questa coda è collegata a uno scambio: annullandola annulli anche lo scambio.';
   }
-  if (queue.tipo === 'REQUEST') {
+  if (coda.tipo === 'REQUEST') {
     return 'Annullando questa coda non appare più nel match e il credito che ha speso torna disponibile.';
   }
   return 'Annullando questa coda non appare più nel match.';
 }
 
-export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null }) {
+export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) {
   const t = useTokens();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const typeColor = (TYPE_COLORS[queue.tipo] ?? NEUTRAL_COLORS)(t);
-  const statusColor = (STATUS_COLORS[queue.stato] ?? NEUTRAL_COLORS)(t);
+  const typeColor = (TYPE_COLORS[coda.tipo] ?? NEUTRAL_COLORS)(t);
+  const statusColor = (STATUS_COLORS[coda.stato] ?? NEUTRAL_COLORS)(t);
 
   // Same rule as the service detail: the location when there is one, the mode
   // when the service is remote, and "not indicated" when neither says anything.
-  const place = queue.localita
-    ? localitaPerDisplay(queue.localita)
-    : queue.daRemoto === true
+  const place = coda.localita
+    ? localitaPerDisplay(coda.localita)
+    : coda.daRemoto === true
       ? 'Da remoto'
       : 'Località non indicata';
 
-  const confirmMessage = cancelConfirmMessage(queue);
+  const confirmMessage = cancelConfirmMessage(coda);
 
   // One pressable around the informational blocks only when there is somewhere
   // to go: a linked agreement and a caller able to take it there. The cancel
@@ -98,17 +98,17 @@ export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null })
   // "Annulla coda" navigate.
   // Integer, like the notification half: a missing key would be `undefined`,
   // which `!== null` would treat as linked.
-  const canOpen = Number.isInteger(queue.agreementId) && typeof onOpen === 'function';
+  const canOpen = Number.isInteger(coda.agreementId) && typeof onApri === 'function';
 
   // A `button` makes its descendants presentational, so a fixed label would stop
   // the description, the category, the place and the status from being announced
   // on exactly the linked rows: the name is folded out of the visible strings,
   // the same fix F50 needed in `ServiceCard`.
   const openLabel = `Apri lo scambio collegato a questa coda: ${[
-    queue.descrizione,
-    queue.categoria ?? 'Categoria non indicata',
+    coda.descrizione,
+    coda.categoria ?? 'Categoria non indicata',
     place,
-    queueStatusLabel(queue.stato),
+    queueStatusLabel(coda.stato),
   ]
     .filter(Boolean)
     .join('. ')}`;
@@ -117,18 +117,18 @@ export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null })
     <>
       <Chip background={typeColor.background}>
         <AppText variant="caption" style={{ color: typeColor.color }}>
-          {queueTypeLabel(queue.tipo)}
+          {queueTypeLabel(coda.tipo)}
         </AppText>
       </Chip>
 
-      {queue.descrizione ? (
-        <AppText numberOfLines={2}>{queue.descrizione}</AppText>
+      {coda.descrizione ? (
+        <AppText numberOfLines={2}>{coda.descrizione}</AppText>
       ) : null}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="pricetag-outline" size={14} color={t.textSecondary} />
         <AppText variant="small" tone="secondary">
-          {queue.categoria ?? 'Categoria non indicata'}
+          {coda.categoria ?? 'Categoria non indicata'}
         </AppText>
       </View>
 
@@ -149,10 +149,10 @@ export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null })
       >
         <Chip background={statusColor.background}>
           <AppText variant="caption" style={{ color: statusColor.color }}>
-            {queueStatusLabel(queue.stato)}
+            {queueStatusLabel(coda.stato)}
           </AppText>
         </Chip>
-        {queue.agreementId !== null ? (
+        {coda.agreementId !== null ? (
           <AppText variant="small" tone="secondary">
             Collegata a uno scambio
           </AppText>
@@ -167,7 +167,7 @@ export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null })
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={openLabel}
-          onPress={onOpen}
+          onPress={onApri}
           style={({ pressed }) => ({ gap: space.sm, opacity: pressed ? 0.7 : 1 })}
         >
           {infoBlock}
@@ -191,7 +191,7 @@ export function QueueCard({ queue, occupata = false, onAnnulla, onOpen = null })
         loading={occupata}
         onConferma={() => {
           void (async () => {
-            await onAnnulla(queue);
+            await onAnnulla(coda);
             setConfirmOpen(false);
           })();
         }}

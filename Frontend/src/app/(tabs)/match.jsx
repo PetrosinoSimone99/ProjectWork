@@ -266,10 +266,10 @@ export default function MatchScreen() {
           {queues.map((queue) => (
             <QueueCard
               key={queue.id}
-              queue={queue}
+              coda={queue}
               occupata={busy}
               onAnnulla={cancel}
-              onOpen={() => router.push('/agreements')}
+              onApri={() => router.push('/agreements')}
             />
           ))}
         </View>
