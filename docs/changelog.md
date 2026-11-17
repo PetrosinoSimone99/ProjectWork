@@ -17,7 +17,7 @@ nothing pushed to `main`. Plan: [`briefs/w9-naming/plan.md`](briefs/w9-naming/pl
 Audit B6 (`docs/audits/frontend-gap-analysis-2026-11-16.md:132`) said the newest
 code is Italian against `AGENTS.md` ("all new code is written in English") and
 offered two exits: rename the files, or amend the rule. Measuring first changed
-the item. The five object-returning hooks are Italian from their first commit, the
+the item. The object-returning hooks are Italian from their first commit, the
 row props of `ServiceCard`, `AgreementCard`, `NotificationRow` and `EntryCard` are
 Italian, and `api/normalizers.js:10-12` documents the Italian UI shape as the
 single contract every screen reads: renaming the four files the item named would
@@ -31,27 +31,40 @@ facts — `match.jsx` is from 2026-11-07 and `QueueCard.jsx` from 2026-11-15, no
    exports, helpers, constants, flags); the internal contract is Italian, one word
    per concept at every layer it crosses (normalised shape, hook return objects,
    row/state/action props); no sweeps — D013's rename-on-next-touch is unchanged.
-2. **`docs/frontend.md:15-31`** rewrote the code-language bullets and the naming
-   section on those two layers; **`AGENTS.md`** (Code language) says the same.
+2. **`docs/frontend.md:16-53`** rewrote the code-language bullets and the naming
+   section on those two layers; **`AGENTS.md`** (Code language, plus the "Code
+   style" line that still said English-only) says the same.
 3. **The helpers that really were inconsistent are English now**: `refundsCredit`
    and `activeQueue` in `match.jsx` (the second was `codaAttiva`),
    `cancelConfirmMessage`, `canOpen`, `openLabel` and `infoBlock` in
-   `QueueCard.jsx`, plus the test helpers of the two touched suites (`press`,
-   `button`, `node`, `renderCard`, `OPEN_LABEL_PREFIX`, `QUEUE`, `ACTIVE_QUEUE`,
-   `OFFER_SERVICE`, `REQUEST_SERVICE`).
+   `QueueCard.jsx`, the five Italian locals left in `match.jsx` (`quanti` →
+   `count`, `voce` → `typeWord`, `esitoCode`/`esitoServizi` →
+   `outcomeQueues`/`outcomeServices`, `guasto` → `failure`), plus the test helpers
+   of the two touched suites only (`press`, `button`, `node`, `renderedButtons`,
+   `renderCard`, `openable`, `OPEN_LABEL_PREFIX`, `QUEUE`, `ACTIVE_QUEUE`,
+   `OFFER_SERVICE`, `REQUEST_SERVICE`). The same words survive on purpose in
+   `NotificationRow`, `AgreementSheet.test` and `MessageComposer.test`, outside
+   this item.
 4. **Props deliberately not renamed.** `coda`, `occupata`, `onAnnulla` and
    `onApri` are the words the other cards already use, and the hooks keep their
    Italian return objects: D026 makes them the contract, so renaming one card's
-   copy of them is the fork to avoid, not the fix.
+   copy of them is the fork to avoid, not the fix. Declared leftovers that stay:
+   `actionError` (`useAgreements`), `refreshing`/`onRefresh` (`useRefresh`, also
+   surfaced by `useServiceCatalog`), and `hasActiveQueue(code)` in `services/` —
+   which is why the rule says *data* hooks and not *every* hook.
 5. **The audit document corrected**: the B6 dates and the closing line that put
    `npx jest` in the gate (D019 keeps it outside; jest verifies a change).
 
 ### Verification
 
 `npx expo lint` and `npx tsc --noEmit` green. `npx jest` green on the two touched
-suites (3 tests in `QueueCard`, 5 in `match`), no assertion changed and no test
-added: the existing ones pin every renamed symbol. No user copy touched — the
-renames never reached a string.
+suites (3 tests in `QueueCard`, 5 in `match`) and 346 green in the whole suite, no
+assertion changed and no test added: the existing ones pin every renamed symbol.
+No user copy touched — the renames never reached a string. Three read-only review
+angles (correctness, data and claims, coherence with the brief) found no P0; their
+P1/P2 were documentation statements this entry and D026 had overstated (the hook
+quantifier, `useRefresh`, the alias rule) plus the five locals above, all fixed
+before the push.
 
 ## 2026-11-17 — W7: the two stateful hooks and the match gate have tests
 

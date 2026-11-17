@@ -332,7 +332,7 @@ coercion.
 One fact the run corrected against the plan: react-test-renderer exposes a
 `Pressable`'s accessibility props on the composite layers *and* the host view, so
 "exactly one node with that label and role" counts three. `QueueCard.test.js`
-counts rendered host elements only (`pulsantiRenderati`); `NotificationRow.test.js`
+counts rendered host elements only (`renderedButtons`, `pulsantiRenderati` in 2026-11-15); `NotificationRow.test.js`
 asserts the *actionable* node (prefix + role + handler), because a host filter
 there would count the same press twice. And the sibling spacing inside the card
 comes from the card's own `gap`, which a new wrapper swallows: both pressables
@@ -601,13 +601,15 @@ change is the part that was really inconsistent: the helpers and flags invented
 inside the new files (`rimborsaUnCredito` → `refundsCredit`, `codaAttiva` →
 `activeQueue`, `confermaAnnullamento` → `cancelConfirmMessage`, `apribile` →
 `canOpen`, `etichettaApri` → `openLabel`, `bloccoInformativo` → `infoBlock`) and
-the test helpers (`PREFISSO_APRI` → `OPEN_LABEL_PREFIX`, `premi` → `press`,
-`pulsante` → `button`, `CODA` → `QUEUE`, `CODA_ATTIVA` → `ACTIVE_QUEUE`).
+the test helpers of those two suites only (`PREFISSO_APRI` → `OPEN_LABEL_PREFIX`,
+`premi` → `press`, `pulsante` → `button`, `CODA` → `QUEUE`, `CODA_ATTIVA` →
+`ACTIVE_QUEUE`; the same words survive on purpose in `NotificationRow`,
+`AgreementSheet.test` and `MessageComposer.test`, which are outside this item).
 The props were left alone on purpose: `coda`, `occupata`, `onAnnulla`, `onApri`
 are the words `ServiceCard`, `AgreementCard`, `NotificationRow` and `ConfirmModal`
 already use, and D026 turns them into the contract — renaming them in one card was
 the fork to avoid. The two hooks keep their Italian return objects for the same
-reason. `AGENTS.md` (Code language) and `docs/frontend.md:15-31` now state the two
+reason. `AGENTS.md` (Code language) and `docs/frontend.md:16-53` now state the two
 layers; the user-facing copy never changed.
 
 ### W10 — Unread count while the screen is open

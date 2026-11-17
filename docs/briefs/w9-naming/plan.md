@@ -17,45 +17,53 @@ Fonte: `docs/audits/frontend-gap-analysis-2026-11-16.md` (B6, W9).
 
 ## Brief
 
-**Obiettivo.** La regola scritta e l'albero dicono la stessa cosa, e un oggetto non ha due nomi nello
-stesso file. Il difetto di B6 non è "esiste l'italiano": è che `AGENTS.md` ("all new code is written
-in English"), `docs/frontend.md:18-28` e D013 dicono una cosa che l'albero non ha mai fatto.
+**Obiettivo.** La regola scritta e l'albero dicono la stessa cosa, e un identificatore non ha due
+nomi per lo stesso ruolo. Il difetto di B6 non è "esiste l'italiano": è che `AGENTS.md` ("all new
+code is written in English"), `docs/frontend.md:16-34` e D013 dicono una cosa che l'albero non ha mai
+fatto.
 
 **Fatti misurati** (2026-11-17, `git log --diff-filter=A`, `grep`):
 
-- I 5 hook con ritorno a oggetto sono italiani **uniformemente dal primo commit**:
+- Gli hook con ritorno a oggetto sono italiani **uniformemente dal primo commit**:
   `useAgreements` (11-09) `accordi/caricamento/errore/rispondi/azioneInCorso`, `useNotifications`
   (11-15) `elementi/nonLette/azioneInCorso/ricarica/segnaLetta/elimina`, `useServiceCatalog` (11-07),
   `useUserServices`, `useSessionExpiry`. Nessuno è "legacy": la regola non li ha mai descritti.
-- I props delle card sono italiani per convenzione (`occupata` su 4 componenti, `onAnnulla` su 8,
-  `titolo`/`messaggio` su `ConfirmModal`), anche nei file nuovi.
+  L'eccezione è `useRefresh` (11-09), che ritorna `refreshing`/`onRefresh`.
+- I props delle card sono italiani per convenzione (`occupata` su `AgreementSheet` e `QueueCard`,
+  `onAnnulla` su ogni superficie di conferma, `titolo`/`messaggio` su `ConfirmModal`), anche nei file
+  nuovi.
 - `api/normalizers.js:10-12` dichiara la shape UI italiana (`tipo`, `stato`, `localita`,
   `descrizione`, `categoria`, `daRemoto`) come contratto unico letto da ogni schermata.
-- Il concetto "coda" è **già inglese** in `api/` e `services/`: `listQueues`, `createQueue`,
-  `cancelQueue`, `hasActiveQueue`, `servicesOfQueueType`, `normalizeQueues`, `QueueCard`,
-  `queueTypeLabel`. Gli unici nomi italiani del concetto sono la prop `coda`, il parametro di
-  `rimborsaUnCredito(coda)`/`confermaAnnullamento(coda)` e la fixture `CODA`. Questi sono la
-  collisione vera: lo stesso oggetto si chiama `queue` alle righe 189-203 di `match.jsx:189,203` e
-  `coda` alla riga 269.
+- Il concetto "coda" è **già inglese** in `api/` e `services/` (`listQueues`, `createQueue`,
+  `cancelQueue`, `servicesOfQueueType`, `normalizeQueues`, `QueueCard`, `queueTypeLabel`), con una
+  riserva dichiarata: `services/queues.js:96-99` ha `hasActiveQueue(code)` e un callback `coda` —
+  cartella D013, si rinomina al prossimo tocco. La prop `coda` e la locale `queue` nello stesso file
+  (`match.jsx`) sembrano una collisione; misurate contro il resto dell'albero sono il confine
+  prop-italiana/locale-inglese. Il difetto vero, quello che la review ha confermato, sono gli helper
+  e i flag italiani in mezzo a vicini inglesi.
 - Correzione al documento d'audit: B6 dice "match tab e card scritti il 2026-11-16"; git dice
   `match.jsx` 2026-11-07 e `QueueCard.jsx` 2026-11-15. Il passo 6 corregge.
 
-**Decisione chiusa (D026, da scrivere al passo 1).** Due strati, un vocabolario:
+**Decisione chiusa (D026, scritta al passo 1).** Due strati, un vocabolario:
 (1) *struttura* = inglese — file, directory, route, export, e ogni identificatore locale che dice
 come il codice lavora (helper, costanti, flag); (2) *contratto interno* = italiano, con la stessa
-parola a ogni strato che attraversa — la shape normalizzata, i ritorni degli hook, i props che
-portano quella shape o quello stato (`occupata`, `azioneInCorso`, `onAnnulla`); un concetto, una
-parola, e rinominarlo a un solo strato è il difetto. (3) Nessuno sweep: un italiano fuori da (2) si
-rinomina quando il file si tocca (meccanismo D013 invariato), e restano dichiarati
-`actionError`/`refreshing`/`onRefresh` dentro i contratti italiani degli hook.
+parola a ogni strato che attraversa — la shape normalizzata, i ritorni dei **data hooks**, i props che
+portano una riga, uno stato o un'azione (`coda`, `occupata`, `azioneInCorso`, `onApri`, `onAnnulla`).
+Il locale di una riga resta inglese e il prop resta italiano, quindi l'incrocio è un alias al call
+site (`coda={queue}`, `occupata={busy}`): è il confine, non la collisione. (3) Nessuno sweep: un
+italiano fuori da (2) si rinomina quando il file si tocca (meccanismo D013 invariato); restano
+dichiarati `actionError` (`useAgreements`), `refreshing`/`onRefresh` (`useRefresh`, riesposti da
+`useServiceCatalog`) e `hasActiveQueue(code)` (`services/`).
 
 **Vincoli.** Nessuna rinomina diffusa, nessuna lane (le rinomine non sono mai una lane:
 `ship.md`). `Backend/**` e `Context_and_DB_V2/**` intatti. UI copy in italiano, invariata: nessuna
 stringa utente cambia in questo item.
 
-**Criteri di successo.** `grep -rn "coda" Frontend/src` non trova più la prop né i parametri (restano
-solo stringhe utente e commenti); nessun identificatore fuori da (2) in italiano nei due file toccati;
-D026, `docs/frontend.md`, `AGENTS.md` e il codice dicono la stessa cosa; gate verde.
+**Criteri di successo.** Nei due file toccati non resta nessun identificatore italiano fuori da (2):
+un `grep` delle parole residue trova solo shape key e props del contratto (`coda`, `occupata`,
+`onAnnulla`, `onApri`, `tipo`, `stato`, `localita`, `descrizione`, `categoria`, `daRemoto`). D026,
+`docs/frontend.md`, `AGENTS.md` e il codice dicono la stessa cosa, e nessuna delle tre afferma un
+numero o un fatto che l'albero non mostra. Gate verde.
 
 **Esclusioni.** Non si rinominano i hook (contratto legale per D026), non si toccano `useChat`,
 `useServiceCatalog`, `AgreementCard`, `AgreementSheet`, `ConfirmModal` (rinomina al prossimo tocco),
@@ -78,13 +86,16 @@ nessun cambio di comportamento, nessun test nuovo (i test esistenti sono la veri
   `NotificationRow({notifica})` usano la stessa forma, e la rinomina di una sola card forkava | files:
   `Frontend/src/components/QueueCard.jsx` | done: nessun helper italiano superstite, `coda`/`onApri`
   invariati, jest verde | Stato: DONE
-- 3. `match.jsx`: `rimborsaUnCredito`→`refundsCredit`, `codaAttiva`→`activeQueue`; call site
-  `coda={queue}` e `onApri` **invariati** (stesso motivo del passo 2) | files:
-  `Frontend/src/app/(tabs)/match.jsx` | done: nessun `codaAttiva`/`rimborsaUnCredito` residuo, `queue`
-  resta il nome delle locali, `npx jest match` verde | Stato: DONE
+- 3. `match.jsx`: `rimborsaUnCredito`→`refundsCredit`, `codaAttiva`→`activeQueue`, e le cinque locali
+  italiane rimaste (`quanti`→`count`, `voce`→`typeWord`, `esitoCode`/`esitoServizi`→
+  `outcomeQueues`/`outcomeServices`, `guasto`→`failure`); call site `coda={queue}` e `onApri`
+  **invariati** (stesso motivo del passo 2) | files:
+  `Frontend/src/app/(tabs)/match.jsx` | done: nessun `codaAttiva`/`rimborsaUnCredito` né locale
+  italiana fuori dal contratto, `queue` resta il nome delle locali, `npx jest match` verde | Stato: DONE
 - 4. Test: `QueueCard.test.js` (`CODA`→`QUEUE`, `renderCoda`→`renderCard`,
   `PREFISSO_APRI`→`OPEN_LABEL_PREFIX`, `premi`→`press`, `pulsante`→`button`, `nodo`→`node`,
-  `apribili`→`openable`) e `match.test.js` (`CODA_ATTIVA`→`ACTIVE_QUEUE`,
+  `apribili`→`openable`, `pulsantiRenderati`→`renderedButtons`, `conEtichettaApri`→`withOpenLabel`,
+  `premiApri`→`pressOpen`) e `match.test.js` (`CODA_ATTIVA`→`ACTIVE_QUEUE`,
   `SERVIZIO_*`→`OFFER_SERVICE`/`REQUEST_SERVICE`, `unaSolaOfferta`→`singleOffer`,
   `unServizioPerTipo`→`oneServicePerType`, `raccogli`→`collect`, `testo`→`text`); prop `<QueueCard
   coda={...}>` invariata | files:
@@ -101,7 +112,10 @@ nessun cambio di comportamento, nessun test nuovo (i test esistenti sono la veri
   smentita da `git log` o da `package.json` | Stato: DONE — + voce in `docs/changelog.md` (fatti finali)
 - 7. Gate completo + review a contesto fresco, 3 angoli in sola lettura (correttezza, dati/sicurezza,
   coerenza col brief) | files: — | done: `npx expo lint`, `npx tsc --noEmit`, `npx jest` verdi e zero
-  finding P0/P1 | Stato: TODO
+  finding P0/P1 | Stato: DONE — 3 angoli chiusi, zero P0; i tre P1 e i sei P2 erano affermazioni
+  documentali troppo larghe (quantificatore sui hook, `useRefresh` non dichiarato, la riga
+  "English-only naming" in `AGENTS.md`, l'alias prop/locale) più le cinque locali del passo 3:
+  corrette prima del push, nessuna modifica di comportamento
 - 8. Push su `andrea-frontend` | files: — | done: `git status --porcelain` vuoto, gate verde,
   fast-forward su `origin/andrea-frontend` | Stato: TODO
 

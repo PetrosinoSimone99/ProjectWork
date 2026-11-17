@@ -19,18 +19,22 @@ real; the current set is Expo's plus nothing else.
   symbols, components, hooks, comments, commit messages, and every local
   identifier that describes *how* the code works (helpers, constants, flags).
 - **The internal contract in Italian, one word per concept**: the normalised
-  shape (`tipo`, `stato`, `localita`, `descrizione`, `categorie`), the return
-  object of every hook, and the props that carry that shape or that state
-  (`occupata`, `azioneInCorso`, `onAnnulla`). The same concept keeps the same word
-  at every layer it crosses: a row named `coda` in one function and `queue` in the
-  next is the defect, not the language.
+  shape (`tipo`, `stato`, `localita`, `descrizione`, `categorie` — examples, not a
+  closed list), the return object of the data hooks, and the props that carry a
+  row, a state or an action (`coda`, `servizio`, `occupata`, `azioneInCorso`,
+  `onApri`, `onAnnulla`). Same concept, same word at every layer it crosses. A
+  local that holds a row is English while the prop is Italian, so the crossing is
+  an alias at the call site (`coda={queue}`, `occupata={busy}`) — that is the
+  boundary, not a collision; `coda` and `queue` for the *same* role is the defect.
 - **UI copy in Italian**: everything the user reads, including error messages,
   empty states and accessibility labels.
 - Italian names inside `api/` and `services/` that are not contract words
-  (`ottieniCatalogo`, `creaSegnalazione`) are grandfathered and renamed when the
-  file is next touched, never in a sweep. Two declared leftovers sit inside the
-  Italian hook contracts (`actionError`, `refreshing`/`onRefresh` in
-  `useAgreements`) and go with that file's next touch. Reasoning:
+  (`ottieniCatalogo`, `creaSegnalazione`, `hasActiveQueue(code)`) are grandfathered
+  and renamed when the file is next touched, never in a sweep. Declared leftovers
+  inside the Italian hook contracts: `actionError` in `useAgreements`, and
+  `refreshing`/`onRefresh` in `useRefresh` (surfaced again by `useServiceCatalog`) —
+  which is why the contract layer above says *data* hooks and not *every* hook.
+  They go with their file's next touch. Reasoning:
   [`decisions.md`](decisions.md) D013, D020, D026.
 
 ## File and function size
@@ -45,8 +49,9 @@ hook under `src/hooks/`.
 `camelCase` for variables and functions, `PascalCase` for components and types,
 `UPPER_SNAKE_CASE` for constants, `use*` for hooks, `is/has/should/can` for
 boolean locals. A component file exports a component with the same name as the
-file. One concept keeps one word across the tree: `coda` and `queue` for the same
-row is a defect even when both names are readable (D026).
+file. One concept keeps one word per layer: the row local stays English and the
+prop stays Italian (`coda={queue}`), which is the boundary, not a collision
+(D026).
 
 ## States are explicit
 

@@ -77,15 +77,17 @@ API-related. Canonical sources live in `Backend/README.md` and
 
 **Two layers, one vocabulary** ([`docs/decisions.md`](docs/decisions.md) D026).
 _Structure in English_: file names, directories, route paths, exported symbols,
-comments, commit messages, and every helper, constant or flag invented inside a
-file (`busy`, `canOpen`, `refundsCredit`). _The internal contract in Italian_, with
-one word per concept at every layer it crosses: the normalised UI shape (`tipo`,
-`stato`, `localita`, `descrizione`), the return object of every hook, and the
+comments, commit messages, and every local identifier that describes *how* the
+code works — helpers, constants, flags (`busy`, `canOpen`, `refundsCredit`).
+_The internal contract in Italian_, with one word per concept at every layer it
+crosses: the normalised UI shape (`tipo`, `stato`, `localita`, `descrizione` —
+examples, not a closed list), the return object of the data hooks, and the
 props that carry a row, a state or an action (`coda`, `servizio`, `occupata`,
-`azioneInCorso`, `onApri`, `onAnnulla`). A parameter or local that receives a prop
-keeps the prop's name. Nothing is renamed in a sweep: an Italian name outside that
-contract is renamed when its file is next touched. UI copy is Italian; reply
-language for chat with Andrea is Italian, artifacts are English.
+`azioneInCorso`, `onApri`, `onAnnulla`). A row local stays English while the prop
+stays Italian, so the crossing is an alias at the call site (`coda={queue}`) —
+the boundary, not a collision. Nothing is renamed in a sweep: an Italian name
+outside that contract is renamed when its file is next touched. UI copy is
+Italian; reply language for chat with Andrea is Italian, artifacts are English.
 
 ## Pre-push gate (hard rule)
 
@@ -136,7 +138,8 @@ dev container serving Symfony on port 8000).
 
 ## Code style (details live in docs/frontend.md)
 
-- English-only naming; write code as if the backend team will read it.
+- Structure English, contract Italian (D026); write code as if the backend team
+  will read it.
 - Every UI state is explicit: loading, empty, error. Never silently swallow
   errors; surface them.
 - No emoji in code or UI copy. No hardcoded secrets or backend URLs.
