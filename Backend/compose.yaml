@@ -24,11 +24,13 @@ services:
       # ../Context_and_DB_V2/LAST_DB_TO_USE.txt: barattolo_15112026.sql, the
       # 15-table schema of the current backend (notifications, queues, chat,
       # messenger included). That dump is STRUCTURE ONLY, so the demo rows come
-      # from the next mount: ./docker/seed-demo.sql carries 50 categories, six
-      # accounts (password `demo1234`) with one offer and one request each, and
-      # one OPEN queue: the rows the app writes, dumped from a database those
-      # registrations produced. Without it the app cannot register or log
-      # in, because /api/categories would answer with an empty list.
+      # from the next mount: ./docker/seed-demo.sql carries 50 categories, seven
+      # accounts (password `demo1234`) with one offer and one request each, two
+      # OPEN queues, and the rows the app writes through its own routes — five
+      # agreements across the states worth showing, three chats, eight
+      # notifications, two reports and the staff account `demo.staff`. Without it
+      # the app cannot register or log in, because /api/categories would answer
+      # with an empty list.
       # docker-entrypoint-initdb.d runs the files in name order and only on an
       # empty data volume: after changing these lines the stack needs
       # `docker compose down -v`.

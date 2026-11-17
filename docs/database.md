@@ -26,7 +26,7 @@ copied dump. It covers **fourteen** of the fifteen tables — everything but
 | `services`, `service_categories` | 14, 14 | one offer and one request each, `demo.staff` included; the form posts them |
 | `service_queues` | 2 | `POST /create-service-queue` (the second one spends no credit: it is an `OFFER` queue) |
 | `agreements`, `agreement_proposal` | 5, 10 | `POST /create-exchange-agreement` + `POST /send-agreement-response` |
-| `agreement_details` | 6 | two blank sheets per accepted agreement, one of them compiled by `POST /send-agreement-details` |
+| `agreement_details` | 6 | two sheets per agreement that went through `ACCEPTED`, the later-cancelled one included; one of the six was compiled by `POST /send-agreement-details` |
 | `chat`, `chat_participants`, `chat_messages` | 3, 6, 10 | `GET /chats/agreement/{id}` creates the chat, `POST /chats/send-message/{chatId}` the messages |
 | `notifications` | 8 | written by the routes above (four left unread) |
 | `user_reports` | 2 | `POST /reports` (one of them `CONFIRMED` through the staff routes) |

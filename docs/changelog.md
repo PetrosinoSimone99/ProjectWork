@@ -39,10 +39,12 @@ of it.
   equal to the measurement taken before the dump, for the fourteen seeded
   tables. `messenger_messages` is the documented exception: it is the async
   transport, so it is empty after a rebuild.
-- Files: `Backend/docker/seed-demo.sql` (the Docker exception in `AGENTS.md`,
-  owned by the frontend owner — this entry is the notice the backend maintainer
-  gets: no `Backend/src`, no route and no frontend file changed),
-  `docs/setup.md`, `docs/database.md`.
+- Files: `Backend/docker/seed-demo.sql` and `Backend/compose.yaml` (the Docker
+  exception in `AGENTS.md`, owned by the frontend owner — this entry is the
+  notice the backend maintainer gets: the seed changed and the comment in
+  `compose.yaml` that describes it was brought back in line, while no
+  `Backend/src`, no route and no frontend file changed), `docs/setup.md`,
+  `docs/database.md`.
 
 ---
 

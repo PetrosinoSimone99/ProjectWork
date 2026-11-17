@@ -49,9 +49,9 @@ from.
 | `service_queues` | 2 | `giulia.bianchi`'s OPEN request, `demo.staff`'s OPEN offer |
 | `agreements` | 5 | one per state worth showing (see below) |
 | `agreement_proposal` | 10 | two per agreement, with their responses |
-| `agreement_details` | 6 | two sheets per accepted agreement, one of them compiled |
+| `agreement_details` | 6 | two sheets per agreement that went through `ACCEPTED` (the later-cancelled one included); one of the six is `COMPILED` |
 | `chat`, `chat_participants` | 3, 6 | one chat per accepted or cancelled agreement |
-| `chat_messages` | 10 | five per chat, the third chat is empty |
+| `chat_messages` | 10 | five in each of the two populated chats; the third chat is empty |
 | `notifications` | 8 | four of them unread |
 | `user_reports` | 2 | one PENDING, one CONFIRMED |
 | `staff_operation_logs` | 2 | the claim and the review of that report |
@@ -66,13 +66,13 @@ compiled and waiting for `chiara.marino` to confirm it, and one `CANCELLED`
 the seed shows the moment of its last write as the start date: that is schema
 defect G20 (`backend-gaps.md`), not a seed mistake.
 
-### The account that can open everything (`demo.staff` / `demo1234`)
+### The account that can open everything (`demo.staff` / `demo1234`, local only)
 
 Ideal for a demo that must not stop at a permission error. It holds
 `ROLE_STAFF`, so `/staff` and `/staff-users` (seven accounts) answer, and it is
 a party in three of the five agreements, in one chat, in the staff report queue
 and in one pending report of its own: from a single login you see the catalog,
-the match tab with a queue, the three agreement states it is part of, a chat
+the match tab with a queue, the three agreements it is part of (two states), a chat
 with five messages, an inbox with four rows and a badge of three, the review
 queue and the audit trail those actions wrote. It cannot show everything:
 the two agreements it is not part of (`demo.staff` is a party in three, by
