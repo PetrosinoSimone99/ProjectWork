@@ -58,10 +58,12 @@ export function AppButton({
           {icon ? (
             <AppIcon name={icon} size={17} color={palette.text} style={styles.icon} />
           ) : null}
-          {/* Una riga sola (audit UX F71/F83): un'etichetta che va a capo dentro
-              una pillola alta 50 sembra un altro bottone. Se non ci sta, si
-              accorcia — la scelta di impilare i comandi la fa chi li dispone. */}
-          <AppText numberOfLines={1} style={{ color: palette.text, fontWeight: '600' }}>
+          {/* L'etichetta può andare a capo. Il clamp a una riga che stava qui
+              (audit UX F71/F83) troncava il testo a scala 200%, dove la parola
+              non ci sta più larga: la pillola cresce in altezza (`minHeight`,
+              non altezza fissa) e il testo resta centrato. Quanto spazio dare a
+              ogni comando lo decide chi li dispone, non il bottone. */}
+          <AppText style={{ color: palette.text, fontWeight: '600', textAlign: 'center' }}>
             {label}
           </AppText>
         </>

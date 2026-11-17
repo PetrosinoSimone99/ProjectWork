@@ -29,7 +29,10 @@ export default function TabsLayout() {
           backgroundColor: t.surface,
           borderTopColor: t.border,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        // Niente misura fissa sull'etichetta della barra: a scala testo 200%
+        // una dimensione in pixel la taglia invece di lasciarla crescere
+        // (WCAG 1.4.4). Il peso resta, perché è la gerarchia e non la misura.
+        tabBarLabelStyle: { fontWeight: '600' },
       }}
     >
       {/* Titoli e icone arrivano da TAB_ROUTES: la stessa lista del menu del web,
