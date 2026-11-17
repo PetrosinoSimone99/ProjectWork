@@ -358,6 +358,7 @@ export default function RegisterScreen() {
         <AppText variant="heading">I tuoi dati</AppText>
         <View style={{ flexDirection: 'row', gap: space.md }}>
           <View style={{ flex: 1 }}>
+            {/* Invio invia da qualunque campo, come nel login: la validazione mette il primo errore sotto il suo campo, quindi un Invio precoce spiega invece di rompere. */}
             <AppInput
               label="Nome"
               value={form.nome}
@@ -366,6 +367,7 @@ export default function RegisterScreen() {
               autoCapitalize="words"
               maxLength={LIMITE_NOME}
               error={fieldErrors.nome ?? null}
+              onSubmitEditing={() => void handleSubmit()}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -377,6 +379,7 @@ export default function RegisterScreen() {
               autoCapitalize="words"
               maxLength={LIMITE_COGNOME}
               error={fieldErrors.cognome ?? null}
+              onSubmitEditing={() => void handleSubmit()}
             />
           </View>
         </View>
@@ -388,6 +391,7 @@ export default function RegisterScreen() {
           autoCapitalize="none"
           maxLength={LIMITE_USERNAME}
           error={fieldErrors.username ?? null}
+          onSubmitEditing={() => void handleSubmit()}
         />
         <AppInput
           label="Email"
@@ -397,6 +401,7 @@ export default function RegisterScreen() {
           keyboardType="email-address"
           maxLength={LIMITE_EMAIL}
           error={fieldErrors.email ?? null}
+          onSubmitEditing={() => void handleSubmit()}
         />
         <AppInput
           label="Password"
@@ -405,6 +410,7 @@ export default function RegisterScreen() {
           placeholder={`almeno ${MIN_PASSWORD_LENGTH} caratteri`}
           secureTextEntry
           error={fieldErrors.password ?? null}
+          onSubmitEditing={() => void handleSubmit()}
         />
         <ListSelector
           label="Provincia"
