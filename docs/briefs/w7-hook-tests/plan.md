@@ -142,7 +142,7 @@ toccata: `git diff --stat` del ciclo nomina solo `__tests__/`, `package.json`,
 - 2. Coverage dichiarata | files: Frontend/package.json, Frontend/.gitignore | done: `collectCoverageFrom` elenca i due hook di W7; `npx jest --coverage src/hooks/__tests__` riporta **91,93% statements** su `useAgreements.js` e **90,69%** su `useServiceCatalog.js`, nessun altro file nel report; `coverage/` è ignorato, perché il report HTML generato rendeva l'albero sporco a ogni misura | Stato: DONE
 - 3. Documenti | files: docs/audits/frontend-gap-analysis-2026-11-16.md, docs/changelog.md | done: W7 è `Stato: chiuso` con cosa è atterrato e la coverage misurata; la restrizione di `collectCoverageFrom` è scritta; il residuo single-flight di `useAgreements` è registrato; B5 rimanda a W8 e resta aperto; changelog con voce nuova in testa | Stato: DONE
 - 4. Gate e review | files: — | done: `npx expo lint`, `npx tsc --noEmit`, `npx jest` verdi; tre angoli di review a contesto fresco con verdict `MERGE` e nessun P0/P1; i sette P2 applicati: fixture del catalogo su `descrizione` (non `mansione`), mock `expo-router` azzerato nei due `beforeEach`, test del blur in `useAgreements` (nona regola di fatto, ora provata), assert su `classificati` resa concreta, conteggio "eight" in B5, `.gitignore` e commit dei documenti | Stato: DONE
-- 5. Push su `andrea-frontend` (mai su `main`) | files: — | done: albero pulito, gate verde, push riuscito, nessun `--force` | Stato: TODO
+- 5. Push su `andrea-frontend` (mai su `main`) | files: — | done: albero pulito, gate verde, push riuscito, nessun `--force` | Stato: DONE
 
 ## Lanes:
 
