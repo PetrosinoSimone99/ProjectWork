@@ -120,10 +120,10 @@ what the doc implies: **11 files in `src/hooks/` have zero tests**, and
 sample chosen by hand.
 Judgment: the document measures the wrong thing and reads as a coverage claim.
 W7 (2026-11-17) closed the hooks half of this: `useAgreements.js` and
-`useServiceCatalog.js` went from 0% to 91.93%/90.69% statements and are now in
+`useServiceCatalog.js` went from 0% to 95.16%/90.69% statements and are now in
 `collectCoverageFrom`. The wording in `docs/frontend.md:120-126` is still wrong
-and is W8's to fix — the folder holds nine hooks with no test, not eleven, and
-the JSON lists five files, not two.
+and is W8's to fix — the folder holds eight files with no test of their own, not
+eleven, and the JSON lists five files, not two.
 
 ### B6. New code is written in Italian, against the repo's own rule — P2
 
@@ -513,7 +513,7 @@ What landed: 25 tests in three files — `useAgreements.test.js` (9),
 `useServiceCatalog.test.js` (11) and `src/app/(tabs)/__tests__/match.test.js` (5,
 which renders the screen and presses the two create buttons by their
 `accessibilityLabel`). Measured with `npx jest --coverage src/hooks/__tests__`:
-**91.93% statements** on `useAgreements.js` (0% before) and **90.69%** on
+**95.16% statements** on `useAgreements.js` (0% before) and **90.69%** on
 `useServiceCatalog.js` (0% before), and `Frontend/package.json:55-61` now lists
 both hooks in `collectCoverageFrom`. The suite went from 29 suites / 320 tests to
 32 / 345, all green; no production file was touched.

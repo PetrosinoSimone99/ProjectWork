@@ -131,17 +131,17 @@ src/hooks/__tests__` dà ≥80% statements su `useAgreements.js` e
 `useServiceCatalog.js`. (c) Il gate di `match` è provato su tutti e tre i rami:
 zero servizi del tipo, più di uno, coda attiva, azione in volo. (d) Gate verde:
 `npx expo lint`, `npx tsc --noEmit`, `npx jest`. (e) Nessuna riga di produzione
-toccata: `git diff --stat` del ciclo nomina solo `__tests__/`, `package.json` e
-`docs/`.
+toccata: `git diff --stat` del ciclo nomina solo `__tests__/`, `package.json`,
+`Frontend/.gitignore` e `docs/`.
 
 ## Passi
 
 - 0. Commit del contratto e del piano | files: docs/briefs/w7-hook-tests/plan.md | done: il commit esiste e `git status --porcelain` è vuoto | Stato: DONE
 - 1. Onda 1 — i tre file di test, un `worker` per file | files: Frontend/src/hooks/__tests__/useAgreements.test.js, Frontend/src/hooks/__tests__/useServiceCatalog.test.js, Frontend/src/app/(tabs)/__tests__/match.test.js | done: i tre file esistono; `npx jest src/hooks/__tests__ "src/app/(tabs)/__tests__/match.test.js"` verde; ogni `it` ha un nome comportamentale e nessun test è saltato o `.todo` | Stato: DONE
 - 1b. Riscrivere `useNotifications.test.js` | files: Frontend/src/hooks/__tests__/useNotifications.test.js | done: nessuna modifica, il file è di W10 (decisione 2) | Stato: N/A
-- 2. Coverage dichiarata | files: Frontend/package.json | done: `collectCoverageFrom` elenca i due hook di W7; `npx jest --coverage src/hooks/__tests__` riporta **91,93% statements** su `useAgreements.js` e **90,69%** su `useServiceCatalog.js`, nessun altro file nel report | Stato: DONE
+- 2. Coverage dichiarata | files: Frontend/package.json, Frontend/.gitignore | done: `collectCoverageFrom` elenca i due hook di W7; `npx jest --coverage src/hooks/__tests__` riporta **91,93% statements** su `useAgreements.js` e **90,69%** su `useServiceCatalog.js`, nessun altro file nel report; `coverage/` è ignorato, perché il report HTML generato rendeva l'albero sporco a ogni misura | Stato: DONE
 - 3. Documenti | files: docs/audits/frontend-gap-analysis-2026-11-16.md, docs/changelog.md | done: W7 è `Stato: chiuso` con cosa è atterrato e la coverage misurata; la restrizione di `collectCoverageFrom` è scritta; il residuo single-flight di `useAgreements` è registrato; B5 rimanda a W8 e resta aperto; changelog con voce nuova in testa | Stato: DONE
-- 4. Gate e review | files: — | done: `npx expo lint`, `npx tsc --noEmit`, `npx jest` verdi; tre angoli di review a contesto fresco con verdict, P0/P1/P2 applicati solo col consenso del padre | Stato: TODO
+- 4. Gate e review | files: — | done: `npx expo lint`, `npx tsc --noEmit`, `npx jest` verdi; tre angoli di review a contesto fresco con verdict `MERGE` e nessun P0/P1; i sette P2 applicati: fixture del catalogo su `descrizione` (non `mansione`), mock `expo-router` azzerato nei due `beforeEach`, test del blur in `useAgreements` (nona regola di fatto, ora provata), assert su `classificati` resa concreta, conteggio "eight" in B5, `.gitignore` e commit dei documenti | Stato: DONE
 - 5. Push su `andrea-frontend` (mai su `main`) | files: — | done: albero pulito, gate verde, push riuscito, nessun `--force` | Stato: TODO
 
 ## Lanes:

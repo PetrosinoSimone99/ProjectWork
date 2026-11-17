@@ -25,12 +25,13 @@ flight) with no test either.
 
 ### What landed
 
-1. **Two hook test files, 20 tests** (`src/hooks/__tests__/`): the stale-response
-drop, the failed reload that keeps the rows, the busy slot that names the
-agreement, the reload and the sentence after an action, the action failure that
-lands in `actionError` and leaves the list alone, the retry that repeats the
-request that failed, append-in-copy for «Carica altri», the province that clears
-the comune, the focus reload that skips itself while filters are applied.
+1. **Two hook test files, 21 tests** (`src/hooks/__tests__/`): the stale-response
+drop, the response in flight dropped on blur, the failed reload that keeps the
+rows, the busy slot that names the agreement, the reload and the sentence after
+an action, the action failure that lands in `actionError` and leaves the list
+alone, the retry that repeats the request that failed, append-in-copy for «Carica
+altri», the province that clears the comune, the focus reload that skips itself
+while filters are applied.
 2. **A screen test for `match.jsx`, 5 tests**: zero services of the type, more
 than one, an active queue that closes both buttons, and a second create that
 never starts while the first is in flight. It renders the real screen with
@@ -38,14 +39,30 @@ never starts while the first is in flight. It renders the real screen with
 no production file changed.
 3. **Coverage that names what it measures** (`Frontend/package.json:55-61`):
 `collectCoverageFrom` gained `useAgreements.js` and `useServiceCatalog.js`, the
-two files W7 tests. Measured: **0% → 91.93%** and **0% → 90.69%** statements.
+two files W7 tests. Measured: **0% → 95.16%** and **0% → 90.69%** statements.
 The folder-wide `src/hooks/**` was rejected on purpose: 80% there needs tests on
 eight hooks this cycle did not touch, so the number would be decoration.
 4. **`Frontend/.gitignore`** gained `coverage/`: `npx jest --coverage` writes its
 HTML report there and the tree stopped being clean after every measurement.
 
 Gate at close: `npx expo lint` clean, `npx tsc --noEmit` clean, `npx jest`
-**32 suites / 345 tests green** (from 29 / 320).
+**32 suites / 346 tests green** (from 29 / 320).
+
+### Review, and the seven findings it produced
+
+Three fresh-context angles (correctness, data and security, coherence with the
+plan) all returned `MERGE` with no P0/P1; every finding was P2 and about the
+tests or the documents, none about production code. Applied: the catalog fixture
+used `mansione`, a field `normalizeCatalogOffer` never emits, so it now uses
+`descrizione`; the `expo-router` mock in both hook files accumulated the focus
+callbacks of previous mounts, and `tornaInFocus` fired the dead one silently, so
+both `beforeEach` blocks now clear the list; the missing half of rule 1 in
+`useAgreements` («leaving the tab invalidates the response in flight») got its
+own test, which fails if the cleanup loses either the sequence bump or the
+spinner switch-off; and `expect(classificati).not.toBeNull()` became the concrete
+section it should have asserted. The rest were numbers: the audit said "nine"
+files without tests where the folder holds eight, and this entry was missing its
+last commit.
 
 ### Residuals this session found and did not fix
 
@@ -58,9 +75,20 @@ that can decide that on purpose. `useNotifications.js` stays at 37% statements
 (the poll is tested, the list hook is not), and the coverage sentence in
 `docs/frontend.md:120-126` is still wrong — that is W8's B5.
 
+Branches no test names, all outside the criteria W7 declared: `azzeraTesto`,
+`congedaEsito`, the `cambiaScelta('comune')` guard that ignores a comune with no
+province applied, and the `cancel` path of `match.jsx` (including the credit
+refund sentence). A regression there produces no red. One contradiction the
+fixtures could not settle from the frontend alone: `services/agreements.js:15-16`
+documents `PENDING` + my `true` answer as the `sent` bucket, while
+`api/areas/agreements.js:104-106` says one answer already moves the agreement to
+`ACCEPTED`/`REFUSED`. Both cannot hold with real data, and which one is wrong is
+a backend fact, not a testing one.
+
 ### Commits
 
-`2f35741` plan · `2db7613` tests · `ce4fad4` coverage · `692ae04` gitignore.
+`2f35741` plan · `2db7613` tests · `ce4fad4` coverage · `692ae04` gitignore ·
+the review fixes and this entry in the closing commit.
 
 ---
 
