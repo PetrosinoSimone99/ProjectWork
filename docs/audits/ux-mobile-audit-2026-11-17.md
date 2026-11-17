@@ -6,13 +6,48 @@ Docker stack (`backend` on :8000, MySQL seeded from `barattolo_15112026` +
 `seed-demo.sql`) and a fresh `npx expo export --platform web` served by
 `npx expo serve dist --port 8083`.
 
+## Corrections — after review
+
+Measured on `30ab4cf`, corrected at `1a3cf92`. Four figures of the first version
+of this record were wrong; each one is fixed inline below, and the correction
+says what the artefact actually shows.
+
+- **F6 is withdrawn.** The card height was read in device pixels, not CSS
+  pixels: `06-notifiche.png` is 1179×1980 at DPR 3, so one notification is
+  **144 CSS px** tall with a **153 px** pitch, and the viewport that was driven
+  is **660 px**, not 852. One screen shows **three complete cards plus the top
+  of a fourth**, and «4 da leggere» is the first line under the title. The
+  premise of the finding does not hold.
+- **F8 was misattributed, and is closed.** Re-measured with the same
+  confirmation open: of the three unnamed stops, **two are
+  `react-native-web`'s `ModalFocusTrap` brackets** (`role="presentation"`,
+  `tabindex="0"`, 0 px tall) and **one** is this project's backdrop — not three
+  backdrops. A fourth measurement the finding did not report: the eight controls
+  of the page *behind* the dialog were tabbable too. `7b5d016`, after this
+  audit, traps Tab inside the panel and gives focus back to the trigger, so none
+  of the three is reachable any more.
+- **«41 screens × 3 profiles»** were **51 measurements**: 25 at iPhone 14 Pro,
+  13 at iPhone SE, 13 at Pixel 7.
+- **«iPhone 14 Pro (393×852)»** is the device screen; the driven viewport is
+  393×**660** (`screen` vs `viewport` in Playwright's descriptor, DPR 3).
+
+Screenshots in `screens-mobile-2026-11-17/` are 1179×1980 because of that DPR:
+**divide by 3 before comparing a pixel to a CSS length.**
+
+The worklist that follows from this record — what is still open, and the prompt
+that closes it — is
+[`ux-mobile-audit-2026-11-17-open-work.md`](ux-mobile-audit-2026-11-17-open-work.md).
+
+---
+
 **Method — three legs, in this order:**
 
 1. **Native bundle** — `npx expo start`, then the Metro request for the iOS
    bundle (`node_modules/expo-router/entry.bundle?platform=ios&dev=true`):
    `200`, 6.06 MB. The native module graph resolves with this tree.
 2. **Device viewports, driven** — `scripts/audit-mobile-360.js`: WebKit 27.2
-   (Safari's own engine) at iPhone 14 Pro (393×852) and iPhone SE (320×568), plus
+   (Safari's own engine) at iPhone 14 Pro (393×660 viewport, DPR 3) and iPhone SE
+   (320×568), plus
    Chromium at Pixel 7 (412×915). Ten static routes plus the eleven dynamic /
    modal states reachable by tapping. Per screen the script measures, in the
    live DOM: horizontal overflow, elements that cross the viewport edge, clipped
@@ -26,7 +61,7 @@ Docker stack (`backend` on :8000, MySQL seeded from `barattolo_15112026` +
 
 Data for the full states was created through the API on the demo accounts
 (`giulia.bianchi` ↔ `luca.ferrari`: one `ACCEPTED` agreement with a compiled
-sheet, a chat with two messages, two unread notifications, one `OFFER` queue, one
+sheet, a chat with two messages, four unread notifications, one `OFFER` queue, one
 open report). Screenshots: [`screens-mobile-2026-11-17/`](screens-mobile-2026-11-17/),
 raw numbers in its `misure.json`.
 
@@ -43,24 +78,27 @@ controls on `/agreements` (scrolled), `/notifications`, `/profile`, `/match`.
 ## 1. Scores
 
 Severity rubric and weights are `PromptAuditUx.md` §5. Findings by severity:
-**9 total — 0 × sev4, 1 × sev3, 6 × sev2, 2 × sev1.**
+**9 recorded — 0 × sev4, 1 × sev3, 6 × sev2, 2 × sev1; 1 withdrawn (F6), so 8
+stand.**
 
 | Dimension | Weight | Findings | Score | Why |
 | --- | --- | --- | --- | --- |
-| Usability | 30% | F5, F6 (sev2), F7 (sev1) | 8.8 | −(0.5+0.5+0.2) |
+| Usability | 30% | F5 (sev2), F7 (sev1) | 9.3 | −(0.5+0.2) |
 | Accessibility | 25% | F4 (sev3), F2, F8 (sev2), F3 (sev1) | 7.3 | −(1.5+0.5+0.5+0.2) |
 | States and copy | 15% | none | 10.0 | every empty/loading/error state present, no stuck spinner |
 | Design system | 15% | F9 (sev2) | 9.5 | −0.5 |
 | Platform and perceived responsiveness | 15% | F1 (sev2) | 9.5 | −0.5 |
 
-**Final score: 8.8 / 10.**
+**Final score: 9.0 / 10** (8.8 before F6 was withdrawn). F8 is counted here as
+it stood when measured; `7b5d016` closed it afterwards, so on today's tree
+Accessibility reads 7.8 and the total 9.1.
 
 What the score rests on, said plainly: contrast, overflow and touch targets on the
 supported widths (375 / 393 / 412) came back clean, and that is not a courtesy —
-41 screens × 3 profiles measured, minimum text ratio **5.42:1** in light and dark
-alike, no horizontal overflow above 320 px, no clipped label above 320 px. What
-costs points is the **date entry** (a text field for a calendar fact) and the
-vertical density of the two list surfaces.
+51 measurements across 3 profiles, minimum text ratio **5.42:1** in light and
+dark alike, no horizontal overflow above 320 px, no clipped label above 320 px.
+What costs points is the **date entry** (a text field for a calendar fact) and
+**F5** (an inbox whose message rows cannot be told apart).
 
 ---
 
@@ -68,10 +106,10 @@ vertical density of the two list surfaces.
 
 | id | sev | state | area | evidence | criterion | what happens | why it matters | fix | effort |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| F4 | 3 | VERIFIED | Agreement sheet, both roles | `Frontend/src/components/AgreementSheet.jsx:16` (`FORMATO = 'AAAA-MM-GG'`), `:137`, `:145`; screenshot `iphone-14-pro/19-accordi-in-corso.png` | WCAG 1.3.5 Identify input purpose; iOS HIG date entry | "Inizio" and "Fine" are free-text fields with the placeholder `AAAA-MM-GG` and **no `inputMode`, no `keyboardType`, no native date picker**. On a phone this opens the alphabetic keyboard and asks the user to type hyphens; iOS autocorrect fights the dashes (the proof Andrea owed us in `native-parity-2026-11-15.md` §5 line 13 is owed precisely because of this) | A date is not a string: the user must produce `2026-12-01` by hand, in a format nobody uses in Italian, on the surface that decides the exchange | Use the platform picker (`@react-native-community/datetimepicker` / `<input type="date">` on web), keep the ISO string only on the wire, show `GG/MM/AAAA` | M |
+| F4 | 3 | VERIFIED | Agreement sheet, both roles | `Frontend/src/components/AgreementSheet.jsx:16` (`FORMATO = 'AAAA-MM-GG'`), `:137`, `:145`; screenshot `iphone-14-pro/19-accordi-in-corso.png` | WCAG 1.3.5 Identify input purpose; iOS HIG date entry | "Inizio" and "Fine" are free-text fields with the placeholder `AAAA-MM-GG` and **no `inputMode`, no `keyboardType`, no native date picker**. On a phone this opens the alphabetic keyboard and asks the user to type hyphens; iOS autocorrect fights the dashes (the proof Andrea owed us in `native-parity-2026-11-15.md` §5 line 13 is owed precisely because of this) | A date is not a string: the user must produce `2026-12-01` by hand, in a format nobody uses in Italian, on the surface that decides the exchange | Use the platform picker (`@expo/ui/community/datetime-picker`, already installed / `<input type="date">` on web), keep the ISO string only on the wire, show `GG/MM/AAAA` | M |
 | F5 | 2 | VERIFIED | Notifications | screenshot `iphone-14-pro/06-notifiche.png`; `docs/api.md` §Notifications | Nielsen 2 (match between system and real world) | Two consecutive `MESSAGGIO` rows read exactly *"Nuovo messaggio da: luca.ferrari"* — same text, same sender, only the minute differs. The payload carries no message preview | The inbox cannot be triaged: to know which message arrived, the user has to open each agreement | Backend gap: expose the message text (or a 60-char preview) on the notification; until then the UI cannot fix it. File as a `backend-gaps` item | M |
-| F6 | 2 | VERIFIED | Notifications, agreements | screenshots `iphone-14-pro/06-notifiche.png`, `19-accordi-in-corso.png` | Nielsen 8 (aesthetic and minimalist design) | One notification occupies ~430 px and one agreement sheet ~620 px of a 852 px viewport: the inbox shows **1.5 items per screen**; the gap between the message line and its action row is ~60 px of empty card | "4 da leggere" is invisible above the fold; triage becomes scrolling | Tighten card padding to the `space.md` step and put the action row on the same baseline as the message meta | S |
-| F8 | 2 | VERIFIED (web) | Confirm modal | 3 focusable nodes in the DOM with `tabindex="0"` and no accessible name, measured with the delete-confirmation open; `Frontend/src/components/ModalShell.jsx:194-197` (`role="dialog"`, `tabIndex={-1}` is correct) | WCAG 4.1.2 Name, role, value; 2.4.7 Focus visible | Tab lands on three mute nodes before reaching the dialog's buttons: two `role="presentation"` backdrops and one bare `DIV` | A screen-reader user hits three unlabelled stops inside a modal; on native there is no tab order, so the blast radius is the web build | Take the backdrop out of the tab order (`tabIndex={-1}` / `aria-hidden`) in `ModalShell` | S |
+| ~~F6~~ | — | **WITHDRAWN** | Notifications | `iphone-14-pro/06-notifiche.png`, re-measured at 1179×1980 / DPR 3 | — | One card is **144 CSS px** on a **153 px** pitch in a **660 px** viewport: 3 complete cards and the top of a fourth per screen, with «4 da leggere» as the first line under the title. The first version read the height in device pixels (432) and the screen as 852 | It does not: the frozen number was an artefact of the capture, not of the layout | none — the inbox is dense enough; if anything the card has room | — |
+| F8 | 2 | **CLOSED** by `7b5d016` | Confirm modal | Re-measured on the audited build with the confirmation open: 14 nodes carry `tabindex="0"` — 8 page controls behind the dialog, 2 `role="presentation"` brackets of `react-native-web`'s `ModalFocusTrap` (0 px tall), 1 backdrop with `aria-hidden`, 3 dialog controls. At audit time `ModalShell.jsx:194` was `role="dialog"` and `:197` `tabIndex={-1}` | WCAG 4.1.2 Name, role, value; 2.4.7 Focus visible | The three unnamed stops were **library internals plus one backdrop**, not three backdrops; and the page behind the dialog was still tabbable, which the first version did not report | Fixed after this audit: `7b5d016` traps Tab inside the panel (`keepTabInside`) and returns focus to the trigger, so neither the brackets nor the backdrop are reachable by keyboard, and the page behind is no longer in the path | none — done; the two library brackets cannot be reached from `ModalShell` props, and they are out of the accessibility tree (`role="none"`) | — |
 | F2 | 2 | VERIFIED | Web nav, every screen | `Frontend/src/components/WebNavMenu.jsx:350`; `misure.json` → `piccoli: [{testo: "Aggiorna i dati della schermata", w: 42, h: 44}]` at 375 and 320 | Apple HIG 44×44 pt | The refresh control is **42 × 44 pt** once the label collapses to the icon at phone widths | 2 pt short of the minimum on the most-tapped icon-only control | Bump the control to 44 × 44 (`target` token) | S |
 | F1 | 2 | VERIFIED (320 only) | Edit profile, register | `misure.json` → `iphone-se/07-modifica-profilo`: `INPUT … left 179, right 348` with `innerWidth 320`; at 375 the same input is inside the viewport | WCAG 1.4.10 Reflow | At 320 px CSS an input crosses the right edge by **28 px** and is clipped (no page scroll: `overflow: 0`) | Only on 320 px devices (iPhone SE 1st gen, small Android). Above 320 it is clean | Give the form row a `flexShrink: 1` / smaller `minWidth` | S |
 | F9 | 2 | VERIFIED (320 only) | Offer and request | `misure.json` → `iphone-se/03-offro-e-cerco`: `Modifica` 52/60, `Sospendi` 52/62, 4 occurrences | Nielsen 4 (consistency); text clipping | The two entry-card actions lose their last letters at 320 px | A truncated verb reads as a bug, not a style | Shorter labels at narrow widths, or wrap the action row | S |
@@ -80,7 +118,7 @@ vertical density of the two list surfaces.
 
 ### What came back clean (measured, not assumed)
 
-- **Contrast**: 0 failures across 41 screens × 3 profiles, light and dark. Worst
+- **Contrast**: 0 failures across 51 measurements × 3 profiles, light and dark. Worst
   text in the app is `rgb(93, 102, 95)` on `rgb(243, 245, 241)` = **5.42:1**
   (AA needs 4.5 at 13 px).
 - **Horizontal overflow**: 0 at 375, 393 and 412; the only offender is F1 at 320.
@@ -103,9 +141,11 @@ vertical density of the two list surfaces.
 
 1. **F4 — native date entry** (M): the only finding that costs real user effort
    every single exchange.
-2. **F8 — mute tab stops in the confirm modal** (S): 3 lines in `ModalShell`.
+2. ~~**F8 — mute tab stops in the confirm modal**~~ **closed** by `7b5d016`:
+   the Tab trap and the focus return made them unreachable. No action.
 3. **F2 — refresh control 42 → 44 pt** (S).
-4. **F6 — card padding in the inbox** (S): one screen gains a whole row.
+4. ~~**F6 — card padding in the inbox**~~ **withdrawn**: the card is 144 CSS
+   px, three fit on a screen (see Corrections). No action.
 5. **F7 — second back link on the staff guard** (S).
 6. **F1 — input overflow at 320 px** (S).
 7. **F9 — truncated `Modifica`/`Sospendi` at 320 px** (S).

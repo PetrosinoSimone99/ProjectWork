@@ -6,6 +6,40 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — One mobile-audit finding withdrawn, one that was already fixed
+
+Review of [`audits/ux-mobile-audit-2026-11-17.md`](audits/ux-mobile-audit-2026-11-17.md)
+before a fix cycle was planned on top of it. The document carries the corrections
+inline, under §"Corrections — after review".
+
+- **F6 (notification cards too tall) is withdrawn.** The card was measured in
+device pixels, not CSS: the screenshot is 1179×1980 at DPR 3, so one card is
+**144 CSS px** on a 153 px pitch, and the viewport actually driven by Playwright
+is **660 px** (`screen` vs `viewport`), not 852. Three complete cards fit on one
+screen, and «4 da leggere» is the first line under the title.
+- **F8 (mute tab stops in the confirm dialog) is closed and was misattributed.**
+Two of the three unnamed stops are `react-native-web`'s `ModalFocusTrap`
+brackets (`role="presentation"`, `tabindex="0"`, 0 px tall), not backdrops;
+`7b5d016` (`Frontend/src/components/ModalShell.jsx`) traps Tab inside the
+panel and gives focus back to the trigger, so none of them is reachable. The
+same measurement found eight page controls behind the dialog still tabbable —
+a fact the finding did not report, and the trap closes it too.
+- Counts corrected: **51 measurements** (25 iPhone 14 Pro, 13 iPhone SE, 13
+Pixel 7), not «41 screens × 3 profiles». Score 8.8 → **9.0**.
+- The record now states the scale of its own screenshots, so the unit error
+cannot be repeated by the next reader.
+
+The one finding of that audit still open and still worth the effort is **F4**
+(date entry as free text); F5 needs the backend, F2/F7/F1/F9 are small.
+
+New: [`audits/ux-mobile-audit-2026-11-17-open-work.md`](audits/ux-mobile-audit-2026-11-17-open-work.md)
+— the seven-row worklist that follows from this review (F4, F2, F1, F9, F7, F5 as
+a backend-gap entry, F3 as no-action), the re-measure gate that has to precede
+them, and the `/ship` prompt that closes them in one cycle with two lanes. It is
+a worklist, not a plan: `/plan` still owns the plan file.
+
+---
+
 ## 2026-11-17 — The seven accessibility defects of the mobile audit
 
 Session start: `git fetch origin`, `andrea-frontend` even with `origin` and 331
@@ -250,9 +284,11 @@ cycle produced the audit itself plus the line where the proof stops.
 
 - [`audits/ux-mobile-audit-2026-11-17.md`](audits/ux-mobile-audit-2026-11-17.md)
   — 9 findings (0 sev4, 1 sev3, 6 sev2, 2 sev1), **8.8/10** by the
-  `PromptAuditUx.md` §5 formula, plus the explicit "not verified" table.
+  `PromptAuditUx.md` §5 formula, plus the explicit "not verified" table. F6 was
+  withdrawn and F8 closed afterwards: **9.0/10** — see the entry above.
 - `audits/scripts/audit-mobile-360.js` — new: WebKit 27.2 at iPhone 14 Pro
-  (393×852) and iPhone SE (320×568) plus Chromium at Pixel 7 (412×915); per
+  (393×852 screen, 393×660 viewport) and iPhone SE (320×568) plus Chromium at
+  Pixel 7 (412×915); per
   screen it measures horizontal overflow, edge-crossing nodes, clipped text,
   real contrast ratios, targets under 44 pt, unnamed focusable nodes, stuck
   loading states and **touch occlusion** via `elementFromPoint`. Raw numbers in
