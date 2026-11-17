@@ -111,7 +111,7 @@ una lettura. (d) Un conteggio che non si legge lascia la riga neutra e scrive
 - 2b. Copy di `profile.jsx` che dica che la riga si aggiorna | files: Frontend/src/app/(tabs)/profile.jsx | done: nessuna modifica, la copy attuale non promette live (decisione 5) | Stato: N/A
 - 3. Documenti | files: docs/api.md, docs/audits/frontend-gap-analysis-2026-11-16.md, docs/changelog.md | done: `api.md` §Notifications dice intervallo (30 s), guardia background e pull; l'item W10 è `Stato: chiuso` con cosa è atterrato; B12 marcato chiuso con W10; riga 7 della tabella priorità barrata; changelog con voce nuova in testa | Stato: DONE
 - 4. Gate e review | files: — | done: `npx expo lint`, `npx tsc --noEmit`, `npx jest` verdi; tre angoli di review a contesto fresco con verdict, P0/P1/P2 applicati solo col consenso del padre | Stato: DONE
-- 5. Push su `andrea-frontend` (mai su `main`) | files: — | done: albero pulito, gate verde, push riuscito, nessun `--force` | Stato: TODO
+- 5. Push su `andrea-frontend` (mai su `main`) | files: — | done: albero pulito, gate verde, push riuscito, nessun `--force` | Stato: DONE
 
 ## Lanes:
 
