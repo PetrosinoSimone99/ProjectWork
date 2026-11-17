@@ -92,6 +92,10 @@ is the declared gap G3 and that the box says it is not available. Line 207 mount
 `UserServicesMiniCard` with a real call. G3 landed 2026-11-15 (`docs/api.md`).
 Judgment: stale docstring, no runtime effect, reads as a wrong statement about the
 backend to anyone opening the file next.
+**Closed 2026-11-17 (W8, by verification):** the docstring now describes what the
+code does — `ServiceDetailModal.jsx:34-37` says the block is `UserServicesMiniCard`
+and that it asks `GET /users/{id}/services`, and `:245` mounts it. Fixed by W3, not
+by this item; nothing to edit.
 
 ### B3. `Screen.jsx` and `_layout.jsx` document a chat screen that does not exist — P2
 
@@ -108,6 +112,9 @@ bottom and a reduced `bottomSpacing`, exactly the case it describes.
 the new model)`. `Frontend/src/agreements` does not exist; the rules live in
 `src/services/agreements.js`.
 Judgment: a reader who trusts the tree looks in the wrong place.
+**Closed 2026-11-17 (W8):** the line is `src/validation/  pure validation helpers,
+one module for every form`, a directory the tree does have. The same pass caught a
+second phantom the item did not name: `src/Subscriber/` is `src/EventSubscriber/`.
 
 ### B5. `docs/frontend.md` understates the test suite — P2
 
@@ -124,6 +131,10 @@ W7 (2026-11-17) closed the hooks half of this: `useAgreements.js` and
 `collectCoverageFrom`. The wording in `docs/frontend.md:120-126` is still wrong
 and is W8's to fix — the folder holds eight files with no test of their own, not
 eleven, and the JSON lists five files, not two.
+**Closed 2026-11-17 (W8):** `docs/frontend.md` now reports the measured run — 32
+suites, 346 tests, 95.71% statements / 90.86% branches on the five files in
+`collectCoverageFrom` — says the figure is a hand-picked sample, and names the
+eight hooks with no test of their own.
 
 ### B6. New code is written in Italian, against the repo's own rule — P2
 
@@ -559,11 +570,31 @@ test. Residual for a later item.
 
 ### W8 — Documentation drift
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-17) — plan:
+[`../briefs/w8-docs/plan.md`](../briefs/w8-docs/plan.md) (class `M`, as the item
+predicted, but the file count moved: the plan and the changelog entry are files
+too).
 
-- Edit: `docs/architecture.md:45` (drop or fix `src/agreements/`),
-  `docs/frontend.md:120-126` (real coverage story, and say plainly that the hooks
-  are untested), `docs/ui-triage.md` (F3 stays open until W1),
+What landed, against the five points above: `docs/architecture.md` lists
+`src/validation/` instead of the phantom `src/agreements/`, and the same block lost
+a second phantom nobody had measured (`src/Subscriber/` → `src/EventSubscriber/`);
+`docs/frontend.md` replaced "the pure modules … 99% statements / 80% branches" with
+the run of 2026-11-17 — 32 suites, 346 tests, 95.71% statements / 90.86%
+branches on the five files in `collectCoverageFrom` — and names the eight hooks
+that have no suite; `docs/ui-triage.md` no longer opens its correction with
+"`AGENTS.md` still documents `EXPO_PUBLIC_DATI_FINTI`", which stopped being true
+when `AGENTS.md:130` was corrected.
+
+Two of the five points needed no edit and were verified instead: B2's docstring is
+right since W3 (`ServiceDetailModal.jsx:34-37,245`), and both `Screen.jsx:52` (B3)
+and F3 in `docs/ui-triage.md` were already closed by W1. `AGENTS.md` was already
+right on the fake-data paragraph, as the item suspected.
+The item also had to fix its own list: "`docs/ui-triage.md` (F3 stays open until
+W1)" was stale — F3 is `closed 2026-11-16 (W1)`.
+
+- Edit: `docs/architecture.md:45` and `:32`,
+  `docs/frontend.md:136-142` (the item's `:120-126` had drifted),
+  `docs/ui-triage.md` (the correction section, not F3),
   `src/components/ServiceDetailModal.jsx:34-38` and `src/components/Screen.jsx:52`
   (docstrings). Same item also amends `AGENTS.md`'s fake-data paragraph if it is
   still wrong on this branch (it is not: the repo copy at root already says the
@@ -682,12 +713,12 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | 1 | ~~W5 error boundary~~ | **done** 2026-11-16: landed in `0e22832` + the fix that made the retry test green |
 | 2 | W2 notification/queue links | data already in memory, highest UX return per line |
 | 3 | ~~W1 chat~~ | **done** 2026-11-16: plan in `docs/briefs/w1-chat/`, landed in `82b22c0`…`0b0e722` |
-| 4 | W3 public profile | closes G3's remaining half, endpoint ready |
+| 4 | ~~W3 public profile~~ | **done** 2026-11-16: closes G3's remaining half, plan in `docs/briefs/w3-public-profile/` |
 | 5 | ~~W6 lazy dataset~~ | **closed N/A** 2026-11-16: measured, the win claimed here does not exist (B8) |
 | 6 | ~~W4 staff surface~~ | **done** 2026-11-17: the four documented endpoints are wired, plan in `docs/briefs/w4-staff-surface/` |
 | 7 | ~~W10 unread polling~~ | **done** 2026-11-17: the profile badge polls every 30 s while focused, plan in `docs/briefs/w10-unread-polling/` |
 | 8 | ~~W7 hook tests~~ | **done** 2026-11-17: 25 tests on the two stateful hooks and the match gate, plan in `docs/briefs/w7-hook-tests/` |
-| 9 | ~~W9 naming~~ + W8 docs | **W9 done** 2026-11-17: the rule is recorded (D026) and the helpers follow it, plan in `docs/briefs/w9-naming/`; W8 is still open |
+| 9 | ~~W9 naming~~ + ~~W8 docs~~ | **W9 done** 2026-11-17: the rule is recorded (D026) and the helpers follow it, plan in `docs/briefs/w9-naming/`; **W8 done** 2026-11-17: the tree, the coverage story and a stale correction are fixed, plan in `docs/briefs/w8-docs/` |
 
 Grouping that is safe in one `/ship` run (disjoint files, no shared decisions):
 `W5 + W10` (both 2 files, no overlap) and `W2 + W3` **only if** W3 drops the

@@ -6,6 +6,70 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — W8: the documents describe the tree that exists
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 318 ahead of `origin/main`, 0 behind. Working tree clean.
+No merge needed, nothing pushed to `main`. Plan:
+[`briefs/w8-docs/plan.md`](briefs/w8-docs/plan.md).
+
+### Why
+
+W8 was the last open work item of
+[`audits/frontend-gap-analysis-2026-11-16.md`](audits/frontend-gap-analysis-2026-11-16.md),
+and the only kind of item that rots while it waits: three facts it named had moved.
+`docs/frontend.md` still promised "99% statements / 80% branches" on "the two
+modules" of `collectCoverageFrom`, a sample the JSON had already widened to five
+files and a figure the W7 hooks had already changed. `docs/ui-triage.md` opened
+its correction by saying `AGENTS.md` documents `EXPO_PUBLIC_DATI_FINTI`, which the
+root rules stopped saying in D011. And the item's own edit list was stale — F3 was
+`closed 2026-11-16 (W1)`, and B2's docstring had been fixed by W3 — so two of its
+five points were "verify", not "edit".
+
+### What landed
+
+1. **`docs/architecture.md` — two phantoms, not one.** `src/agreements/` did not
+exist (the rules live in `services/agreements.js`) and is replaced by
+`src/validation/`, a directory the tree does have and the tree did not list. The
+same block also carried `src/Subscriber/`, which is `src/EventSubscriber/`: no
+audit finding, found by checking every path in the block against the tree.
+2. **`docs/frontend.md` — the real coverage story.** 32 suites, 346 tests, all
+green; the five files `collectCoverageFrom` names, with the measured per-file
+numbers; **95.71% statements / 90.86% branches** on that sample, stated as a
+hand-picked sample rather than a claim about the tree; and the eight hooks with no
+suite of their own (`useCategories`, `useDocumentTitle`, `useReducedMotion`,
+`useRefresh`, `useSessionExpiry`, `useUserServices`, `useWebColorScheme`,
+`web-chrome`), plus the two that have one but sit outside the sample (`useChat`,
+`useNotifications`). `npx jest` stays outside the gate (D019).
+3. **`docs/ui-triage.md` — the correction is now history.** The section says the
+variable never existed, remains true on D011 and `setup.md`, records that
+`AGENTS.md:130` now says the same, and dates the closure to W8; the paragraph that
+accused the repo rules of being false is gone. The demo users and the Docker note
+are untouched.
+4. **The audit, closed.** W8 is `Stato: chiuso` with what landed; B2, B4 and B5
+carry their closure lines; §E's row 4 (W3, done 2026-11-16 but still unmarked) and
+row 9 are corrected. Every `W` item of that audit is now closed or `N/A`. What
+remains are the backend gaps in §D and the unmeasured hypotheses (F1/H1, H2, H3),
+which need a browser at four widths before they become work.
+
+No file under `Frontend/src/` changed: two of the item's five points were
+docstrings already corrected by other items, and the third was a `ui-triage` row
+already closed by W1. No test was added, relaxed or skipped.
+
+### Verification
+
+Gate green: `npx expo lint`, `npx tsc --noEmit`. `npx jest --coverage` run before
+the edits to obtain the numbers quoted above: 32 suites / 346 tests green,
+95.71% statements and 90.86% branches on the sample. Nothing to verify at runtime —
+the change is prose about measurable facts, and each claim in it was produced by a
+command in this session (`ls`, `grep`, `npx jest --coverage`).
+
+### Touched
+
+`docs/briefs/w8-docs/plan.md`, `docs/architecture.md`, `docs/frontend.md`,
+`docs/ui-triage.md`, `docs/audits/frontend-gap-analysis-2026-11-16.md`,
+`docs/changelog.md`. Three commits: plan, the three documents, the closure.
+
 ## 2026-11-17 — W9: the naming rule now describes the tree
 
 Session start: `git fetch origin`. `andrea-frontend` was **1 ahead, 0 behind**
