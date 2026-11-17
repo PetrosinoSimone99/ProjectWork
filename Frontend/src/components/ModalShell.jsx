@@ -43,6 +43,73 @@ const QUOTA_ALTEZZA_PANNELLO = 0.85;
 const pilaAperta = [];
 
 /**
+ * Ciò che il trap del Tab considera raggiungibile, nell'ordine del DOM.
+ *
+ * Elenco esplicito: gli elementi interattivi nativi non dichiarano `tabindex` e
+ * sono comunque fermate del Tab, quindi non basta `[tabindex]`. `[tabindex="-1"]`
+ * resta fuori perché non è una fermata (il pannello stesso lo usa per ricevere
+ * il focus all'apertura), `[disabled]` perché non riceve focus,
+ * `[aria-hidden="true"]` perché non viene letto.
+ */
+const FOCUSABLE_SELECTOR = [
+  '[tabindex]:not([tabindex="-1"])',
+  'button',
+  'a[href]',
+  'input',
+  'select',
+  'textarea',
+]
+  .map((part) => `${part}:not([disabled]):not([aria-hidden="true"])`)
+  .join(', ');
+
+/** I focusabili dentro il pannello: nessuno se il nodo non ha un DOM (nativo). */
+function focusablesIn(node) {
+  if (!node || typeof node.querySelectorAll !== 'function') {
+    return [];
+  }
+  return Array.from(node.querySelectorAll(FOCUSABLE_SELECTOR));
+}
+
+/**
+ * Tiene il Tab dentro il pannello: dall'ultimo si torna al primo, dal primo
+ * all'indietro si va all'ultimo, e da fuori si entra dal lato giusto. Senza
+ * focusabili il pannello prende il focus, che è comunque meglio dello sfondo.
+ * `preventDefault()` solo quando il focus lo spostiamo noi: il resto dell'ordine
+ * naturale resta quello del browser.
+ */
+function keepTabInside(event, panel) {
+  const focusables = focusablesIn(panel);
+  if (focusables.length === 0) {
+    event.preventDefault();
+    panel.focus?.();
+    return;
+  }
+  const active = document.activeElement;
+  const inside = panel.contains(active);
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey) {
+    if (!inside || active === first || active === panel) {
+      event.preventDefault();
+      last.focus();
+    }
+    return;
+  }
+  if (!inside || active === last || active === panel) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+/** Riporta il focus su un nodo se esiste ancora nel documento. */
+function restoreFocus(node) {
+  if (!node || typeof node.focus !== 'function' || !document.contains(node)) {
+    return;
+  }
+  node.focus();
+}
+
+/**
  * L'involucro unico dei pannelli modali.
  *
  * Prima di questo componente ogni pannello (dettaglio servizio, conferma,
@@ -68,6 +135,15 @@ const pilaAperta = [];
  *   (la campanella, che si apre sopra il proprio pulsante);
  * - `chiudibile = false` toglie Escape, sfondo e X mentre una chiamata è in
  *   corso: il pannello non si può lasciare a metà.
+ *
+ * Focus (WCAG 2.4.3 e 2.1.2), sul web: all'apertura il focus va sul pannello,
+ * il Tab resta dentro e alla chiusura torna sul nodo che ce l'aveva prima, se è
+ * ancora nel documento. Il trap è esplicito e vive qui invece di spegnere lo
+ * sfondo con `inert`: `react-native-web` monta il `Modal` in un portale sotto
+ * `document.body`, quindi «inert tutto il resto» vorrebbe dire spegnere ogni
+ * altro figlio di `body`, radici di Expo Router comprese, e un selettore
+ * sbagliato spegnerebbe anche il pannello. Da nativo non si tocca il DOM: il
+ * focus lo sposta `AccessibilityInfo.setAccessibilityFocus`.
  */
 export function ModalShell({
   visible,
@@ -105,22 +181,34 @@ export function ModalShell({
     };
   }, [visible, idIstanza]);
 
-  // Escape sul web: `onRequestClose` è la strada documentata di React Native ma
-  // su web non arriva al `Modal` (verificato nell'audit, F15).
+  // Escape e Tab sul web: `onRequestClose` è la strada documentata di React
+  // Native ma su web non arriva al `Modal` (verificato nell'audit, F15); il Tab
+  // invece uscirebbe dal pannello e finirebbe sulla pagina coperta.
   useEffect(() => {
-    if (!visible || !chiudibile) {
+    if (!visible) {
       return undefined;
     }
     if (Platform.OS !== 'web' || typeof document === 'undefined') {
       return undefined;
     }
     const onKeyDown = (event) => {
-      if (event.key !== 'Escape' && event.key !== 'Esc') {
-        return;
-      }
       // Solo il pannello in cima risponde: senza questo, un Escape chiudeva la
       // conferma **e** il pannello sotto.
       if (pilaAperta[pilaAperta.length - 1] !== idIstanza) {
+        return;
+      }
+      // Il trap resta anche a pannello non chiudibile: il lavoro è in corso, ma
+      // il focus non deve comunque scappare sulla pagina dietro.
+      if (event.key === 'Tab') {
+        if (pannelloRef.current) {
+          keepTabInside(event, pannelloRef.current);
+        }
+        return;
+      }
+      if (event.key !== 'Escape' && event.key !== 'Esc') {
+        return;
+      }
+      if (!chiudibile) {
         return;
       }
       event.stopPropagation();
@@ -130,15 +218,19 @@ export function ModalShell({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [visible, chiudibile, onClose, idIstanza]);
 
-  // Focus dentro il pannello all'apertura (WCAG 2.4.3): sul web il focus va sul
-  // contenitore, che ha `tabIndex={-1}` e quindi si legge dal primo elemento; da
-  // nativo si sposta il focus assistivo.
+  // Focus dentro il pannello all'apertura e di nuovo sul comando che l'ha
+  // aperto alla chiusura (WCAG 2.4.3): sul web il focus va sul contenitore, che
+  // ha `tabIndex={-1}` e quindi si legge dal primo elemento; da nativo si sposta
+  // il focus assistivo e il DOM non si tocca.
   useEffect(() => {
     if (!visible) {
       return undefined;
     }
+    const isWeb = Platform.OS === 'web' && typeof document !== 'undefined';
+    // Letto prima del timer: dentro il timer il focus è già nel pannello.
+    const previousFocus = isWeb ? document.activeElement : null;
     const timer = setTimeout(() => {
-      if (Platform.OS === 'web') {
+      if (isWeb) {
         pannelloRef.current?.focus?.();
         return;
       }
@@ -147,7 +239,12 @@ export function ModalShell({
         AccessibilityInfo.setAccessibilityFocus(nodo);
       }
     }, 0);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (isWeb) {
+        restoreFocus(previousFocus);
+      }
+    };
   }, [visible]);
 
   return (
