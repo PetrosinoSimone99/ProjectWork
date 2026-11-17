@@ -54,8 +54,8 @@ fix list", and each item now carries its closure there.
 - Tests: `NotificationRow.test.js` +2 cases (the words and the open label),
   `AgreementSheet.test.js` presses the panel's own confirm through a new
   `premiUltimo` helper and asserts the two nodes that share the name. No suite
-  added, no assertion relaxed: 32 suites, 348 tests (was 346). Counts in
-  `frontend.md` unchanged.
+  added, no assertion relaxed: 32 suites, 348 tests (was 346), and the count in
+  `frontend.md:138` moved with them.
 
 Gate: `npx expo lint` and `npx tsc --noEmit` green on every commit, `npx jest`
 green at the end (one pre-existing flake of `AgreementSheet.test.js` under full

@@ -35,7 +35,7 @@ Contract: [`plan-brief.md`](plan-brief.md). One field per step: `Stato:`
 - 6. register.jsx: Enter submits from the five text fields, the way login does | files: Frontend/src/app/(auth)/register.jsx | done: every `AppInput` in the form carries `onSubmitEditing={() => void handleSubmit()}`, `grep -c onSubmitEditing "src/app/(auth)/register.jsx"` is 5 | Stato: DONE
 - 7. `docs/accessibility.md`: align 2.2.1 (`:67`, `:180`) to the fact that the expiry is announced and not extendable, with the reason and the `token_ttl` citation; collapse the duplicated automated-check row (`:211`, `:213`) into one corrected row that cites the tests which do assert roles and labels; update the status rows for 1.4.4, 2.1.2 and 1.4.1 to what steps 2-4 changed | files: docs/accessibility.md,docs/audits/check-2026-11-17.md | done: the file states nothing the tree contradicts, `:211`/`:213` are one row, no claim was deleted to make code pass | Stato: DONE
 - 8. `docs/changelog.md`: session entry for this cycle (date 2026-11-17, above the previous entry) | files: docs/changelog.md | done: one entry naming the seven items, the files touched, the docs duty and the exclusion on Backend security gaps | Stato: DONE
-- 9. Review at fresh context, three angles, one model per angle, on the cycle's commits | files: docs/briefs/accessibility-fixlist/plan.md | done: the Review section records the three verdicts and every P0/P1, or says a row is empty | Stato: TODO
+- 9. Review at fresh context, three angles, one model per angle, on the cycle's commits | files: docs/briefs/accessibility-fixlist/plan.md | done: the Review section records the three verdicts and every P0/P1, or says a row is empty | Stato: DONE
 - 10. Gate and push | files: — | done: `npx expo lint` and `npx tsc --noEmit` green, the two touched suites green, `git status --porcelain` clean, pushed to `andrea-frontend` (never `main`) | Stato: TODO
 
 Lanes: five, disjoint files. Wave 1 (the session fan-out cap is four children per
@@ -57,4 +57,39 @@ lane may write them.
 
 ## Review
 
-Not run yet.
+Three fresh-context angles on `01989d7..8cae595`, one model per angle.
+`deepseek-v4.1-flash` on correctness, `deepseek-v4.1-flash` on security and
+data, `glm-5.3-flash` on coherence with the brief.
+
+Verdicts: **BLOCK** (correctness), **OK with notes** (security), **OK with
+notes** (coherence). One P1 in each of two angles, both accepted and fixed in
+this cycle:
+
+1. **P1 correctness — the trap was in the bubble phase.** `react-native-web`
+   calls `stopPropagation()` on the first line of its `TextInput` keydown
+   handler, so a listener on `document` never saw a Tab pressed inside a field:
+   in `ListSelector` and `CategorySelector` the search field is the last
+   focusable when the filter matches nothing, and Tab walked out onto the page
+   behind. Fixed by registering in the capture phase (`true`), which also covers
+   Escape from a field (same seam, pre-existing).
+2. **P1 coherence — `docs/frontend.md:138` said 346 tests.** The two new cases
+   make it 348; the changelog had already admitted the drift. Both updated.
+
+Accepted P2s: `handleSubmit` in `register.jsx` had no in-flight guard (a second
+Enter fired a second `POST /register`), and an Enter with the categories still
+loading complained about the missing entries instead of the categories. Both
+fixed in one line each. Comments added by lane D to `AgreementSheet.test.js`
+were Italian inside an English file (D026): translated.
+
+Rejected, with the reason: a `__DEV__` warning for a missing `etichettaConferma`
+(no live caller can produce it, and a runtime net for a JS-only prop is the kind
+of code the plan excluded); a visibility check in `restoreFocus`
+(`getClientRects().length`, no call site can hit it today) — both recorded by the
+security angle as belt-and-braces. The security angle also asked about
+`AGENTS.md`/`Backend/README.md` in the range: that is commit `206a80f`, step 0,
+authorised in the previous session and reported in `changelog.md` for the backend
+maintainer.
+
+The angles could not run shell commands: the counts, the gate and the diff were
+re-run by the parent after the fixes (32 suites, 348 tests, `expo lint` and
+`tsc --noEmit` green).
