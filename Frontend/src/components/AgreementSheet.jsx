@@ -4,19 +4,16 @@ import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
 import { AppCheckbox } from './AppCheckbox';
 import { AppIcon } from './AppIcon';
-import { AppInput } from './AppInput';
 import { AppText } from './AppText';
 import { ConfirmModal } from './ConfirmModal';
+import { DateField } from './DateField';
 import { formatIsoDate } from '@/services/dates';
 import { dataDaInput, isSheetCompiled, periodoValido } from '@/services/agreements';
 import { etichettaModalita } from '@/services/offer-request';
 import { radius, space, useTokens } from '@/theme/tokens';
 
-/** The date fields have no picker: this is the only format accepted. */
-const FORMATO = 'AAAA-MM-GG';
-const LUNGHEZZA_DATA = 10;
-
-const ERRORE_DATE = `Scrivi le due date come ${FORMATO}, con la fine dopo l'inizio.`;
+/** `periodoValido` still owns the rule: two real days, the end after the start. */
+const ERRORE_DATE = "Scegli le due date, con la fine dopo l'inizio.";
 const ERRORE_GENERICO = 'Non è stato possibile inviare la scheda. Riprova.';
 const ERRORE_CONFERMA = 'Non è stato possibile confermare la scheda. Riprova.';
 
@@ -34,9 +31,11 @@ const ERRORE_CONFERMA = 'Non è stato possibile confermare la scheda. Riprova.';
  *
  * - `compila`: the form. Two date fields, a remote checkbox, and the same rule
  *   the backend enforces (the end must come after the start) checked before
- *   the call, so a typo does not cost a round trip. The dates travel as
- *   `YYYY-MM-DD`: `send-agreement-details` parses them, and inventing a time or
- *   a timezone would be a datum the reader did not type.
+ *   the call, so a typo does not cost a round trip. Each day is entered with
+ *   the platform's own picker (`DateField`) and shown as `GG/MM/AAAA`, while
+ *   the state and the wire keep `YYYY-MM-DD`: `send-agreement-details` parses
+ *   that string, and inventing a time or a timezone would be a datum the
+ *   reader did not choose.
  * - `conferma`: the other side's row, read-only, with the confirmation behind a
  *   `ConfirmModal` (it is final: the route answers `500` on a second attempt).
  * - `null`: read-only, for a row whose action belongs to the other person or to
@@ -130,22 +129,8 @@ export function AgreementSheet({
 
       {azione === 'compila' ? (
         <View style={{ gap: space.sm }}>
-          <AppInput
-            label="Inizio"
-            value={inizio}
-            onChangeText={setInizio}
-            placeholder={FORMATO}
-            maxLength={LUNGHEZZA_DATA}
-            editable={!inVolo}
-          />
-          <AppInput
-            label="Fine"
-            value={fine}
-            onChangeText={setFine}
-            placeholder={FORMATO}
-            maxLength={LUNGHEZZA_DATA}
-            editable={!inVolo}
-          />
+          <DateField etichetta="Inizio" valore={inizio} onCambia={setInizio} disabled={inVolo} />
+          <DateField etichetta="Fine" valore={fine} onCambia={setFine} disabled={inVolo} />
           <AppCheckbox label="Si svolge da remoto" value={daRemoto} onChange={setDaRemoto} disabled={inVolo} />
           {errore ? (
             <AppText variant="label" tone="danger">

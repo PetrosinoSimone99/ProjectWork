@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 import { ApiError } from '@/api/client';
 import { AgreementSheet } from '../AgreementSheet';
 import { AppInput } from '../AppInput';
+import { DateField } from '../DateField';
 
 /**
  * The sheet row as the reader meets it: the form refuses a period the backend
@@ -71,13 +72,13 @@ function premiUltimo(renderer, accessibilityLabel) {
   });
 }
 
-/** Writes the two date fields, in the order they appear. */
+/** The two date fields, in the order they appear, set the way a picker would. */
 function scriviDate(renderer, inizio, fine) {
-  const campi = renderer.root.findAllByType(AppInput);
+  const campi = renderer.root.findAllByType(DateField);
   expect(campi).toHaveLength(2);
   act(() => {
-    campi[0].props.onChangeText(inizio);
-    campi[1].props.onChangeText(fine);
+    campi[0].props.onCambia(inizio);
+    campi[1].props.onCambia(fine);
   });
 }
 
@@ -94,9 +95,7 @@ describe('AgreementSheet — the form', () => {
     premi(renderer, 'Invia la scheda');
 
     expect(onInvia).not.toHaveBeenCalled();
-    expect(testoVisibile(renderer, "Scrivi le due date come AAAA-MM-GG, con la fine dopo l'inizio.")).toBe(
-      true,
-    );
+    expect(testoVisibile(renderer, "Scegli le due date, con la fine dopo l'inizio.")).toBe(true);
   });
 
   it('sends the three fields the route reads, as date-only strings', async () => {
