@@ -66,7 +66,7 @@ function refundsCredit(queue) {
 /** The empty list says what to do next, without pretending the tab is broken. */
 const EMPTY_TITLE = 'Nessuna coda attiva';
 const EMPTY_DESCRIPTION =
-  'Una coda è un servizio che metti in attesa: il match automatico confronta le code della tua località. Creane una con i due pulsanti qui sotto.';
+  'Una coda è un servizio che metti in attesa: il match automatico confronterà le tue code con quelle della tua località. Creane una con i due pulsanti qui sotto.';
 
 /**
  * The match tab: the viewer's service queues (`GET /get-queues`) with the two

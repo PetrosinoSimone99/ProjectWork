@@ -88,10 +88,10 @@ Stile: lite (three one-line edits plus a mechanical doc pass).
 
 ## Plan
 
-- 0. Commit this contract | files: docs/briefs/match-empty-state-b1/plan.md | done: `git log -1 --name-only` lists only the plan and `git status --porcelain` is empty | Stato: TODO
-- 1. Rewrite `EMPTY_DESCRIPTION` in the future tense | files: Frontend/src/app/(tabs)/match.jsx | done: `match.jsx:68-69` reads "il match automatico confronterà le tue code con quelle della tua località", `grep "confronta le code" Frontend/src` empty | Stato: TODO
-- 2. Append `Stato:` to B1–B11 in §B (B1 DONE citing `match.jsx:68-69`, B8 `N/A`, B9 `TODO` + deferral, B12 normalised per Q1) | files: docs/audits/frontend-gap-analysis-2026-11-16.md | done: `sed -n '/^## B\./,/^## C\./p' … \| grep -c "\`Stato:"` = 12 and each DONE carries a `path:line` | Stato: TODO
-- 3. Changelog entry (newest first, after the `---`) | files: docs/changelog.md | done: entry dated 2026-11-17 names B1, the future tense, the §B statuses and the Docker decision left untouched | Stato: TODO
+- 0. Commit this contract | files: docs/briefs/match-empty-state-b1/plan.md | done: `git log -1 --name-only` lists only the plan and `git status --porcelain` is empty | Stato: DONE
+- 1. Rewrite `EMPTY_DESCRIPTION` in the future tense | files: Frontend/src/app/(tabs)/match.jsx | done: `match.jsx:68-69` reads "il match automatico confronterà le tue code con quelle della tua località", `grep "confronta le code" Frontend/src` empty | Stato: DONE
+- 2. Append `Stato:` to B1–B11 in §B (B1 DONE citing `match.jsx:68-69`, B8 `N/A`, B9 `TODO` + deferral, B12 normalised per Q1) | files: docs/audits/frontend-gap-analysis-2026-11-16.md | done: `sed -n '/^## B\./,/^## C\./p' … \| grep -c "\`Stato:"` = 12 and each DONE carries a `path:line` | Stato: DONE
+- 3. Changelog entry (newest first, after the `---`) | files: docs/changelog.md | done: entry dated 2026-11-17 names B1, the future tense, the §B statuses and the Docker decision left untouched | Stato: DONE
 - 4. Gate, commit, push | files: — | done: lint + tsc + jest green, `git diff --stat` = the two files of steps 1-3, commit on `andrea-frontend`, `git status` clean after push | Stato: TODO
 
 ## Lanes:

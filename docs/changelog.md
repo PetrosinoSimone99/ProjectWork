@@ -6,6 +6,46 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — The match empty state stops promising a match that never runs
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 323 ahead of `origin/main`, 0 behind. Working tree clean.
+No merge needed, nothing pushed to `main`.
+
+### Why
+
+The Match tab's empty state said, in the present tense, that the automatic match
+compares queues. Nothing consumes the `async` transport in the local stack
+(`docs/setup.md:107-110`), so a queue created from that tab never produces a
+match: the sentence promised behaviour the stack does not perform.
+
+### What changed
+
+- `Frontend/src/app/(tabs)/match.jsx:68-69` — `EMPTY_DESCRIPTION` now reads «il
+  match automatico **confronterà** le tue code con quelle della tua località»:
+  future tense, no claim about the runtime. Copy only. No worker was added to the
+  stack and `Backend/compose.yaml` is untouched — that decision was taken and not
+  reopened here.
+- [`audits/frontend-gap-analysis-2026-11-16.md`](audits/frontend-gap-analysis-2026-11-16.md)
+  §B — every item now carries one `Stato:` field: B1–B7 and B10–B12 are `DONE`,
+  each with the `path:line` re-checked in this session (B1 is DONE because of the
+  copy above); B8 is `N/A`, closed as not worth it on W6's measurement; B9 stays
+  `TODO` with the deferral note, since no ceiling is broken
+  (`api/normalizers.js` 749, `app/(tabs)/agreements.jsx` 649,
+  `components/WebNavMenu.jsx` 600 against the 800 ceiling). B12's `Stato: chiuso`
+  became `Stato: DONE` so the field reads one way. §C keeps its older
+  `Stato: chiuso` wording: it was outside this cycle and renaming it is not a doc
+  fix this entry claims.
+- Contract and plan:
+  [`briefs/match-empty-state-b1/plan.md`](briefs/match-empty-state-b1/plan.md).
+
+### Touched
+
+`Frontend/src/app/(tabs)/match.jsx`, `docs/audits/frontend-gap-analysis-2026-11-16.md`,
+`docs/briefs/match-empty-state-b1/plan.md`, `docs/changelog.md`.
+
+---
+
 ## 2026-11-17 — API authorization probe: two confirmed chat IDORs
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**

@@ -85,6 +85,11 @@ Judgment: the sentence is not a lie about the *design*, it is a lie about the
 or the empty state says what the queue actually does today: it stands in a list
 the backend will compare. Copy change, no logic.
 
+`Stato: DONE` (2026-11-17, this cycle): `Frontend/src/app/(tabs)/match.jsx:68-69`
+now reads «il match automatico confronterà le tue code con quelle della tua
+località» — future tense, no claim about the runtime. The condition the item
+names is untouched: `docs/setup.md:107-110` still lists no consumer of `async`.
+
 ### B2. `ServiceDetailModal` docstring contradicts its own code — P2
 
 `ServiceDetailModal.jsx:34-38` still says the "what they offer and look for" block
@@ -97,6 +102,10 @@ code does — `ServiceDetailModal.jsx:34-37` says the block is `UserServicesMini
 and that it asks `GET /users/{id}/services`, and `:245` mounts it. Fixed by W3, not
 by this item; nothing to edit.
 
+`Stato: DONE` (2026-11-17, W8, re-verified): `ServiceDetailModal.jsx:34-37`
+describes `UserServicesMiniCard` and the `GET /users/{id}/services` call it makes,
+and `:245` mounts it.
+
 ### B3. `Screen.jsx` and `_layout.jsx` document a chat screen that does not exist — P2
 
 `Screen.jsx:52` documents "le schermate con una barra ancorata in fondo (chat)" and
@@ -105,6 +114,9 @@ by this item; nothing to edit.
 Judgment: **closed 2026-11-16 by W1** — the paragraph was kept and is now true:
 `src/app/chat/[agreementId].jsx` is a `Screen` with a composer anchored at the
 bottom and a reduced `bottomSpacing`, exactly the case it describes.
+
+`Stato: DONE` (2026-11-16, W1, re-verified): `Frontend/src/app/chat/[agreementId].jsx`
+exists as the anchored-composer `Screen` the paragraph describes.
 
 ### B4. `docs/architecture.md` lists a directory that does not exist — P2
 
@@ -115,6 +127,9 @@ Judgment: a reader who trusts the tree looks in the wrong place.
 **Closed 2026-11-17 (W8):** the line is `src/validation/  pure validation helpers,
 one module for every form`, a directory the tree does have. The same pass caught a
 second phantom the item did not name: `src/Subscriber/` is `src/EventSubscriber/`.
+
+`Stato: DONE` (2026-11-17, W8, re-verified): `docs/architecture.md:45` is
+`src/validation/  pure validation helpers, one module for every form`.
 
 ### B5. `docs/frontend.md` understates the test suite — P2
 
@@ -135,6 +150,11 @@ eleven, and the JSON lists five files, not two.
 suites, 346 tests, 95.71% statements / 90.86% branches on the five files in
 `collectCoverageFrom` — says the figure is a hand-picked sample, and names the
 eight hooks with no test of their own.
+
+`Stato: DONE` (2026-11-17, W8, re-verified): `docs/frontend.md:138-159` reports
+the measured run — 32 suites, 346 tests, 95.71% statements / 90.86% branches on
+the files in `collectCoverageFrom` — says the figure is a hand-picked sample and
+names the eight hooks with no test of their own.
 
 ### B6. New code is written in Italian, against the repo's own rule — P2
 
@@ -168,6 +188,12 @@ shares (hook return objects, row props, the normalised shape), so this was never
 inconsistent is smaller: the helpers and flags invented inside the new files were
 Italian while their neighbours were English. Closed in W9 below.
 
+`Stato: DONE` (2026-11-17, W9, re-verified): D026 (`docs/decisions.md:255`) settles
+the two layers; the invented flags and helpers the item listed are English today
+(`match.jsx:32` `manyServicesReason`, `:62` `refundsCredit`, `:225` `activeQueue`,
+`services/queues.js:95` `hasActiveQueue`) while the row props stay Italian
+(`coda`, `occupata`) by contract. No sweep rename.
+
 ### B7. No error boundary on any route — P1
 
 `grep -rn "ErrorBoundary\|componentDidCatch" Frontend/src` returns nothing. A throw
@@ -179,6 +205,10 @@ missing.
 Judgment: one 30-line component in the root layout closes the only unhandled class
 of failure. **Closed 2026-11-16** by W5 (`src/components/AppErrorBoundary.jsx`,
 mounted around the `Stack` in `src/app/_layout.jsx`, `0e22832`).
+
+`Stato: DONE` (2026-11-16, W5, re-verified): the component is
+`Frontend/src/components/AppErrorBoundary.jsx`, opened at `src/app/_layout.jsx:90`
+and closed at `:101`, around the `Stack`.
 
 ### B8. 192 KB of location data is loaded on every home open — P1
 
@@ -201,6 +231,12 @@ needs an async `import()` (async display functions) or dropping the canonical
 spelling — both change behaviour. Closed as not worth it: W6, and the reason is
 the measurement above.
 
+`Stato: N/A` (2026-11-16, W6): no action pending, and none was taken on purpose —
+the dataset is 112.357 B minified / 41.591 B gzip inside `__common-*.js` and costs
+~1 ms of V8 parsing, so removing it from the initial payload would change display
+behaviour (async display functions or a dropped canonical spelling) to buy
+nothing measurable.
+
 ### B9. Screens above the file-size rule — P3
 
 `docs/frontend.md:35-38` asks for 200–400 lines typical, 800 ceiling, with the
@@ -213,6 +249,11 @@ stateful part moved into a hook. Today: `api/normalizers.js` 645,
 Judgment: no ceiling is broken, so this is a maintainability item, not a defect.
 Split on the next touch, not before (ponytail).
 
+`Stato: TODO` (2026-11-17): no ceiling broken. `api/normalizers.js` is 749 lines
+(was 645) and `app/(tabs)/agreements.jsx` 649 (was 644); `WebNavMenu.jsx` stays 600.
+The split happens at the next touch of those files, not before: the deferral is
+getting expensive, but it is not this cycle's job.
+
 ### B10. Notification rows are not actionable, and the data to make them so is
 already in memory — P1
 
@@ -224,12 +265,20 @@ the Accordi tab and find the row by hand.
 Judgment: the join key is already normalised and thrown away. This is the cheapest
 UX fix in the list.
 
+`Stato: DONE` (2026-11-16, `0718c3a`, re-verified): `NotificationRow.jsx:88`
+computes `apribile` from `notifica.dati.agreementId` and `onApri`, renders the
+action, and `src/app/notifications.jsx:89` passes the route.
+
 ### B11. A queue linked to an agreement cannot be opened from the queue — P2
 
 `QueueCard` renders «Collegata a uno scambio» as text (`QueueCard.jsx`, the
 `agreementId !== null` branch) and offers only "Annulla coda". `agreementId` is on
 the row.
 Judgment: the one useful action on that row is "go there".
+
+`Stato: DONE` (2026-11-17, re-verified): `QueueCard.jsx:101` computes `canOpen`
+from `coda.agreementId` and `onApri`, `:170` wires `onPress={onApri}`, and
+`src/app/(tabs)/match.jsx:274` supplies `onApri={() => router.push('/agreements')}`.
 
 ### B12. One silently swallowed error, against the repo's own rule — P3
 
@@ -240,7 +289,7 @@ surface, or escalate", and `api/client.js:131` already shows the accepted shape
 Judgment: the *behaviour* is right and documented (the profile row stays neutral);
 the *logging* is the deviation. One line, folded into W10.
 
-`Stato: chiuso` (2026-11-17) with W10: `useNotifications.js:192-198` is now
+`Stato: DONE` (2026-11-17 with W10): `useNotifications.js:192-198` is now
 `catch (err)` and warns `[notifiche] conteggio non lette non riuscito` under
 `__DEV__`, with the row still `null`.
 
