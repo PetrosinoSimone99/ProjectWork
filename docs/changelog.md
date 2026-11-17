@@ -6,7 +6,59 @@ documents/code touched.
 
 ---
 
-## 2026-11-17 — W4: the staff area drives the four endpoints it promised
+## 2026-11-17 — W10: the profile badge asks again on its own
+
+Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
+`origin/andrea-frontend`; 299 ahead of `origin/main`, 0 behind. No merge needed,
+nothing pushed to `main`.
+
+### Why
+
+Audit W10 (`docs/audits/frontend-gap-analysis-2026-11-16.md:546`) said the unread
+row in the profile was true only at the instant the screen opened: `useUnreadCount`
+read the count on focus and on pull-to-refresh, then never again, so a
+notification written by another device stayed invisible until the user changed
+tab. The audit classed the item `S`; it became `M` because its own `Done` line
+asks for a fake-timer assertion and `hooks/useNotifications.js` had no test file,
+so the work created one. Plan:
+[`briefs/w10-unread-polling/plan.md`](briefs/w10-unread-polling/plan.md).
+
+### What landed
+
+1. **The poll** (`9d0d7e2`): `useUnreadCount` exports `UNREAD_POLL_MS = 30000`
+   and creates its interval inside `useFocusEffect`, so a blur clears it. A tick
+   returns early when `AppState.currentState` is not `'active'`; a `change`
+   listener on the same effect reads once on the `'active'` transition, so coming
+   back to the foreground does not wait a whole interval. `Frontend/src` had zero
+   `AppState` hits before this, so there was no helper to reuse.
+2. **The B12 log** (`9d0d7e2`): the failure path is `catch (err)`, still leaves
+   the row neutral (`null`), and warns `[notifiche] conteggio non lette non
+   riuscito` under `__DEV__`, the shape `api/client.js:120-122` already uses.
+3. **Five tests** (`src/hooks/__tests__/useNotifications.test.js`): the badge
+   moves after one interval, the foreground return reads at once, a backgrounded
+   app sends nothing, blur stops the timer, a failed count warns and stays
+   neutral. Harness borrowed from `useChat.test.js` (react-test-renderer, fake
+   timers, mocked `useFocusEffect`).
+
+### What did not change, and why
+
+`profile.jsx` was left alone: its copy (`:290-291`) never promised a live row, so
+"if the copy needs to say it polls" resolved to nothing. The inbox needed no work
+either — it uses `useNotifications`, so "no polling on the inbox screen" was
+already true by construction, and that hook is untouched. No backend call was
+added: the poll reuses `getNotifications(token, { limit: 1 })`.
+
+### Touched
+
+`Frontend/src/hooks/useNotifications.js`,
+`Frontend/src/hooks/__tests__/useNotifications.test.js` (new), `docs/api.md`,
+`docs/audits/frontend-gap-analysis-2026-11-16.md`, `docs/changelog.md`,
+`docs/briefs/w10-unread-polling/plan.md` (new).
+
+Gate: `npx expo lint`, `npx tsc --noEmit`, `npx jest` (29 suites, 320 tests)
+green before the push.
+
+---
 
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
 `origin/andrea-frontend`; 292 ahead of `origin/main`, 0 behind. No merge needed,

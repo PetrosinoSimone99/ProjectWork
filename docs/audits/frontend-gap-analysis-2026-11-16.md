@@ -214,6 +214,10 @@ surface, or escalate", and `api/client.js:131` already shows the accepted shape
 Judgment: the *behaviour* is right and documented (the profile row stays neutral);
 the *logging* is the deviation. One line, folded into W10.
 
+`Stato: chiuso` (2026-11-17) with W10: `useNotifications.js:189-197` is now
+`catch (err)` and warns `[notifiche] conteggio non lette non riuscito` under
+`__DEV__`, with the row still `null`.
+
 ---
 
 ## C. Work items
@@ -545,7 +549,27 @@ not a refactor.
 
 ### W10 — Unread count while the screen is open
 
-`Stato: TODO`
+`Stato: chiuso` (2026-11-17) — plan:
+[`../briefs/w10-unread-polling/plan.md`](../briefs/w10-unread-polling/plan.md)
+(class `M` and not `S`: the item asked for a fake-timer assertion and
+`useNotifications` had no test file, so the work created one).
+
+What landed, against the three points above: `useUnreadCount` now exports
+`UNREAD_POLL_MS` (30 s, not the chat's 15: a badge is not a conversation), keeps
+the interval inside `useFocusEffect` so a blur clears it, skips a tick when
+`AppState.currentState` is not `'active'`, and reads once more on the `'active'`
+transition instead of waiting a whole interval. `profile.jsx` was left untouched:
+its copy (`:290-291`) never promised a live row, so there was nothing to correct.
+The inbox needed no work — it uses `useNotifications`, so "no polling on the inbox
+screen" was already true by construction. The B12 line is closed above.
+
+Two facts the item did not know: `Frontend/src` had **zero** `AppState` hits, so
+the guard had no existing helper to reuse; and the failure path stays as
+specified — the row goes neutral on a bad count, which is the documented
+behaviour and not a regression introduced here. Five tests in
+`src/hooks/__tests__/useNotifications.test.js` pin the whole cycle: badge moves,
+foreground return reads at once, background sends nothing, blur stops the timer,
+a failed count logs and stays neutral.
 
 - Edit: `src/hooks/useNotifications.js` (`useUnreadCount` gets an interval while
   focused, cleared on blur) and `src/app/(tabs)/profile.jsx` if the copy needs to
@@ -596,7 +620,7 @@ code, and judge against `docs/DESIGN.md` rather than taste.
 | 4 | W3 public profile | closes G3's remaining half, endpoint ready |
 | 5 | ~~W6 lazy dataset~~ | **closed N/A** 2026-11-16: measured, the win claimed here does not exist (B8) |
 | 6 | ~~W4 staff surface~~ | **done** 2026-11-17: the four documented endpoints are wired, plan in `docs/briefs/w4-staff-surface/` |
-| 7 | W10 unread polling | small, but it makes the inbox feel alive |
+| 7 | ~~W10 unread polling~~ | **done** 2026-11-17: the profile badge polls every 30 s while focused, plan in `docs/briefs/w10-unread-polling/` |
 | 8 | W7 hook tests | before W9's renames, so the refactor has a net |
 | 9 | W9 naming + W8 docs | last: both touch many files and depend on the decisions above |
 

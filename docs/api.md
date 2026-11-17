@@ -247,6 +247,14 @@ The backend writes notifications synchronously inside the request that causes
 them (agreement proposed, answered, cancelled, sheet written or accepted, chat
 message, match created, staff actions). There is **no push channel**: no
 Mercure, no SSE, no email. A client learns about a new row by asking again.
+Two readers ask, both with the token:
+
+- the inbox (`useNotifications`) reads page 1 on focus and on pull-to-refresh;
+- the profile row (`useUnreadCount`) reads `limit: 1` on focus, on
+  pull-to-refresh and **every 30 s while the screen is in the foreground**
+  (`UNREAD_POLL_MS`). It sends no request while the app is backgrounded
+  (`AppState`) and reads once more when the app comes back, so the badge moves
+  without a second, parallel counter.
 
 | Call | Notes |
 | --- | --- |
