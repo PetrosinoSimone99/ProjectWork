@@ -75,7 +75,9 @@ export async function listStaffUsers(token, filters = {}) {
 
 /** GET /staff/users/{id} -> the user, normalised like a list row. */
 export async function getStaffUser(token, id) {
-  const response = await apiFetch(`staff/users/${Number(id)}`, { token });
+  const response = await withActionMessage(
+    apiFetch(`staff/users/${Number(id)}`, { token }),
+  );
   return normalizeStaffUser(response?.user ?? response);
 }
 
@@ -144,7 +146,9 @@ export async function listStaffOperations(token, filters = {}) {
  */
 export async function listStaffDeletedServices(token, filters = {}) {
   return normalizeStaffDeletedServices(
-    await apiFetch(`staff/services/deleted?${buildQuery(filters)}`, { token }),
+    await withActionMessage(
+      apiFetch(`staff/services/deleted?${buildQuery(filters)}`, { token }),
+    ),
   );
 }
 
@@ -167,6 +171,6 @@ export async function getStaffReport(token, id) {
 /** GET /staff/operations/{id} -> one operation with its `before`/`after`. */
 export async function getStaffOperation(token, id) {
   return normalizeStaffOperation(
-    await apiFetch(`staff/operations/${Number(id)}`, { token }),
+    await withActionMessage(apiFetch(`staff/operations/${Number(id)}`, { token })),
   );
 }

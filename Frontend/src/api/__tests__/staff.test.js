@@ -153,6 +153,15 @@ describe('listStaffDeletedServices', () => {
     expect(dati.servizi).toEqual([]);
     expect(dati.paginazione.elementiTotali).toBeNull();
   });
+
+  it('answers a 403 with the Italian message of the action table', async () => {
+    apiFetch.mockRejectedValue(new ApiError(403, 'Forbidden'));
+
+    await expect(listStaffDeletedServices('token-123')).rejects.toMatchObject({
+      status: 403,
+      message: 'Questa azione non è permessa con il tuo ruolo.',
+    });
+  });
 });
 
 describe('restoreStaffService', () => {
@@ -261,5 +270,14 @@ describe('getStaffOperation', () => {
     expect(operazione).toMatchObject({ id: 77, azione: 'USER_SUSPENDED', bersaglioId: 4 });
     expect(operazione.prima).toBeNull();
     expect(operazione.dopo).toBeNull();
+  });
+
+  it('answers a 404 with the Italian message of the action table', async () => {
+    apiFetch.mockRejectedValue(new ApiError(404, 'Not Found'));
+
+    await expect(getStaffOperation('token-123', 77)).rejects.toMatchObject({
+      status: 404,
+      message: 'Non trovo quello che cercavi: potrebbe essere stato rimosso.',
+    });
   });
 });

@@ -102,10 +102,20 @@ export function StaffReportDetail({ detail, onRetry }) {
   );
 }
 
+/**
+ * Le chiavi che non si mostrano nemmeno se un giorno comparissero nel registro:
+ * il contratto le esclude, questa è la cintura se cambia (la guida API dichiara
+ * fuori password, JWT e motivi).
+ */
+const REDACTED_KEYS = /password|token|secret|jwt|hash/i;
+
 /** Un valore del registro: `null` è un valore, non un campo mancante. */
 function operationValue(value, key) {
   if (value === null || value === undefined) {
     return 'nessuno';
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
   }
   if (key === 'deletedAt' || key === 'assignedAt' || key === 'reviewedAt') {
     return formatIsoDate(String(value)) ?? String(value);
@@ -115,7 +125,7 @@ function operationValue(value, key) {
 
 /** `before`/`after` come coppie chiave→valore; le chiavi restano del backend. */
 function ChangeBlock({ titolo, changes }) {
-  const entries = Object.entries(changes ?? {});
+  const entries = Object.entries(changes ?? {}).filter(([key]) => !REDACTED_KEYS.test(key));
   if (entries.length === 0) {
     return null;
   }

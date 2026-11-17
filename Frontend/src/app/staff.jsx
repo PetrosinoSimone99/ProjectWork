@@ -180,9 +180,16 @@ export default function StaffScreen() {
         if (seq !== deletedRequestRef.current) {
           return;
         }
-        setDeletedServices((previous) =>
-          page === 1 ? result.servizi : [...(previous ?? []), ...result.servizi],
-        );
+        setDeletedServices((previous) => {
+          if (page === 1) {
+            return result.servizi;
+          }
+          // La paginazione è a offset su una lista che può cambiare (un
+          // ripristino sposta la finestra): una riga già letta non si ripete,
+          // altrimenti `chiave` collide nel render.
+          const seen = new Set((previous ?? []).map((row) => row.chiave));
+          return [...(previous ?? []), ...result.servizi.filter((row) => !seen.has(row.chiave))];
+        });
         setDeletedPage(result.paginazione.pagina ?? page);
         setDeletedPages(result.paginazione.pagineTotali ?? page);
         setDeletedError(null);
@@ -288,16 +295,25 @@ export default function StaffScreen() {
    */
   async function openDetail(report) {
     setDetail({ report, loading: true, error: null });
+    // La risposta vale solo per la riga che l'ha chiesta: aprendo A e poi B, la
+    // rilettura di A non deve scrivere l'esito nel pannello di B.
+    const isStillOpen = (current) =>
+      current !== null && Number(current.report.id) === Number(report.id);
     try {
       const fresh = await getStaffReport(token, report.id);
-      setDetail((current) =>
-        current && Number(current.report.id) === Number(report.id)
-          ? { report: fresh ?? current.report, loading: false, error: null }
-          : current,
-      );
+      setDetail((current) => {
+        if (!isStillOpen(current)) {
+          return current;
+        }
+        // `null` significa che la risposta non aveva una riga leggibile: il
+        // dato di lista resta, ma non è aggiornato e va detto.
+        return fresh
+          ? { report: fresh, loading: false, error: null }
+          : { ...current, loading: false, error: GENERIC_ERROR_MESSAGE };
+      });
     } catch (err) {
       setDetail((current) =>
-        current
+        isStillOpen(current)
           ? {
               ...current,
               loading: false,
@@ -311,16 +327,21 @@ export default function StaffScreen() {
   /** Lo stesso patto per il registro: `before`/`after` esistono solo nel dettaglio. */
   async function openOperationDetail(operation) {
     setOperationDetail({ operation, loading: true, error: null });
+    const isStillOpen = (current) =>
+      current !== null && Number(current.operation.id) === Number(operation.id);
     try {
       const fresh = await getStaffOperation(token, operation.id);
-      setOperationDetail((current) =>
-        current && Number(current.operation.id) === Number(operation.id)
-          ? { operation: fresh ?? current.operation, loading: false, error: null }
-          : current,
-      );
+      setOperationDetail((current) => {
+        if (!isStillOpen(current)) {
+          return current;
+        }
+        return fresh
+          ? { operation: fresh, loading: false, error: null }
+          : { ...current, loading: false, error: GENERIC_ERROR_MESSAGE };
+      });
     } catch (err) {
       setOperationDetail((current) =>
-        current
+        isStillOpen(current)
           ? {
               ...current,
               loading: false,
@@ -348,8 +369,11 @@ export default function StaffScreen() {
     setMessage(null);
     try {
       await restoreStaffService(token, restoreTarget.id);
-      setMessage('Servizio ripristinato: è di nuovo online per il suo proprietario.');
+      setMessage('Servizio ripristinato: torna a disposizione del suo proprietario.');
       setRestoreTarget(null);
+      // Prima del reload: nessun'altra riga deve restare disabilitata mentre la
+      // pagina 1 si ricarica.
+      setRestoringId(null);
       await loadDeleted(1);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
@@ -409,7 +433,14 @@ export default function StaffScreen() {
         busyId={restoringId}
         onRetry={() => void loadDeleted(1)}
         onRestore={askRestore}
-        onLoadMore={() => void loadDeleted(deletedPage + 1)}
+        onLoadMore={() => {
+          // Mentre la pagina 1 ricarica, un'altra pagina non può partire: la
+          // risposta vincerebbe lei e le righe aggiornate andrebbero perse.
+          if (deletedLoading || deletedLoadingMore) {
+            return;
+          }
+          void loadDeleted(deletedPage + 1);
+        }}
         hasMore={deletedPage < deletedPages}
         loadingMore={deletedLoadingMore}
       />
@@ -543,7 +574,7 @@ export default function StaffScreen() {
           restoreTarget
             ? `${restoreTarget.mansione.trim() || 'Servizio'} di ${nomePersona(
                 restoreTarget.proprietario,
-              )} torna nel catalogo: chi lo cerca lo rivede subito.`
+              )} torna a disposizione del suo proprietario. Se era sospeso, resta sospeso.`
             : ''
         }
         etichettaConferma="Ripristina"

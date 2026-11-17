@@ -6,7 +6,7 @@ import { Card, Chip } from './Card';
 import { EmptyState } from './EmptyState';
 import { formatIsoDate } from '@/services/dates';
 import { localitaPerDisplay } from '@/services/italian-locations';
-import { TIPI_VOCE, nomeCategoria, nomePersona } from '@/services/offer-request';
+import { TIPI_VOCE, STATI_PUBBLICAZIONE, nomeCategoria, nomePersona } from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -44,8 +44,8 @@ export function StaffDeletedServicesSection({
       <View style={{ gap: space.xs }}>
         <AppText variant="heading">Servizi eliminati</AppText>
         <AppText variant="small" tone="secondary">
-          Le voci eliminate da tutti gli utenti: ripristinarne una la rimette online per il suo
-          proprietario.
+          Le voci eliminate da tutti gli utenti: ripristinarne una la rimette a disposizione del
+          suo proprietario; una voce sospesa resta sospesa.
         </AppText>
       </View>
 
@@ -66,7 +66,9 @@ export function StaffDeletedServicesSection({
         </View>
       ) : null}
 
-      {!error && loading && services === null ? (
+      {/* Con `services` a `null` e senza errore non si sa ancora niente: dirlo è
+          l'unica cosa onesta (lo stesso ramo di `StaffOperationsLog`). */}
+      {!error && services === null ? (
         <AppText variant="small" tone="secondary">
           Carico i servizi eliminati…
         </AppText>
@@ -87,7 +89,12 @@ export function StaffDeletedServicesSection({
         const owner = nomePersona(service.proprietario);
         const deletedAt = formatIsoDate(service.eliminataIl);
         const mansione = service.mansione?.trim() || 'Mansione non indicata';
-        const place = service.localita ? localitaPerDisplay(service.localita) : 'da remoto';
+        const place = service.daRemoto
+          ? 'da remoto'
+          : localitaPerDisplay(service.localita) ?? 'Località non indicata';
+        // Una voce sospesa è ripristinata ma resta invisibile nel catalogo: la
+        // riga lo dice, altrimenti la promessa del ripristino è più larga del vero.
+        const isSuspended = service.stato === STATI_PUBBLICAZIONE.SOSPESA;
         return (
           <Card key={service.chiave}>
             <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
@@ -96,6 +103,13 @@ export function StaffDeletedServicesSection({
                   {isOffer ? 'Offerta' : 'Ricerca'}
                 </AppText>
               </Chip>
+              {isSuspended ? (
+                <Chip background={t.dangerBg}>
+                  <AppText variant="caption" style={{ color: t.dangerText }}>
+                    Sospesa
+                  </AppText>
+                </Chip>
+              ) : null}
               {deletedAt ? (
                 <Chip background={t.dangerBg}>
                   <AppText variant="caption" style={{ color: t.dangerText }}>
