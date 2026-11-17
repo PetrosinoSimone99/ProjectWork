@@ -60,6 +60,8 @@ green before the push.
 
 ---
 
+## 2026-11-17 — W4: the staff area drives the four endpoints it promised
+
 Session start: `git fetch origin`. `andrea-frontend` was **0 ahead, 0 behind**
 `origin/andrea-frontend`; 292 ahead of `origin/main`, 0 behind. No merge needed,
 nothing pushed to `main`.

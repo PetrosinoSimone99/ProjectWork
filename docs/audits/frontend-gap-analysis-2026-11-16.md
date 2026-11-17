@@ -214,7 +214,7 @@ surface, or escalate", and `api/client.js:131` already shows the accepted shape
 Judgment: the *behaviour* is right and documented (the profile row stays neutral);
 the *logging* is the deviation. One line, folded into W10.
 
-`Stato: chiuso` (2026-11-17) with W10: `useNotifications.js:189-197` is now
+`Stato: chiuso` (2026-11-17) with W10: `useNotifications.js:192-198` is now
 `catch (err)` and warns `[notifiche] conteggio non lette non riuscito` under
 `__DEV__`, with the row still `null`.
 
