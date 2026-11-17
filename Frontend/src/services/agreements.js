@@ -205,11 +205,11 @@ export function isSheetCompiled(scheda) {
  * One `YYYY-MM-DD` date as the backend wants it, or `null` when the text is
  * not a real calendar day.
  *
- * The form has no date picker (the app has none, and adding one is a dependency
- * this task does not need), so the field is text and this function is the whole
- * validation: the shape, and then the round trip through `Date` that rejects
- * `2026-02-31` (which would silently become 3 March). Date-only strings are
- * what `send-agreement-details` accepts — it parses them with
+ * The form hands over the day the platform picker produced, still as
+ * `YYYY-MM-DD`; this function is the last guard before the call: the shape, and
+ * then the round trip through `Date` that rejects `2026-02-31` (which would
+ * silently become 3 March). Date-only strings are what
+ * `send-agreement-details` accepts — it parses them with
  * `DateTimeImmutable` — so no time and no timezone is invented here.
  */
 export function dataDaInput(valore) {

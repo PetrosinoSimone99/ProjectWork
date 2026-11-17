@@ -128,9 +128,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     paddingHorizontal: space.md,
   },
-  // Su web un flex item ha `min-width: auto`: la larghezza intrinseca del campo
-  // vince sul contenitore e a 320 px l'input sfonda il viewport (audit UX F1).
-  // `minWidth: 0` è il comportamento che native ha già di default.
+  // On the web a flex item keeps `min-width: auto`, so the field's intrinsic
+  // width wins over its container and at 320 px the input crossed the viewport
+  // (mobile audit F1). Zero is already what native does by default.
   input: { flex: 1, minWidth: 0, minHeight: 48, fontSize: 15, paddingVertical: space.sm },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
 });
