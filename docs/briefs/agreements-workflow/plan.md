@@ -20,7 +20,14 @@ Contract: `plan-brief.md` (same directory). `Stile: full`.
    two concurrent phpunit runs share the SQLite file and drop each other's
    tables. A child uses its own path (`/tmp/barattolo-<lane>.db`).
 6. Frontend gate: `npx expo lint`, `npx tsc --noEmit`, `npx jest`.
-7. First executable block: step 1.
+7. First executable block: the first `| Stato: TODO` above.
+8. Since 2026-11-19 the app also carries a server-sent-events stream (backend
+   `StreamController`/`NotificationEventStream`, frontend `api/stream.js` and
+   the root layout): the chat and the agreements now reload on a stream frame
+   as well as on focus, so re-check that the sheet flow still behaves after
+   any pull of new commits.
+9. Browser verification needs MS Edge (`--browser msedge` in the Playwright
+   MCP config): the default Chromium channel is not installed on this machine.
 
 ## Steps
 
@@ -34,7 +41,8 @@ Contract: `plan-brief.md` (same directory). `Stile: full`.
 - 7. Docs, parent-owned: `api.md` (sheet contract, queue eligibility gone, service limits), `backend-gaps.md` (what the correction changed), `decisions.md` D028 superseding the D027 rules it replaces, `overview.md` (lifecycle + tab states), `changelog.md` (session entry + backend-derogation notice), `setup.md` (backend gate commands). | files: docs/api.md,docs/backend-gaps.md,docs/decisions.md,docs/overview.md,docs/changelog.md,docs/setup.md | done: every changed contract in the code appears in the docs, no stale D027 sentence left | Stato: DONE
 - 8. Integration, parent-owned: restart the backend so the new migration applies, make `blankDetails` write `start_date` when the rows are created (so the sheet shows Inizio before it is sent, not only after), rewrite the two sheet blocks of `Backend/tests/Functional/WorkflowControllerTest.php` to `{agreementId, notes}` (dropping the endDate-before-startDate assertion), then run all gates — `cd Frontend && npx expo lint && npx tsc --noEmit && npx jest`; `cd Backend && docker compose exec -T -e APP_ENV=test -e 'DATABASE_URL=sqlite:////tmp/barattolo-test.db' backend php bin/phpunit -c phpunit.dist.xml --no-coverage` (only the 6 `ReportControllerTest` database errors are expected); `docker compose exec -T -e APP_ENV=test -e 'DATABASE_URL=mysql://root:root@database:3306/workflow_checks?serverVersion=8.0&charset=utf8mb4' backend php bin/phpunit -c phpunit.dist.xml --filter 'WorkflowControllerTest'`; curl smoke on a reciprocal proposal, on a sheet send/accept (including the completion notification) and on a registration without both entries. | files: none | done: all four gates green, the three smoke cases answer as specified | Stato: DONE
 - 9. Review at fresh context, three angles and one model per angle (correctness `deepseek-v4.1-flash`, security/data `deepseek-v4.1-flash`, brief coherence `glm-5.3-flash`); apply only accepted P0/P1. | files: none | done: verdicts returned and every accepted finding fixed by a resumed child | Stato: DONE
-- 10. Push `andrea-frontend` (never `main`), clean tree, gates green. | files: none | done: `git push origin andrea-frontend` succeeds and `git rev-list --count origin/andrea-frontend..HEAD` is 0 | Stato: TODO
+- 10. Push `andrea-frontend` (never `main`), clean tree, gates green. | files: none | done: `git push origin andrea-frontend` succeeds and `git rev-list --count origin/andrea-frontend..HEAD` is 0 | Stato: DONE
+- 11. End-to-end check in a real browser (MS Edge through the Playwright MCP; Chrome is not installed there), on the app served by the Expo dev server on port 8081: two accounts propose to each other (expect the "proposta accettata" banner), the sheet is written from the chat, confirmed by the other side, and the chat must end up read-only with "Torna agli accordi" and no navigation error. Then re-run the four gates with the SSE work on top. | files: none | done: the crossed proposal auto-accepts, the sheet send/confirm completes the exchange, the concluded chat keeps its history and offers the way back, and all four gates are green | Stato: TODO
 
 ## Contracts the lanes must obey (fixed here, not renegotiable by a child)
 
