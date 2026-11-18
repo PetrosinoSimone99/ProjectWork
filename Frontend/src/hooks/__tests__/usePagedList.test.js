@@ -152,5 +152,26 @@ it('un errore di rete diventa il messaggio italiano di ApiError', async () => {
   });
 
   expect(lettura.errore).toBe('Questa azione non è permessa con il tuo ruolo.');
+  expect(lettura.erroreNonDisponibile).toBe(false);
   expect(lettura.caricamento).toBe(false);
+});
+
+it('un endpoint assente è dichiarato non disponibile, non un guasto', async () => {
+  const carica = jest.fn().mockRejectedValueOnce(new ApiError(404, 'Not found.'));
+  const lettura = {};
+  render(lettura, carica);
+
+  await act(async () => {
+    await lettura.ricarica();
+  });
+
+  // La schermata mostra «non disponibile» e non un «Riprova» che non può riuscire.
+  expect(lettura.erroreNonDisponibile).toBe(true);
+  // Il tentativo dopo azzera il giudizio prima di chiedere: un «non disponibile»
+  // vecchio non deve restare a schermo mentre la richiesta è in volo.
+  await act(async () => {
+    await lettura.ricarica();
+  });
+  expect(lettura.erroreNonDisponibile).toBe(false);
+  expect(lettura.errore).toBe(null);
 });

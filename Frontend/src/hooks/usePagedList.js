@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/client';
 
 /**
  * Una lista paginata dal server: la pagina 1 sostituisce, le altre si appendono.
@@ -43,6 +43,11 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
   const [caricamentoAltri, setCaricamentoAltri] = useState(false);
   const [errore, setErrore] = useState(null);
   const [erroreAltri, setErroreAltri] = useState(null);
+  // Un endpoint che non esiste (404/501) non è un guasto: la schermata che lo
+  // legge ha uno stato suo, più onesto di «errore, riprova». La regola è una
+  // sola (`isEndpointUnavailable`) e questo hook la riporta come booleano
+  // perché la schermata riceve il messaggio già in italiano, non l'eccezione.
+  const [erroreNonDisponibile, setErroreNonDisponibile] = useState(false);
 
   const requestRef = useRef(0);
   const vivoRef = useRef(true);
@@ -83,6 +88,7 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
       // Una pagina nuova rende vecchio anche l'errore dell'appendente.
       setErrore(null);
       setErroreAltri(null);
+      setErroreNonDisponibile(false);
     }
     try {
       const risultato = await caricaRef.current({
@@ -114,6 +120,7 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
         setErroreAltri(messaggio);
       } else {
         setErrore(messaggio);
+        setErroreNonDisponibile(isEndpointUnavailable(err));
       }
     } finally {
       inVoloRef.current = Math.max(0, inVoloRef.current - 1);
@@ -158,6 +165,7 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
     caricamentoAltri,
     errore,
     erroreAltri,
+    erroreNonDisponibile,
     ricarica,
     caricaAltri,
     haAltre,
