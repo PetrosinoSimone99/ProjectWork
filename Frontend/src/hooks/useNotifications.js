@@ -17,11 +17,11 @@ import {
  * keeping a counter of its own (a counter would be a second truth, and the
  * notification that arrived from another device would never reach it).
  *
- * It asks for **page 1 only**. The backend's `pagination` is page-scoped
- * (`totalItems` counts the rows of the page it just returned), so a client
- * cannot know whether a second page exists; rather than draw a "load more"
- * button that can never appear, the screen shows the newest page and the gap is
- * filed as `docs/backend-gaps.md` G16.
+ * It asks for **page 1 only**, by choice: `pagination.totalItems` is the real
+ * total of the filtered query (the repository counts the whole filtered set, not
+ * the rows of the page), so asking for page 2 would work. The inbox is
+ * newest-first and small, so it does not; G16 in `docs/backend-gaps.md`, which
+ * claimed the count was page-scoped, was retracted on 2026-11-18.
  *
  * Reads follow the `useAgreements` pattern:
  *

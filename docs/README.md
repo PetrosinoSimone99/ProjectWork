@@ -17,7 +17,7 @@ created and a chat opens to settle the details.
 | [`ux.md`](ux.md) | UX rules: definitions, six principles, the ten Nielsen heuristics, dark patterns, usability measurement, design process, usability test protocol, review checklist |
 | [`accessibility.md`](accessibility.md) | Accessibility rules: normative frame, POUR, the WCAG AA criteria that bind the app, assistive technology pass, content rules, verification procedure, non-web documents, checklist |
 | [`api.md`](api.md) | Endpoints that exist today, with request and response shapes |
-| [`backend-gaps.md`](backend-gaps.md) | The endpoints the frontend needs and the backend does not have yet |
+| [`backend-gaps.md`](backend-gaps.md) | What the code still owes, split into backend requests (section A), work and decisions on our side (section B), and closed/retracted blocks |
 | [`database.md`](database.md) | MySQL schema (the demo dump): tables, what they encode, known gaps |
 | [`setup.md`](setup.md) | Local environment: Docker Desktop stack, Expo, environment variables |
 | [`ui-triage.md`](ui-triage.md) | Open UI symptom inventory: what is verified from source, what still needs a rendered capture |

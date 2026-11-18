@@ -42,6 +42,23 @@ non-existent gap.
 - **Priority agreed:** G24, then G10/G18/G19, then G20; after that G28 and G12,
   then G25 and G26.
 
+### The file, restructured
+
+Same numbers, three sections, so nobody has to read the whole page to know who
+owes what:
+
+- **A. Backend — open and real:** 22 blocks in the agreed priority order
+  (`G24`, then `G10`/`G18`/`G19`, then `G20`, then `G28`/`G12`, then
+  `G25`/`G26`, then independent ones).
+- **B. Ours:** `G27` (the preview), `G3` (the proposer card), five product
+  decisions this side owes (`G5`, `G23`, `G11`, `G28`, `G4`), and the `G20`
+  re-measure on our own MySQL.
+- **Closed and retracted:** `G1`, `G2`, `G3` (API half), `G7` (flow), `G8`,
+  `G16`, one paragraph each, because audits and briefs still cite the numbers.
+
+The file went from 710 to 535 lines with no evidence dropped: file:line
+references, the measured runs and the maintainer's verdicts all survive.
+
 ### What it changes on this side
 
 `useNotifications`'s header comment carried the retracted premise ("`totalItems`
@@ -54,6 +71,8 @@ choice. `api.md` §Notifications documents the per-type `data` shape, including
 - The chat-message preview in the inbox is now unblocked (G27) — it belongs to
 the notifications panel cycle, whose plan still describes it as waiting on a
 backend gap.
+- The five product decisions in section B are unanswered; until they are, the
+backend cannot close `G5`, `G23`, `G11`, `G28` and the `G4` extension.
 - `docs/briefs/wiring-audit-2026-11-17/audit.md` and
   `docs/audits/check-2026-11-17.md` still state that the notifications count is
   page-scoped. They are dated audit records and read as such; the correction

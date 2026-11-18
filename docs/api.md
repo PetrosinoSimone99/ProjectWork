@@ -296,6 +296,12 @@ Two readers ask, both with the token:
 The end-date scheduler writes `agreement_completed` in lower case, so the
 frontend upper-cases `type` when it normalises a row.
 
+`data` depends on the type: `{"agreementId": <id>}` on the agreement rows, and
+`{"agreementId": <id>, "chatId": <id>, "message": "<full text>"}` on
+`CHAT_MESSAGE`. A chat notification therefore already carries the body of the
+message that arrived, so a preview needs no new backend field
+(`backend-gaps.md` G27).
+
 ## Service queues (matchmaker)
 
 A queue is a standing "I offer this" or "I look for this" that the backend
