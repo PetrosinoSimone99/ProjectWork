@@ -30,10 +30,12 @@ class AgreementDetails
     #[ORM\Column(name: 'from_remote', type: 'boolean')]
     private ?bool $fromRemote = null;
 
-    #[ORM\Column(name: 'start_date', type: 'datetime_immutable')]
+    // Both are written by the domain: `start_date` at acceptance, `end_date` at
+    // confirmation, so a row exists before either value does.
+    #[ORM\Column(name: 'start_date', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $startDate = null;
 
-    #[ORM\Column(name: 'end_date', type: 'datetime_immutable')]
+    #[ORM\Column(name: 'end_date', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $endDate = null;
 
     #[ORM\Column(name: 'beneficiary_accepted', type: 'boolean', nullable: true)]

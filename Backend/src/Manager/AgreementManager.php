@@ -67,11 +67,15 @@ final class AgreementManager
                 throw new \InvalidArgumentException('The selected service must belong to the other participant.');
             }
             if (!$own) { throw new \DomainException('Publish an offer before proposing an exchange.'); }
-            $this->transaction->lock('services', [$own->getId(), $requested->getId()]);
-            foreach ([$own, $requested] as $service) { $this->em->refresh($service); $this->assertAvailable($service); }
             $ids = [$own->getId(), $requested->getId()]; sort($ids);
-            // The counterpart already proposed this exchange the other way round: the answer is the acceptance.
+            // The counterpart already proposed this exchange the other way round:
+            // the answer is the acceptance. It runs before the service locks
+            // because it locks `agreements` first, the order every other path
+            // uses (`sendResponse`, `acceptAgreementDetails`); the other way round
+            // would deadlock on a crossing pair.
             if ($this->acceptReciprocalProposal($user, $other, $own, $requested)) { return true; }
+            $this->transaction->lock('services', $ids);
+            foreach ([$own, $requested] as $service) { $this->em->refresh($service); $this->assertAvailable($service); }
             $duplicate = $this->em->getConnection()->fetchOne("SELECT 1 FROM agreements a JOIN agreement_proposal p ON p.agreement_id = a.id JOIN agreement_proposal q ON q.agreement_id = a.id WHERE a.status IN ('PENDING', 'ACCEPTED') AND p.service_id = ? AND q.service_id = ? LIMIT 1", $ids);
             if ($duplicate !== false) { throw new \DomainException('An exchange for these services is already pending.'); }
             $agreement = new Agreement(AgreementStatus::PENDING, new \DateTimeImmutable(), false);
@@ -221,6 +225,10 @@ final class AgreementManager
         );
         if ($id === false) { return false; }
         $agreement = $this->lockedAgreement((int) $id, $user);
+        // Same order as the rest of the manager: `agreements` first, then the
+        // services the acceptance is about.
+        $this->transaction->lock('services', [$own->getId(), $requested->getId()]);
+        foreach ([$own, $requested] as $service) { $this->em->refresh($service); $this->assertAvailable($service); }
         $now = new \DateTimeImmutable();
         foreach ($agreement->getAgreementProposals()->toArray() as $row) {
             $row->setResponse(true); $row->setResponseDate($now);

@@ -212,7 +212,10 @@ class AuthController extends AbstractController
                 return null;
             }
 
-            $validatedServices[] = ['description' => $description, 'location' => $service['location'] ?? null, 'isRemote' => $service['isRemote'] ?? false, 'isSuspended' => $service['isSuspended'] ?? false, 'categoryIds' => $categoryIds, 'categories' => $categoryNames];
+            // A new account cannot be born suspended: suspension is not offered
+            // to the owner any more (`409` on a status-only PATCH), so accepting
+            // it here would be the only way around that rule.
+            $validatedServices[] = ['description' => $description, 'location' => $service['location'] ?? null, 'isRemote' => $service['isRemote'] ?? false, 'isSuspended' => false, 'categoryIds' => $categoryIds, 'categories' => $categoryNames];
         }
 
         return $validatedServices;

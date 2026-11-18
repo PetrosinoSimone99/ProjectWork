@@ -52,7 +52,10 @@ class AuthControllerTest extends WebTestCase
         return [['isRemote'], ['isSuspended']];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('booleanFields')]
+    /** `isRemote` is the only flag a registration may choose: suspension is not the owner's. */
+    public static function acceptedBooleanFields(): array { return [['isRemote']]; }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('acceptedBooleanFields')]
     public function testRegistrationSavesBooleanServiceFlagsForOffersAndRequests(string $field): void
     {
         foreach ([false, true] as $index => $value) {
@@ -61,6 +64,16 @@ class AuthControllerTest extends WebTestCase
             self::assertResponseStatusCodeSame(201);
             foreach (['offers', 'requests'] as $key) { self::assertSame($value, $this->responseData()[$key][0][$field]); }
         }
+    }
+
+    public function testRegistrationCannotCreateASuspendedService(): void
+    {
+        // The owner cannot suspend a service after registration (409), so a
+        // registration that asked for it would be the only way around the rule.
+        $service = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], 'isSuspended' => true];
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['offers' => [$service], 'requests' => [$service]]));
+        self::assertResponseStatusCodeSame(201);
+        foreach (['offers', 'requests'] as $key) { self::assertFalse($this->responseData()[$key][0]['isSuspended']); }
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('booleanFields')]
