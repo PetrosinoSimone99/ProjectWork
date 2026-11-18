@@ -12,11 +12,10 @@ Every G id was re-read against `Backend/src` (read-only) and `api.md`: none of
 them is an open gap. G1–G32 are closed, G9/G15/G23 are superseded by the credit
 and registration decisions, and G16 was already retracted. The file was still
 shaped like a request list, with G9, G15 and G23 repeated in two rows that
-contradicted each other. The 26 resolution rows are now three id groups
-(closed, superseded, retracted) with the one-line rule each superseded id
-stands for, keeping the numbers stable for the audits and the `api.md` cites
-without restating behavior `api.md` already documents; per-id history stays in
-this changelog.
+contradicted each other. It is now one row per id, grouped into closed,
+superseded and retracted, keeping the numbers stable for the audits and the
+`api.md` cites. Each superseded row states the rule that replaced the gap; no
+row restates behaviour `api.md` already documents.
 
 The sections that stay are the ones still true: the residual limits (stream
 coverage, polling fallbacks, restart at the live edge) and the data/rollout
