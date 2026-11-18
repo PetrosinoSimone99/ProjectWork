@@ -24,20 +24,31 @@ themselves read: the «Segna come letta» button is gone.
   the focus moved inside — behaviour inherited, not rewritten. Four explicit
   states: loading row, error banner with its own «Riprova» above the rows that
   are already on screen, empty sentence, rows.
-- **Auto-read.** Opening the panel marks the unread rows of the page read, one
+- **Read on close.** Closing the panel marks the rows it showed as read — one
   `PATCH /notifications/{id}/read` per row, because the backend has no bulk
-  read. A failed `PATCH` leaves the row unread (the row says so) and warns in
-  development only. `useNotifications` loses `segnaLetta` and gains
-  `segnaVisibiliLette`; `NotificationRow` loses `onLetta` and its button.
-- **Badge.** The profile band still reads `useUnreadCount`, and closing the
-  panel re-reads it, so the number does not wait for the 30 s poll.
+  read. Nothing is marked while the panel is open: the dot and the words «Non
+  letta» stay readable for the whole visit, so the new rows can be told from the
+  old ones. A failed `PATCH` leaves the row unread (the row says so) and warns
+  in development only. `useNotifications` loses `segnaLetta` and gains
+  `segnaLetteMostrate`, now called by the panel's close handler, not by an
+  effect; `NotificationRow` loses `onLetta` and its button.
+- **Every page, up to five.** The inbox used to read page 1 only (`backend-gaps.md`
+  G16, retracted: `totalItems` is the real total), which left a badge above zero
+  on an account with more than twenty unread rows. `useNotifications` now walks
+  the pages until `pagination.totalPages`, with `NOTIFICATIONS_MAX_PAGES = 5` as
+  the stop (100 rows).
+- **Badge.** The profile band still reads `useUnreadCount`; the panel calls
+  `onLette` when the marks have landed, and only then is the count re-read — its
+  own `onClose` is immediate, so the badge would otherwise read the number from
+  before the writes.
 
 ### Why
 
 Two ways to read the same rows were one too many: a screen with its own
 back-stack entry beside a bell that already opens a panel of its own in the
 agreements tab. And marking a notification read by hand is a chore the user
-should not have to perform — opening the inbox is the act that reads it.
+should not have to perform — **closing** the inbox is the act that reads it,
+because that is the moment the person is done looking at what was new.
 
 ### Touched
 
@@ -51,9 +62,10 @@ should not have to perform — opening the inbox is the act that reads it.
 
 ### Known limit
 
-Page 1 only, by choice: on an account with more than 20 unread rows the badge
-can stay above zero after an opening, because those rows were never displayed.
-Reading page 2 is a separate block, not a counter kept in the app.
+Five pages, by choice: `NOTIFICATIONS_MAX_PAGES` stops the walk at 100 rows, so
+on an account with more unread rows than that the badge can stay above zero after
+a close. Raising the cap is one constant; a counter kept in the app would be a
+second truth and is not the answer.
 
 ---
 

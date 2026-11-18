@@ -14,8 +14,9 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * Data and callbacks only: no network, no mutation of the input. The panel
  * owns the calls and passes `inCorso` back down for the delete in flight. The
  * row has one command only, «Elimina», because reading is no longer manual: the
- * rows on screen mark themselves read when the panel opens
- * (`useNotifications.segnaVisibiliLette`). The one piece of state the row keeps
+ * rows the panel showed mark themselves read when it **closes**
+ * (`useNotifications.segnaLetteMostrate`), which is why «Non letta» stays on
+ * screen for as long as the panel is open. The one piece of state the row keeps
  * is whether its delete confirmation is open — pure UI, the same as
  * `AgreementCard`: `onElimina` fires only from the confirm panel, never from
  * the row button.

@@ -9,6 +9,19 @@ import {
 } from '@/api/areas/notifications';
 
 /**
+ * How many pages the inbox collects before it stops.
+ *
+ * `pagination.totalPages` is the real total (`backend-gaps.md` G16 was retracted:
+ * the controller counts the whole filtered query), so the hook reads every page
+ * of the inbox and not just the first. The cap exists because «every page» is an
+ * unbounded number of requests for an account with a thousand notifications: at
+ * `NOTIFICATIONS_PAGE_SIZE` rows per page this is 100 rows, and beyond it the
+ * badge can stay above zero after a close — a declared limit, not a local
+ * counter that would drift from the server's.
+ */
+export const NOTIFICATIONS_MAX_PAGES = 5;
+
+/**
  * The data layer of the notifications inbox.
  *
  * The backend has no push channel: this hook asks again when the screen comes
@@ -17,11 +30,12 @@ import {
  * keeping a counter of its own (a counter would be a second truth, and the
  * notification that arrived from another device would never reach it).
  *
- * It asks for **page 1 only**, by choice: `pagination.totalItems` is the real
- * total of the filtered query (the repository counts the whole filtered set, not
- * the rows of the page), so asking for page 2 would work. The inbox is
- * newest-first and small, so it does not; G16 in `docs/backend-gaps.md`, which
- * claimed the count was page-scoped, was retracted on 2026-11-18.
+ * It asks for **every page** of the inbox, up to `NOTIFICATIONS_MAX_PAGES`:
+ * `pagination.totalPages` is the real total (G16 in `docs/backend-gaps.md`,
+ * which claimed the count was page-scoped, was retracted on 2026-11-18), and the
+ * pages are accumulated so that closing the panel marks every row the panel
+ * actually holds — with page 1 alone, twenty-one unread notifications would
+ * leave the badge above zero forever.
  *
  * Reads follow the `useAgreements` pattern:
  *
@@ -34,13 +48,12 @@ import {
  *    "still loading" from "loaded and empty" and never draws an invented count.
  * 4. **One action at a time** (`azioneInCorso` names the row), so two taps
  *    cannot clobber each other's busy state. That holds for `elimina`;
- *    reading is no longer a user action, so it does not take a turn in that
- *    slot. The rows the page holds mark themselves read when the panel opens:
- *    the backend has no bulk read, so it is one `PATCH` per row, and a failed
- *    `PATCH` leaves the row unread with a warning that only a developer can
- *    read. That row is tried once more on the next change of the list, because
- *    `segnaVisibiliLette` depends on `elementi`; nothing loops, since a run that
- *    finds no unread row returns before touching the state.
+ *    reading is not a turn in that slot either, because it is not a command:
+ *    it happens when the panel **closes**. The rows the panel showed mark
+ *    themselves read then — the backend has no bulk read, so it is one `PATCH`
+ *    per row, and a failed `PATCH` leaves the row unread with a warning that
+ *    only a developer can read. Nothing marks anything while the panel is open:
+ *    that is what keeps «Non letta» readable for the person looking at it.
  */
 export function useNotifications({ token }) {
   const [elementi, setElementi] = useState(null);
@@ -52,29 +65,49 @@ export function useNotifications({ token }) {
   const requestSeqRef = useRef(0);
 
   const carica = useCallback(async () => {
-      if (!token) {
+    if (!token) {
+      return;
+    }
+    const seq = ++requestSeqRef.current;
+    setCaricamento(true);
+    setErrore(null);
+    // Rows already collected by the pages that answered: a page that fails
+    // keeps them on screen, which is the same promise point 2 makes for a
+    // reload.
+    const raccolte = [];
+    let conteggio = 0;
+    try {
+      let pagina = 1;
+      let pagineTotali = 1;
+      do {
+        const risposta = await getNotifications(token, { page: pagina });
+        if (seq !== requestSeqRef.current) {
+          return;
+        }
+        if (pagina === 1) {
+          // The unread count is global, not page-scoped: one read is enough.
+          conteggio = risposta.nonLette;
+        }
+        raccolte.push(...risposta.elementi);
+        pagineTotali = risposta.paginazione?.pagineTotali ?? 1;
+        pagina += 1;
+      } while (pagina <= Math.min(pagineTotali, NOTIFICATIONS_MAX_PAGES));
+      setNonLette(conteggio);
+      setElementi(raccolte);
+    } catch (err) {
+      if (seq !== requestSeqRef.current) {
         return;
       }
-      const seq = ++requestSeqRef.current;
-      setCaricamento(true);
-      setErrore(null);
-      try {
-        const risposta = await getNotifications(token, { page: 1 });
-        if (seq !== requestSeqRef.current) {
-          return;
-        }
-        setNonLette(risposta.nonLette);
-        setElementi(risposta.elementi);
-      } catch (err) {
-        if (seq !== requestSeqRef.current) {
-          return;
-        }
-        setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-      } finally {
-        if (seq === requestSeqRef.current) {
-          setCaricamento(false);
-        }
+      if (raccolte.length > 0) {
+        setNonLette(conteggio);
+        setElementi(raccolte);
       }
+      setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+    } finally {
+      if (seq === requestSeqRef.current) {
+        setCaricamento(false);
+      }
+    }
   }, [token]);
 
   useFocusEffect(
@@ -109,7 +142,7 @@ export function useNotifications({ token }) {
     [azioneInCorso, elementi, token],
   );
 
-  const segnaVisibiliLette = useCallback(async () => {
+  const segnaLetteMostrate = useCallback(async () => {
     if (!token) {
       return;
     }
@@ -149,7 +182,7 @@ export function useNotifications({ token }) {
     errore,
     azioneInCorso,
     ricarica: carica,
-    segnaVisibiliLette,
+    segnaLetteMostrate,
     elimina,
   };
 }

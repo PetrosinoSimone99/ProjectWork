@@ -191,12 +191,12 @@ ha; oltre le 100 righe.
 
 ### Steps
 
-- 13. Commit this contract before any code moves | files: `docs/briefs/notifiche-popup/plan.md` | done: the appendix is on `andrea-frontend` and the tree is clean | Stato: TODO
-- 14. Hook: paged read and a mark called on demand | files: `Frontend/src/hooks/useNotifications.js` | done: `carica` cumula le pagine fino a `NOTIFICATIONS_MAX_PAGES` seguendo `paginazione.pagineTotali`; `segnaLetteMostrate` sostituisce `segnaVisibiliLette` e nessun effetto la chiama | Stato: TODO
-- 15. Panel and profile: read on close | files: `Frontend/src/components/NotificationsSheet.jsx`, `Frontend/src/app/(tabs)/profile.jsx` | done: nessun `useEffect` di marcatura; `chiudi` fa `onClose()` poi `segnaLetteMostrate()` poi `onLette?.()`; il padre passa `onLette={ricaricaNonLette}` | Stato: TODO
-- 16. Tests: the panel marks on close and never on open | files: `Frontend/src/components/__tests__/NotificationsSheet.test.js` | done: il caso «marks on open» è sostituito da «no PATCH while open» + «marks on close, then refreshes the count once» | Stato: TODO
-- 17. Tests: paging and the renamed mark | files: `Frontend/src/hooks/__tests__/useNotifications.test.js` | done: due casi nuovi (due pagine cumulate, tetto a 5) e i quattro casi della marcatura rinominati su `segnaLetteMostrate`, verdi | Stato: TODO
-- 18. Close the cycle: docs | files: `docs/changelog.md`, `docs/api.md` | done: il changelog dice «alla chiusura» e nomina il tetto di 5 pagine, `api.md` §Notifications dice lo stesso, nessuna frase residua sull'apertura | Stato: TODO
+- 13. Commit this contract before any code moves | files: `docs/briefs/notifiche-popup/plan.md` | done: the appendix is on `andrea-frontend` and the tree is clean | Stato: DONE
+- 14. Hook: paged read and a mark called on demand | files: `Frontend/src/hooks/useNotifications.js` | done: `carica` cumula le pagine fino a `NOTIFICATIONS_MAX_PAGES` seguendo `paginazione.pagineTotali`; `segnaLetteMostrate` sostituisce `segnaVisibiliLette` e nessun effetto la chiama | Stato: DONE
+- 15. Panel and profile: read on close | files: `Frontend/src/components/NotificationsSheet.jsx`, `Frontend/src/app/(tabs)/profile.jsx` | done: nessun `useEffect` di marcatura; `chiudi` fa `onClose()` poi `segnaLetteMostrate()` poi `onLette?.()`; il padre passa `onLette={ricaricaNonLette}` | Stato: DONE
+- 16. Tests: the panel marks on close and never on open | files: `Frontend/src/components/__tests__/NotificationsSheet.test.js` | done: il caso «marks on open» è sostituito da «no PATCH while open» + «marks on close, then refreshes the count once» | Stato: DONE
+- 17. Tests: paging and the renamed mark | files: `Frontend/src/hooks/__tests__/useNotifications.test.js` | done: due casi nuovi (due pagine cumulate, tetto a 5) e i quattro casi della marcatura rinominati su `segnaLetteMostrate`, verdi | Stato: DONE
+- 18. Close the cycle: docs | files: `docs/changelog.md`, `docs/api.md` | done: il changelog dice «alla chiusura» e nomina il tetto di 5 pagine, `api.md` §Notifications dice lo stesso, nessuna frase residua sull'apertura | Stato: DONE
 
 ### Lanes
 

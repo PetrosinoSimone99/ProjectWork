@@ -1,7 +1,13 @@
 import { act, create } from 'react-test-renderer';
 import { AppState } from 'react-native';
 import { getNotifications, markNotificationRead } from '@/api/areas/notifications';
-import { UNREAD_POLL_MS, useNotifications, useUnreadCount } from '../useNotifications';
+import { ApiError } from '@/api/client';
+import {
+  NOTIFICATIONS_MAX_PAGES,
+  UNREAD_POLL_MS,
+  useNotifications,
+  useUnreadCount,
+} from '../useNotifications';
 
 jest.mock('expo-router', () => ({
   // `useFocusEffect` needs a navigator; in this test the screen is always the
@@ -26,6 +32,18 @@ const row = (id, letta) => ({ id, tipo: 'MESSAGE', messaggio: null, dati: null, 
 /** One page of the inbox that carries rows as well as the count. */
 const page = (elementi, nonLette) => ({ elementi, nonLette });
 
+/** One answered page of the inbox: `paginazione.pagineTotali` is what the hook follows. */
+const pagedResponse = (rows, nonLette, pageNumber, totalPages) => ({
+  elementi: rows,
+  nonLette,
+  paginazione: {
+    pagina: pageNumber,
+    pagineTotali: totalPages,
+    elementiTotali: totalPages * rows.length,
+    limite: totalPages * rows.length,
+  },
+});
+
 /** Renders the hook and keeps its latest return value where the test reads it. */
 function render(lettura) {
   function Probe({ token }) {
@@ -41,7 +59,7 @@ function render(lettura) {
 
 /**
  * Same probe for the inbox hook. It returns `setToken` because dropping the
- * session is the only way to reach `segnaVisibiliLette` with rows already on
+ * session is the only way to reach `segnaLetteMostrate` with rows already on
  * screen, which is the case the token guard exists for.
  */
 function renderInbox(lettura, token = TOKEN) {
@@ -189,7 +207,7 @@ describe('useUnreadCount — the polling of the badge', () => {
     ).toBe(true);
   });
 });
-describe('useNotifications — the automatic read of the rows on screen', () => {
+describe('useNotifications — the read of the rows the panel showed', () => {
   it('marks every unread row with one request each and drops the count by two', async () => {
     const lettura = {};
     getNotifications.mockResolvedValue(page([row(1, false), row(2, false), row(3, true)], 2));
@@ -199,7 +217,7 @@ describe('useNotifications — the automatic read of the rows on screen', () => 
     expect(lettura.nonLette).toBe(2);
 
     await act(async () => {
-      await lettura.segnaVisibiliLette();
+      await lettura.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).toHaveBeenCalledTimes(2);
@@ -216,7 +234,7 @@ describe('useNotifications — the automatic read of the rows on screen', () => 
     await flush();
 
     await act(async () => {
-      await lettura.segnaVisibiliLette();
+      await lettura.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).not.toHaveBeenCalled();
@@ -237,7 +255,7 @@ describe('useNotifications — the automatic read of the rows on screen', () => 
     await flush();
 
     await act(async () => {
-      await lettura.segnaVisibiliLette();
+      await lettura.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).toHaveBeenCalledTimes(2);
@@ -254,11 +272,59 @@ describe('useNotifications — the automatic read of the rows on screen', () => 
 
     sonda.setToken(null);
     await act(async () => {
-      await lettura.segnaVisibiliLette();
+      await lettura.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).not.toHaveBeenCalled();
     expect(lettura.elementi).toEqual([row(1, false), row(2, false)]);
+    expect(lettura.nonLette).toBe(2);
+  });
+});
+
+describe('useNotifications — reading every page of the inbox', () => {
+  it('reads every page the response announces', async () => {
+    const lettura = {};
+    getNotifications.mockImplementation(async (token, { page: pageNumber } = {}) =>
+      pagedResponse([row(pageNumber, false)], 2, pageNumber, 2),
+    );
+    renderInbox(lettura);
+    await flush();
+
+    expect(getNotifications).toHaveBeenCalledTimes(2);
+    expect(getNotifications).toHaveBeenCalledWith(TOKEN, { page: 1 });
+    expect(getNotifications).toHaveBeenCalledWith(TOKEN, { page: 2 });
+    expect(lettura.elementi).toEqual([row(1, false), row(2, false)]);
+    expect(lettura.errore).toBeNull();
+  });
+
+  it('stops at NOTIFICATIONS_MAX_PAGES', async () => {
+    const lettura = {};
+    getNotifications.mockImplementation(async (token, { page: pageNumber } = {}) =>
+      pagedResponse([row(pageNumber, false)], 9, pageNumber, 9),
+    );
+    renderInbox(lettura);
+    await flush();
+
+    expect(getNotifications).toHaveBeenCalledTimes(NOTIFICATIONS_MAX_PAGES);
+    expect(lettura.elementi).toEqual(
+      Array.from({ length: NOTIFICATIONS_MAX_PAGES }, (rowOfPage, index) => row(index + 1, false)),
+    );
+  });
+
+  it('keeps the pages that answered when a later page fails', async () => {
+    const lettura = {};
+    getNotifications.mockImplementation(async (token, { page: pageNumber } = {}) => {
+      if (pageNumber > 1) {
+        throw new ApiError(500, 'Errore interno del server');
+      }
+      return pagedResponse([row(1, false)], 2, pageNumber, 2);
+    });
+    renderInbox(lettura);
+    await flush();
+
+    expect(getNotifications).toHaveBeenCalledTimes(2);
+    expect(lettura.errore).toBe('Errore interno del server');
+    expect(lettura.elementi).toEqual([row(1, false)]);
     expect(lettura.nonLette).toBe(2);
   });
 });

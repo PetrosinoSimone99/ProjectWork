@@ -264,23 +264,27 @@ message, match created, staff actions). There is **no push channel**: no
 Mercure, no SSE, no email. A client learns about a new row by asking again.
 Two readers ask, both with the token:
 
-- the inbox (`useNotifications`) reads page 1 when the panel opens;
+- the inbox (`useNotifications`) reads every page when the panel opens;
 - the profile row (`useUnreadCount`) reads `limit: 1` on focus, on
   pull-to-refresh and **every 30 s while the screen is in the foreground**
   (`UNREAD_POLL_MS`). It sends no request while the app is backgrounded
   (`AppState`) and reads once more when the app comes back, so the badge moves
   without a second, parallel counter.
 
-Reading is not a command. `PATCH /notifications/{id}/read` has no bulk form, so
-opening the panel sends **one `PATCH` per unread row of the page it shows**
-(`NotificationsSheet` → `useNotifications.segnaVisibiliLette`); a `PATCH` that
-fails leaves that row unread, which is what the row then says. The unread badge
-re-reads the count when the panel closes, so it does not sit on the old number
-for a full poll interval. Page 1 is a deliberate scope, not a limit: `totalItems`
-is the real total (`backend-gaps.md` G16, retracted) and page 2 is reachable, but
-the inbox only ever shows the first page — so on an account with more than 20
-unread rows the badge can stay above zero after an opening, because those rows
-were never on screen.
+Reading is not a command and it is not the opening. `PATCH
+/notifications/{id}/read` has no bulk form, so **closing** the panel sends one
+`PATCH` per unread row it showed (`NotificationsSheet` →
+`useNotifications.segnaLetteMostrate`); while the panel is open nothing is marked,
+which is what keeps «Non letta» readable. A `PATCH` that fails leaves that row
+unread, which is what the row then says. The panel then calls `onLette` and the
+profile re-reads the unread count, so the badge is not read before the writes
+land.
+
+The inbox reads every page, up to `NOTIFICATIONS_MAX_PAGES` (5, i.e. 100 rows):
+`pagination.totalPages` is the real total (`backend-gaps.md` G16, retracted), and
+with page 1 alone twenty-one unread notifications would leave the badge above
+zero forever. Beyond the cap the badge can stay above zero: declared limit, not a
+local counter.
 
 | Call | Notes |
 | --- | --- |

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AppText } from './AppText';
@@ -30,17 +29,18 @@ const INBOX_VUOTA =
  * is the one place that states it, and the auto-read below makes a number in
  * the description drop while it is being read.
  *
- * Opening the panel marks the page read: the backend has no bulk endpoint, so
- * the hook sends one `PATCH` per unread row. It marks the rows the page holds,
- * which is what «aperto» means here — the panel scrolls, and a row the user
- * scrolls past is a row they opened. The effect runs on `visible` and again when
- * the list identity changes, so a row that arrives while the panel is open (a
- * «Riprova», the poll of the badge is not involved) is marked too, and a `PATCH`
- * that failed gets one more try on the next change before the row settles as
- * unread. Nothing loops: a run with no unread row returns before touching the
- * state.
+ * Opening the panel marks nothing: the rows keep their dot, their «Non letta»
+ * and their accent border while the panel is open, which is the only way the
+ * person looking at them can tell what is new. **Closing** is the act that
+ * reads: `chiudi` closes the panel at once (the X cannot wait for the network)
+ * and then marks the rows the panel showed, one `PATCH` per row because the
+ * backend has no bulk read. When the marks settle it calls `onLette`, so the
+ * badge in the profile is re-read after the writes and not before them.
+ *
+ * Three props, and no more: `visible`, `onClose` (required) and `onLette`
+ * (optional, «the marks are done, re-read the count»).
  */
-export function NotificationsSheet({ visible, onClose }) {
+export function NotificationsSheet({ visible, onClose, onLette = null }) {
   const t = useTokens();
   const { token } = useAuth();
   const router = useRouter();
@@ -51,20 +51,24 @@ export function NotificationsSheet({ visible, onClose }) {
     azioneInCorso,
     ricarica,
     elimina,
-    segnaVisibiliLette,
+    segnaLetteMostrate,
   } = useNotifications({ token });
 
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-    segnaVisibiliLette();
-  }, [visible, segnaVisibiliLette]);
+  /**
+   * The one way out, shared by the X, the backdrop, Escape and opening an
+   * exchange. The mark is fired after the panel is already closing, and its
+   * promise keeps `onLette` in its closure: the panel unmounts on close, and the
+   * parent still has to hear when the writes have landed.
+   */
+  const chiudi = () => {
+    onClose();
+    void segnaLetteMostrate().finally(() => onLette?.());
+  };
 
   return (
     <ModalShell
       visible={visible}
-      onClose={onClose}
+      onClose={chiudi}
       titolo="Notifiche"
       descrizione="Proposte, risposte, schede e decisioni della staff."
       etichettaChiudi="Chiudi le notifiche"
@@ -113,9 +117,9 @@ export function NotificationsSheet({ visible, onClose }) {
               inCorso={azioneInCorso?.id === notifica.id ? azioneInCorso : null}
               onElimina={() => void elimina(notifica.id)}
               onApri={() => {
-                // Opening the exchange closes the panel first: a screen opened
-                // under a modal stays covered.
-                onClose();
+                // Opening the exchange closes the panel — and closing is what
+                // reads the rows — so it goes through the same door.
+                chiudi();
                 router.push('/agreements');
               }}
             />

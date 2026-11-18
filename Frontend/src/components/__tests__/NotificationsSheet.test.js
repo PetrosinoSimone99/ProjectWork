@@ -1,4 +1,5 @@
 import { act, create } from 'react-test-renderer';
+import { __push as push } from 'expo-router';
 
 import { useNotifications } from '@/hooks/useNotifications';
 import { AppButton } from '../AppButton';
@@ -10,9 +11,14 @@ import { NotificationsSheet } from '../NotificationsSheet';
  * replace each other: a failed read leaves the rows already on screen where
  * they are, with the error banner above them.
  *
+ * Reading is the act of closing: while the panel is open nothing is marked, and
+ * every exit (the X, the backdrop, Escape, opening an exchange) marks the rows
+ * through the same function and then tells the parent to re-read the count.
+ *
  * The hook is mocked on purpose (`NotificationsSheet` is the wiring under test,
  * not the fetching) and so are the auth token and the router: the panel reads
- * them, it does not own them.
+ * them, it does not own them. The router's `push` is exported by the mock so a
+ * test can assert where the row sends the reader.
  */
 jest.mock('@/hooks/useNotifications', () => ({
   useNotifications: jest.fn(),
@@ -22,9 +28,13 @@ jest.mock('@/auth/auth-context', () => ({
   useAuth: () => ({ token: 'jwt' }),
 }));
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
+jest.mock('expo-router', () => {
+  const spingi = jest.fn();
+  return {
+    __push: spingi,
+    useRouter: () => ({ push: spingi }),
+  };
+});
 
 const NOTIFICA = {
   id: 11,
@@ -46,7 +56,9 @@ function statoDelPannello(extra = {}) {
     azioneInCorso: null,
     ricarica: jest.fn(),
     elimina: jest.fn(),
-    segnaVisibiliLette: jest.fn(),
+    // The real hook always returns a promise and `chiudi` hangs `.finally` off
+    // it, so the default fake resolves instead of returning `undefined`.
+    segnaLetteMostrate: jest.fn().mockResolvedValue(undefined),
     ...extra,
   };
 }
@@ -74,6 +86,25 @@ function premi(renderer, accessibilityLabel) {
     .findAll(
       (node) =>
         node.props?.accessibilityLabel === accessibilityLabel &&
+        typeof node.props.onPress === 'function',
+    )
+    .at(0);
+  expect(controllo).toBeDefined();
+  act(() => {
+    controllo.props.onPress();
+  });
+}
+
+/**
+ * The row's open target, pressed the way a tap would. Its accessible name folds
+ * the row's own words in, so the label is matched by its prefix.
+ */
+function premiApriScambio(renderer) {
+  const controllo = renderer.root
+    .findAll(
+      (node) =>
+        typeof node.props?.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith('Apri lo scambio') &&
         typeof node.props.onPress === 'function',
     )
     .at(0);
@@ -143,7 +174,7 @@ describe('NotificationsSheet — the four states', () => {
   });
 });
 
-describe('NotificationsSheet — the door out and the auto-read', () => {
+describe('NotificationsSheet — the door out and the read on close', () => {
   it('closes from the one control named «Chiudi le notifiche»', () => {
     const onClose = jest.fn();
     const { renderer } = render({ elementi: [NOTIFICA] }, { onClose });
@@ -154,14 +185,62 @@ describe('NotificationsSheet — the door out and the auto-read', () => {
     smonta(renderer);
   });
 
-  it('marks the visible rows read when the panel opens, and only then', () => {
+  it('marks nothing while the panel is open', () => {
     const { renderer, stato } = render({ elementi: [NOTIFICA] });
-    expect(stato.segnaVisibiliLette).toHaveBeenCalledTimes(1);
-    smonta(renderer);
 
-    const chiuso = render({ elementi: [NOTIFICA] }, { visible: false });
-    expect(chiuso.stato.segnaVisibiliLette).not.toHaveBeenCalled();
-    smonta(chiuso.renderer);
+    expect(stato.segnaLetteMostrate).not.toHaveBeenCalled();
+    expect(renderer.root.findAllByType(NotificationRow)[0].props.notifica.letta).toBe(false);
+    expect(testi(renderer)).toContain('Non letta');
+    smonta(renderer);
+  });
+
+  it('marks the rows on close, then asks the parent to re-read the count once', async () => {
+    const ordine = [];
+    const onClose = jest.fn(() => ordine.push('chiudi'));
+    const segnaLetteMostrate = jest.fn(() => {
+      ordine.push('segna');
+      return Promise.resolve();
+    });
+    const onLette = jest.fn(() => ordine.push('lette'));
+    const { renderer } = render(
+      { elementi: [NOTIFICA], segnaLetteMostrate },
+      { onClose, onLette },
+    );
+
+    premi(renderer, 'Chiudi le notifiche');
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(segnaLetteMostrate).toHaveBeenCalledTimes(1);
+    // The panel closes at once, so the count is re-read only once the marks
+    // have settled — not before the writes have landed.
+    expect(onLette).not.toHaveBeenCalled();
+
+    await act(async () => {});
+
+    expect(onLette).toHaveBeenCalledTimes(1);
+    expect(ordine).toEqual(['chiudi', 'segna', 'lette']);
+    smonta(renderer);
+  });
+
+  it('closes and marks before opening the exchange', () => {
+    const ordine = [];
+    const onClose = jest.fn(() => ordine.push('chiudi'));
+    const segnaLetteMostrate = jest.fn(() => {
+      ordine.push('segna');
+      return Promise.resolve();
+    });
+    push.mockReset();
+    push.mockImplementation(() => ordine.push('apri'));
+    const { renderer } = render({ elementi: [NOTIFICA], segnaLetteMostrate }, { onClose });
+
+    premiApriScambio(renderer);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(segnaLetteMostrate).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith('/agreements');
+    // A screen opened under a modal would stay covered: the exchange comes last.
+    expect(ordine).toEqual(['chiudi', 'segna', 'apri']);
+    smonta(renderer);
   });
 });
 

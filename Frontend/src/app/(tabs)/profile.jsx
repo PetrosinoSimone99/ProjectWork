@@ -113,13 +113,14 @@ export default function ProfileScreen() {
   // mentre l'utente tira giù è la cosa che fa sembrare rotto il gesto.
   const { nonLette, ricarica: ricaricaNonLette } = useUnreadCount({ token });
 
-  // Chiudere il pannello ricarica anche il conteggio: nell'attimo in cui si
-  // apre, le righe visibili si segnano lette da sole, quindi un badge fermo al
-  // valore di prima resterebbe sbagliato fino al tick dei 30 s.
+  // Chiudere il pannello non ricarica il conteggio qui: il pannello marca le
+  // righe che ha mostrato **alla chiusura**, quindi un `GET` immediato leggerebbe
+  // il numero di prima delle `PATCH` in volo. Il pannello chiama `onLette`
+  // quando quelle scritture sono arrivate a destinazione, e solo allora si
+  // rilegge il badge.
   const chiudiNotifiche = useCallback(() => {
     setNotificheAperte(false);
-    void ricaricaNonLette();
-  }, [ricaricaNonLette]);
+  }, []);
   const { refreshing, onRefresh } = useRefresh(
     useCallback(async () => {
       await Promise.all([ricaricaSessione(), caricaProfilo(), ricaricaNonLette()]);
@@ -391,12 +392,17 @@ export default function ProfileScreen() {
       />
 
       {/* Il pannello si monta solo mentre è aperto: `useNotifications` legge la
-          lista su focus, e un pannello sempre montato chiederebbe venti righe a
+          lista su focus, e un pannello sempre montato chiederebbe l'inbox a
           ogni ingresso nel profilo per una lista che nessuno ha aperto (solo il
-          `limit: 1` del badge serve lì). `onClose` è l'unica uscita: X, tocco
-          fuori ed Escape la forniscono da `ModalShell`. */}
+          `limit: 1` del badge serve lì). `onClose` è l'unica uscita — X, tocco
+          fuori ed Escape —, `onLette` rilegge il badge quando le marcature in
+          volo sono atterrate. */}
       {notificheAperte ? (
-        <NotificationsSheet visible onClose={chiudiNotifiche} />
+        <NotificationsSheet
+          visible
+          onClose={chiudiNotifiche}
+          onLette={ricaricaNonLette}
+        />
       ) : null}
     </Screen>
   );
