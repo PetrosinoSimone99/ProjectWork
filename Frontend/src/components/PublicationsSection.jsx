@@ -55,10 +55,9 @@ export const SEZIONI_PUBBLICAZIONI = [
  * mie pubblicazioni») e il Profilo. Nessuno stato proprio: tutto arriva dalla
  * schermata, che è l'unica a sapere cosa sta pubblicando.
  *
- * `scritturaInCorso` è `null` oppure il segno che una scrittura è in volo da
- * qualche parte nella schermata (salvataggio, cambio di stato, eliminazione o
- * ripristino): con un valore la sezione non apre un form nuovo, non lascia
- * partire l'azione di nessuna card e lascia leggere il form aperto senza poterlo
+ * `scritturaInCorso` è `false` finché nessuna scrittura è in volo, `true` mentre
+ * lo è (salvataggio, cambio di stato, eliminazione o ripristino): con `true` la
+ * sezione non apre un form nuovo, non lascia partire l'azione di nessuna card e lascia leggere il form aperto senza poterlo
  * salvare o annullare. Il blocco è uno solo per la schermata, così due scritture
  * non possono incrociarsi. Le card ricevono i due motivi separati:
  * `modificaDisabilitata` per le categorie mancanti, `azioniDisabilitate` per la
@@ -75,7 +74,7 @@ export function PublicationsSection({
   erroreForm,
   categoriePronte,
   salvataggio,
-  scritturaInCorso = null,
+  scritturaInCorso = false,
   azioneInCorso,
   mostraStato,
   onApriNuova,
@@ -95,7 +94,7 @@ export function PublicationsSection({
   // Un solo pulsante primario a schermata: il primo «+ Aggiungi» resta il
   // comando forte, l'altro diventa secondario (audit UX F08).
   const varianteAggiungi = sezione.tipo === TIPI_VOCE.OFFERTA ? 'primary' : 'secondary';
-  const scritturaInVolo = scritturaInCorso !== null;
+  const scritturaInVolo = scritturaInCorso === true;
 
   return (
     <View style={{ gap: space.md }}>

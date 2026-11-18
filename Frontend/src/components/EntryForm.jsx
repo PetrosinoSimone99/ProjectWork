@@ -19,6 +19,17 @@ import { radius, space, useTokens } from '@/theme/tokens';
  *
  * Nessuno stato proprio: la voce, gli errori e le chiamate arrivano dalla
  * schermata, che è l'unica a sapere se sta creando o modificando.
+ *
+ * **`bloccato` è un valore che scende, non uno stato locale.** Mentre una
+ * scrittura è in volo la schermata non sa più che farsene dei tocchi: il blocco
+ * nasce da un unico valore derivato in cima (`offer-and-request.jsx`) e arriva
+ * qui già deciso. Il form non decide da sé quando spegnersi, altrimenti lo
+ * stesso salvataggio avrebbe un giudizio per ogni controllo e basterebbe un
+ * pulsante distratto per lasciar passare una seconda scrittura. Per questo non
+ * c'è nessuno `useState` del blocco: c'è solo l'inoltro a chi compone il form —
+ * la voce (`EntryEditor`), i due selettori di località, «Salva» e «Annulla» —
+ * con le prop che ognuno ha già. Con la prop assente il form si comporta come
+ * prima: «Offro e cerco» la passa, il resto no.
  */
 export function EntryForm({
   tipo,
@@ -29,6 +40,7 @@ export function EntryForm({
   errore,
   categoriePronte = true,
   salvataggio = false,
+  bloccato = false,
   onCambia,
   onSalva,
   onAnnulla,
@@ -70,6 +82,7 @@ export function EntryForm({
         statoCategorie={statoCategorie}
         errori={fieldErrors}
         onCambia={onCambia}
+        bloccato={bloccato}
       />
 
       <ListSelector
@@ -77,6 +90,7 @@ export function EntryForm({
         placeholder="Tutte le province"
         opzioni={PROVINCE}
         valore={voce.provincia ?? ''}
+        disabled={bloccato}
         onChange={(valore) => {
           // Cascata: il comune della provincia precedente non vale più.
           onCambia('provincia', valore);
@@ -89,7 +103,7 @@ export function EntryForm({
         placeholder={voce.provincia ? 'Tutti i comuni' : 'Scegli prima una provincia'}
         opzioni={comuniPerProvincia(voce.provincia)}
         valore={voce.comune ?? ''}
-        disabled={!voce.provincia}
+        disabled={!voce.provincia || bloccato}
         errore={fieldErrors.localita ?? null}
         onChange={(valore) => onCambia('comune', valore)}
       />
@@ -116,14 +130,14 @@ export function EntryForm({
           label={etichettaSalva}
           onPress={onSalva}
           loading={salvataggio}
-          disabled={!categoriePronte || !valida}
+          disabled={!categoriePronte || !valida || bloccato}
           style={{ flex: 1 }}
         />
         <AppButton
           label="Annulla"
           variant="secondary"
           onPress={onAnnulla}
-          disabled={salvataggio}
+          disabled={salvataggio || bloccato}
         />
       </View>
     </View>

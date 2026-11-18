@@ -17,6 +17,7 @@ import {
   STATI_PUBBLICAZIONE,
   TIPI_VOCE,
   aggiornaVoce,
+  localitaDaVoce,
   nuovaVoce,
   senzaChiave,
   validaVoce,
@@ -204,6 +205,13 @@ export default function OfferAndRequestScreen() {
   const { refreshing, onRefresh } = useRefresh(ricaricaTutto);
 
   const categoriePronte = statoCategorie === 'pronto';
+  // Una scrittura alla volta, su tutta la schermata: il form e le azioni delle
+  // card leggono questo unico valore derivato, invece di decidere ognuno per sé
+  // quando spegnersi (C3). Il ripristino di una voce eliminata è una scrittura
+  // come le altre, quindi entra nel conto; i suoi bottoni restano sul `busyId`
+  // della sezione «Eliminati», che ha uno stato suo (quella lista è un'altra
+  // richiesta).
+  const scritturaInCorso = salvataggio || azioneInCorso !== null || ripristinoInCorso !== null;
   const lista = pubblicazioni ?? [];
   const offerte = lista.filter((voce) => voce.tipo === TIPI_VOCE.OFFERTA);
   const ricerche = lista.filter((voce) => voce.tipo === TIPI_VOCE.RICERCA);
@@ -282,9 +290,16 @@ export default function OfferAndRequestScreen() {
   }
 
   function cambiaCampoForm(campo, valore) {
-    setForm((corrente) =>
-      corrente ? { ...corrente, voce: aggiornaVoce(corrente.voce, campo, valore) } : corrente,
-    );
+    setForm((corrente) => {
+      if (!corrente) {
+        return corrente;
+      }
+      const voce = aggiornaVoce(corrente.voce, campo, valore);
+      // `localita` è derivata da provincia/comune — il payload la ricalcola
+      // comunque (`entryLocation`) — e lasciarla al valore di apertura era un
+      // dato stantio in attesa di un lettore (D7). Ora segue la coppia.
+      return { ...corrente, voce: { ...voce, localita: localitaDaVoce(voce) } };
+    });
     // L'errore del campo sparisce appena lo si corregge: resterebbe rosso
     // proprio mentre l'utente sta sistemando il dato.
     setFieldErrors((correnti) => senzaChiave(correnti, campo));
@@ -297,7 +312,9 @@ export default function OfferAndRequestScreen() {
   }
 
   async function salva() {
-    if (!form || !token || !utente) {
+    // Il pulsante è già spento durante una scrittura: questa guardia tiene
+    // l'invariante nel punto in cui la richiesta parte davvero.
+    if (!form || !token || !utente || scritturaInCorso) {
       return;
     }
     const errori = validaVoce(form.voce, categorie);
@@ -334,7 +351,7 @@ export default function OfferAndRequestScreen() {
 
   /** Una scrittura su una voce esistente: azione, esito, poi si rilegge l'elenco. */
   async function eseguiAzione(voce, nome, azione, messaggio) {
-    if (!token || !utente) {
+    if (!token || !utente || scritturaInCorso) {
       return;
     }
     setEsito(null);
@@ -471,6 +488,7 @@ export default function OfferAndRequestScreen() {
           erroreForm={erroreForm}
           categoriePronte={categoriePronte}
           salvataggio={salvataggio}
+          scritturaInCorso={scritturaInCorso}
           azioneInCorso={azioneInCorso}
           onApriNuova={() => apriNuova(sezione.tipo)}
           onCambiaCampo={cambiaCampoForm}
