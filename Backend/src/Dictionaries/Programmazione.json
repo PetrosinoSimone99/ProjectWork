@@ -10,8 +10,9 @@
         "typescript": ["typescript", "ts"],
         "reactnative": ["reactnative", "react native"],
         "react": ["react"],
-        "c#": ["c#", "c sharp", "dotnet", ".net"],
+        "c#": ["c#", "c sharp"],
         "c++": ["c++", "cpp"],
+        "c": [" c "],
         "expo": ["expo", "expo framework"],
         "java": ["java"],
         "mysql": ["mysql", "mariadb"],
@@ -29,10 +30,11 @@
             "risoluzione","fixare", "fix", "fixing", "individuare", "correggere"
         ],
         "bug": ["bug", "errore", "errori"],
-        "siti": ["sito web", "siti web","sito", "siti", "webapp", "web app", "applicazione web", "applicazioni web", "pagina web", "pagine web",
-         "web", "websites", "website", "interfaccia web", "interfacce web"],
+        "siti": ["sito web", "siti web","sito", "siti", "webapp", "web app", "applicazione web", "applicazioni web", "pagina web", "pagine web"
+         ,"interfaccia web", "interfacce web", "web"],
         "applicazione":["applicazioni", "applicazione", "app"],
-        "piattaforma":["android", "ios", "windows","mac os", "macos", "linux", "piattaforma", "piattaforme", "smartphone", "tablet"],
+        "android": ["android", "android app", "app android"],
+        "ios": ["ios", "ios app", "app ios"],
         "api":["api rest", "api"],
         "rifattorizzazione_e_ottimizzazione": [
             "rifattorizzare", "rifattorizzazione", "refactoring", "ottimizzare", 
