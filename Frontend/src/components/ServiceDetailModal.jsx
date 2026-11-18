@@ -71,6 +71,9 @@ export function ServiceDetailModal({
   // disabled instead of firing a request the backend must reject.
   const haPersona = Number.isInteger(owner.id);
   const invioDisabilitato = invio || !haPersona || typeof onSendProposal !== 'function';
+  // Same predicate for "Segnala": without an owner id the parent's handler
+  // returns silently, so the tap would do nothing and say nothing (C2).
+  const segnalazioneDisabilitata = !haPersona || typeof onReport !== 'function';
 
   // The owner row opens the profile only when there is a person to open and a
   // parent that knows how to: the same integer predicate the proposal uses.
@@ -261,10 +264,16 @@ export function ServiceDetailModal({
               variant="ghost"
               icon="flag-outline"
               onPress={() => onReport?.(servizio)}
+              disabled={segnalazioneDisabilitata}
               accessibilityLabel={`Segnala ${name} alla staff`}
             />
+            {/* La nota dice cosa succede premendo il comando, oppure perché non
+                si può premere: senza persona da segnalare la frase descriverebbe
+                un'azione che non partirà (C2). */}
             <AppText variant="label" tone="secondary" style={{ textAlign: 'center' }}>
-              La segnalazione arriva alla staff, che la esamina e decide.
+              {haPersona
+                ? 'La segnalazione arriva alla staff, che la esamina e decide.'
+                : 'La segnalazione non è disponibile: manca la persona da segnalare.'}
             </AppText>
           </View>
         </View>
