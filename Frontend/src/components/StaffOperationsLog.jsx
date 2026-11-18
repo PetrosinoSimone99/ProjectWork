@@ -47,6 +47,27 @@ export function StaffOperationsLog({
 }) {
   const t = useTokens();
 
+  // Un guasto si dice anche quando le righe di prima sono ancora a schermo: una
+  // ricarica fallita che non scrive niente è un errore silenzioso, e chi legge
+  // continua a credere di vedere lo stato di adesso.
+  const erroreBlocco =
+    error === null || error === undefined ? null : (
+      <View style={{ gap: space.sm }}>
+        <AppText variant="small" tone="danger">
+          {`${error} Le segnalazioni qui sopra restano valide.`}
+        </AppText>
+        <AppButton
+          label="Riprova"
+          variant="secondary"
+          icon="refresh-outline"
+          onPress={() => void onRetry()}
+          loading={loading}
+          style={{ alignSelf: 'flex-start' }}
+          accessibilityLabel="Riprova a caricare il registro delle operazioni"
+        />
+      </View>
+    );
+
   if (operations === null) {
     if (nonDisponibile) {
       return (
@@ -59,23 +80,8 @@ export function StaffOperationsLog({
         />
       );
     }
-    if (error !== null && error !== undefined) {
-      return (
-        <View style={{ gap: space.sm }}>
-          <AppText variant="small" tone="danger">
-            {`${error} Le segnalazioni qui sopra restano valide.`}
-          </AppText>
-          <AppButton
-            label="Riprova"
-            variant="secondary"
-            icon="refresh-outline"
-            onPress={() => void onRetry()}
-            loading={loading}
-            style={{ alignSelf: 'flex-start' }}
-            accessibilityLabel="Riprova a caricare il registro delle operazioni"
-          />
-        </View>
-      );
+    if (erroreBlocco) {
+      return erroreBlocco;
     }
     // Senza righe e senza esito non si sa ancora niente: dirlo è l'unica cosa
     // onesta, invece di inventare un guasto che non c'è stato.
@@ -87,15 +93,20 @@ export function StaffOperationsLog({
   }
 
   if (operations.length === 0) {
+    // Zero righe dopo un guasto non sono «nessuna operazione»: sono una pagina
+    // che non è arrivata.
     return (
-      <AppText variant="small" tone="secondary">
-        Nessuna operazione registrata.
-      </AppText>
+      erroreBlocco ?? (
+        <AppText variant="small" tone="secondary">
+          Nessuna operazione registrata.
+        </AppText>
+      )
     );
   }
 
   return (
     <View style={{ gap: space.xs }}>
+      {erroreBlocco}
       {operations.map((operation) => {
         const action = operationActionLabel(operation.azione);
         const target = operationTargetLabel(operation.bersaglio);
