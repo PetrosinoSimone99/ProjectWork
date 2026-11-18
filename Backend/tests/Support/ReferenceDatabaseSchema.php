@@ -62,6 +62,8 @@ final class ReferenceDatabaseSchema
             $db->executeStatement('CREATE TABLE `'.$table[1].'` ('.implode(', ', $definitions).')');
         }
         $db->executeStatement('ALTER TABLE agreement_proposal ADD service_id INTEGER NULL REFERENCES services(id)');
+        $db->executeStatement('ALTER TABLE agreement_details ADD notes CLOB NULL');
+        $db->executeStatement('ALTER TABLE agreement_details ADD sent_at DATETIME NULL');
         $db->executeStatement('ALTER TABLE agreements ADD pending_pair_key VARCHAR(80) NULL');
         $db->executeStatement('CREATE UNIQUE INDEX agreement_pending_pair_unique ON agreements(pending_pair_key)');
         $db->executeStatement('ALTER TABLE service_queues ADD created_at DATETIME NULL');

@@ -84,11 +84,12 @@ final class AgreementController extends AbstractController
 
             $serviceId = $data['serviceId'] ?? null;
             if (!is_int($serviceId) || $serviceId < 1) { return $this->json(['error' => 'serviceId must be a positive integer.'], 400); }
-            $this->agreementManager->createExchangeAgreement($user, (int)$otherParticipant, $serviceId);
+            $autoAccepted = $this->agreementManager->createExchangeAgreement($user, (int)$otherParticipant, $serviceId);
             return $this->json([
                 'success' => [
                     'code' => 201,
                     'message' => 'Exchange agreement created successfully',
+                    'autoAccepted' => $autoAccepted,
                 ],
             ], 201);
             
@@ -200,15 +201,21 @@ final class AgreementController extends AbstractController
                 throw new \JsonException('Invalid JSON data');
             }
 
-            foreach(['agreementId', 'fromRemote', 'startDate', 'endDate'] as $field){
-                if(!array_key_exists($field, $data)){
-                    return $this->json(['error' => [
-                        'code' => 400,
-                        'message' => 'Bad Request'
-                    ]], 400);
-                }
+            $agreementId = $data['agreementId'] ?? null;
+            if (!is_numeric($agreementId) || (int) $agreementId < 1) {
+                return $this->json(['error' => [
+                    'code' => 400,
+                    'message' => 'Bad Request'
+                ]], 400);
             }
-            $this->agreementManager->sendAgreementDetails($user, $data);
+            $notes = $data['notes'] ?? null;
+            if (!is_string($notes) || mb_strlen(trim($notes)) < 1 || mb_strlen(trim($notes)) > 500) {
+                return $this->json(['error' => [
+                    'code' => 400,
+                    'message' => 'notes must be 1 to 500 characters.'
+                ]], 400);
+            }
+            $this->agreementManager->sendAgreementDetails($user, (int) $agreementId, trim($notes));
             return $this->json([
                 'success' => [
                     'code' => 200,

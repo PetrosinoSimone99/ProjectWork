@@ -40,9 +40,10 @@ final class AgreementManager
                     'providerId' => $detail->getUser()->getId(), 'providerUsername' => $detail->getUser()->getUsername(),
                     'beneficiaryId' => $detail->getBeneficiary()->getId(), 'beneficiaryUsername' => $detail->getBeneficiary()->getUsername(),
                     'serviceId' => $detail->getService()->getId(), 'serviceDescription' => $detail->getService()->getDescription(),
+                    'serviceType' => $detail->getService()->getType(),
                     'fromRemote' => $detail->getFromRemote(), 'startDate' => $detail->getStartDate()?->format(DATE_ATOM),
                     'endDate' => $detail->getEndDate()?->format(DATE_ATOM), 'beneficiaryAccepted' => $detail->getBeneficiaryAccepted(),
-                    'status' => $detail->getStatus()->value,
+                    'status' => $detail->getStatus()->value, 'notes' => $detail->getNotes(), 'sentAt' => $detail->getSentAt()?->format(DATE_ATOM),
                 ];
             }
             $sender = array_find($proposals, fn (array $p) => $p['role'] === AgreementParticipantRole::PROVIDER->value);
@@ -53,12 +54,12 @@ final class AgreementManager
         }, $this->agreements->findAgreementsByUser($user));
     }
 
-    public function createExchangeAgreement(User $user, int $otherId, int $serviceId): void
+    public function createExchangeAgreement(User $user, int $otherId, int $serviceId): bool
     {
         if ($user->getId() === $otherId) { throw new \InvalidArgumentException('An exchange needs another participant.'); }
         $other = $this->em->find(User::class, $otherId);
         if (!$other || !$other->isActive()) { throw new ResourceNotFound('Participant not found.'); }
-        $this->transaction->run(function () use ($user, $other, $serviceId): void {
+        return $this->transaction->run(function () use ($user, $other, $serviceId): bool {
             $this->transaction->lock('users', [$user->getId(), $other->getId()]);
             $own = $this->services->getUserServiceByType($user, Service::TYPE_OFFER);
             $requested = $this->services->find($serviceId);
@@ -69,16 +70,18 @@ final class AgreementManager
             $this->transaction->lock('services', [$own->getId(), $requested->getId()]);
             foreach ([$own, $requested] as $service) { $this->em->refresh($service); $this->assertAvailable($service); }
             $ids = [$own->getId(), $requested->getId()]; sort($ids);
-            $key = implode(':', $ids);
-            $duplicate = $this->em->getConnection()->fetchOne("SELECT 1 FROM agreements a JOIN agreement_proposal p ON p.agreement_id = a.id JOIN agreement_proposal q ON q.agreement_id = a.id WHERE a.status = 'PENDING' AND p.service_id = ? AND q.service_id = ? LIMIT 1", $ids);
+            // The counterpart already proposed this exchange the other way round: the answer is the acceptance.
+            if ($this->acceptReciprocalProposal($user, $other, $own, $requested)) { return true; }
+            $duplicate = $this->em->getConnection()->fetchOne("SELECT 1 FROM agreements a JOIN agreement_proposal p ON p.agreement_id = a.id JOIN agreement_proposal q ON q.agreement_id = a.id WHERE a.status IN ('PENDING', 'ACCEPTED') AND p.service_id = ? AND q.service_id = ? LIMIT 1", $ids);
             if ($duplicate !== false) { throw new \DomainException('An exchange for these services is already pending.'); }
             $agreement = new Agreement(AgreementStatus::PENDING, new \DateTimeImmutable(), false);
-            $agreement->setPendingPairKey($key);
+            $agreement->setPendingPairKey(implode(':', $ids));
             $this->em->persist($agreement);
             $this->participant($agreement, $user, AgreementParticipantRole::PROVIDER, true, $own);
             $this->participant($agreement, $other, AgreementParticipantRole::BENEFICIARY, null, $requested);
             $this->em->flush();
             $this->notifications->notify($other, 'AGREEMENT_PROPOSAL', 'Proposta di scambio da: '.$user->getUsername(), ['agreementId' => $agreement->getId(), 'serviceId' => $serviceId]);
+            return false;
         });
     }
 
@@ -102,6 +105,10 @@ final class AgreementManager
                 throw new \DomainException('The agreement already has a response.');
             }
             $other = $this->other($agreement, $user);
+            // The acceptance moment is what the sheet prints as `inizio`: it is
+            // written before the rows exist, so the timestamp is the answer's
+            // own and not the proposal's creation.
+            $proposal->setResponse($response); $proposal->setResponseDate(new \DateTimeImmutable());
             if ($response) {
                 $rows = $agreement->getAgreementProposals()->toArray();
                 $this->transaction->lock('services', array_values(array_filter(array_map(fn ($row) => $row->getService()?->getId(), $rows))));
@@ -115,25 +122,27 @@ final class AgreementManager
                     $this->blankDetails($agreement, $row->getUser(), $row->getService(), $this->other($agreement, $row->getUser()));
                 }
             }
-            $proposal->setResponse($response); $proposal->setResponseDate(new \DateTimeImmutable());
             $agreement->setAgreementStatus($response ? AgreementStatus::ACCEPTED : AgreementStatus::REFUSED);
             $this->notifications->notify($other, 'AGREEMENT_RESPONSE', 'Risposta da: '.$user->getUsername().' - '.($response ? 'Accettata' : 'Rifiutata'), ['agreementId' => $id, 'response' => $response]);
         });
     }
 
-    public function sendAgreementDetails(User $user, array $payload): void
+    public function sendAgreementDetails(User $user, int $agreementId, string $notes): void
     {
-        $this->transaction->run(function () use ($user, $payload): void {
-            $agreement = $this->lockedAgreement((int) $payload['agreementId'], $user);
+        $this->transaction->run(function () use ($user, $agreementId, $notes): void {
+            $agreement = $this->lockedAgreement($agreementId, $user);
             if ($agreement->getAgreementStatus() !== AgreementStatus::ACCEPTED) { throw new \DomainException('Agreement is not accepted.'); }
             $detail = array_find($agreement->getAgreementDetails()->toArray(), fn ($d) => $d->getUser()->getId() === $user->getId());
             if (!$detail) { throw new ResourceNotFound('Agreement details not found.'); }
             if ($detail->getBeneficiaryAccepted()) { throw new \DomainException('Confirmed details cannot be changed.'); }
-            if (!is_bool($payload['fromRemote']) || !is_string($payload['startDate']) || !is_string($payload['endDate']) || trim($payload['startDate']) === '' || trim($payload['endDate']) === '') { throw new \InvalidArgumentException('Invalid details.'); }
-            try { $start = new \DateTimeImmutable($payload['startDate']); $end = new \DateTimeImmutable($payload['endDate']); }
-            catch (\Exception) { throw new \InvalidArgumentException('Invalid dates.'); }
-            if ($end <= $start) { throw new \InvalidArgumentException('End must be after start.'); }
-            $detail->setFromRemote($payload['fromRemote'])->setStartDate($start)->setEndDate($end)->setStatus(AgreementDetailsStatus::COMPILED);
+            // The first sender locks the round: the counterpart can only confirm or refuse this sheet.
+            if (array_any($agreement->getAgreementDetails()->toArray(), fn ($d) => $d !== $detail && $d->getStatus() === AgreementDetailsStatus::COMPILED)) {
+                throw new \DomainException('The other participant already sent the sheet.');
+            }
+            $service = $detail->getService();
+            if (!$service) { throw new \DomainException('The sheet has no service.'); }
+            $detail->setFromRemote($service->isRemote())->setStartDate($this->acceptanceMoment($agreement))
+                ->setEndDate(null)->setNotes($notes)->setSentAt(new \DateTimeImmutable())->setStatus(AgreementDetailsStatus::COMPILED);
             $this->notifications->notify($detail->getBeneficiary(), 'AGREEMENT_DETAILS', 'Scheda compilata da: '.$user->getUsername(), ['agreementId' => $agreement->getId()]);
         });
     }
@@ -146,8 +155,22 @@ final class AgreementManager
             $detail = array_find($agreement->getAgreementDetails()->toArray(), fn ($d) => $d->getBeneficiary()->getId() === $user->getId());
             if (!$detail) { throw new ResourceNotFound('Agreement details not found.'); }
             if ($detail->getStatus() !== AgreementDetailsStatus::COMPILED || $detail->getBeneficiaryAccepted()) { throw new \DomainException('Details must be compiled and not already confirmed.'); }
-            $detail->setBeneficiaryAccepted(true);
-            $this->notifications->notify($detail->getUser(), 'AGREEMENT_DETAILS_ACCEPTED', 'Scheda confermata da: '.$user->getUsername(), ['agreementId' => $id]);
+            $detail->setBeneficiaryAccepted(true)->setEndDate(new \DateTimeImmutable())->setIsCompleted(true);
+            // The confirmed sheet is the delivery: it completes the exchange here, so the schedule never revisits it.
+            $agreement->setAgreementStatus(AgreementStatus::COMPLETED);
+            if ($agreement->getFromQueue()) {
+                $provider = $detail->getUser();
+                $this->transaction->lock('users', [$provider->getId()]); $this->em->refresh($provider);
+                $provider->setCredits($provider->getCredits() + 1);
+                $this->closeQueues($agreement);
+            }
+            foreach ([[$detail->getUser(), $detail->getBeneficiary()], [$detail->getBeneficiary(), $detail->getUser()]] as [$recipient, $counterpart]) {
+                $this->notifications->notify($recipient, 'AGREEMENT_COMPLETED', 'Scambio completato con: '.$counterpart->getUsername(), [
+                    'agreementId' => $agreement->getId(), 'serviceDescription' => $detail->getService()->getDescription(),
+                    'startDate' => $detail->getStartDate()?->format(DATE_ATOM), 'endDate' => $detail->getEndDate()?->format(DATE_ATOM),
+                    'otherUsername' => $counterpart->getUsername(),
+                ]);
+            }
         });
     }
 
@@ -188,6 +211,32 @@ final class AgreementManager
     {
         if ($service->isDeleted() || $service->isSuspended() || !$service->getUser()->isActive()) { throw new \DomainException('The service is unavailable.'); }
     }
+
+    /** Accepts the counterpart's pending proposal for the same two services when it is the mirror of this one. */
+    private function acceptReciprocalProposal(User $user, User $other, Service $own, Service $requested): bool
+    {
+        $id = $this->em->getConnection()->fetchOne(
+            "SELECT a.id FROM agreements a JOIN agreement_proposal answer ON answer.agreement_id = a.id AND answer.user_id = ? AND answer.service_id = ? AND answer.role = 'Beneficiary' JOIN agreement_proposal ask ON ask.agreement_id = a.id AND ask.user_id = ? AND ask.service_id = ? AND ask.role = 'Provider' WHERE a.status = 'PENDING' LIMIT 1",
+            [$user->getId(), $own->getId(), $other->getId(), $requested->getId()],
+        );
+        if ($id === false) { return false; }
+        $agreement = $this->lockedAgreement((int) $id, $user);
+        $now = new \DateTimeImmutable();
+        foreach ($agreement->getAgreementProposals()->toArray() as $row) {
+            $row->setResponse(true); $row->setResponseDate($now);
+            $this->blankDetails($agreement, $row->getUser(), $row->getService(), $this->other($agreement, $row->getUser()));
+        }
+        $agreement->setAgreementStatus(AgreementStatus::ACCEPTED);
+        $this->notifications->notify($other, 'AGREEMENT_RESPONSE', 'Risposta da: '.$user->getUsername().' - Accettata', ['agreementId' => $agreement->getId(), 'response' => true]);
+        return true;
+    }
+
+    /** The moment the agreement was accepted: the beneficiary's answer, or the creation when it carries none. */
+    private function acceptanceMoment(Agreement $agreement): \DateTimeImmutable
+    {
+        $beneficiary = array_find($agreement->getAgreementProposals()->toArray(), fn ($p) => $p->getRole() === AgreementParticipantRole::BENEFICIARY);
+        return $beneficiary?->getResponseDate() ?? $agreement->getCreationDate();
+    }
     private function proposalFor(Agreement $agreement, User $user): AgreementProposal
     {
         return array_find($agreement->getAgreementProposals()->toArray(), fn ($p) => $p->getUser()->getId() === $user->getId());
@@ -205,6 +254,9 @@ final class AgreementManager
     private function blankDetails(Agreement $agreement, User $user, Service $service, User $beneficiary): void
     {
         $detail = new AgreementDetails($agreement, $user, $service, $beneficiary);
+        // `inizio` is a fact from the first moment the sheet exists: the moment
+        // the exchange was accepted. Only `fine` waits for the confirmation.
+        $detail->setStartDate($this->acceptanceMoment($agreement));
         $this->em->persist($detail); $agreement->addAgreementDetails($detail);
     }
 }

@@ -39,6 +39,12 @@ class AgreementDetails
     #[ORM\Column(name: 'beneficiary_accepted', type: 'boolean', nullable: true)]
     private ?bool $beneficiaryAccepted = null;
 
+    #[ORM\Column(name: 'notes', type: 'text', nullable: true)]
+    private ?string $notes = null;
+
+    #[ORM\Column(name: 'sent_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $sentAt = null;
+
     #[ORM\Column(name: 'status', enumType: AgreementDetailsStatus::class)]
     private ?AgreementDetailsStatus $status = null;
 
@@ -55,6 +61,8 @@ class AgreementDetails
         $this->startDate = null;
         $this->endDate = null;
         $this->beneficiaryAccepted = null;
+        $this->notes = null;
+        $this->sentAt = null;
         $this->status = AgreementDetailsStatus::UNCOMPILED;
         $this->isCompleted = false;
     }
@@ -124,9 +132,29 @@ class AgreementDetails
     {
         return $this->endDate;
     }
-    public function setEndDate(\DateTimeImmutable $endDate): self
+    public function setEndDate(?\DateTimeImmutable $endDate): self
     {
         $this->endDate = $endDate;
+        return $this;
+    }
+
+    public function getNotes(): ?string
+    {
+        return $this->notes;
+    }
+    public function setNotes(string $notes): self
+    {
+        $this->notes = $notes;
+        return $this;
+    }
+
+    public function getSentAt(): ?\DateTimeImmutable
+    {
+        return $this->sentAt;
+    }
+    public function setSentAt(\DateTimeImmutable $sentAt): self
+    {
+        $this->sentAt = $sentAt;
         return $this;
     }
     public function getBeneficiaryAccepted(): ?bool
