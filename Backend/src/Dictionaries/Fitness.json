@@ -1,0 +1,58 @@
+{
+        "pesi": ["pesi", "peso"],
+        "bilanciere":["bilanciere", "bilancieri"],
+        "manubri":["manubri", "manubrio"],
+        "kettlebell":["kettlebell", "kettlebells"],
+        "rack":["rack", "power rack", "squat rack"],
+        "panca":["panca", "panchina", "panchine"],
+        "sovraccarichi":["sovraccarichi", "sovraccarico"],
+        "powerlifting":["powerlifting"],
+        "bodybuilding":["bodybuilding"],
+        "ipertrofia":["ipertrofia"],
+        "forza":["forza"],
+        "stacchi":["stacchi", "stacco", "stacco da terra", "deadlift"],
+        "cardio_e_resistenza": [
+            "cardio","tapis_roulant", "cyclette", "ellittica", 
+            "vogatore", "salto", "corda", "resistenza", "endurance", "HIIT"
+        ],
+        "cardio":["cardio"],
+        "tapis_roulant":["tapis roulant", "tapis_roulant"],
+        "cyclette":["cyclette", "bicicletta stazionaria"],
+        "ellittica":["ellittica", "cross trainer"],
+        "vogatore":["vogatore", "rowing machine"],
+        "salto":["salto", "corda", "jump rope"],
+        "resistenza":["resistenza", "endurance"],
+        "hiit":["hiit", "allenamento ad alta intensità", "allenamento intervallato ad alta intensità"],
+        "piegamenti":["piegamenti", "flessioni", "push-up"],
+        "trazioni":["trazioni", "pull-up"],
+        "squat":["squat", "accosciata"],
+        "plank":["plank"],
+        "addominali":["addominali", "crunch", "sit-up"],
+        "core":["core", "stabilità del core", "stabilizzazione del core"],
+        "funzionale":["allenamento funzionale","funzionale"],
+        "camminata":["camminata", "camminate", "passeggiata sportiva", "passeggiate sportive"],
+        "corsa":["corsa", "jogging", "running"
+        ],
+        "yoga":["yoga", "respirazione", "rilassamento"],
+        "pilates":["pilates"],
+        "crossfit":["crossfit", "cross fit"],
+        "calisthenics":["calisthenics", "corpo libero", "street workout"],
+        "allenamento_funzionale":["allenamento funzionale", "allenamenti funzionali", "functional training"],
+        "mobilità_e_stretching": [
+            "stretching","mobilità articolare", "mobilita", "mobilità", "flessibilità",
+            "posturale", "allungamento", "riscaldamento", "foam roller"
+        ],
+        "elastici":["elastici", "bande elastiche", "resistance bands"],
+        "fitball":["fitball", "palla da ginnastica", "palla svizzera"],
+        "palla_medica":["palla medica", "medicine ball"],
+        "step":[ "step aerobica", "step", "stepper"],
+        "parallele":["parallele", "parallele per trazioni", "dips bars"],
+        "trx":["trx", "sospensioni", "allenamento in sospensione"],
+        "palestra":["palestra"],
+        "strumenti":["macchinario", "macchinari"],
+        "attitiva_fisica":["attività fisica"],
+        "recupero_e_prevenzione": [
+            "riposare", "riposo", "recuperare", "recupero", "scaricare", 
+            "scarico", "rilassare", "rilassamento", "prevenire", "prevenzione"
+        ]
+}

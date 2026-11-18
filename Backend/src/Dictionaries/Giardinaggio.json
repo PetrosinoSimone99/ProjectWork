@@ -1,0 +1,95 @@
+{
+        "potatura": [
+            "potare", "potatura", "sfoltire"],
+        "rami": ["ramo", "rami", "ramo caduto", "rami caduti"],
+        "siepi": ["siepe", "siepi"],
+        "cespugli": ["cespuglio", "cespugli"],
+        "arbusti": ["arbusto", "arbusti"],
+        "innaffiatura": [
+            "innaffiare", "annaffiare", "irrigazione", "acqua"
+        ],
+        "irrigatore": [
+            "irrigatore", "irrigatori", "spruzzatore", "spruzzatori", "spruzzo", "spruzzi"
+        ],
+        "prato": [
+            "prato", "prati"
+        ],
+        "erba": ["erba", "erbe"],
+        "rasaerba": ["rasaerba", "tosaerba", "tagliaerba"],
+        "concimazione": [
+            "concimare", "concime", "fertilizzante", "nutrimento", "compost", "humus", "azoto"
+        ],
+        "piante_ornamentali": ["piante ornamentali"],
+        "piante_interna": ["pianta da interno", "piante da interno", "pianta interna", "piante interne"],
+        "piante_esterna": ["pianta da esterno", "piante da esterno", "pianta esterna", "piante esterne"],
+        "pianta_grassa": ["pianta grassa", "piante grasse", "succulente"],
+        "piante": ["pianta", "piante"],
+        "seme": ["seme", "semi"],
+        "bulbo": ["bulbo", "bulbi"],
+
+        "terreno":["terra", "terreno", "suolo", "substrato", "terriccio"],
+        "alberi": [
+            "albero", "alberi"
+        ],
+        "tronchi": [
+            "tronco", "tronchi"
+        ],
+        "radici": [
+            "radice", "radici"
+        ],
+        "legna": [
+            "legno", "legni"
+        ],
+        "alberi_da_frutto": [
+            "frutta", "frutteto", "melo", "pero", "ulivo", "limone", "agrumi", "pesco", "albicocco", "ciliegio", "frutti"
+        ],
+        "frutta":["frutto", "frutti", "frutta", "frutte"],
+        "mele":["mela", "mele"],
+        "pere":["pera", "pere"],
+        "agrumi":["agrumi"],
+        "ulivo":["ulivo", "ulivi"],
+        "aranci":["arancia", "arance"],
+        "limoni":["limone", "limoni"],
+        "verdura":["verdura", "verdure"],
+        "pomodori":["pomodoro", "pomodori"],
+        "insalata":["insalata", "insalate"],
+        "carote":["carota", "carote"],
+        "zucchine":["zucchina", "zucchine"],
+        "erbe_aromatiche":["erba aromatica", "erbe aromatiche"],
+        "rosmarino":["rosmarino"],
+        "salvia":["salvia"],
+        "basilico":["basilico"],
+        "menta":["menta"],
+        "timo":["timo"],
+        
+        "fiori":["fiore", "fiori"],
+        "aiuole":["aiuola", "aiuole"],
+        "vasi":["vaso", "vasi"],
+        "rinvaso":["rinvasare", "rinvaso"],
+        "rose":["rosa", "rose"],
+        "orto":["orto"],
+        "malattie_e_parassiti": [
+            "parassiti", "afidi", "insetti", "malattie", "funghi", "muffa", "trattamento", "disinfestazione"
+        ],
+        "zappa":["zappa", "zappe"],
+        "rastrello":["rastrello", "rastrelli"],
+        "annaffiatoio":["annaffiatoio", "annaffiatoi"],
+        "decespugliatore":["decespugliatore", "decespugliatori"],
+        "machete":["machete", "macheti"],
+        "vanghetto":["vanghetto", "vanghetti"],
+        "foglie_secche":["foglia secca", "foglie secche"],
+        "foglie":["foglia", "foglie"],
+        "ramaglie":["ramaglia", "ramaglie"],
+        "sterpaglie":["sterpaglia", "sterpaglie"],
+        "erbacce":["erbaccia", "erbacce"],
+        "giardino":["giardino", "giardini"],
+        "terrazzo":["terrazzo", "terrazzi"],
+        "balcone":["balcone", "balconi"],
+        "cortile":["cortile", "cortili"],
+        "spazio_verde":["spazio verde", "spazi verdi", "angolo verde", "verde"],
+
+        "irrigazione": [
+            "innaffiare", "innaffiatura", "annaffiare","annaffia","annaffiatura", 
+            "irrigare", "irrigazione", "bagnare"
+        ]
+}
