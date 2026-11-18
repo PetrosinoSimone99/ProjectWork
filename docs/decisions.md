@@ -115,23 +115,23 @@ the agreed `end_date` has passed; a service that is not delivered becomes
 a service delivered earlier cannot be closed early without a new decision.
 *Superseded in part:* `COMPLETED` **is** in the reference schema today
 (`barattolo_15112026.sql`) and the end-date scheduler writes it; what still
-misses is the worker that runs the scheduler (`backend-gaps.md` G12).
+misses is the worker that runs the scheduler (`backend-ledger.md` G12).
 
 **D017 — 2026-11-07 — The chat is reachable only through an accepted agreement.**
 The legacy chat endpoints (keyed by proposals that no longer exist) are not
 called; the old chat screen and its components were deleted. The chat will be
 built on the agreement id.
 *Consequences:* no chat surface until the backend exposes G8 in
-`backend-gaps.md`; the design decisions (bubbles, composer, sheet inside the
+`backend-ledger.md`; the design decisions (bubbles, composer, sheet inside the
 chat) are kept in this documentation, not in dead code.
 *Status:* G8 landed 2026-11-15 and the screen exists since W1 (2026-11-16,
 `Frontend/src/app/chat/[agreementId].jsx`). "Accepted agreement only" is a UI rule,
 not an enforced one: the backend checks the token but not participation
-(`backend-gaps.md` G24).
+(`backend-ledger.md` G24).
 
 **D018 — 2026-11-07 — Documentation set: nine files plus the gap list.**
 `project-structure.md` was absorbed into `architecture.md` and `ux.md` into
-`frontend.md`; `backend-gaps.md` is new and holds the requests to the backend.
+`frontend.md`; `backend-ledger.md` is new and holds the requests to the backend.
 *Consequences:* one file per job; the gap list is the artefact handed to the
 backend maintainer.
 *Superseded by D022:* `ux.md` and `accessibility.md` are separate normative files
@@ -244,7 +244,7 @@ through the app, so the stored rows are exactly what the client composes.
 Upstream `4c90ccd` put a guard at the head of
 `ServiceQueueManager::createServiceQueue`: while the account holds a queue whose
 status is not `CLOSED`, a second create throws, and the throw is an untyped
-`\Exception` the controller cannot catch (`backend-gaps.md` G13), so a client
+`\Exception` the controller cannot catch (`backend-ledger.md` G13), so a client
 reads a `500`. The guard counts **both** types together, which contradicts the
 product rule this repo follows — one offer and one request per account.
 *Decision:* the app follows the server, not the rule: with one active queue the
@@ -255,7 +255,7 @@ button that is guaranteed to fail is worse than a rule that is narrower than the
 product wants.
 *Consequences:* the second queue type is unreachable in the app until the
 backend keys the guard on `queueType` and answers a `409` instead of a `500`
-(`backend-gaps.md` G23); when that lands, this decision is superseded — the gate
+(`backend-ledger.md` G23); when that lands, this decision is superseded — the gate
 becomes one per type and the copy points at the other type instead of at the
 cancel button. Nothing else in the app changes: `GET /get-queues` already
 excludes `CLOSED` rows, so "active" and "listed" are the same set and the gate
@@ -415,5 +415,5 @@ a real history and a written sheet — reachable by URL alone.
   sender's sheet — reading the counterpart's alone showed the date to whoever
   confirmed and hid it from whoever sent.
 
-*Consequences:* `AgreementCard`'s gate and its test change; `backend-gaps.md` is
+*Consequences:* `AgreementCard`'s gate and its test change; `backend-ledger.md` is
 untouched because no route changed.

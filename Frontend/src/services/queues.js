@@ -5,7 +5,7 @@
  * that (`src/api/areas/queues.js`).
  *
  * There used to be a second gate here: the account had to own **exactly one**
- * service of the queue's type (`backend-gaps.md` G13, G19). Every account now
+ * service of the queue's type (`backend-ledger.md` G13, G19). Every account now
  * holds one offer and one request, both mandatory, so that count is always one
  * and the gate could never say anything the product rule did not already
  * guarantee. What is left is the one server fact the app still has to model on
@@ -46,8 +46,8 @@ export function queueStatusLabel(stato) {
  * `ServiceQueueManager::createServiceQueue`: while the account holds a queue
  * whose status is not `CLOSED`, the route throws
  * `User already has an active queue.` — a plain `\Exception` that the
- * controller cannot catch (`backend-gaps.md` G13), so the client would read a
- * `500`. The guard counts **both** queue types together (`backend-gaps.md`
+ * controller cannot catch (`backend-ledger.md` G13), so the client would read a
+ * `500`. The guard counts **both** queue types together (`backend-ledger.md`
  * G23), which is exactly the product rule: one credit, one queue at a time, of
  * one type.
  *

@@ -65,7 +65,7 @@ still blank and `davide.costa`'s sheet waiting for its confirmation, `CANCELLED`
 (`demo.staff` called off the exchange with `sara.mancini`), `COMPLETED`
 (`chiara.marino`, both sheets dated in the past) and `REFUSED`
 (`luca.ferrari` said no). A sheet compiled in the seed shows the moment of its
-last write as the start date: that is schema defect G20 (`backend-gaps.md`), not
+last write as the start date: that is schema defect G20 (`backend-ledger.md`), not
 a seed mistake.
 
 `COMPLETED` is not written by the seed: the two sheets of that agreement carry
@@ -89,7 +89,7 @@ restore screen.
 
 Two things it cannot show, and neither is a data problem: **no queue is ever
 matched** (the worker that matches reads a per-category dictionary that does not
-exist, `backend-gaps.md` G28 — the match tab shows an OPEN queue, not a match),
+exist, `backend-ledger.md` G28 — the match tab shows an OPEN queue, not a match),
 and the G20 card above shows a start date that is the moment of the last write.
 
 It was created with the backend's own command, not with SQL, so a local staff
@@ -104,14 +104,14 @@ docker compose exec backend php bin/console app:create-staff \
 
 `POST /api/create-service-queue` resolves the account's service with
 `getOneOrNullResult()`, so it only works for an account with **exactly one**
-service of the requested type (`docs/backend-gaps.md` G19). The product rule
+service of the requested type (`docs/backend-ledger.md` G19). The product rule
 gives every account exactly one offer and one request, so every seeded account
 qualifies; `giulia.bianchi` is the one the seed already carries a queue for, and
 it sits at **zero credits** because that queue spent the one a new account
 starts with. Since backend `4c90ccd` she also cannot create anything at all: the
 one-queue guard fires before the credit check, so what used to answer
 `400 Not enough credits` for her now answers `500`, and cancelling her queue is
-the only way back (`backend-gaps.md` G23). The seven accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
+the only way back (`backend-ledger.md` G23). The seven accounts are `giulia.bianchi` (Roma, 0 credits, one OPEN
 request queue), `marco.ricci` (Milano), `sara.mancini` (Torino), `davide.costa`
 (Bologna), `chiara.marino` (Napoli), `luca.ferrari` (Firenze), the last five
 at one credit each, and `demo.staff` (Bologna, `ROLE_STAFF`, one credit and one
@@ -134,7 +134,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/get-queues \
 Without that seed the app cannot register or log in, because
 `GET /api/categories` would answer with an empty list. The generator
 `Backend/tools/create-demo-database.php` is not usable for this yet: it targets
-the previous schema and filename (see `docs/backend-gaps.md`).
+the previous schema and filename (see `docs/backend-ledger.md`).
 
 Re-importing only happens on an empty volume: after changing the dump in
 `compose.yaml`, `docker compose down -v` then up again. That **wipes** the local
@@ -185,7 +185,7 @@ seed's `COMPLETED` row was produced.
 
 Matching is demonstrable locally. The eleven dictionaries live in
 `Backend/src/Dictionaries/`, and a category with no dictionary is not a failure:
-it falls back to category, mode and normalized location (`backend-gaps.md` G28).
+it falls back to category, mode and normalized location (`backend-ledger.md` G28).
 The match is attempted **only when a queue is created** — there is no periodic
 re-match — so a queue whose data is corrected afterwards stays unmatched until it
 is cancelled and created again, and the rule that decides it is the one in
@@ -223,7 +223,7 @@ npx expo start
 ## 4. Verify end to end
 
 1. Register from `/register` (location is mandatory; one offer and one request
-   are required today, `backend-gaps.md` G9).
+   are required today, `backend-ledger.md` G9).
 2. Log in: the JWT (1 hour) is stored with `expo-secure-store`.
 3. Publish one offer and one request from "Offro e cerco".
 4. Filter the home and open a service detail.

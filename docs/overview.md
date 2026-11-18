@@ -21,7 +21,7 @@ just independent agreements that happen to line up.
 
 | # | Tab | What it does | State today |
 | --- | --- | --- | --- |
-| 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is computed by the backend (`backend-gaps.md` G1 landed) |
+| 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is computed by the backend (`backend-ledger.md` G1 landed) |
 | 2 | **Match** | Queues: a standing offer or request the backend will match in the background | Working: the tab creates and cancels a queue and lists the account's own; the server refuses a second active queue and the UI gates both create actions (`decisions.md` D025). A request queue costs one credit. The async and scheduler consumers run in the local stack |
 | 3 | **Offro e cerco** | The user's own services: one offer and one request, published at registration and editable here | Working — editing only: suspend, delete and the "Eliminati" section are gone (`decisions.md` D028) |
 | 4 | **Accordi** | Three sections (sent, in progress, concluded) plus a bell with the proposals waiting for an answer | Working: proposals, answers, cancellation, the sheet written from inside the chat and the chat itself |

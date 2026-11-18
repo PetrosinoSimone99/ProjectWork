@@ -47,12 +47,12 @@ schema carries foreign keys and the import keeps them enabled.
 Three known artifacts of that choice: `messenger_messages` is empty after a
 rebuild (the match job the queue creation queued is a pending message, not a
 row worth restoring); no queue carries an `agreement_created`, because the
-matching worker cannot run at all (`backend-gaps.md` G28); and a compiled
+matching worker cannot run at all (`backend-ledger.md` G28); and a compiled
 `agreement_details` row shows the moment of its last write as `start_date`,
 because the column carries
 `ON UPDATE CURRENT_TIMESTAMP` (G20). The generator
 `Backend/tools/create-demo-database.php` cannot do this job: it targets the
-previous schema and filename (`docs/backend-gaps.md`).
+previous schema and filename (`docs/backend-ledger.md`).
 
 | Where | What it is |
 | --- | --- |
@@ -94,7 +94,7 @@ them.
 | `service_queues` | A service waiting for a counterpart: `user_id`, `type` (`OFFER`/`REQUEST`), `service_id`, `location` (**varchar(100)**, the only location column that is not 255), `status` (`OPEN`/`IN_PROGRESS`/`CLOSED`), `agreement_created` |
 | `agreements` | The exchange unit: `status` (`PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`, `VOID`, `CANCELLED`, `COMPLETED`), `from_queue`, `creation_date` |
 | `agreement_proposal` | Per-participant proposal: user, `role` (`Provider`/`Beneficiary`), `response`, `response_date` |
-| `agreement_details` | The delivery itself: provider, service provided, beneficiary, `from_remote`, start and end `timestamp`, `beneficiary_accepted`, `status` (`COMPILED`/`UNCOMPILED`), `is_completed`. **`start_date` carries `ON UPDATE CURRENT_TIMESTAMP`**: any update of the row that does not set it explicitly silently resets it (`backend-gaps.md` G20) |
+| `agreement_details` | The delivery itself: provider, service provided, beneficiary, `from_remote`, start and end `timestamp`, `beneficiary_accepted`, `status` (`COMPILED`/`UNCOMPILED`), `is_completed`. **`start_date` carries `ON UPDATE CURRENT_TIMESTAMP`**: any update of the row that does not set it explicitly silently resets it (`backend-ledger.md` G20) |
 | `chat`, `chat_messages`, `chat_participants` | One chat per agreement (there is no `UNIQUE` on `chat.agreement_id`: the rule is the application's), `chat.status` (`OPEN`/`CLOSED`) and `creation_date`, the messages, and the per-participant read marker (`last_message_read`) |
 | `notifications` | One row per event and recipient: `user_id` (FK, cascade), `type` (varchar(100), free text — `AGREEMENT_*`, `MATCH_CREATED`, `CHAT_MESSAGE`, `REPORT_*`, `USER_*`, `SERVICE_RESTORED`, plus a lowercase `agreement_completed` written by the scheduler), `message`, `data` (JSON, `CHECK json_valid`), `created_at`, `read_at` |
 | `messenger_messages` | The `async` transport's table: `App\Message\QueueId` lands here until a worker consumes it |
@@ -128,7 +128,7 @@ not the schema* above).
   no agreement, cancelling a queue-born agreement and completing one through
   the end-date scheduler each add one back (backend `11cffda`). The app has no
   credits UI yet and no route exposes the balance
-  (`docs/backend-gaps.md` G15).
+  (`docs/backend-ledger.md` G15).
 - **`is_used` is still inert.** It exists and nothing manages it.
 - **`COMPLETED` needs the scheduler.** The status exists and the backend has the
   task, but nothing consumes `scheduler_default` in the local stack, so an

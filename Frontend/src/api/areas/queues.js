@@ -94,7 +94,7 @@ export async function createQueue(token, tipo) {
  * There is **no status to translate on the way back**: the route answers `200`
  * even when nothing happened (unknown id, another account's queue, an already
  * closed one — the manager only acts on a match and the controller always
- * answers success, `backend-gaps.md` G21). A `404` cannot come from a valid id,
+ * answers success, `backend-ledger.md` G21). A `404` cannot come from a valid id,
  * so none is mapped here; the screen's list is what tells the reader the state.
  */
 export async function cancelQueue(token, id) {

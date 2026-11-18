@@ -85,7 +85,7 @@ function formVuoto() {
  * `GET`, and the `PATCH` body carries only the fields that differ, which also
  * satisfies the backend's "at least one field" rule without special cases.
  *
- * The photo is a pasted URL (`docs/backend-gaps.md` and brief decision 13): no
+ * The photo is a pasted URL (`docs/backend-ledger.md` and brief decision 13): no
  * upload, no storage. It is validated twice — shape in `src/validation/`, and
  * "does it actually load" through an `Image` onError — because a URL that
  * points at a 404 is a broken profile even when it looks well formed.

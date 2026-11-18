@@ -42,7 +42,7 @@ const NEUTRAL_COLORS = (t) => ({ background: t.background, color: t.textSecondar
  * close a coda learns what else disappears before tapping. A `REQUEST` coda
  * with no agreement gets its credit back on the same route, and the message
  * says so: the money moved by the backend is not visible anywhere else
- * (`backend-gaps.md` G15).
+ * (`backend-ledger.md` G15).
  *
  * When `coda.agreementId` is not null and `onApri` is a function, the
  * informational blocks below (type, description, category, place, status)

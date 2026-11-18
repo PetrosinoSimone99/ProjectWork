@@ -685,7 +685,7 @@ export function normalizeUserServices(response) {
  * display decision the screen makes. A row without an id cannot be cancelled,
  * so it is dropped; a missing category or location is `null` and the card says
  * so instead of inventing one (`QueueController` dereferences the category
- * without a null check: `backend-gaps.md` G13).
+ * without a null check: `backend-ledger.md` G13).
  */
 export function normalizeQueue(row) {
   if (!row || typeof row !== 'object') {

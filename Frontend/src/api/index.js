@@ -14,7 +14,7 @@ import { filtriDaQuery } from '@/services/offer-request';
  *
  * Only endpoints that exist in the backend **today** live here. What the
  * product needs and the backend lacks is a declared state in the UI plus a
- * request in `docs/backend-gaps.md` — never a call to a route that would 404.
+ * request in `docs/backend-ledger.md` — never a call to a route that would 404.
  * The removed legacy routes (`segnalazioni.php`, `notifiche.php`,
  * `utenti.php`, `userRoleManager.php`, `userStatoManager.php`,
  * `Accordi1_a_1/*`) are gone with their screens' fake branches.

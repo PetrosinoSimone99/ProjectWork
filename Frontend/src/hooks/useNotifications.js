@@ -12,7 +12,7 @@ import { useStreamEvent, useStreamState } from '@/hooks/useEventStream';
 /**
  * How many pages the inbox collects before it stops.
  *
- * `pagination.totalPages` is the real total (`backend-gaps.md` G16 was retracted:
+ * `pagination.totalPages` is the real total (`backend-ledger.md` G16 was retracted:
  * the controller counts the whole filtered query), so the hook reads every page
  * of the inbox and not just the first. The cap exists because «every page» is an
  * unbounded number of requests for an account with a thousand notifications: at
@@ -36,7 +36,7 @@ export const NOTIFICATIONS_MAX_PAGES = 5;
  * that arrived from another device would never reach it).
  *
  * It asks for **every page** of the inbox, up to `NOTIFICATIONS_MAX_PAGES`:
- * `pagination.totalPages` is the real total (G16 in `docs/backend-gaps.md`,
+ * `pagination.totalPages` is the real total (G16 in `docs/backend-ledger.md`,
  * which claimed the count was page-scoped, was retracted on 2026-11-18), and the
  * pages are accumulated so that closing the panel marks every row the panel
  * actually holds — with page 1 alone, twenty-one unread notifications would

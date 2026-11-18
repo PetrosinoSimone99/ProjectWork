@@ -44,7 +44,7 @@ const GRUPPI = [
  * `apertoDaEscludere` and the card drops it from both groups, so the detail
  * never repeats what the reader already has in front of them (`otherServices`).
  *
- * This block used to be a declared gap (`backend-gaps.md` G3: no public profile
+ * This block used to be a declared gap (`backend-ledger.md` G3: no public profile
  * endpoint). `GET /users/{id}/services` closes it, so the sentences that said
  * "not available for now" are gone and the card shows what the person publishes.
  *
