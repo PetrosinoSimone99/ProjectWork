@@ -20,7 +20,7 @@ class CloseQueueUseCase
         $this->entityManager = $entityManager;
     }
 
-    public function execute(User $user,Agreement $agreement): void
+    public function execute(Agreement $agreement): void
     {
         $queues = $this->serviceQueueRepository->getQueuesByAgreement($agreement);
         foreach ($queues as $queue) {

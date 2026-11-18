@@ -7,6 +7,7 @@ use App\Entity\Agreement;
 use App\Entity\AgreementDetails;
 use App\Entity\Service;
 use App\Manager\UserManager;
+use App\Manager\UseCase\CloseQueueUseCase;
 use App\Service\NotificationService;
 use App\Repository\AgreementRepository;
 use App\Enum\AgreementStatus;
@@ -18,13 +19,15 @@ class AgreementEndDateChecker
 {
     private NotificationService $notificationService;
     private AgreementRepository $agreementRepository;
+    private CloseQueueUseCase $closeQueueUseCase;
     private EntityManagerInterface $entityManager;
     private UserManager $userManager;
 
-    public function __construct(AgreementRepository $agreementRepository, NotificationService $notificationService,
+    public function __construct(AgreementRepository $agreementRepository, CloseQueueUseCase $closeQueueUseCase, NotificationService $notificationService,
     EntityManagerInterface $entityManager, UserManager $userManager)
     {
         $this->agreementRepository = $agreementRepository;
+        $this->closeQueueUseCase = $closeQueueUseCase;
         $this->notificationService = $notificationService;
         $this->entityManager = $entityManager;
         $this->userManager = $userManager;
@@ -60,6 +63,7 @@ class AgreementEndDateChecker
                     if($agreement->getFromQueue()){
                         $user = $details->getUser();
                         $this->userManager->IncreaseOrRefundCredit($user);
+                        $this->closeQueueUseCase->execute($agreement);
                     }
                 }
             }
