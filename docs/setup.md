@@ -88,8 +88,9 @@ the audit trail those actions wrote, and the deleted service on the staff
 restore screen.
 
 Two things it cannot show, and neither is a data problem: **no queue is ever
-matched** (the worker that matches reads a per-category dictionary that does not
-exist, `backend-ledger.md` G28 — the match tab shows an OPEN queue, not a match),
+matched**, because the only other open queue in the seed is `giulia.bianchi`'s
+request in Roma and a match needs both sides in the same normalized comune
+(see the end of this section) — the match tab shows an OPEN queue, not a match;
 and the G20 card above shows a start date that is the moment of the last write.
 
 It was created with the backend's own command, not with SQL, so a local staff
@@ -227,7 +228,10 @@ npx expo start
 2. Log in: the JWT (1 hour) is stored with `expo-secure-store`.
 3. Publish one offer and one request from "Offro e cerco".
 4. Filter the home and open a service detail.
-5. Watch the backend while acting: `docker compose logs backend -f`.
+5. Create a queue from Match on two accounts of the same comune with opposite
+   types: `docker compose logs worker -f` shows the `QueueId` consumed, the card
+   turns "In corso" and an agreement appears under Accordi without a reload.
+6. Watch the backend while acting: `docker compose logs backend -f`.
 
 ## 5. Backend duties (backend maintainer)
 
