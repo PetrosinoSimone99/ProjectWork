@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { AppState } from 'react-native';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
@@ -68,11 +68,23 @@ export function useNotifications({ token }) {
   const [azioneInCorso, setAzioneInCorso] = useState(null);
 
   const requestSeqRef = useRef(0);
+  // One reload at a time, plus at most one more asked for while it runs: a
+  // reconnect can deliver twenty rows in one tick, and five page requests each
+  // would be a hundred calls for one list. The late frame is not lost — the
+  // queued reload runs as soon as the current one lands.
+  const inFlightRef = useRef(false);
+  const queuedRef = useRef(false);
+  const caricaRef = useRef(null);
 
   const carica = useCallback(async () => {
     if (!token) {
       return;
     }
+    if (inFlightRef.current) {
+      queuedRef.current = true;
+      return;
+    }
+    inFlightRef.current = true;
     const seq = ++requestSeqRef.current;
     setCaricamento(true);
     setErrore(null);
@@ -109,11 +121,20 @@ export function useNotifications({ token }) {
       }
       setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
+      inFlightRef.current = false;
       if (seq === requestSeqRef.current) {
         setCaricamento(false);
       }
+      if (queuedRef.current) {
+        queuedRef.current = false;
+        void caricaRef.current?.();
+      }
     }
   }, [token]);
+
+  useEffect(() => {
+    caricaRef.current = carica;
+  }, [carica]);
 
   // Every frame re-reads the list, whatever its type: the panel shows the whole
   // inbox, so «did this one touch my rows?» is always yes.
@@ -221,18 +242,18 @@ function logInSviluppo(messaggio, dettaglio) {
  *
  * Where the number comes from depends on the connection, one truth at a time: a
  * frame on the live stream carries the count, so while `connected` the frame is
- * what is drawn and the answer of the poll is kept aside unused; while the
- * stream is down (or before any frame arrived) the answer of the poll is what is
- * drawn. The poll's answer therefore never overwrites a newer frame, which is
- * what makes a poll that left before a frame harmless.
+ * what is drawn and the poll is not even asked; while the stream is down (or
+ * before any frame arrived) the answer of the poll is what is drawn. The poll's
+ * answer therefore never overwrites a newer frame, which is what makes a poll
+ * that left before a frame harmless.
  *
- * The poll still runs every `UNREAD_POLL_MS` while the screen is focused, so a
- * broken stream degrades instead of going mute. The timer lives inside
- * `useFocusEffect` (leaving the tab clears it) and a tick does nothing while
- * `AppState` is not `'active'`, so a backgrounded app sends no request; coming
- * back to the foreground reads at once instead of waiting a whole interval. The
- * inbox is not covered here — it uses `useNotifications`, which reads on focus
- * and on every frame.
+ * The poll runs every `UNREAD_POLL_MS` while the screen is focused **and the
+ * frames are not answering**, so a broken stream degrades instead of going mute.
+ * The timer lives inside `useFocusEffect` (leaving the tab clears it) and a tick
+ * does nothing while `AppState` is not `'active'`, so a backgrounded app sends
+ * no request; coming back to the foreground reads at once instead of waiting a
+ * whole interval. The inbox is not covered here — it uses `useNotifications`,
+ * which reads on focus and on every frame.
  *
  * Neither path keeps a local counter: a counter would be a second truth, and a
  * notification that arrived from another device would never reach it. The value
@@ -258,6 +279,13 @@ export function useUnreadCount({ token }) {
   // from overwriting it.
   const [daPoll, setDaPoll] = useState(null);
   const richiestaRef = useRef(0);
+  // Read by the tick, which must not re-create itself on every frame: the value
+  // it needs is «do the frames already answer?», asked once per interval.
+  const daFrameRef = useRef(null);
+
+  useEffect(() => {
+    daFrameRef.current = daFrame;
+  }, [daFrame]);
 
   const nonLette = daFrame ?? daPoll;
 
@@ -279,9 +307,13 @@ export function useUnreadCount({ token }) {
     }
   }, [token]);
 
-  /** One poll tick: nothing to ask while the app is in the background. */
+  /**
+   * One poll tick: nothing to ask while the app is in the background, and
+   * nothing to ask while the frames already carry the count — the poll is the
+   * fallback for a stream that is down, so it does not run next to it.
+   */
   const sonda = useCallback(() => {
-    if (AppState.currentState !== 'active') {
+    if (AppState.currentState !== 'active' || daFrameRef.current !== null) {
       return;
     }
     void carica();

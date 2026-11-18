@@ -111,7 +111,11 @@ function interpreta(frame) {
   try {
     dati = frame.data ? JSON.parse(frame.data) : null;
   } catch {
-    return null;
+    // The `id:` line is still a cursor: a frame that cannot be read must not
+    // pin the cursor, or the row is replayed on every reconnect.
+    return frame.event === 'notification'
+      ? { type: 'cursor', lastId: interoOrNull(frame.id) }
+      : null;
   }
   if (frame.event === 'hello') {
     return {
@@ -123,7 +127,10 @@ function interpreta(frame) {
   if (frame.event === 'notification') {
     const notifica = normalizeNotification(dati?.notification);
     if (notifica === null) {
-      return null;
+      // A row that cannot be normalised must still move the cursor: the server
+      // resumes after the id it is handed (`afterId`), so a cursor stuck on a
+      // broken frame would replay the whole queue on every reconnect.
+      return { type: 'cursor', lastId: interoOrNull(frame.id) };
     }
     return {
       type: 'notification',

@@ -63,7 +63,9 @@ function createStreamLoop({ token, listeners, onState }) {
   let timer = null;
   let tentativi = 0;
   let cursore = null;
-  let attivo = AppState.currentState !== 'background';
+  // Same predicate as the AppState listener: only `active` keeps a worker busy.
+  // On iOS `inactive` is a transition, not a state worth a connection.
+  let attivo = AppState.currentState === 'active';
   let ascoltoAppState = null;
 
   const fermaTimer = () => {
@@ -99,7 +101,6 @@ function createStreamLoop({ token, listeners, onState }) {
       listener(evento.notifica);
     }
   };
-
   const stacca = (corrente) => {
     if (sorgente === corrente) {
       sorgente = null;
@@ -114,12 +115,14 @@ function createStreamLoop({ token, listeners, onState }) {
     fermaTimer();
 
     // The server ends every connection after 30 s, and the idle watchdog ends
-    // a dead socket: reconnecting is the normal path, not a recovery.
+    // a dead socket: reconnecting is the normal path, not a recovery. The state
+    // deliberately stays `connected: true` here — the stream is up to date and
+    // the next frame is half a second away, while marking it down would hand the
+    // badge its two-minute-old poll answer twice a minute.
     const allaChiusura = () => {
       if (!stacca(sorgente)) {
         return;
       }
-      stato({ connected: false });
       programma(STREAM_RECONNECT_MS);
     };
 
@@ -128,6 +131,14 @@ function createStreamLoop({ token, listeners, onState }) {
         return;
       }
       stato({ connected: false });
+      if (typeof __DEV__ === 'undefined' || __DEV__) {
+        // Never the token, never the URL: status and detail are enough to tell a
+        // revoked session from a server that is simply gone.
+        console.warn('[stream] connessione interrotta', {
+          status: errore?.status ?? null,
+          detail: errore?.detail ?? null,
+        });
+      }
       if (errore?.status === 401) {
         // The session is gone and the app is leaving for the login screen:
         // retrying would only hammer a route that keeps answering 401.
@@ -207,12 +218,17 @@ export function EventStreamProvider({ children }) {
       token,
       listeners: listenersRef.current,
       onState: (prossimo) =>
-        setFrameState((precedente) => ({
-          connected: prossimo.connected,
-          unreadCount: prossimo.unreadCount ?? precedente?.unreadCount ?? null,
-          lastId: prossimo.lastId ?? precedente?.lastId ?? null,
-          token: prossimo.token,
-        })),
+        setFrameState((precedente) => {
+          // A count belongs to the account that received it: after a login the
+          // previous user's number is not carried over even for one render.
+          const base = precedente?.token === prossimo.token ? precedente : null;
+          return {
+            connected: prossimo.connected,
+            unreadCount: prossimo.unreadCount ?? base?.unreadCount ?? null,
+            lastId: prossimo.lastId ?? base?.lastId ?? null,
+            token: prossimo.token,
+          };
+        }),
     });
     loop.start();
     return () => loop.stop();

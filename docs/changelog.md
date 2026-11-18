@@ -30,13 +30,18 @@ Four rules the transport had to respect. `EventSource` cannot send an
 hand-written: `fetch` + `ReadableStream` on the web, incremental
 `XMLHttpRequest` on native. `REQUEST_TIMEOUT_MS` (10 s) is **not** applied to
 this route, which lives 30 s by design. The reconnect is normal: the cursor is
-the client's and stays in memory, a server close reconnects at once, a fault
+the client's and stays in memory, a server close reconnects half a second later
+(and the state stays «up to date» across that gap, so the badge keeps its count
+instead of falling back to the poll twice a minute), a fault
 backs off 1 s → 30 s, a socket silent for 45 s (three missed `: ping`) is
 declared dead, a `401` is reported once through `signalSessionExpired` and never
-retried, and nothing stays open while the app is backgrounded. The polling that
+retried, and nothing stays open while the app is backgrounded. A frame that
+cannot be normalised is not delivered but still moves the cursor, so one broken
+row cannot replay the queue on every reconnect. The polling that
 was the only path stays as a **fallback**, slowed: `UNREAD_POLL_MS` 30 s → 120 s
-and `CHAT_POLL_MS` 15 s → 60 s, because on `php -S` a stream that drops must
-degrade instead of going mute.
+and `CHAT_POLL_MS` 15 s → 60 s — and the badge's tick skips while the frames
+answer, because on `php -S` a stream that drops must degrade instead of going
+mute.
 
 Verified live with two isolated browser sessions (Expo web on 8081, backend on
 8000, seeded demo users): a message sent by one account appeared in the other's
@@ -48,11 +53,11 @@ retrying with its cursor (`GET /api/stream?after=46`, refused/empty across the
 outage, then `200`) and delivered the next event without a reload.
 
 Frontend: new `src/api/stream.js`, `src/hooks/useEventStream.js` and their
-suites (18 + 9 tests), `src/api/client.js` (`signalSessionExpired` — one handler,
+suites (19 + 11 tests), `src/api/client.js` (`signalSessionExpired` — one handler,
 two callers), `app/_layout.jsx`, `hooks/useNotifications.js`, `hooks/useChat.js`,
 `hooks/useAgreements.js`, `app/(tabs)/match.jsx`, `app/(tabs)/profile.jsx`, plus
 the stale «no push channel» note in `api/areas/notifications.js`. Gate green:
-lint, `tsc --noEmit`, 42 suites / 477 tests. Contract and limits:
+lint, `tsc --noEmit`, 42 suites / 480 tests. Contract and limits:
 [api.md](api.md#what-the-app-does-with-a-stream-frame); conventions and the
 declared blind spots (home catalog, another user's public profile, staff lists)
 in [frontend.md](frontend.md#data-and-hooks); plan in

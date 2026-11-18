@@ -239,16 +239,18 @@ them (agreement proposed, answered, cancelled, sheet written or accepted, chat
 message, match created, staff actions). Writing a row is still the only thing
 that happens: there is no message broker, no Mercure and no email. What changed
 on 2026-11-20 is the read side — `GET /stream` keeps one request open and pushes
-the rows that appear (see [Live stream](#live-stream-server-sent-events)). Until
-the app connects to it, a client learns about a new row by asking again. Two
-readers ask, both with the token:
+the rows that appear (see [Live stream](#live-stream-server-sent-events)), and
+the app is connected to it. A frame says "something changed"; the list is still
+a `GET`. Two readers ask, both with the token:
 
-- the inbox (`useNotifications`) reads every page when the panel opens;
-- the profile row (`useUnreadCount`) reads `limit: 1` on focus, on
-  pull-to-refresh and **every 30 s while the screen is in the foreground**
-  (`UNREAD_POLL_MS`). It sends no request while the app is backgrounded
-  (`AppState`) and reads once more when the app comes back, so the badge moves
-  without a second, parallel counter.
+- the inbox (`useNotifications`) reads every page when the panel opens and again
+  on every frame while the panel is mounted (it is mounted only while open);
+- the profile row (`useUnreadCount`) takes the count the frames carry, and reads
+  `limit: 1` on focus, on pull-to-refresh and every 2 minutes
+  (`UNREAD_POLL_MS`) **only while no frame answers** — the poll is the fallback
+  for a stream that is down, not a second reader beside it. It sends no request
+  while the app is backgrounded (`AppState`) and reads once more when the app
+  comes back, so the badge moves without a second, parallel counter.
 
 Reading is not a command and it is not the opening. `PATCH
 /notifications/{id}/read` has no bulk form, so **closing** the panel sends one

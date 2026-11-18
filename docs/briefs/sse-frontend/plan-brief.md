@@ -62,10 +62,10 @@ Una sola connessione per app a `GET /api/stream`, aperta nel root layout dentro
    da contratto. Un remount copre il buco con le letture su focus che restano.
    Alternativa scartata: persistere il cursore in SecureStore (scrittura a ogni
    frame, valore stantio dopo un logout).
-3. **App in background = connessione chiusa.** `AppState !== 'active'` chiude;
-   il ritorno in primo piano riconnette subito. Motivo: ogni connessione tiene
-   un worker `php -S` (`PHP_CLI_SERVER_WORKERS=12`) e in background non c'è
-   schermata da aggiornare.
+3. **App in background = connessione chiusa.** `AppState` diverso da `'active'`
+   chiude (anche `inactive`, che è una transizione); il ritorno in primo piano
+   riconnette subito. Motivo: ogni connessione tiene un worker `php -S`
+   (`PHP_CLI_SERVER_WORKERS=12`) e in background non c'è schermata da aggiornare.
 4. **Conteggio non lette: i frame sono la verità mentre si è connessi; il poll
    scrive solo a connessione assente.** Un poll partito prima di un frame
    scriverebbe un numero vecchio: `useUnreadCount` legge
@@ -74,10 +74,13 @@ Una sola connessione per app a `GET /api/stream`, aperta nel root layout dentro
    server.
 5. **Watchdog di inattività a 45 s.** Nessun byte per 45 s (tre `: ping` mancati,
    heartbeat 15 s) = connessione morta: si chiude e si riconnette. La chiusura
-   normale del server (30 s) non è un guasto: la riconnessione è immediata
-   (0 ms). Un guasto di trasporto usa backoff 1 s → 2 s → 4 s … tetto 30 s,
-   azzerato da un `hello` ricevuto. `401` → una sola chiamata a
-   `signalSessionExpired()` e nessun nuovo tentativo.
+   normale del server (30 s) non è un guasto: la riconnessione è dopo 500 ms, non
+   a zero, perché al worker appena uscito serve un attimo per liberarsi. Un
+   guasto di trasporto usa backoff 1 s → 2 s → 4 s … tetto 30 s, azzerato da un
+   `hello` ricevuto. `401` → una sola chiamata a `signalSessionExpired()` e
+   nessun nuovo tentativo. Durante la pausa fra le due connessioni lo stato resta
+   `connected: true`: lo stream è aggiornato e il frame successivo è a mezzo
+   secondo, mentre dichiararlo giù rifarebbe lampeggiare il badge sul poll.
 
 ## Interfaccia che i figli devono usare (non inventare)
 

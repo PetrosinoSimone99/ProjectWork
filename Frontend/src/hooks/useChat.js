@@ -50,10 +50,10 @@ function logInSviluppo(messaggio, dettaglio) {
  * 3. **The frame is the live path; the timer is the fallback.** A
  *    `CHAT_MESSAGE` notification for this chat runs the very `sonda` the timer
  *    runs, so the message lands on the next frame instead of on the next tick.
- *    The timer only covers a stream that is down (`php -S` dropping it, the
- *    incremental XHR read on native), and it lives inside `useFocusEffect`:
- *    leaving the screen clears it, and there is no poll without a `chatId` or
- *    without a token.
+ *    The timer is the safety net for when the frame does not arrive (`php -S`
+ *    dropping the stream, the incremental XHR read on native), and it lives
+ *    inside `useFocusEffect`: leaving the screen clears it, and there is no poll
+ *    without a `chatId` or without a token.
  * 4. **A single failed poll is noise, not an error**: it warns in development
  *    and keeps the messages on screen. Two in a row reach `errore`, because a
  *    chat that quietly stops updating is worse than one that says so
@@ -75,6 +75,9 @@ export function useChat({ token, agreementId }) {
   // Highest message id this screen knows about; `null` until it has one.
   const cursoreRef = useRef(null);
   const guastiRef = useRef(0);
+  // One probe at a time: the stream writes a frame per message and the timer
+  // can land on top of it.
+  const inVoloRef = useRef(false);
 
   // Another agreement means another conversation: the cursor starts over.
   useEffect(() => {
@@ -134,6 +137,12 @@ export function useChat({ token, agreementId }) {
     if (!token || chatId === null) {
       return;
     }
+    // One probe at a time: the server writes one frame per row, so a burst of
+    // messages would otherwise start one check and one history read each.
+    if (inVoloRef.current) {
+      return;
+    }
+    inVoloRef.current = true;
     try {
       if (cursoreRef.current === null) {
         // The seed call of the first read failed: take it now instead of
@@ -156,6 +165,8 @@ export function useChat({ token, agreementId }) {
       if (guastiRef.current >= GUASTI_PRIMA_DEL_BANNER) {
         setErrore(GENERIC_ERROR_MESSAGE);
       }
+    } finally {
+      inVoloRef.current = false;
     }
   }, [token, chatId, carica]);
 

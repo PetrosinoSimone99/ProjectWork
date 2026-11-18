@@ -122,6 +122,32 @@ describe('EventStreamProvider', () => {
     expect(ultima().after).toBe(12);
   });
 
+  it('keeps the stream reported as up across the planned close', () => {
+    monta(jest.fn());
+    emetti(() => ultima().onFrame({ type: 'hello', lastId: 4, nonLette: 5 }));
+
+    // The 30 s close is the server doing its job. Reporting it as down would
+    // hand the badge its two-minute-old poll answer twice a minute.
+    emetti(() => ultima().onClose({ reason: 'eof' }));
+    expect(lettura.stato).toMatchObject({ connected: true, unreadCount: 5, lastId: 4 });
+  });
+
+  it('advances the cursor over a frame it cannot draw, and delivers nothing', () => {
+    const evento = jest.fn();
+    monta(evento);
+    emetti(() => ultima().onFrame({ type: 'hello', lastId: 4, nonLette: 5 }));
+
+    emetti(() => ultima().onFrame({ type: 'cursor', lastId: 9 }));
+    expect(evento).not.toHaveBeenCalled();
+    expect(lettura.stato.lastId).toBe(9);
+
+    emetti(() => ultima().onClose({ reason: 'eof' }));
+    act(() => {
+      jest.advanceTimersByTime(STREAM_RECONNECT_MS);
+    });
+    expect(ultima().after).toBe(9);
+  });
+
   it('does not ask for the count again: a frame without one keeps the last', () => {
     monta(jest.fn());
     emetti(() => ultima().onFrame({ type: 'hello', lastId: 1, nonLette: 4 }));

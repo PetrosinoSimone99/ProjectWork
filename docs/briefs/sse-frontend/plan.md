@@ -37,9 +37,9 @@ Classe **L** — 19 file (7 nuovi), 5 figli + 3 reviewer, ~2-3 h. Stile: `full`.
 - 3. Base: provider e hook di sottoscrizione, montati nel root layout | files: Frontend/src/hooks/useEventStream.js, Frontend/src/hooks/__tests__/useEventStream.test.js, Frontend/src/app/_layout.jsx | done: test verde (frame → handler, chiusura server → riconnessione immediata, guasto → backoff con tetto, 401 → nessun retry, background → chiusura e ritorno → connessione, unmount → chiusura); `_layout.jsx` monta `<EventStreamProvider>` dentro `AuthProvider`; `npx expo lint` verde; commit `feat: one stream per app, opened by the root layout` | Stato: DONE
 - 4. Ondata: cinque consumatori, un figlio per file, file disgiunti | files: Frontend/src/hooks/useNotifications.js, Frontend/src/hooks/__tests__/useNotifications.test.js, Frontend/src/hooks/useChat.js, Frontend/src/hooks/__tests__/useChat.test.js, Frontend/src/hooks/useAgreements.js, Frontend/src/hooks/__tests__/useAgreements.test.js, Frontend/src/app/(tabs)/match.jsx, Frontend/src/app/(tabs)/__tests__/match.test.js, Frontend/src/app/(tabs)/profile.jsx | done: ogni suite toccata verde; `git diff --stat` corrisponde ai file dichiarati; `npx jest` verde con 34 suite; commit a confini logici (2-3 file: notifiche, chat+accordi, match+profilo) | Stato: DONE
 - 5. Docs: mapping consumatori, limiti dichiarati, changelog; commento stantio «no push channel» in `api/areas/notifications.js` | files: Frontend/src/api/areas/notifications.js, docs/api.md, docs/frontend.md, docs/overview.md, docs/changelog.md | done: `api.md` § Frontend mapping notes elenca i cinque consumatori e i tre fuori scope; `frontend.md` § Data and hooks dice che i frame sono «rileggi», non payload; `overview.md` non dice più «non collegata»; changelog con i numeri del gate; commit `docs: the app is connected to the stream, and what stays on focus reads` | Stato: DONE
-- 6. Review a contesto fresco, tre angoli, un modello per angolo | files: nessuno (sola lettura) | done: verdetti P0/P1/P2 con file:riga; P0/P1 accettati corretti in resume dello stesso run oppure dichiarati; Merge verdict scritto | Stato: TODO
+- 6. Review a contesto fresco, tre angoli, un modello per angolo | files: nessuno (sola lettura) | done: verdetti P0/P1/P2 con file:riga; P0/P1 accettati corretti in resume dello stesso run oppure dichiarati; Merge verdict scritto | Stato: DONE
 - 7. Verifica dal vivo: due sessioni + caduta del backend | files: nessuno (nessuna modifica; eventuali fix tornano ai blocchi 2-4) | done: (a) A scrive in chat, B vede il messaggio senza toccare nulla; (b) badge non lette che si muove da solo in B; (c) accordo proposto da A che compare in B; (d) `docker compose stop backend` e `start` → entro un ciclo l'app riceve di nuovo eventi senza reload; tutte e quattro registrate in `docs/changelog.md` | Stato: DONE
-- 8. Push su `andrea-frontend` | files: nessuno | done: gate verde, `git status --porcelain` pulito, `git log origin/andrea-frontend..HEAD` coerente, push fatto e nessun commit su `main` | Stato: TODO
+- 8. Push su `andrea-frontend` | files: nessuno | done: gate verde, `git status --porcelain` pulito, `git log origin/andrea-frontend..HEAD` coerente, push fatto e nessun commit su `main` | Stato: DONE
 
 ## Lanes
 
@@ -57,3 +57,35 @@ Classe **L** — 19 file (7 nuovi), 5 figli + 3 reviewer, ~2-3 h. Stile: `full`.
 - **Integrazione (padre, blocchi 5, 7, 8)**: docs, `api/areas/notifications.js`,
   verifica live, push. Le lane 1-5 sono disgiunte e parallele: ultima più lunga
   del merge + gate (~20 s in locale).
+
+## Review (3 angoli, contesto fresco)
+
+Correttezza (`deepseek-v4.1-flash`), sicurezza e dati
+(`deepseek-v4.1-flash`), coerenza col brief (`glm-5.3-flash`). Verdetti:
+`ok con fix` su tutti e tre; nessun P0.
+
+Applicati prima del push:
+
+- P1 — `hooks/useEventStream.js`: la chiusura pianificata dei 30 s dichiarava
+  `connected: false`, così il badge ricadeva sul poll due volte al minuto
+  (lampeggio + numero vecchio). Lo stato resta `connected: true` attraversando
+  la pausa di 500 ms; `false` solo per guasto, background e fine sessione.
+- P1 — `docs/api.md`: la sezione «Notifications» diceva ancora «every 30 s»
+  e «until the app connects to it». Riscritta al presente con 120 s e il poll
+  come ripiego.
+- P2 — `api/stream.js` + provider: un frame non normalizzabile non avanzava il
+  cursore e avrebbe rigiocato la coda a ogni riconnessione. Ora emette
+  `{type: 'cursor', lastId}`: cursore avanti, nessun consumatore toccato.
+- P2 — `hooks/useEventStream.js`: lo stato ereditava `unreadCount`/`lastId`
+  dell'account precedente al cambio utente; ora la base è solo dello stesso
+  token. Predicato `AppState` allineato (`=== 'active'` anche al mount) e log di
+  sviluppo sul guasto di trasporto.
+- P2 — `useChat.js` (probe in volo), `useNotifications.js` (una ricarica alla
+  volta più una in coda): una raffica di frame non apre N letture parallele.
+- P2 — badge: il tick del poll salta quando i frame rispondono, come dice la
+  decisione 4 del lock.
+
+Dichiarati e non corretti: nessuna coalescenza nelle lane accordi/match/profilo
+(eventi rari, una GET per frame); l'assegnazione dell'handle dopo
+`startEventStream` non è raggiungibile con i due trasporti attuali (fetch e XHR
+rispondono asincroni).

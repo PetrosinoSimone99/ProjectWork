@@ -241,6 +241,17 @@ describe('useUnreadCount — the frames are the truth while the stream is up', (
     getNotifications.mockResolvedValue(risposta(2));
     await unGiro();
 
+    // While the frames answer, the tick does not even ask: the poll is the
+    // fallback for a stream that is down, not a second reader beside it.
+    expect(getNotifications).toHaveBeenCalledTimes(1);
+    expect(lettura.nonLette).toBe(7);
+
+    // A manual read — pull-to-refresh, or coming back to the foreground — still
+    // asks, and its answer still cannot overwrite the frame's count.
+    act(() => {
+      void lettura.ricarica();
+    });
+    await flush();
     expect(getNotifications).toHaveBeenCalledTimes(2);
     expect(lettura.nonLette).toBe(7);
   });

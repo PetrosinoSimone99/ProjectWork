@@ -191,6 +191,27 @@ describe('startEventStream on the web', () => {
     expect(onClose).toHaveBeenCalledWith({ reason: 'eof' });
   });
 
+  it('moves the cursor over a row it cannot normalise, so nothing replays forever', async () => {
+    global.fetch = fetchWithChunks([
+      'event: notification\nid: 77\ndata: {"notification":{"type":"CHAT_MESSAGE"},"unreadCount":3}\n\n',
+      'event: notification\nid: 78\ndata: non-json\n\n',
+    ]);
+    const frame = jest.fn();
+    startEventStream({
+      token: 'jwt',
+      platform: 'web',
+      onFrame: frame,
+      onClose: jest.fn(),
+      onError: jest.fn(),
+    });
+    await flush();
+
+    // Neither row can be drawn — no id inside the payload, and invalid JSON —
+    // but both carry an `id:` line the server will resume after.
+    expect(frame).toHaveBeenNthCalledWith(1, { type: 'cursor', lastId: 77 });
+    expect(frame).toHaveBeenNthCalledWith(2, { type: 'cursor', lastId: 78 });
+  });
+
   it('reports an expired session once and closes instead of retrying', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401 });
     const sessione = jest.spyOn(client, 'signalSessionExpired').mockImplementation(() => {});
