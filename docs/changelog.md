@@ -6,6 +6,61 @@ documents/code touched.
 
 ---
 
+## 2026-11-20 — The app listens: one connection, every screen re-reads
+
+The stream existed and nobody was connected to it. This ship connects the
+frontend and keeps the rule that makes one event type enough: **a frame is
+«re-read what you are showing», never a payload to draw**. One connection per
+app, opened by `EventStreamProvider` in `app/_layout.jsx` inside
+`AuthProvider`; `notification.type` plus `data` say who has to read again, and
+the pure predicates in `Frontend/src/api/stream.js` decide.
+
+Six consumers: the open chat (`CHAT_MESSAGE` on its `data.chatId`) re-runs the
+`sonda` it already had, the agreements tab reloads its list on any agreement
+row (proposal, response, details, cancellation, completion — the scheduler's
+lower-case `agreement_completed` included, normalised on the way in), the inbox
+panel reloads every page on every frame while it is mounted (it is mounted only
+while open), the profile badge takes the `unreadCount` the frames carry, the
+match tab reloads queues and balance on `MATCH_CREATED`, and the profile screen
+re-reads `GET /profile` and the stored session on `USER_PROMOTED`,
+`USER_STATUS_CHANGED`, `SERVICE_RESTORED`.
+
+Four rules the transport had to respect. `EventSource` cannot send an
+`Authorization` header and the token must not enter a URL, so the client is
+hand-written: `fetch` + `ReadableStream` on the web, incremental
+`XMLHttpRequest` on native. `REQUEST_TIMEOUT_MS` (10 s) is **not** applied to
+this route, which lives 30 s by design. The reconnect is normal: the cursor is
+the client's and stays in memory, a server close reconnects at once, a fault
+backs off 1 s → 30 s, a socket silent for 45 s (three missed `: ping`) is
+declared dead, a `401` is reported once through `signalSessionExpired` and never
+retried, and nothing stays open while the app is backgrounded. The polling that
+was the only path stays as a **fallback**, slowed: `UNREAD_POLL_MS` 30 s → 120 s
+and `CHAT_POLL_MS` 15 s → 60 s, because on `php -S` a stream that drops must
+degrade instead of going mute.
+
+Verified live with two isolated browser sessions (Expo web on 8081, backend on
+8000, seeded demo users): a message sent by one account appeared in the other's
+open chat without a click; the profile badge moved 1 → 2 on its own when the
+second message landed; a proposal created by a third account turned the
+tab's bell from «1 da rispondere» to «2 da rispondere» with nothing touched on
+that page; and with the backend container stopped and restarted the page kept
+retrying with its cursor (`GET /api/stream?after=46`, refused/empty across the
+outage, then `200`) and delivered the next event without a reload.
+
+Frontend: new `src/api/stream.js`, `src/hooks/useEventStream.js` and their
+suites (18 + 9 tests), `src/api/client.js` (`signalSessionExpired` — one handler,
+two callers), `app/_layout.jsx`, `hooks/useNotifications.js`, `hooks/useChat.js`,
+`hooks/useAgreements.js`, `app/(tabs)/match.jsx`, `app/(tabs)/profile.jsx`, plus
+the stale «no push channel» note in `api/areas/notifications.js`. Gate green:
+lint, `tsc --noEmit`, 42 suites / 477 tests. Contract and limits:
+[api.md](api.md#what-the-app-does-with-a-stream-frame); conventions and the
+declared blind spots (home catalog, another user's public profile, staff lists)
+in [frontend.md](frontend.md#data-and-hooks); plan in
+[briefs/sse-frontend](briefs/sse-frontend/plan.md). No `Backend/` file was
+touched in this ship.
+
+---
+
 ## 2026-11-20 — The API pushes: one open request, no broker
 
 The app could not learn anything without asking: every screen read on focus, the

@@ -392,3 +392,31 @@ This is the endpoint behind the offerer mini-card in the service detail.
 - `ApiError` carries the status; `401` triggers logout, `404` on a route the
   product knows is missing becomes the "not available" state rather than an
   error with retry.
+
+### What the app does with a stream frame
+
+One connection per app, opened in the root layout (`src/hooks/useEventStream.js`,
+inside `AuthProvider`). A frame is not a payload to draw: `notification.type`
+plus `data` say **who** has to re-read, and the predicates in
+`src/api/stream.js` decide. Every screen keeps reading its own `GET`.
+
+| Consumer | Rows that make it re-read | Read it repeats |
+| --- | --- | --- |
+| Open chat (`useChat`) | `CHAT_MESSAGE` whose `data.chatId` is the open one | `GET /chats/check-new-messages/{id}`, then the history |
+| Agreements tab (`useAgreements`) | `AGREEMENT_PROPOSAL`, `_RESPONSE`, `_DETAILS`, `_DETAILS_ACCEPTED`, `_CANCELLED`, `_COMPLETED` | `GET /get-agreements` |
+| Inbox panel (`useNotifications`) | every row, while the panel is mounted (it is mounted only while open) | `GET /notifications`, every page |
+| Profile badge (`useUnreadCount`) | `unreadCount` of `hello` and of every frame; the 120 s poll is the fallback when the stream is not connected | nothing: the count travels in the frame |
+| Profile screen | `USER_PROMOTED`, `USER_STATUS_CHANGED`, `SERVICE_RESTORED` | `GET /profile` and the stored session (role and account state are not in the row) |
+| Match tab | `MATCH_CREATED` | `GET /get-queues` and `GET /profile` (a match spends the request credit) |
+
+The type is compared in upper case, the same way the inbox normalises it: the
+scheduler writes `agreement_completed` in lower case and it still reaches the
+agreements tab.
+
+**Declared limits.** The stream carries the rows the backend writes, so screens
+whose tables write no notification are outside it and stay on focus and
+pull-to-refresh: the home catalog (`useServiceCatalog`), another user's public
+profile and the staff lists. A reconnect hands back the client's cursor, so a
+gap inside a session is replayed once and not twice; an app restart starts at
+the live edge and the focus reads cover the gap. `UNREAD_POLL_MS` (120 s) and
+`CHAT_POLL_MS` (60 s) remain as the fallback for a stream that is down.

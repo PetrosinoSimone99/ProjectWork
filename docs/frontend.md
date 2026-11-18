@@ -98,6 +98,29 @@ empty state, never fake content.
   floating button in the bottom-right corner and opens its panel **above**
   itself as a `Modal`: a floating button has no room to grow downwards, so an
   inline block there would be clipped or would scroll away with the page.
+- One connection to `GET /api/stream` serves the whole app
+  (`src/hooks/useEventStream.js`, mounted in `app/_layout.jsx` inside
+  `AuthProvider`). A frame is a notification row in the internal shape and means
+  **re-read what you are showing**, never "draw this payload": each consumer
+  decides with the predicates in `src/api/stream.js` (`affectsChat`,
+  `affectsAgreements`, `affectsProfile`, `affectsMatch`) and calls the read it
+  already had. No screen opens a connection of its own; that would be one
+  connection per screen, and each open stream holds one `php -S` worker.
+- The stream is hand-written (`src/api/stream.js`) because `EventSource` cannot
+  send an `Authorization` header and the token must not enter a URL: `fetch` +
+  `ReadableStream` on the web, incremental `XMLHttpRequest` on native, which has
+  neither streaming `fetch` nor `EventSource`. Reconnecting is the normal path,
+  not an error: the server closes every connection after 30 s by design,
+  a transport fault backs off 1 s → 30 s, a silent socket is closed by a 45 s
+  idle watchdog, and a `401` is reported once and never retried. The provider
+  keeps the cursor in memory (`after` = last applied id) so a reconnect inside a
+  session loses nothing, and it holds no connection while the app is
+  backgrounded.
+- **What the stream does not reach** (declared, not forgotten): the home catalog,
+  another user's public profile and the staff lists. Their tables write no
+  notification, so those screens stay on focus and pull-to-refresh. The polling
+  that remains is a fallback, not the engine: `UNREAD_POLL_MS` is 120 s and
+  `CHAT_POLL_MS` 60 s, and neither overwrites the count the frames carry.
 
 ## Theme
 
@@ -135,9 +158,10 @@ errors; it does not type-check JavaScript, so it is a syntax net, not a type
 check.
 
 Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library).
-The tree holds 32 test suites and 356 tests, all green: seven under `api/`, ten
-under `components/`, seven under `services/`, four under `hooks/`, and one each
-under `app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
+The tree holds 42 test suites and 477 tests, all green: nine under `api/`
+(`stream` and `client` included), fifteen under `components/`, eight under
+`services/`, six under `hooks/` (`useEventStream` included), and one each under
+`app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
 
 Coverage is collected only for the five files listed in `collectCoverageFrom`
 (`Frontend/package.json`): `services/agreements.js`,
