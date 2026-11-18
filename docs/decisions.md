@@ -358,3 +358,36 @@ participant, and completion decided only by the scheduler.
 controls disappear from the app. `Backend/` was edited in this ship under the
 owner's explicit per-ship permission, reported in `changelog.md` for the backend
 maintainer.
+
+## D029 — 2026-11-20 — Real time is Server-Sent Events over the notifications table
+
+The app was refresh-driven: every screen read once on focus, the unread badge
+polled every 30 s and the open chat every 15 s, because the backend had no push
+channel. The fix is one route, not a broker.
+
+- **SSE, not Mercure, not a socket server.** `GET /api/stream` keeps one
+  authenticated request open and writes `text/event-stream` frames
+  (`api.md#live-stream-server-sent-events`). No new dependency on either side:
+  the backend polls the notifications table it already writes, the client reads
+  the bytes with `fetch` (web) or `XMLHttpRequest` (native).
+- **One event type: `notification`.** A chat message already writes a
+  `CHAT_MESSAGE` row carrying `chatId` and the text, so messages, agreements,
+  matches and staff events all arrive through the same frame. A second stream
+  for chat was rejected: two cursors, two reconnects, two failure modes.
+- **The cursor is the client's.** Frames carry an `id:`; reconnecting with it
+  replays exactly what was missed. Without a cursor the stream starts at the
+  newest row — the live edge, never a silent backfill of the whole inbox.
+- **The connection is bounded.** Thirty seconds, then the client reconnects.
+  A php worker serves one request at a time and the dev stack runs `php -S`
+  with a fixed worker pool; an endless stream would starve it. The cost is a
+  reconnect every 30 s, which is cheaper than an exhausted pool.
+- **The token stays in the header.** `EventSource` cannot send an
+  `Authorization` header, so the client is hand-written instead of the browser
+  API: no `access_token` in the URL, no one-shot ticket table, and the same JWT
+  extractor as every other route.
+
+*Consequences:* the polling in `useUnreadCount` and `useChat` becomes a fallback
+rather than the only path; `Backend/` was edited in this ship under the owner's
+explicit per-ship permission, reported in `changelog.md` for the backend
+maintainer. The stream is per process, not per app server: multiple php workers
+each answer their own request, so no shared state is needed.

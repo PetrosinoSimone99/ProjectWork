@@ -12,6 +12,9 @@ use Doctrine\Persistence\ManagerRegistry;
 
 final class NotificationRepository extends ServiceEntityRepository
 {
+    /** Rows per stream tick: a batch larger than this arrives in two ticks. */
+    private const STREAM_PAGE = 50;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Notification::class);
@@ -27,6 +30,37 @@ final class NotificationRepository extends ServiceEntityRepository
             $query->andWhere('notification.readAt IS NULL');
         }
         return new Paginator($query, false);
+    }
+
+    /**
+     * The live stream's page: rows newer than the client's cursor, oldest first.
+     *
+     * Ordered by id and never by date: the cursor is an id, so ordering by date
+     * could hand the client a row behind the cursor and drop it silently.
+     *
+     * @return list<Notification>
+     */
+    public function findNewerThan(User $recipient, int $afterId): array
+    {
+        return $this->createQueryBuilder('notification')
+            ->where('notification.recipient = :recipient')->setParameter('recipient', $recipient)
+            ->andWhere('notification.id > :afterId')->setParameter('afterId', $afterId)
+            ->orderBy('notification.id', 'ASC')
+            ->setMaxResults(self::STREAM_PAGE)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Highest notification id of one recipient, `0` when the inbox is empty. */
+    public function newestIdFor(User $recipient): int
+    {
+        $newest = $this->createQueryBuilder('notification')
+            ->select('MAX(notification.id)')
+            ->where('notification.recipient = :recipient')->setParameter('recipient', $recipient)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) $newest;
     }
 
     public function findOwned(int $id, User $recipient): ?Notification

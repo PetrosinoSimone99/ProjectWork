@@ -42,7 +42,9 @@ panel opened from the same profile and not a route of its own.
    agreements tab, which counts the proposals waiting for **their** answer, and
    the notifications panel in the profile, which lists every backend event
    (proposal, answer, sheet, match, chat message, staff decision) and marks the
-   rows it shows as read. The inbox is polled: the backend has no push channel.
+   rows it shows as read. The API now exposes a live stream
+   (`GET /api/stream`, see [api.md](api.md#live-stream-server-sent-events)); the
+   app still reads on focus and polls, and is not connected to it yet.
 3. **Agreement.** Both sides accepting creates the agreement, and only then can
    the chat be opened: it is the only way to reach a chat with someone. The
    "In corso" card offers exactly two actions, "Apri chat" and "Annulla

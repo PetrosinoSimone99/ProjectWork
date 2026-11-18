@@ -6,6 +6,49 @@ documents/code touched.
 
 ---
 
+## 2026-11-20 — The API pushes: one open request, no broker
+
+The app could not learn anything without asking: every screen read on focus, the
+unread badge polled every 30 s, the open chat every 15 s. The cause was on the
+server — notifications are rows written synchronously by the request that causes
+them, with no channel to announce them. This ship adds the channel and no
+dependency: **`GET /api/stream`** keeps one authenticated request open and writes
+`text/event-stream` frames (a `hello`, then one `notification` frame per new row,
+plus a `: ping` every 15 s of silence). A chat message needs no second stream,
+because sending one already writes a `CHAT_MESSAGE` notification carrying
+`chatId` and the text.
+
+Three rules make it survivable on `php -S`: the client owns the cursor (`after`,
+and `id:` on every frame, so a reconnect replays exactly what was missed — with
+no cursor the stream starts at the newest row instead of replaying the inbox),
+every connection ends by itself after 30 s, and the token stays in the
+`Authorization` header — hence a hand-written client instead of `EventSource`,
+which cannot send one. `PHP_CLI_SERVER_WORKERS` goes from 4 to 12 in
+`Backend/compose.yaml`, because each open stream holds one worker for its whole
+lifetime.
+
+Backend: `src/Controller/StreamController.php`,
+`src/Service/NotificationEventStream.php`, `NotificationRepository::findNewerThan`
+and `newestIdFor`, `config/services.yaml` (`app.stream.*`), the compose worker
+count, and two functional suites (`StreamControllerTest`,
+`NotificationEventStreamTest`). Contract: [api.md](api.md#live-stream-server-sent-events);
+correction G32 in [backend-gaps.md](backend-gaps.md); decision
+[decisions.md](decisions.md) D029. The frontend is **not** connected yet: until
+it is, `useUnreadCount` and `useChat` keep polling.
+
+**Backend exception, for the backend maintainer:** this ship edited `Backend/`
+(one controller, one service, one repository, `config/services.yaml`,
+`compose.yaml`, two test files) under the owner's explicit per-ship permission.
+Review before merging to `main`. `compose.yaml` is Andrea's under the Docker
+exception in `AGENTS.md`; the worker change is exactly the kind of line that
+needs the notification this paragraph is.
+
+Gates at close: backend SQLite 8/8 on the two new suites (67 assertions) and the
+full suite green except the six `ReportControllerTest` cases that need MySQL;
+live check with `curl` against the running stack — `hello` on connect, a row
+inserted while the request was open arrived within one tick, and the connection
+closed on its own at ~31 s.
+
 ## 2026-11-19 — The sheet lives in the chat, and confirming it ends the exchange
 
 Four rules the product owns, delivered on both sides. **Reciprocal proposals

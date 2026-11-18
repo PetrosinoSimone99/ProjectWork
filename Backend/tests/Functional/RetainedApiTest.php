@@ -39,6 +39,7 @@ final class RetainedApiTest extends WebTestCase
         }
         $expected = [
             'GET /api/notifications', 'PATCH /api/notifications/{id}/read', 'DELETE /api/notifications/{id}',
+            'GET /api/stream',
             'GET /api/users/{id}/services', 'GET /api/get-queues',
             'POST /api/create-service-queue', 'POST /api/cancel-queue/{queueId}',
             'POST /api/auth/register', 'POST /api/auth/login',

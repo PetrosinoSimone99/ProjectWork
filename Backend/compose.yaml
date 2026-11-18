@@ -56,7 +56,13 @@ services:
       # queues behind the previous one. Expo screens poll in the background
       # (chat, notifications), so without workers a login/registration screen
       # can wait 15-20 s and hit the frontend's 10 s timeout.
-      PHP_CLI_SERVER_WORKERS: "4"
+      #
+      # The live stream (GET /api/stream) is the reason for 12 and not 4: an
+      # open SSE response holds one worker for its whole lifetime (30 s, then
+      # the client reconnects), so a handful of testers with the app in the
+      # foreground would otherwise block the API. Workers are processes, not
+      # threads: 12 is cheap on the dev machine and still bounded on purpose.
+      PHP_CLI_SERVER_WORKERS: "12"
     volumes:
       - .:/app
       # Integration tests resolve the reference dumps at dirname(tests) i.e.

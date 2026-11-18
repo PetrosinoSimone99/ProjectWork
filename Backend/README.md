@@ -56,6 +56,17 @@ The selected dump is the schema reference, regardless of the local database stat
 
 ## API
 
+`GET /api/stream` is the only route that keeps the request open: it answers
+`text/event-stream` and pushes one frame per notification written for the
+caller, which also covers chat because a sent message writes a `CHAT_MESSAGE`
+notification. The `after` query parameter is the client's cursor; the connection
+closes by itself after 30 seconds and the client reconnects. Tuning lives in
+`config/services.yaml` (`app.stream.*`), and the dev stack needs
+`PHP_CLI_SERVER_WORKERS` above 1 because each open stream holds one worker. The
+contract is in [docs/api.md](../docs/api.md#live-stream-server-sent-events); the
+tests are `tests/Functional/StreamControllerTest.php` and
+`tests/Functional/NotificationEventStreamTest.php`.
+
 `GET /api/users/{id}/services` returns the selected active user's public profile,
 published offers and requests for the homepage detail panel. Send a JWT in the
 `Authorization: Bearer <token>` header. The response is

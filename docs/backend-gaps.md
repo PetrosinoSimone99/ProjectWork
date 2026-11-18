@@ -9,6 +9,7 @@ corrections.
 
 | IDs | Resolution |
 | --- | --- |
+| G32 | There **was** no push channel: a client learned about a new notification by asking again. `GET /api/stream` (2026-11-20) closes that gap with Server-Sent Events over the notifications table — no Mercure, no socket server, no new dependency. One event type, `notification`: a chat message already writes a `CHAT_MESSAGE` row, so messages and notifications share the stream (`decisions.md` D029) |
 | G30 | Reciprocal proposals no longer produce two agreements: `create-exchange-agreement` accepts the pending mirror agreement and answers `autoAccepted: true` (`decisions.md` D028). |
 | G31 | The delivery sheet is written once: the backend writes `startDate` at acceptance and `endDate` at confirmation, the first sender locks the round with a `409`, and the confirmation closes the exchange, credits the queue provider and notifies both participants. |
 | G9 (superseded) | Registration now requires exactly one offer **and** one request; the optional-lists rule is retired. |

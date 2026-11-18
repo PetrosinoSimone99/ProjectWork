@@ -236,9 +236,12 @@ Both history and send enforce participation; G24 is corrected.
 
 The backend writes notifications synchronously inside the request that causes
 them (agreement proposed, answered, cancelled, sheet written or accepted, chat
-message, match created, staff actions). There is **no push channel**: no
-Mercure, no SSE, no email. A client learns about a new row by asking again.
-Two readers ask, both with the token:
+message, match created, staff actions). Writing a row is still the only thing
+that happens: there is no message broker, no Mercure and no email. What changed
+on 2026-11-20 is the read side — `GET /stream` keeps one request open and pushes
+the rows that appear (see [Live stream](#live-stream-server-sent-events)). Until
+the app connects to it, a client learns about a new row by asking again. Two
+readers ask, both with the token:
 
 - the inbox (`useNotifications`) reads every page when the panel opens;
 - the profile row (`useUnreadCount`) reads `limit: 1` on focus, on
@@ -292,6 +295,60 @@ frontend upper-cases `type` when it normalises a row.
 `CHAT_MESSAGE`. A chat notification therefore already carries the body of the
 message that arrived, so a preview needs no new backend field
 (`backend-gaps.md` G27).
+
+## Live stream (Server-Sent Events)
+
+The only push-shaped route of the API, added on 2026-11-20 (`backend-gaps.md`
+G32) without a new dependency: no Mercure, no socket server, no broker. The
+route holds one normal request open and writes `text/event-stream` frames; a
+chat message needs no second channel, because sending one already writes a
+`CHAT_MESSAGE` notification carrying `chatId` and the text.
+
+| Call | Contract |
+| --- | --- |
+| `GET /stream?after=<id>` | `200 text/event-stream`. Token required, like every other `/api` route. `after` is the client's **cursor**: the last notification id it already applied. Omitted means "start at now" — the stream is the live edge, not a backfill. Anything other than one non-negative integer is a `400`; **any other query parameter is a `400`** |
+
+Frames, in order of appearance:
+
+```text
+event: hello
+data: {"lastId": 42, "unreadCount": 3}
+
+event: notification
+id: 43
+data: {"notification": {…same shape as one row of GET /notifications…}, "unreadCount": 4}
+
+: ping
+```
+
+- **`hello`** is always the first frame: the cursor the server accepted and the
+  unread count, so a reconnecting client can reconcile in one step.
+- **`notification`** carries a row whose id is greater than the cursor, one
+  frame per row, oldest first; `id:` is the new cursor. `unreadCount` is read
+  once per tick, not once per row.
+- **`: ping`** is a comment frame every 15 s of silence (`heartbeat_ms`), so a
+  quiet minute is distinguishable from a dead socket. A parser must ignore
+  lines starting with `:`.
+
+Rules the client must respect:
+
+1. **The cursor is the client's.** Reconnect with the id of the last frame it
+   applied; a reconnect with an old cursor replays the rows in between (that is
+   the recovery path, not a bug) and a cursor from another account yields
+   nothing, because every query is scoped to the token's user.
+2. **The connection ends by itself after 30 s** (`max_seconds`). This is
+   deliberate: a php worker serves one request at a time, so an endless stream
+   would eat the dev server's pool. Reconnecting is normal, not an error, and
+   the 10 s client timeout of `apiFetch` must not be applied to this route.
+3. **The server is not a log.** Only rows written while the request is open (or
+   after an explicit cursor) are delivered; history comes from
+   `GET /notifications`, which stays the only source of the full list.
+
+Tuning lives in `Backend/config/services.yaml` (`app.stream.poll_ms` = 1000,
+`app.stream.heartbeat_ms` = 15000, `app.stream.max_seconds` = 30). Worst-case
+latency of a new row is `poll_ms`. The dev stack raises
+`PHP_CLI_SERVER_WORKERS` to 12 in `Backend/compose.yaml` because each open
+stream holds one worker.
 
 ## Service queues (matchmaker)
 
