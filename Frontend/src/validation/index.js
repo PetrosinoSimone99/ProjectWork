@@ -5,7 +5,7 @@
  * `null` when the value is acceptable. Business rules (uniqueness, own-service
  * checks, agreement state) stay on the backend, which is the only authority;
  * this module covers shape only: required, length, e-mail format, and a photo
- * URL that points at a PNG or JPEG over http/https.
+ * URL that is an https address of at most 2048 characters.
  *
  * No schema library (recorded decision 20 in `plan-brief.md`): the rules are
  * few and hand-written, so a dependency would buy nothing.
@@ -17,20 +17,18 @@ const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 /** The backend requires at least 8 characters (`AuthController`). */
 export const MIN_PASSWORD_LENGTH = 8;
 
-/**
- * Photo URL: http or https, and the path ends in a PNG/JPEG extension.
- * The query string and fragment are ignored, so a CDN URL still passes.
- */
-const PHOTO_URL_PATTERN = /^https?:\/\/[^\s?#]+\.(png|jpe?g)([?#]\S*)?$/i;
+/** The backend refuses a longer value (`ProfileController::validateField`). */
+const PHOTO_URL_MAX_LENGTH = 2048;
+
+/** The scheme the backend insists on (`ProfileController::validateField`). */
+const HTTPS_SCHEME_PATTERN = /^https:\/\//i;
+
+/** Host after the scheme, no whitespace: the shape `FILTER_VALIDATE_URL` asks for. */
+const HTTPS_URL_PATTERN = /^https:\/\/[^\s/?#]+\S*$/i;
 
 /** Characters as `mb_strlen` counts them: code points, not UTF-16 units. */
 export function countCharacters(text) {
   return typeof text === 'string' ? [...text].length : 0;
-}
-
-/** `true` when a validation result object has no message in it. */
-export function isValid(errors) {
-  return !errors || Object.keys(errors).length === 0;
 }
 
 /** Required short text; the message names the field. */
@@ -78,20 +76,24 @@ export function passwordError(value) {
 }
 
 /**
- * Photo URL shape. Empty means "no photo", which is allowed: the profile
- * clears the field with `null`. The backend additionally requires https, and a
- * rejected URL is reported by the screen with its own explicit message.
+ * Photo URL shape, exactly what the backend enforces: https, a URL, 2048
+ * characters at most. No extension requirement, so a CDN address without
+ * `.jpg`/`.png` passes. Empty means "no photo", which is allowed: the profile
+ * clears the field with `null`.
  */
 export function photoUrlError(value) {
   const text = typeof value === 'string' ? value.trim() : '';
   if (text === '') {
     return null;
   }
-  if (!/^https?:\/\//i.test(text)) {
-    return "L'indirizzo dell'immagine deve iniziare con http:// o https://.";
+  if (!HTTPS_SCHEME_PATTERN.test(text)) {
+    return "L'indirizzo dell'immagine deve iniziare con https://.";
   }
-  if (!PHOTO_URL_PATTERN.test(text)) {
-    return "L'indirizzo dell'immagine deve terminare con .png, .jpg o .jpeg.";
+  if (!HTTPS_URL_PATTERN.test(text)) {
+    return "L'indirizzo dell'immagine non è valido: controlla di averlo copiato per intero.";
+  }
+  if (countCharacters(text) > PHOTO_URL_MAX_LENGTH) {
+    return `L'indirizzo dell'immagine può avere al massimo ${PHOTO_URL_MAX_LENGTH} caratteri.`;
   }
   return null;
 }

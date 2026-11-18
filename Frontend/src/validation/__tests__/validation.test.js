@@ -3,7 +3,6 @@ import {
   REPORT_REASON_MAX,
   countCharacters,
   emailError,
-  isValid,
   maxLengthError,
   passwordError,
   photoUrlError,
@@ -57,29 +56,45 @@ describe('passwordError', () => {
 });
 
 describe('photoUrlError', () => {
-  it('accepts https URLs ending in a supported extension', () => {
-    expect(photoUrlError('https://example.it/foto.jpg')).toBeNull();
-    expect(photoUrlError('https://example.it/foto.png')).toBeNull();
-    expect(photoUrlError('https://example.it/foto.JPEG')).toBeNull();
+  const httpsBase = 'https://example.it/';
+
+  it('accepts an https URL without a file extension', () => {
+    expect(photoUrlError('https://cdn.example/a')).toBeNull();
+    expect(photoUrlError(`${httpsBase}foto.jpg`)).toBeNull();
+    expect(photoUrlError(`${httpsBase}foto.png?w=200`)).toBeNull();
   });
 
-  it('accepts http URLs, as the brief asks', () => {
-    expect(photoUrlError('http://example.it/foto.jpeg')).toBeNull();
-  });
-
-  it('ignores a query string after the extension', () => {
-    expect(photoUrlError('https://example.it/foto.png?w=200')).toBeNull();
-  });
-
-  it('rejects a URL with another scheme', () => {
-    expect(photoUrlError('ftp://example.it/foto.png')).toBe(
-      "L'indirizzo dell'immagine deve iniziare con http:// o https://.",
+  it('refuses an http URL, as the backend does', () => {
+    expect(photoUrlError('http://example.it/foto.jpg')).toBe(
+      "L'indirizzo dell'immagine deve iniziare con https://.",
     );
   });
 
-  it('rejects a URL without a supported extension', () => {
-    expect(photoUrlError('https://example.it/foto.gif')).toBe(
-      "L'indirizzo dell'immagine deve terminare con .png, .jpg o .jpeg.",
+  it('refuses another scheme', () => {
+    expect(photoUrlError('ftp://example.it/foto.png')).toBe(
+      "L'indirizzo dell'immagine deve iniziare con https://.",
+    );
+  });
+
+  it('refuses an address without a host', () => {
+    expect(photoUrlError('https://')).toBe(
+      "L'indirizzo dell'immagine non è valido: controlla di averlo copiato per intero.",
+    );
+  });
+
+  it('refuses an address with a space in it', () => {
+    expect(photoUrlError('https://example.it/foto 1.jpg')).toBe(
+      "L'indirizzo dell'immagine non è valido: controlla di averlo copiato per intero.",
+    );
+  });
+
+  it('accepts a URL of exactly 2048 characters', () => {
+    expect(photoUrlError(`${httpsBase}${'a'.repeat(2048 - httpsBase.length)}`)).toBeNull();
+  });
+
+  it('refuses a URL of 2049 characters', () => {
+    expect(photoUrlError(`${httpsBase}${'a'.repeat(2049 - httpsBase.length)}`)).toBe(
+      "L'indirizzo dell'immagine può avere al massimo 2048 caratteri.",
     );
   });
 
@@ -119,9 +134,3 @@ describe('reasonError', () => {
   });
 });
 
-describe('isValid', () => {
-  it('is true only for an object without messages', () => {
-    expect(isValid({})).toBe(true);
-    expect(isValid({ email: "Inserisci un'email valida." })).toBe(false);
-  });
-});

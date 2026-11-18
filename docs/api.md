@@ -40,9 +40,12 @@ a `400`, so the frontend states that limit instead of sending a doomed request
 | `GET /profile` | `{profile: {id, name, surname, location, username, email, bio, profileImageUrl}}` |
 | `PATCH /profile` | Editable: `name`, `surname`, `location`, `bio`, `profileImageUrl`. Any other field is rejected; the whole request is validated before writing |
 
-`profileImageUrl` is a pasted URL (no upload). The frontend accepts only
-`http`/`https` URLs ending in `.png`, `.jpg` or `.jpeg` and reports an explicit
-error when the image does not load.
+`profileImageUrl` is a pasted URL (no upload). The frontend applies the same
+rule as `ProfileController::validateField`: `https` only, a URL shape, at most
+2048 characters. No file extension is required — a CDN URL without one is
+valid, and an `http://` URL is refused by the client exactly as the backend
+refuses it. A URL whose preview failed is not saved, and the screen says so
+next to the disabled save button.
 
 ## Categories
 

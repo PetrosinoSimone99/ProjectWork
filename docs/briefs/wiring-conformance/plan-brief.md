@@ -58,6 +58,7 @@ D1 and D9 are the same finding, `getStaffUser`).
   | --- | --- |
   | empty | `null` |
   | not `https://` + non-empty | `L'indirizzo dell'immagine deve iniziare con https://.` |
+  | starts with `https://` but no host, or whitespace inside | `L'indirizzo dell'immagine non è valido: controlla di averlo copiato per intero.` |
   | longer than 2048 | `L'indirizzo dell'immagine può avere al massimo 2048 caratteri.` |
 
   The two messages live inside `photoUrlError`, unexported: the field error is
