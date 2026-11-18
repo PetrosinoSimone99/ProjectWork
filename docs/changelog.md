@@ -6,6 +6,45 @@ documents/code touched.
 
 ---
 
+## 2026-11-18 — Staff lists reachable (wiring audit, cycle 2)
+
+Second of the four cycles in `docs/briefs/wiring-audit-2026-11-17/audit.md`
+(F5, C5, C7). Contract and step list: `docs/briefs/staff-lists-reachable/plan.md`.
+
+- **F5 — every staff list reaches its whole result set.** `/staff-users`, the
+  report list, the operations log and the deleted-services section all page
+  through the `pagination` the responses already carried (`limit` 20, «Carica
+  altri 20», «N di M» from `totalItems`). The rules — page 1 replaces, later
+  pages append without repeating rows, a superseded response writes nothing, a
+  window that does not belong to the current request cannot append — live once
+  in `Frontend/src/hooks/usePagedList.js`, with their tests.
+- **F5 — the role pill stops being a silent lie.** `GET /staff/users` has no
+  `role` parameter, so the pill filters the rows that arrived: its helper line
+  and the empty state now say so, and the loaded count is said out loud.
+  `docs/backend-gaps.md` G29 asks for a server-side `role` instead of faking it.
+- **C5 — the `/staff` refresh is whole again.** Pull-to-refresh and the web
+  «Aggiorna» re-read reports, operations and deleted services from page 1;
+  before, deleted services stayed stale until the screen lost focus.
+- **C7 — the operations log is no longer capped at ten rows.**
+
+Two decisions taken during review: a failed reload hides «Carica altri» (the
+window in memory no longer matches the screen), and the operations log keeps
+saying its error while the rows of the previous page are still visible.
+
+Gate green: `npx expo lint` 0, `npx tsc --noEmit` 0, `npx jest` 379 passed.
+`docs/api.md` staff table corrected (`promote` takes no body, `status` takes
+`{accountStatus}`) and the list pagination contract written down.
+
+Touched: `Frontend/src/hooks/usePagedList.js` (new),
+`Frontend/src/hooks/__tests__/usePagedList.test.js` (new),
+`Frontend/src/app/staff.jsx`, `Frontend/src/app/staff-users.jsx`,
+`Frontend/src/components/StaffOperationsLog.jsx`,
+`Frontend/src/services/staff-users.js`,
+`Frontend/src/services/__tests__/staff-users.test.js` (new), `docs/api.md`,
+`docs/backend-gaps.md`, `docs/briefs/staff-lists-reachable/plan.md`, this file.
+
+---
+
 ## 2026-11-17 — Wiring conformance, cycle 1
 
 First of the four cycles the wiring audit

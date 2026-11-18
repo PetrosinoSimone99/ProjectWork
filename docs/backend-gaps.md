@@ -471,6 +471,22 @@ match. The demo seed carries two queues that already satisfy the location and
 type rule (`giulia.bianchi`'s OPEN request and `demo.staff`'s OPEN offer), so the
 first working worker has something to do without new data (`docs/setup.md`).
 
+## G29 — `GET /staff/users` has no `role` filter
+
+`StaffController::users` accepts only `page`, `limit`, `q` and `accountStatus`
+(`Backend/src/Controller/StaffController.php:32`), so the staff → users screen
+cannot ask for "the staff members" or "the plain users": the role pill filters
+only the rows already downloaded. That is honest today — the pill says it
+filters the loaded users — but it cannot answer the question the pill asks,
+because the answer may be on page 3.
+
+The repository already filters the other two dimensions server-side
+(`UserRepository::paginateForStaff`), and the field is in every row
+(`ROLE_USER` / `ROLE_STAFF`), so this is a query parameter, not a new resource.
+Requested: `role=USER|STAFF` on `GET /staff/users`, validated like
+`accountStatus` (a `400` on anything else) and applied to the same paginated
+query, so `totalItems` counts the filtered set.
+
 ## Cross-cutting notes for the backend
 
 - The identity always comes from the JWT; no endpoint above accepts a user id

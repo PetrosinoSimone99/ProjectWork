@@ -207,16 +207,22 @@ All of these return `403` for a non-staff caller.
 
 | Call | Notes |
 | --- | --- |
-| `GET /staff/users` | List with role, status and filters |
+| `GET /staff/users` | Query `page`, `limit`, `q`, `accountStatus`; **no `role` filter** (`backend-gaps.md` G29) |
 | `GET /staff/users/{id}` | One user |
-| `POST /staff/users/{id}/promote` | Body `{role}` |
-| `PATCH /staff/users/{id}/status` | Body `{status}` |
-| `GET /staff/reports`, `GET /staff/reports/{id}` | Report list and detail |
-| `POST /staff/reports/{id}/claim` | Takes the report into review |
-| `PATCH /staff/reports/{id}/review` | Closes it with an outcome and a note |
-| `GET /staff/operations`, `GET /staff/operations/{id}` | Audit trail of staff actions |
-| `GET /staff/services/deleted` | Deleted services across users |
-| `POST /staff/services/{id}/restore` | Restores one |
+| `POST /staff/users/{id}/promote` | No body: adds `ROLE_STAFF`, the role is not the client's choice |
+| `PATCH /staff/users/{id}/status` | Body `{accountStatus}` — `ACTIVE` or `INACTIVE` |
+| `GET /staff/reports`, `GET /staff/reports/{id}` | Query `page`, `limit`, `status`, `reporterId`, `reportedUserId` |
+| `POST /staff/reports/{id}/claim` | No body; takes the report into review |
+| `PATCH /staff/reports/{id}/review` | Body `{status, reviewNote}` — `CONFIRMED` or `REJECTED` |
+| `GET /staff/operations`, `GET /staff/operations/{id}` | Query `page`, `limit`, `staffId`, `action`, `targetType`, `targetId` |
+| `GET /staff/services/deleted` | Query `page`, `limit`, `userId`, `type` |
+| `POST /staff/services/{id}/restore` | No body; restores one |
+
+Every list answers `{<collection>, pagination: {page, limit, totalItems, totalPages}}`
+with the total count of the filtered set, and `limit` is capped at 50. The app
+reads that payload: `/staff-users`, the report list, the operations log and the
+deleted-services section all page through it with a "Carica altri 20" button
+(`usePagedList`), so no list stops at its first page.
 
 ## Chat (attached to an agreement)
 
