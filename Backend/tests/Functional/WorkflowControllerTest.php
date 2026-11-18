@@ -30,10 +30,15 @@ final class WorkflowControllerTest extends WebTestCase
         $db->executeStatement($mysql ? 'SET FOREIGN_KEY_CHECKS=1' : 'PRAGMA foreign_keys=ON');
         if (!$mysql) { ReferenceDatabaseSchema::create($db); return; }
         $db->getNativeConnection()->exec(file_get_contents(dirname(__DIR__, 3).'/Context_and_DB_V2/barattolo_15112026.sql'));
-        require_once dirname(__DIR__, 2).'/migrations/Version20261118000100.php';
-        $migration = new \DoctrineMigrations\Version20261118000100($db, new \Psr\Log\NullLogger());
-        $migration->up(new \Doctrine\DBAL\Schema\Schema());
-        foreach ($migration->getSql() as $query) { $db->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes()); }
+        // The same incremental migrations the application applies at start-up:
+        // the dump is the schema of record and the migrations move it forward.
+        foreach (['Version20261118000100', 'Version20261119000100'] as $version) {
+            require_once dirname(__DIR__, 2).'/migrations/'.$version.'.php';
+            $class = 'DoctrineMigrations\\'.$version;
+            $migration = new $class($db, new \Psr\Log\NullLogger());
+            $migration->up(new \Doctrine\DBAL\Schema\Schema());
+            foreach ($migration->getSql() as $query) { $db->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes()); }
+        }
     }
 
     public function testChatAuthorizationFollowsTheAgreementLifecycle(): void

@@ -1,13 +1,19 @@
 # Backend gaps
 
-Status after the essential workflow corrections of 2026-11-18. G identifiers
+Status after the workflow corrections of 2026-11-19. G identifiers
 are stable so earlier audits remain traceable. Current behavior is documented in
-[api.md](api.md); earlier measurements describe the code before this correction.
+[api.md](api.md); earlier measurements describe the code before these
+corrections.
 
 ## Implemented or corrected
 
 | IDs | Resolution |
 | --- | --- |
+| G30 | Reciprocal proposals no longer produce two agreements: `create-exchange-agreement` accepts the pending mirror agreement and answers `autoAccepted: true` (`decisions.md` D028). |
+| G31 | The delivery sheet is written once: the backend writes `startDate` at acceptance and `endDate` at confirmation, the first sender locks the round with a `409`, and the confirmation closes the exchange, credits the queue provider and notifies both participants. |
+| G9 (superseded) | Registration now requires exactly one offer **and** one request; the optional-lists rule is retired. |
+| G15 (superseded) | `GET /profile` exposes `credits` only: `canRequestQueue` is gone with the eligibility rule. |
+| G23 (superseded) | A request queue costs one credit, with no prior delivered offer required. |
 | G1, G2 | Relevance ordering and remote filtering were already implemented; preserved. |
 | G3, G6 | Public profile API retained. Agreement participants and sheets now include user/service IDs; cards show both services and link to the counterpart profile. COMPLETED is authoritative. |
 | G4 | Proposals name the requested service and retain both offers. Duplicate pending service pairs are rejected. Sent/received direction is returned with the existing agreement envelope. |
@@ -41,6 +47,12 @@ The current notifications panel already reads successive pages and marks the
 rows it displayed on close; that behavior is preserved.
 
 ## Data and rollout constraints
+
+Owner-side deletion and suspension are now `409`; the rows created before this
+correction stay readable and editable, and staff restore still works. The
+incremental migration `Version20261119000100` only adds `notes` and `sent_at` to
+`agreement_details`, and the start-up upgrade applies it after the 2026-11-18
+one.
 
 The incremental migration refuses duplicate live service slots or active queue
 slots before altering schema; it reports owners and never silently discards data.

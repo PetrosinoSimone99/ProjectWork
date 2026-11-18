@@ -26,9 +26,10 @@ the user as Italian copy.
 | `POST /auth/register` | `{name, surname, username, email, password, location, offers[], requests[]}` | `201 {token, user, offers, requests}` |
 | `POST /auth/login` | `{username, password}` | `{token, user}` |
 
-`location` is mandatory. Offers and requests may be omitted or empty; each list
-accepts at most one entry. Items are `{description, categoryIds[], isRemote,
-isSuspended?, location?}`. Registration assigns an active `ROLE_USER` account.
+`location` is mandatory, and so are the services: **exactly one entry in
+`offers` and exactly one in `requests`**, otherwise `400`. Each entry is
+`{description, categoryIds[], isRemote, isSuspended?, location?}`. Registration
+assigns an active `ROLE_USER` account with one credit.
 The token lasts one hour. Login allows five failed attempts per username/IP and
 fifty per IP in fifteen minutes, then returns `429` with `Retry-After`.
 Counters are shared through MySQL, including across PHP workers.
@@ -37,7 +38,7 @@ Counters are shared through MySQL, including across PHP workers.
 
 | Call | Notes |
 | --- | --- |
-| `GET /profile` | `{profile: {id, name, surname, location, username, email, bio, profileImageUrl, credits, canRequestQueue}}` |
+| `GET /profile` | `{profile: {id, name, surname, location, username, email, bio, profileImageUrl, credits}}` |
 | `PATCH /profile` | Editable: `name`, `surname`, `location`, `bio`, `profileImageUrl`. Any other field is rejected; the whole request is validated before writing |
 
 `profileImageUrl` is a pasted URL (no upload). The frontend applies the same
@@ -102,19 +103,25 @@ value is a `400`, not a silently different result.
 ## Services: the user's own
 
 There is at most one non-deleted service per owner/type, including suspended
-services. Creating or restoring into an occupied slot returns `409`.
-A status-only PATCH may suspend/reactivate even when historical references exist;
-content edits and deletion are blocked only by active queues or pending/accepted
-agreements. Accepted agreements are retained when a service is suspended.
+services: every account carries **one offer and one request**, both created at
+registration. Creating a second service of the same type returns `409`. The
+owner edits them and cannot remove them: `DELETE` and a status-only `PATCH`
+(`isSuspended`) answer `409`, because an account without its two entries could
+not take part in the product. Content edits stay open and are blocked only by
+active queues or pending/accepted agreements. Staff restore is a separate,
+staff-only route and is unaffected.
 
 | Call | Notes |
 | --- | --- |
 | `GET /offers/mine` | `{offers: [...]}` — the viewer's own offers, newest first |
 | `GET /requests/mine` | `{requests: [...]}` — the viewer's own requests |
-| `PATCH /offers/{id}` `PATCH /requests/{id}` | Edits `description`, `categoryIds`, `location`, `isRemote`, `isSuspended`; returns `{offer}`/`{request}` |
-| `DELETE /offers/{id}` `DELETE /requests/{id}` | Soft delete, `204`, no body |
-| `GET /offers/deleted` `GET /requests/deleted` | The user's own deleted services |
-| `POST /offers/{id}/restore` `POST /requests/{id}/restore` | Restores a deleted service |
+| `PATCH /offers/{id}` `PATCH /requests/{id}` | Edits `description`, `categoryIds`, `location`, `isRemote`; returns `{offer}`/`{request}`. `isSuspended` alone is a `409` |
+| `DELETE /offers/{id}` `DELETE /requests/{id}` | Always `409`: the owner cannot delete a service |
+| `GET /offers/deleted` `GET /requests/deleted` | The user's own deleted services (historical rows; the app no longer shows the section) |
+| `POST /offers/{id}/restore` `POST /requests/{id}/restore` | Restores a deleted service (historical rows; the app no longer offers it) |
+
+The app shows only the edit action: suspend, delete and restore are gone from
+"Offro e cerco" (`decisions.md` D028).
 
 Suspending is the `isSuspended` flag through `PATCH`: a suspended service stays
 in the owner's list but disappears from the home.
@@ -134,25 +141,34 @@ uses the service. Status-only changes preserve those commitments.
 
 | Call | Contract |
 | --- | --- |
-| `POST /create-exchange-agreement` | `{otherParticipant, serviceId}`; the service belongs to the recipient. The sender must have one available offer. Returns `201`; duplicate pending service pairs or unavailable offers return `409`. |
+| `POST /create-exchange-agreement` | `{otherParticipant, serviceId}`; the service belongs to the recipient. The sender must have an available offer. Returns `201`; duplicate pending or accepted service pairs return `409`. **Reciprocal proposal**: when a `PENDING` agreement already exists with the caller as beneficiary for the same two services, that agreement is accepted instead of creating a second one and the body carries `autoAccepted: true`. |
 | `GET /get-agreements` | Existing `{success: {code, message, agreements: [...]}}` envelope. Rows include `id, agreementStatus, creationDate, fromQueue, direction, agreementProposal, agreementDetails`. |
 | `POST /send-agreement-response` | `{agreementId, response: boolean}`. The sender already consented; the recipient answers once. Repeated answers return `409`. |
-| `POST /send-agreement-details` | `{agreementId, fromRemote: boolean, startDate, endDate}`. Writes the caller's sheet; end must follow start. Confirmed sheets are immutable. |
-| `POST /accept-agreement-details/{agreementId}` | Confirms the caller's beneficiary sheet. Uncompiled, repeated or non-accepted confirmations return `409`. |
+| `POST /send-agreement-details` | `{agreementId, notes}`. `notes` is 1..500 characters. The backend writes `startDate`, `fromRemote`, `sentAt` and `status`; the client sends no date. `409` when the other participant's sheet of the same agreement is already compiled: the first sender locks the round. |
+| `POST /accept-agreement-details/{agreementId}` | Confirms the other side's sheet: writes `endDate` and closes the exchange (`COMPLETED`), notifies both participants with the details. Uncompiled, repeated or non-accepted confirmations return `409`. |
 | `POST /cancel-agreement/{agreementId}` | Cancels an accepted agreement and its queues; repeated cancellation succeeds without another refund. |
 
 Each proposal participant includes `userId, username, role, response,
 responseDate, serviceId, serviceDescription`. Each sheet includes
 `providerId, providerUsername, beneficiaryId, beneficiaryUsername, serviceId,
-serviceDescription, fromRemote, startDate, endDate, beneficiaryAccepted, status`.
-`direction` is `sent` or `received` relative to the caller.
+serviceDescription, serviceType, fromRemote, startDate, endDate, notes, sentAt,
+beneficiaryAccepted, status`. `direction` is `sent` or `received` relative to
+the caller.
+
+`startDate` is the moment the proposal was accepted and exists from the moment
+the sheet is created; `endDate` is null until the recipient confirms. `notes` is
+the free text the sender writes (the one field the form asks for), `fromRemote`
+comes from the sender's own service, `sentAt` is when the sheet was sent.
 
 Direct exchanges persist both offers when proposed and create two sheets upon
-acceptance. Queue matches represent a single delivery and create one sheet.
+acceptance, of which **one** is ever compiled: the sheet is written once, by one
+participant, and the other confirms or refuses it. Queue matches represent a
+single delivery and create one sheet.
 Acceptance, sheets and notifications commit together. Legacy unresolved proposal
 services cause a controlled conflict instead of selecting an arbitrary offer.
-The scheduler writes `COMPLETED` only after all expected sheets are compiled,
-confirmed and expired. The frontend does not infer completion from its clock.
+Confirming the sheet moves the agreement to `COMPLETED` and credits the provider
+for queue-born deliveries; the scheduler still closes anything left open. The
+frontend does not infer completion from its clock.
 
 ## Reports
 
@@ -286,13 +302,10 @@ message that arrived, so a preview needs no new backend field
 | `POST /cancel-queue/{queueId}` | `200`; closing an already closed own queue is idempotent. Unknown or foreign IDs return `404`. An in-progress queue cancels its agreement too. |
 
 One active queue total per account is enforced by row locks and a database
-unique index. Suspended services still occupy the user's single service slot
-but cannot enter or receive matches. Reactivation reschedules any OPEN queue.
-A request requires a previously completed queue-born offered delivery and one
-credit. Creation and debit commit atomically. Cancellation refunds the request
-owner once; completed queue delivery credits its provider once and closes both
-queues. `GET /profile` exposes the balance and the historical eligibility flag
-`canRequestQueue`; the flag does not replace the balance or active-queue checks.
+unique index. A request queue costs **one credit and nothing else**; an offer
+queue costs nothing. Creation and debit commit atomically. Cancellation refunds
+the request owner once; completed queue delivery credits its provider once and
+closes both queues. `GET /profile` exposes the balance.
 
 The async worker locks and rechecks both queues, creates at most one agreement,
 and commits agreement, sheet, queue changes and notifications together.

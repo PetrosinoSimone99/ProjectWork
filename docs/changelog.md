@@ -6,6 +6,43 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — The sheet lives in the chat, and confirming it ends the exchange
+
+Four rules the product owns, delivered on both sides. **Reciprocal proposals
+no longer split**: when the other person already proposed, the second proposal
+accepts that pending agreement instead of creating a parallel one, so the two
+sides can never read different states again. **The delivery sheet leaves the
+agreement card and moves into the chat**: the "In corso" card offers only "Apri
+chat" and "Annulla scambio", the chat carries a "Crea accordo" / "Accordo"
+button, and the sheet asks for one thing only — a description of the place and
+the practical details. Start and end are written by the backend (acceptance of
+the proposal, confirmation of the sheet) and shown `GG/MM/AAAA HH:MM`; the
+sender's service replaces the old "si svolge da remoto" checkbox. The first
+participant who sends the sheet locks the round, the other can only confirm or
+refuse, and confirming closes the exchange, credits the queue provider and
+notifies both with the details. **One offer and one request per account, both
+mandatory** (registration now requires them) and **one credit, one queue**: a
+request queue costs a credit and no longer needs a previous delivered offer.
+"Offro e cerco" keeps the edit action only: suspend, delete and the "Eliminati"
+section are gone, because removing a mandatory entry would lock the account out.
+
+`QueueEligibility` is deleted, `GET /profile` loses `canRequestQueue`, and the
+start-up upgrade applies a second incremental migration (`notes`, `sent_at`).
+Decisions: [decisions.md](decisions.md) D028 (supersedes the D027 rules it
+contradicts). Contracts: [api.md](api.md); corrections: [backend-gaps.md](backend-gaps.md).
+
+**Backend exception, for the backend maintainer:** this ship edited `Backend/`
+(managers, controllers, one migration, the upgrade tool and the tests) under the
+owner's explicit per-ship permission. Review before merging to `main`.
+
+Gates at close: frontend `npx expo lint`, `npx tsc --noEmit` and `npx jest`
+(40 suites, 435 tests); backend SQLite 118 tests / 1501 assertions with only the
+six `ReportControllerTest` errors that need MySQL, MySQL reports 6/6 and MySQL
+workflow 8/8. The two MySQL test databases (`barattolo_test`,
+`workflow_checks_test`) must exist, and the commands are in
+[setup.md](setup.md).
+
+
 ## 2026-11-18 — Essential backend and frontend workflow corrections
 
 Implemented participant-scoped chat, service-bound reciprocal proposals, atomic

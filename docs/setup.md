@@ -232,8 +232,34 @@ php bin/console app:create-staff "Alice Bianchi" alice.staff alice@example.com '
 php bin/console doctrine:migrations:migrate
 
 # tests
-php bin/phpunit
+docker compose exec backend php bin/phpunit -c phpunit.dist.xml
 ```
+
+Two test families want two databases, and the compose file pins `DATABASE_URL`
+for the app, so both are run with an explicit override (never against
+`barattolo`, which holds the demo data):
+
+```bash
+# almost everything, on an isolated SQLite file
+docker compose exec -T -e APP_ENV=test \
+  -e 'DATABASE_URL=sqlite:////tmp/barattolo-test.db' \
+  backend php bin/phpunit -c phpunit.dist.xml --no-coverage
+
+# reports (create the database once: `CREATE DATABASE barattolo_test`)
+docker compose exec -T -e APP_ENV=test \
+  -e 'DATABASE_URL=mysql://root:root@database:3306/barattolo?serverVersion=8.0&charset=utf8mb4' \
+  backend php bin/phpunit -c phpunit.dist.xml --filter ReportControllerTest
+
+# queue and agreement lifecycle on MySQL (create `workflow_checks_test` once)
+docker compose exec -T -e APP_ENV=test \
+  -e 'DATABASE_URL=mysql://root:root@database:3306/workflow_checks?serverVersion=8.0&charset=utf8mb4' \
+  backend php bin/phpunit -c phpunit.dist.xml --filter WorkflowControllerTest
+```
+
+`php bin/phpunit` alone finds no configuration (`phpunit.dist.xml` is not
+auto-discovered) and boots the dev environment, where functional tests cannot
+start. Two runs at the same time share the SQLite file and drop each other's
+tables: one gate at a time, or one file per run.
 
 ## 6. Troubleshooting
 
@@ -250,16 +276,18 @@ php bin/phpunit
 | `400` on every call with port 8000 set | `EXPO_PUBLIC_API_PORT` overwritten by 8081 (shell beats `.env.local`) | fix the value, `npx expo start -c` |
 | JWT errors after key regeneration | stale token in secure storage | log out and in again |
 
+## Workflow upgrade (2026-11-18, extended 2026-11-19)
 
-## Workflow upgrade (2026-11-18)
-
-The backend startup runs `php tools/upgrade-workflows.php`, applying only
-`Version20261118000100` to the selected reference schema. Do not replay older
-historical migrations against the already-current dump. The upgrade refuses
-multiple non-deleted services per owner/type or multiple active queues per owner;
-it reports affected accounts and never deletes their records. Resolve those
-records deliberately before retrying. MySQL DDL is not transactional: back up
-existing databases before upgrading; a partial migration requires repair.
+The backend startup runs `php tools/upgrade-workflows.php`, applying the
+incremental migrations in order — `Version20261118000100` (proposal services,
+queue dates, service and queue slots) and `Version20261119000100` (the sheet's
+`notes` and `sent_at`) — to the selected reference schema. Each step checks its
+own column first, so a second start is a no-op. Do not replay older historical
+migrations against the already-current dump. The first step refuses multiple
+non-deleted services per owner/type or multiple active queues per owner; it
+reports affected accounts and never deletes their records. Resolve those records
+deliberately before retrying. MySQL DDL is not transactional: back up existing
+databases before upgrading; a partial migration requires repair.
 
 Run `docker compose up -d --build backend worker scheduler` from Backend.
 The workers wait for backend health and restart automatically. Never reset a
@@ -270,7 +298,7 @@ populated databases/existing outputs, and exports to `Backend/var/demo-export.sq
 
 Workflow MySQL tests use only `workflow_*_test` databases and refuse to reset
 any other MySQL schema. With `DATABASE_URL` pointing at a base name such as
-`workflow_checks`, test configuration appends `_test`. Run
-`php bin/phpunit --filter WorkflowControllerTest`. They import the reference
-schema, apply the new migration and test the same lifecycle as SQLite, plus
-concurrent queue creation and matching. The development database is not reset.
+`workflow_checks`, test configuration appends `_test`. They import the reference
+schema, apply the same incremental migrations and test the same lifecycle as
+SQLite, plus concurrent queue creation and matching. The development database is
+not reset.

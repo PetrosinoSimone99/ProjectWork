@@ -323,3 +323,38 @@ matching. Services at registration are optional. Suspension retains the service
 slot and history; accepted agreements continue, but new matches are excluded.
 The backend, not a client clock, decides completion. Historical chat is readable
 by participants; only accepted agreements allow messages.
+
+
+## D028 — 2026-11-19 — The sheet is written once, and its confirmation ends the exchange
+
+Supersedes the D027 rules it contradicts: request eligibility after an offered
+delivery, optional services at registration, two sheets filled one per
+participant, and completion decided only by the scheduler.
+
+- **Reciprocal proposal.** When a `PENDING` agreement already exists with the
+  caller as beneficiary for the same two services, `create-exchange-agreement`
+  accepts that agreement instead of creating a second one and answers
+  `autoAccepted: true`. Two people proposing to each other can no longer end up
+  with one side accepted and the other still waiting.
+- **One sheet per agreement.** `send-agreement-details` takes
+  `{agreementId, notes}`: `start_date` is written by the backend at acceptance,
+  `end_date` at confirmation, `from_remote` comes from the sender's own service.
+  The first participant who sends the sheet locks the round — the other can only
+  confirm or refuse it, because all they add is their agreement on the details.
+- **Confirmation ends the exchange.** `accept-agreement-details` writes
+  `end_date`, marks the row completed, moves the agreement to `COMPLETED`,
+  performs the provider credit and queue closing of `from_queue` agreements, and
+  notifies **both** participants with the details. The scheduler keeps its path
+  but can never complete an exchange agreement, whose second sheet stays
+  `UNCOMPILED` by design.
+- **One offer and one request per account.** Registration requires exactly one of
+  each; the owner edits them and cannot suspend or delete them (`409`). With both
+  mandatory, removing one would lock the account out of the app. Staff restore
+  stays.
+- **One credit, one queue.** A request queue costs one credit and nothing else.
+
+*Consequences:* `QueueEligibility` is removed, `GET /profile` no longer exposes
+`canRequestQueue`, and the "Eliminati" section and the owner-side suspend/delete
+controls disappear from the app. `Backend/` was edited in this ship under the
+owner's explicit per-ship permission, reported in `changelog.md` for the backend
+maintainer.
