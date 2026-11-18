@@ -22,11 +22,20 @@ physical device, web = `npx expo start --web`.
 | F3 | **closed 2026-11-16 (W1)**: the chat screen now exists at `src/app/chat/[agreementId].jsx`, so the `Screen.jsx` paragraph about "a bar anchored at the bottom (chat)" and `bottomSpacing` describes a real screen; `_layout.jsx` lists the route and names no screen it lacks | `src/components/Screen.jsx:52` · `src/app/_layout.jsx:96` |
 | F4 | **closed 2026-11-17: wrong premise.** Both rows do use `alignItems: 'baseline'`, but `AppInput` pairs 13/600 with 13/400 (one scale, two weights, measured offset 0.00 px) and `PageHeader`'s 12/600 + 13 pair never renders: the only call site passes `frase`, never `titolo` | `src/components/AppInput.jsx:122` · `src/components/PageHeader.jsx:74` · `src/components/ServicesSection.jsx:105` |
 | F5 | Every route file under `src/app` is listed in the route table, and every `router.push` / `router.replace` target resolves to an existing route | `src/app/_layout.jsx` |
+| F6 | **Stale, corrected 2026-11-21.** The route table lost `/notifications` on 2026-11-18 (it is a panel inside the profile now); the sweep still lists it as `06-notifiche` | `src/app/_layout.jsx:94` · `docs/audits/scripts/ui-triage-sweep.js:43` |
+| F7 | **The `/user/[id]` and `/chat/[agreementId]` entry points exist**, so the sentence "nothing to open" below is out of date. They are `onPress` handlers, not anchors: the sweep harvests `a[href]`, which is why it still reports *nessun link* | `src/app/(tabs)/index.jsx:322` · `src/components/AgreementCard.jsx:97` · `src/app/(tabs)/agreements.jsx:279` · `docs/audits/scripts/ui-triage-sweep.js:202` |
 
 F5 says a static reading exposes no redirect defect. It does **not** say
 redirects work: auth-state timing, the `booting` gate, `replace` ordering,
 back-stack skipping, session expiry and web URL hydration are all invisible to
 a resolve check.
+
+F6 and F7 are the sweep's own staleness, not a screen's. Before the next pass
+the script needs two changes: drop the `06-notifiche` row (the route is gone, so
+the pass can only time out on it) and reach `/user/[id]` and `/chat/[agreementId]`
+by clicking the card that opens them, since an `onPress` leaves no `href` for the
+harvest at line 202 to find. Neither change is a measurement, and neither is made
+yet: the sweep has not been re-run since 2026-11-17.
 
 ## Hypothesis
 
@@ -61,7 +70,8 @@ the next session needs the number that retired it, not the absence of a number.
 
 The measurement is `docs/audits/scripts/ui-triage-sweep.js`. Its captures and the
 raw JSON stay in `.playwright-mcp/`, outside the repository, so no document here
-links to them.
+links to them. Last run 2026-11-17; the script's route list and its anchor harvest
+both need the two changes F6/F7 describe before it can run again.
 
 ## Report
 
@@ -76,6 +86,11 @@ column is the backend's state, not a switch.
   / 1280 / 1920) and the column is the declared measure at every one.
 - Redirect behaviour.
 - Anything nobody has looked at yet.
+
+`/user/[id]` and `/chat/[agreementId]` stay in this tier and not in Hypothesis:
+they are **not seen**, and the blocker moved. It is no longer "there is nothing
+to open" (F7: there is, three call sites) — it is that the pass cannot walk to
+them yet. They are unmeasured, never clean.
 
 ## Method
 
@@ -99,7 +114,8 @@ agreements, profile, notifications, edit profile) and the three anonymous ones
 (login, register, not found), at 375 / 768 / 1280 / 1920 in both themes. States:
 loading and error on the profile (a delayed and then an aborted `/api/**`). The
 app's boot screen is not among the captures, so the `booting` gate stays
-unmeasured.
+unmeasured. The route list has since aged (F6): `/notifications` was a screen
+then and is a panel now, so that column describes a route the app no longer has.
 
 The empty catalog is **seen but not measured**. The step exists (a search with no
 results) and four captures came out of it at 375 and 1920 in both themes, but
@@ -109,14 +125,15 @@ down. The H1 verdict therefore claims the two themes and not the empty state; th
 band, read on the captures at 1280/1920, is likewise not in the numeric probe,
 which recorded the column.
 
-Two routes stay unseen, and not for lack of trying: **`/user/[id]` and
-`/chat/[agreementId]`**. The sweep runs against the exported web build, which
-generates no page per id, and no link in the rendered nav carries an `href`
-towards one, so there is nothing to open — the pass records it as *nessun link
-`/user/` in pagina* and *nessun link `/chat/` in pagina* at every viewport.
-Measuring them needs a navigable entry point (a link from a card) or a deep link
-with a known id, which is a code change and not a wider sweep. Until then they
-are **not seen**, not "clean".
+Two routes stay unseen, and the reason has changed since the pass ran: **`/user/[id]`
+and `/chat/[agreementId]`**. The entry points exist in the code (F7), but they are
+`onPress` handlers rather than anchors, so the harvest at
+`ui-triage-sweep.js:202` finds no `href` and the pass records *nessun link
+`/user/` in pagina* and *nessun link `/chat/` in pagina* at every viewport. On top
+of that the sweep runs against the exported web build, which generates no page
+per id. Measuring them needs one of two things — a click step in the script, or a
+deep link with a known id — and the first is a code change to the script, not a
+wider sweep. Until then they are **not seen**, not "clean".
 
 ## Out of scope
 

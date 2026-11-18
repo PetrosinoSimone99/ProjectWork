@@ -6,6 +6,36 @@ documents/code touched.
 
 ---
 
+## 2026-11-21 - One dated report moves into `audits/`, the UI triage loses two stale sentences
+
+`workflow-verification-2026-11-18.md` was the only dated artifact living outside
+`docs/audits/`, where the convention puts evidence that is not a rule. It moves
+there unchanged, plus one opening line stating what it is: a snapshot at
+`8e6e79c`, not a claim about the code today. Its verification numbers are stale
+by now — the backend took seven further commits after it, up to the SSE
+notifications and the sheet migration — and its surviving value is the `Limit`
+section: the visual browser check never ran, so no UI pass can be claimed from
+that session.
+
+`docs/ui-triage.md` stays, because it is not a closed record: three Report rows
+are still open and two routes were never measured. Two of its sentences were out
+of date and are corrected as F6 and F7. `/notifications` stopped being a route on
+2026-11-18 (a panel in the profile now) and the sweep still lists it as
+`06-notifiche`. And `/user/[id]` and `/chat/[agreementId]` do have entry points
+now — `index.jsx:322`, `AgreementCard.jsx:97`, `agreements.jsx:279` — so "nothing
+to open" was wrong; what actually blocks the pass is that the sweep harvests
+`a[href]` and those are `onPress` handlers.
+
+No measurement was taken in this session and the sweep was not re-run. The script
+needs two changes before it can be (drop the dead route, click instead of
+harvest) and both are named in the document rather than guessed at here.
+
+Touched: `docs/audits/workflow-verification-2026-11-18.md` (moved),
+`docs/ui-triage.md`, `docs/changelog.md`. `docs/README.md` needed no change: its
+file map lists `audits/` as a directory, not its members.
+
+---
+
 ## 2026-11-21 - `backend-gaps.md` becomes `backend-ledger.md`, and the queue contract loses a phantom 409
 
 Every G id was re-read against `Backend/src` (read-only) and `api.md`: none of
@@ -282,7 +312,7 @@ shared login counters and workflow regression tests on SQLite and MySQL.
 Docker now runs async and scheduler consumers; its backend image includes the
 SQLite driver for tests. The maintained demo seed is reused by the generator.
 Verification details and the browser limitation are in
-[workflow-verification-2026-11-18.md](workflow-verification-2026-11-18.md).
+[workflow-verification-2026-11-18.md](audits/workflow-verification-2026-11-18.md).
 Existing notifications-panel behavior and the user's .gitignore additions are
 preserved. No commits or pushes are made by this implementation session.
 

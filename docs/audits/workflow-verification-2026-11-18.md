@@ -1,5 +1,10 @@
 # Workflow verification — 2026-11-18
 
+Dated artifact, evidence and never a rule (the `docs/audits/` convention). It
+records what passed at commit `8e6e79c` and is not a claim about the code as it
+stands today: the backend moved on afterwards, so re-run the checks before
+quoting a number from this page.
+
 Implementation target: `andrea-frontend`, starting at `8e6e79c`. No merge,
 rebase, commit or push. The pre-existing `/output/` and `/tmp/` ignore rules
 remain as unstaged user changes.
