@@ -94,7 +94,7 @@ export function normalizeProfile(response) {
     return null;
   }
   return {
-    ...('credits' in profile ? { crediti: toIntegerOrNull(profile.credits), puoAccodareRicerca: profile.canRequestQueue === true } : {}),
+    ...('credits' in profile ? { crediti: toIntegerOrNull(profile.credits) } : {}),
     id: toIntegerOrNull(profile.id),
     nome: toTextOrNull(profile.name),
     cognome: toTextOrNull(profile.surname),
@@ -513,6 +513,12 @@ function normalizeAgreementProposal(row) {
  * getter names without the prefix. A row with no service description names no
  * service, so it is treated as no sheet at all: the card must not claim
  * "Servizio non indicato" over a sheet that does exist.
+ *
+ * Two words, never interchangeable: `descrizione` is the text of the **service**
+ * the sheet is about (read-only, from the sender's published service), while
+ * `note` is the free text the sender writes in the form and the screen labels
+ * "Descrizione". `inizio` and `fine` are written by the backend — the acceptance
+ * of the proposal and the acceptance of the sheet — and are never sent back.
  */
 function normalizeAgreementSheet(row) {
   if (!row || typeof row !== 'object') {
@@ -527,9 +533,13 @@ function normalizeAgreementSheet(row) {
     username: toTextOrNull(row.providerUsername),
     descrizione,
     beneficiario: toTextOrNull(row.beneficiaryUsername),
+    tipoServizio:
+      typeof row.serviceType === 'string' ? row.serviceType.trim().toUpperCase() : null,
     daRemoto: typeof row.fromRemote === 'boolean' ? row.fromRemote : null,
     inizio: toTextOrNull(row.startDate),
     fine: toTextOrNull(row.endDate),
+    note: toTextOrNull(row.notes),
+    inviataIl: toTextOrNull(row.sentAt),
     beneficiarioAccettato:
       typeof row.beneficiaryAccepted === 'boolean' ? row.beneficiaryAccepted : null,
     stato: typeof row.status === 'string' ? row.status.trim().toUpperCase() : null,
