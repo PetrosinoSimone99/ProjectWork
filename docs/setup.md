@@ -175,14 +175,21 @@ state instead of the frame
 
 The backend routes `App\Message\QueueId` to the `async` transport
 (`doctrine://default`, i.e. the `messenger_messages` table) and schedules
-`App\Schedule\AgreementEndDateChecker`. Nothing consumes either inside the
-stack, so a queue created through `POST /api/create-service-queue` stays `OPEN`.
-The scheduler works when you start it by hand —
-`docker compose exec backend php bin/console messenger:consume scheduler_default
---limit=1` closes every accepted agreement whose sheets are all past their end
-date, which is exactly how the seed's `COMPLETED` row was produced. The `async`
-worker does **not** work: it dies on the missing dictionaries (`backend-gaps.md`
-G28), so matching cannot be demonstrated locally whatever the data says.
+`App\Schedule\AgreementEndDateChecker`. Both have a consumer inside the stack:
+`worker` and `scheduler` are services of `compose.yaml` and come up with it. A
+queue created through `POST /api/create-service-queue` therefore answers `OPEN`
+and flips to `IN_PROGRESS` a moment later, when the worker writes the agreement
+and the two `MATCH_CREATED` notifications; the scheduler closes every accepted
+agreement whose sheets are all past their end date, which is exactly how the
+seed's `COMPLETED` row was produced.
+
+Matching is demonstrable locally. The eleven dictionaries live in
+`Backend/src/Dictionaries/`, and a category with no dictionary is not a failure:
+it falls back to category, mode and normalized location (`backend-gaps.md` G28).
+The match is attempted **only when a queue is created** — there is no periodic
+re-match — so a queue whose data is corrected afterwards stays unmatched until it
+is cancelled and created again, and the rule that decides it is the one in
+`docs/api.md`: same normalized comune, nothing wider.
 
 ## 2. Configure the frontend
 
