@@ -108,6 +108,19 @@ export function classifyAgreements(agreements, myUsername) {
 }
 
 /**
+ * Whether an agreement of this status has a chat the viewer can open.
+ *
+ * `ACCEPTED` is the exchange in progress and `COMPLETED` is its record, so the
+ * way in outlives the exchange (D030). The rest stay out even though the route
+ * would answer by creating the chat (`ChatManager::getOrCreateChat`): a
+ * conversation for a proposal nobody accepted is not history.
+ */
+export function apreLaChat(agreement) {
+  const stato = agreement?.stato;
+  return stato === 'ACCEPTED' || stato === 'COMPLETED';
+}
+
+/**
  * The other participant's username, or `null`: when the agreement or my own
  * username is missing, or my proposal is the only one there is.
  */

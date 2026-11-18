@@ -3,16 +3,17 @@ import { act, create } from 'react-test-renderer';
 import { AgreementCard } from '../AgreementCard';
 
 /**
- * The two facts the card keeps: the way into the chat of an `ACCEPTED`
- * exchange, and the cancellation of it.
+ * The two facts the card keeps: the way into the chat of an exchange that was
+ * accepted or has already happened, and the cancellation of a live one.
  *
- * The one rule that gives the chat an entry point: "Apri chat" exists only on an
- * `ACCEPTED` row of the viewer's own agreements (W1 decision 7).
+ * The rule that gives the chat an entry point: "Apri chat" exists on an
+ * `ACCEPTED` row and on a `COMPLETED` one, so the history of a closed exchange
+ * stays reachable (W1 decision 7 as extended by D030).
  *
  * The route `/chat/<agreementId>` makes the backend create the chat if it is
  * missing, so an over-eager button would open — and create — a conversation for
- * a pending or cancelled exchange. The gate is therefore the card's, and this is
- * the test that keeps it.
+ * a pending, refused or cancelled exchange. The gate is therefore the card's,
+ * and this is the test that keeps it.
  *
  * The delivery sheet moved into the chat (`AgreementFormModal`,
  * `AgreementSheet`): the card draws no date field, no confirmation and no
@@ -112,7 +113,18 @@ describe('AgreementCard — the chat entry point', () => {
     expect(onApriChat).toHaveBeenCalledWith(3);
   });
 
-  it.each(['PENDING', 'REFUSED', 'CANCELLED', 'COMPLETED', 'CONTESTED'])(
+  it('offers the chat on a completed exchange, so its history stays reachable', () => {
+    const onApriChat = jest.fn();
+    const renderer = render({ accordo: accordo({ stato: 'COMPLETED' }), onApriChat });
+
+    expect(apriChat(renderer).length).toBeGreaterThan(0);
+    act(() => {
+      apriChat(renderer).at(0).props.onPress();
+    });
+    expect(onApriChat).toHaveBeenCalledWith(3);
+  });
+
+  it.each(['PENDING', 'REFUSED', 'CANCELLED', 'CONTESTED'])(
     'offers no chat on a %s exchange',
     (stato) => {
       const renderer = render({

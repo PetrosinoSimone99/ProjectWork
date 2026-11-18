@@ -391,3 +391,29 @@ rather than the only path; `Backend/` was edited in this ship under the owner's
 explicit per-ship permission, reported in `changelog.md` for the backend
 maintainer. The stream is per process, not per app server: multiple php workers
 each answer their own request, so no shared state is needed.
+
+## D030 — 2026-11-21 — A concluded exchange keeps its way into the chat
+
+D028 made the confirmation end the exchange, so a delivered agreement moves
+straight from `ACCEPTED` to `COMPLETED`. The card only offered "Apri chat" on
+`ACCEPTED` rows (W1 decision 7), which left the finished exchange — the one with
+a real history and a written sheet — reachable by URL alone.
+
+- **"Apri chat" on `ACCEPTED` and `COMPLETED`.** The chat is the record of what
+  happened, so the entry point outlives the exchange. The screen already handles
+  a closed agreement: history readable, composer replaced by the conclusion and
+  the way back.
+- **Nothing wider.** `PENDING`, `REFUSED`, `CANCELLED` and `CONTESTED` keep their
+  row without an entry: `GET /chats/agreement/{id}` creates the chat when it is
+  missing (`ChatManager::getOrCreateChat`), and an empty conversation for a
+  proposal nobody accepted is noise rather than history.
+- **The closed chat says the fact once, and says it to both.** The line under
+  the header no longer repeats "lo scambio non è in corso" on top of the
+  conclusion block; the empty state stops inviting the first message where
+  nothing can be sent; and the conclusion date is read from the confirmed row
+  with the viewer's own row as fallback, because `end_date` is written on the
+  sender's sheet — reading the counterpart's alone showed the date to whoever
+  confirmed and hid it from whoever sent.
+
+*Consequences:* `AgreementCard`'s gate and its test change; `backend-gaps.md` is
+untouched because no route changed.

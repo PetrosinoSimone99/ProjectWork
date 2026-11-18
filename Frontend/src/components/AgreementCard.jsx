@@ -7,7 +7,7 @@ import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { formatIsoDate } from '@/services/dates';
-import { counterpartOf } from '@/services/agreements';
+import { counterpartOf, apreLaChat } from '@/services/agreements';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -48,7 +48,8 @@ export function AgreementCard({
     CONTESTED: { label: 'Contestato', bg: t.dangerBg, color: t.dangerText },
     // `CANCELLED` is the backend's current spelling for an annulled exchange
     // (it replaced `VOID`, which rows created before the rename still carry);
-    // `COMPLETED` is written by the backend's end-date scheduler.
+    // `COMPLETED` is what the confirmation of the delivery sheet writes
+    // (`decisions.md` D028).
     CANCELLED: { label: 'Annullato', bg: t.background, color: t.textSecondary },
     COMPLETED: { label: 'Completato', bg: t.successBg, color: t.successText },
     VOID: { label: 'Annullato', bg: t.background, color: t.textSecondary },
@@ -62,9 +63,14 @@ export function AgreementCard({
   const controparte = counterpartOf(accordo, myUsername);
   const creataIl = formatIsoDate(accordo.creazione);
 
-  // Only `ACCEPTED`: the chat is the step after acceptance, even though the backend route would create it for any agreement id.
+  // `ACCEPTED` and `COMPLETED`: the chat is the step after acceptance and the
+  // record of what happened, so the way in stays after the exchange is over
+  // (D030). The other statuses stay without an entry even though the backend
+  // route would create the chat for any agreement id
+  // (`ChatManager::getOrCreateChat`): an empty conversation for a proposal
+  // nobody accepted is noise, not history.
   const puoAprireChat =
-    accordo.stato === 'ACCEPTED' && Number.isInteger(accordo.id) && onApriChat !== null;
+    apreLaChat(accordo) && Number.isInteger(accordo.id) && onApriChat !== null;
 
   const puoAnnullare =
     accordo.stato === 'ACCEPTED' && Number.isInteger(accordo.id) && onCancel !== null;

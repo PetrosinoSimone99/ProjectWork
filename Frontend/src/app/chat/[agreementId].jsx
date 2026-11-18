@@ -34,15 +34,15 @@ const FRASE_GENERICA = 'Messaggi dello scambio: accordatevi qui sui dettagli.';
 const SCHEDA_IN_LETTURA = 'Carico la scheda dell’accordo…';
 const SCHEDA_NON_TROVATA =
   'Non trovo questo scambio fra i tuoi accordi: la scheda non è disponibile da qui.';
-const SCHEDA_NON_IN_CORSO = 'Lo scambio non è in corso: la scheda non si può più inviare.';
 const SCHEDA_IN_ATTESA =
   'La scheda la scrive chi ha proposto lo scambio: la vedi qui appena arriva, e allora tocca a te confermarla.';
 
 /**
  * The line under the header when there is no sheet button to draw, or `null`
- * when the button is the whole answer. Loading, not-found, closed exchange and
- * "the sheet is not mine to write" are four different facts and none of them is
- * silence.
+ * when the button is the whole answer. Loading, not-found and "the sheet is not
+ * mine to write" are three different facts, and the closed exchange is a fourth
+ * that the block under the messages already states — a second line there would
+ * repeat it and name an action that is no longer on screen.
  */
 function rigaScheda({ accordo, letto, caricamento, errore, stato }) {
   if (errore) {
@@ -52,7 +52,7 @@ function rigaScheda({ accordo, letto, caricamento, errore, stato }) {
     return !letto || caricamento ? SCHEDA_IN_LETTURA : SCHEDA_NON_TROVATA;
   }
   if (accordo.stato !== 'ACCEPTED') {
-    return SCHEDA_NON_IN_CORSO;
+    return null; // closed: the composer's replacement says it, and says it once
   }
   // `null` means this viewer has no row to write: a queue-born agreement gives
   // the sheet to the provider alone.
@@ -218,7 +218,11 @@ export default function ChatScreen() {
   // A closed exchange keeps its history readable but refuses new messages
   // (`409`), so the composer gives way to the fact and to the way out.
   const concluso = accordo !== null && accordo.stato !== 'ACCEPTED';
-  const conclusoIl = formatIsoDateTimeNumeric(altra?.fine);
+  // The moment the exchange closed lives on the confirmed row — the sender's —
+  // so the counterpart's row is only the fallback: reading one row alone shows
+  // the date to the confirming participant and hides it from the other one,
+  // who saw the same confirmation happen.
+  const conclusoIl = formatIsoDateTimeNumeric(altra?.fine ?? mia?.fine);
 
   return (
     <Screen scroll={false} bottomSpacing={space.sm}>
@@ -272,7 +276,13 @@ export default function ChatScreen() {
         <EmptyState
           icon="chatbubbles-outline"
           title="Nessun messaggio"
-          description="Scrivete il primo per mettervi d'accordo sui dettagli dello scambio."
+          // A concluded exchange is read-only: inviting the first message there
+          // would ask for something the screen cannot send.
+          description={
+            concluso
+              ? 'Questo scambio non ha messaggi.'
+              : "Scrivete il primo per mettervi d'accordo sui dettagli dello scambio."
+          }
         />
       ) : null}
 

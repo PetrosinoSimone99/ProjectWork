@@ -13,7 +13,7 @@ import { ModalShell } from '@/components/ModalShell';
 import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
 import { useAgreements } from '@/hooks/useAgreements';
-import { counterpartOf } from '@/services/agreements';
+import { counterpartOf, apreLaChat } from '@/services/agreements';
 import { formatIsoDate } from '@/services/dates';
 import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
 
@@ -276,7 +276,7 @@ export default function AgreementsScreen() {
                 onCancel={accordo.stato === 'ACCEPTED' ? () => annulla(accordo.id) : null}
                 azioneInCorso={azioneInCorso}
                 onApriChat={
-                  accordo.stato === 'ACCEPTED' ? () => router.push(`/chat/${accordo.id}`) : null
+                  apreLaChat(accordo) ? () => router.push(`/chat/${accordo.id}`) : null
                 }
               />
             ))

@@ -6,7 +6,99 @@ documents/code touched.
 
 ---
 
-## 2026-11-20 — The app listens: one connection, every screen re-reads
+## 2026-11-21 — The browser check of the agreements cycle, and the way back into a finished exchange
+
+Step 11 of `briefs/agreements-workflow/plan.md` was the only block left: the
+four product rules had never been watched working in a real browser. They were,
+in Microsoft Edge (`--browser msedge`) on the Expo app of port 8081, with the
+seed's own accounts — `sara.mancini` and `luca.ferrari`, no agreement between
+them — and the database checked after every step.
+
+1. sara proposed for luca's offer («Proposta inviata a @luca.ferrari»); luca then
+   proposed for sara's, and the banner said **«Proposta accettata: lo scambio con
+   @sara.mancini è già in corso»**. One agreement, both proposals accepted, two
+   sheet rows, `pending_pair_key` cleared.
+2. The "In corso" card showed exactly "Apri chat" and "Annulla scambio".
+3. "Crea accordo" inside the chat opened the sheet with `Inizio: 18/11/2026
+   22:57`, `Fine: —`, the sender's own service line and one "Descrizione" field.
+4. sara sent it (`sent_at`, `notes`, row `COMPILED`); luca read it as «La scheda
+   dell'altra persona» with confirm and refuse only.
+5. Confirming wrote `end_date`, moved the agreement to `COMPLETED`, notified both
+   and left the chat on «Accordo concluso il 18/11/2026 23:00. La chat resta in
+   sola lettura.» with "Torna agli accordi" and no composer. Zero console errors
+   for the whole session, and the concluded state survived a full reload; a
+   concluded chat that does have messages (`/chat/8`, `mario.draghi`) kept them
+   readable. The modal-close fix of the previous session held: the sheet is
+   still closed by the action, never unmounted by its status.
+
+Three defects only the browser could show, all fixed the smallest way
+(`decisions.md` D030): a finished exchange had **no entry point into its chat**,
+because "Apri chat" existed on `ACCEPTED` rows alone — the card now offers it on
+`COMPLETED` too, through one pure predicate (`apreLaChat`) instead of a third
+copy of the same condition; the closed chat repeated «lo scambio non è in corso»
+above the conclusion block while its empty state invited a message that cannot be
+sent; and the conclusion date was read from the counterpart's sheet alone, so the
+participant who **sent** the sheet read «Questo scambio è chiuso» with no date
+while the one who confirmed it read «Accordo concluso il …». The date is written
+on the confirmed row, so the screen now falls back to the viewer's own row.
+
+Docs also lost a stale sentence: `overview.md` still said the end-date scheduler
+writes the conclusion, which D028 moved to the confirmation.
+
+### Touched
+
+`Frontend/src/components/AgreementCard.jsx`,
+`Frontend/src/components/__tests__/AgreementCard.test.js`,
+`Frontend/src/app/chat/[agreementId].jsx`, `docs/overview.md`,
+`docs/decisions.md`, `docs/briefs/agreements-workflow/plan.md`, this file.
+
+### Gates (all green, with the SSE work on top)
+
+frontend 42 suites / 480 tests plus lint and tsc; backend SQLite 126 tests / 1565
+assertions with only the six expected `ReportControllerTest` database errors;
+MySQL reports 6/6; MySQL `WorkflowControllerTest` 8/8.
+
+### Attention (backend maintainer)
+
+No backend file was read for writing or changed in this session.
+
+---
+
+## 2026-11-18 — The match is demonstrated, not assumed: Edge, two accounts, one comune
+
+The browser block of the cycle was open on a claim that had gone stale.
+`docs/setup.md` §1 said the `async` worker «dies on the missing dictionaries»
+(`backend-gaps.md` G28) and that matching «cannot be demonstrated locally
+whatever the data says». Neither half held: `worker` and `scheduler` are
+services of `compose.yaml` and come up with the stack, and the eleven
+dictionaries are in `Backend/src/Dictionaries/`.
+
+The proof, end to end, in Microsoft Edge (`browser` server, `--browser msedge`)
+on the app served by Expo on 8081: `luigi.barri` cancelled his request queue at
+`Castiglion Fibocchi - Arezzo` from the Match tab (banner, credit `0 → 1`), then
+created a new one from the same screen, which took `Arezzo - Arezzo` from the
+service. The worker consumed `QueueId`, wrote `agreement 11` against
+`mario.draghi`'s open offer queue, moved both queues to `IN_PROGRESS` and left
+one `MATCH_CREATED` notification per side. Same comune, same category (Chimica),
+shared keyword (`chimica` in both descriptions, no dictionary for that category
+so the fallback of G28 applies) — the intended rule, observed rather than read.
+
+The stream was watched on that same session, because it is what makes a match
+visible without a reload: the queue card flipped from «In attesa» to «In corso»
+on a re-read nobody asked for (`GET /get-queues` and `GET /profile` after
+`POST /create-service-queue` had already answered), the cursor advanced to
+`after=49` — the id of Luigi's `MATCH_CREATED` — and the profile badge went
+`0 → 1 → 2` on two chat messages sent from the other account while the screen
+sat untouched. `docs/setup.md` §1 now states the working arrangement and the
+operational consequence the old text hid: **the match is attempted only when a
+queue is created**, so a queue whose data is corrected afterwards stays
+unmatched until it is cancelled and created again.
+
+Nothing in the matching engine moved with the SSE work — `git log` on
+`QueueHandler`, `ServiceQueueManager` and `ServiceQueueRepository` stops at
+`47fe11c` — so the location rule still is the one in `docs/api.md`: same
+normalized comune, and nothing wider.
+
 
 The stream existed and nobody was connected to it. This ship connects the
 frontend and keeps the rule that makes one event type enough: **a frame is

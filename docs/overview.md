@@ -61,12 +61,15 @@ panel opened from the same profile and not a route of its own.
 5. **Conclusion.** Confirming the sheet ends the exchange: `end_date` is written,
    the agreement becomes `COMPLETED` and both participants receive a
    notification naming the counterpart, the service and the two timestamps.
-   Participants retain read access to the chat; new messages require an accepted
-   agreement.
+   Participants retain read access to the chat, and the concluded card keeps its
+   "Apri chat" so that record stays reachable (`decisions.md` D030); new messages
+   require an accepted agreement.
 
 Every step has a screen today (`docs/api.md`): the sheet form, the confirmation
 and the chat inside an accepted agreement. The conclusion in step 5 is written by
-the backend’s end-date scheduler, consumed by the dedicated Compose worker.
+whoever confirms the sheet (`decisions.md` D028); the backend's end-date
+scheduler, consumed by the dedicated Compose worker, keeps its own path but can
+no longer complete an exchange agreement.
 
 ## What is deliberately not in the product
 

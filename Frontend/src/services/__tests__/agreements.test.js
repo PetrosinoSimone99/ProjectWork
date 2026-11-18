@@ -1,4 +1,5 @@
 import {
+  apreLaChat,
   classifyAgreements,
   counterpartOf,
   isSheetCompiled,
@@ -409,3 +410,20 @@ describe('statoScheda', () => {
   });
 });
 
+describe('apreLaChat', () => {
+  it.each(['ACCEPTED', 'COMPLETED'])('opens the chat of a %s exchange', (stato) => {
+    expect(apreLaChat({ stato })).toBe(true);
+  });
+
+  it.each(['PENDING', 'REFUSED', 'CANCELLED', 'CONTESTED', 'VOID', 'UNKNOWN'])(
+    'keeps the chat closed on a %s row, which never happened',
+    (stato) => {
+      expect(apreLaChat({ stato })).toBe(false);
+    },
+  );
+
+  it('opens nothing without an agreement', () => {
+    expect(apreLaChat(null)).toBe(false);
+    expect(apreLaChat(undefined)).toBe(false);
+  });
+});
