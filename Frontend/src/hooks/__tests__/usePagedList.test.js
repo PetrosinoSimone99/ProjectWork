@@ -17,16 +17,26 @@ const pagina = (righe, { page = 1, totalPages = 1 } = {}) => ({
   paginazione: { pagina: page, limite: 2, elementiTotali: totalPages * 2, pagineTotali: totalPages },
 });
 
+/** Il probe: rende l'hook e scrive il suo ultimo valore in `lettura`. */
+function Probe({ carica, lettura }) {
+  Object.assign(lettura, usePagedList({ carica, dimensione: 2 }));
+  return null;
+}
+
+/**
+ * Monta il probe e torna anche il modo di cambiarne la `carica`, che è quello
+ * che cambia davvero quando la schermata cambia ricerca o filtro.
+ */
 function render(lettura, carica) {
-  function Probe() {
-    Object.assign(lettura, usePagedList({ carica, dimensione: 2 }));
-    return null;
-  }
   let renderer;
   act(() => {
-    renderer = create(<Probe />);
+    renderer = create(<Probe carica={carica} lettura={lettura} />);
   });
-  return renderer;
+  const aggiorna = (nuovaCarica) =>
+    act(() => {
+      renderer.update(<Probe carica={nuovaCarica} lettura={lettura} />);
+    });
+  return { renderer, aggiorna };
 }
 
 /** Lascia atterrare le promesse già partite. */
@@ -174,4 +184,81 @@ it('un endpoint assente è dichiarato non disponibile, non un guasto', async () 
   });
   expect(lettura.erroreNonDisponibile).toBe(false);
   expect(lettura.errore).toBe(null);
+});
+
+it('una ricarica fallita non lascia «Carica altri» a chiedere la pagina dopo', async () => {
+  const carica = jest
+    .fn()
+    .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 3 }))
+    .mockRejectedValueOnce(new ApiError(500, 'Il servizio non risponde.'));
+  const lettura = {};
+  render(lettura, carica);
+
+  await act(async () => {
+    await lettura.ricarica();
+  });
+  expect(lettura.haAltre).toBe(true);
+
+  await act(async () => {
+    await lettura.ricarica();
+  });
+  // Le righe a schermo sono ancora quelle di prima, ma la finestra descritta in
+  // memoria non è più quella richiesta: appendere salterebbe le pagine 1 e 2.
+  expect(lettura.haAltre).toBe(false);
+  await act(async () => {
+    await lettura.caricaAltri();
+  });
+  expect(carica).toHaveBeenCalledTimes(2);
+});
+
+it('cambiata la richiesta, il bottone non appende la pagina della finestra vecchia', async () => {
+  const primaRichiesta = jest
+    .fn()
+    .mockResolvedValueOnce(pagina([{ id: 1 }], { page: 1, totalPages: 2 }));
+  const secondaRichiesta = jest.fn().mockResolvedValue(pagina([{ id: 7 }], { page: 1, totalPages: 2 }));
+  const lettura = {};
+  const { aggiorna } = render(lettura, primaRichiesta);
+
+  await act(async () => {
+    await lettura.ricarica();
+  });
+  expect(lettura.haAltre).toBe(true);
+
+  // La ricerca è cambiata ma la pagina 1 del nuovo insieme non è ancora partita
+  // (i 350 ms di debounce): il tocco non deve mescolare i due insiemi.
+  aggiorna(secondaRichiesta);
+  await act(async () => {
+    await lettura.caricaAltri();
+  });
+
+  expect(secondaRichiesta).not.toHaveBeenCalled();
+  expect(primaRichiesta).toHaveBeenCalledTimes(1);
+});
+
+it('una risposta che arriva dopo lo smontaggio non scrive niente', async () => {
+  let risolvi;
+  const carica = jest.fn().mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        risolvi = resolve;
+      }),
+  );
+  const lettura = {};
+  const { renderer } = render(lettura, carica);
+  const avvisi = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+  act(() => {
+    void lettura.ricarica();
+  });
+  await flush();
+  act(() => {
+    renderer.unmount();
+  });
+  await act(async () => {
+    risolvi(pagina([{ id: 1 }]));
+    await Promise.resolve();
+  });
+
+  expect(avvisi).not.toHaveBeenCalled();
+  avvisi.mockRestore();
 });

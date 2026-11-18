@@ -48,6 +48,13 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
   // sola (`isEndpointUnavailable`) e questo hook la riporta come booleano
   // perché la schermata riceve il messaggio già in italiano, non l'eccezione.
   const [erroreNonDisponibile, setErroreNonDisponibile] = useState(false);
+  // `true` quando la finestra a schermo è quella che il backend ha appena
+  // descritto **per la richiesta corrente**. Serve al bottone «Carica altri»:
+  // dopo una ricarica fallita, o durante i 350 ms in cui la ricerca è cambiata
+  // e la pagina 1 non è ancora partita, la paginazione in memoria descrive una
+  // finestra che non è più quella a schermo, e appendere la pagina dopo
+  // mescolerebbe due insiemi diversi (un P1 trovato in review).
+  const [finestraPronta, setFinestraPronta] = useState(false);
 
   const requestRef = useRef(0);
   const vivoRef = useRef(true);
@@ -57,6 +64,10 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
   const dimensioneRef = useRef(dimensione);
   const chiaveRef = useRef(chiave);
   const paginazioneRef = useRef(null);
+  const finestraProntaRef = useRef(false);
+  // La `carica` che ha prodotto la pagina 1 a schermo: se nel frattempo cambia
+  // (ricerca, stato, filtro), la finestra è vecchia anche se le righe no.
+  const finestraCaricaRef = useRef(carica);
   // Quante richieste sono in volo: il contatore e non un booleano, perché una
   // ricarica può partire mentre un appendente è ancora aperto e la fine della
   // prima non deve far credere che non ci sia più niente in corso.
@@ -85,10 +96,14 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
       setErroreAltri(null);
     } else {
       setCaricamento(true);
-      // Una pagina nuova rende vecchio anche l'errore dell'appendente.
+      // Una pagina nuova rende vecchio anche l'errore dell'appendente, e la
+      // finestra a schermo non è più quella che stiamo per ricevere: finché la
+      // risposta non arriva, «Carica altri» non deve poter partire.
       setErrore(null);
       setErroreAltri(null);
       setErroreNonDisponibile(false);
+      setFinestraPronta(false);
+      finestraProntaRef.current = false;
     }
     try {
       const risultato = await caricaRef.current({
@@ -111,6 +126,12 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
       });
       setPaginazione(nuovaPaginazione);
       paginazioneRef.current = nuovaPaginazione;
+      if (!inCoda) {
+        // Solo una pagina 1 appena arrivata descrive la finestra a schermo.
+        setFinestraPronta(true);
+        finestraProntaRef.current = true;
+        finestraCaricaRef.current = caricaRef.current;
+      }
     } catch (err) {
       if (!vivoRef.current || seq !== requestRef.current) {
         return;
@@ -145,6 +166,12 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
     if (inVoloRef.current > 0) {
       return undefined;
     }
+    // La finestra in memoria non è quella a schermo: appendere salterebbe le
+    // pagine intermedie dell'insieme nuovo. Meglio non fare niente: la ricarica
+    // della pagina 1 è già in arrivo (cambio ricerca, stato o filtro).
+    if (!finestraProntaRef.current || finestraCaricaRef.current !== caricaRef.current) {
+      return undefined;
+    }
     if (pagina === null || pagineTotali === null || pagina >= pagineTotali) {
       return undefined;
     }
@@ -152,6 +179,7 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
   }, [leggi]);
 
   const haAltre =
+    finestraPronta &&
     paginazione?.pagina !== null &&
     paginazione?.pagina !== undefined &&
     paginazione?.pagineTotali !== null &&
