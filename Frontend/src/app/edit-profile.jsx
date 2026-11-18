@@ -310,6 +310,11 @@ export default function EditProfileScreen() {
 
   const photoUrl = form.immagineProfilo.trim();
   const photoLooksValid = photoUrl !== '' && photoUrlError(photoUrl) === null;
+  // F2: the same condition that drops `immagineProfilo` from the payload, kept
+  // as a derived flag so the save button can say why it is disabled instead of
+  // leaving the reason only in the image card above. No state, no new rule.
+  const photoDropped =
+    photoLoadFailed && form.immagineProfilo.trim() !== (initial.immagineProfilo ?? '');
 
   return (
     <Screen scroll withBottomInset={false}>
@@ -463,6 +468,13 @@ export default function EditProfileScreen() {
       </Card>
 
       {saveError ? <Banner kind="error" message={saveError} /> : null}
+
+      {photoDropped ? (
+        <AppText variant="small" tone="danger">
+          Non salvo un indirizzo dell&apos;immagine che non si carica. Per uscirne, «Rimuovi
+          immagine».
+        </AppText>
+      ) : null}
 
       <AppButton
         label={saving ? 'Salvataggio in corso…' : 'Salva modifiche'}
