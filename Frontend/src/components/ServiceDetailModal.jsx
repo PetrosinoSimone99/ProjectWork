@@ -74,6 +74,16 @@ export function ServiceDetailModal({
   // Same predicate for "Segnala": without an owner id the parent's handler
   // returns silently, so the tap would do nothing and say nothing (C2).
   const segnalazioneDisabilitata = !haPersona || typeof onReport !== 'function';
+  // One predicate for the command and for the line under it: a sentence that
+  // promises the report while the button cannot start would be the same C2
+  // defect one layer down. The callback half is unreachable today (the only
+  // caller always passes it), and it still gets honest copy.
+  let notaSegnalazione = 'La segnalazione arriva alla staff, che la esamina e decide.';
+  if (!haPersona) {
+    notaSegnalazione = 'La segnalazione non è disponibile: manca la persona da segnalare.';
+  } else if (segnalazioneDisabilitata) {
+    notaSegnalazione = 'La segnalazione non è disponibile in questo momento.';
+  }
 
   // The owner row opens the profile only when there is a person to open and a
   // parent that knows how to: the same integer predicate the proposal uses.
@@ -271,9 +281,7 @@ export function ServiceDetailModal({
                 si può premere: senza persona da segnalare la frase descriverebbe
                 un'azione che non partirà (C2). */}
             <AppText variant="label" tone="secondary" style={{ textAlign: 'center' }}>
-              {haPersona
-                ? 'La segnalazione arriva alla staff, che la esamina e decide.'
-                : 'La segnalazione non è disponibile: manca la persona da segnalare.'}
+              {notaSegnalazione}
             </AppText>
           </View>
         </View>
