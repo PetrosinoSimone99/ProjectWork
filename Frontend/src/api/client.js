@@ -78,6 +78,20 @@ export function setSessionExpiredHandler(handler) {
   onSessionExpired = handler;
 }
 
+/**
+ * Segnala che la sessione non è più valida a chi la possiede.
+ *
+ * `apiFetch` lo fa da sé su un `401` con token. Lo stream (`api/stream.js`) non
+ * passa da `apiFetch` — tiene la richiesta aperta e legge i byte — quindi ha
+ * bisogno della stessa leva senza duplicare il gestore: qui il gestore resta uno
+ * solo, registrato da `AuthProvider`.
+ */
+export function signalSessionExpired() {
+  if (onSessionExpired) {
+    onSessionExpired();
+  }
+}
+
 /** Il testo del server, solo per il log: `{"error": …}` oppure `{"message": …}`. */
 function rawMessageFromBody(data) {
   if (data === null || typeof data !== 'object') {

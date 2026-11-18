@@ -4,6 +4,8 @@ import {
   SESSION_EXPIRED_MESSAGE,
   TIMEOUT_ERROR_MESSAGE,
   messageForStatus,
+  setSessionExpiredHandler,
+  signalSessionExpired,
 } from '../client';
 
 /**
@@ -43,5 +45,26 @@ describe('messageForStatus', () => {
 
   it('uses the caller fallback when a screen has its own copy', () => {
     expect(messageForStatus(418, 'Testo della schermata.')).toBe('Testo della schermata.');
+  });
+});
+
+/**
+ * The session expiry lever is shared: `apiFetch` calls it on a `401`, and the
+ * stream, which does not go through `apiFetch`, calls this to reach the same
+ * handler. Two levers, one handler, so the logout happens once.
+ */
+describe('signalSessionExpired', () => {
+  afterEach(() => setSessionExpiredHandler(null));
+
+  it('calls the registered handler', () => {
+    const uscita = jest.fn();
+    setSessionExpiredHandler(uscita);
+    signalSessionExpired();
+    expect(uscita).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing when no screen registered a handler', () => {
+    setSessionExpiredHandler(null);
+    expect(() => signalSessionExpired()).not.toThrow();
   });
 });
