@@ -129,8 +129,10 @@ class MarketplaceControllerTest extends WebTestCase
                 $service = $this->data()['service'];
                 $expected = isset($fields['location']) ? trim($fields['location']) : null;
                 self::assertSame($expected === '' ? null : $expected, $service['location']);
+                // The owner cannot delete a service, so the slot is freed through the entity manager.
                 $this->client->request('DELETE', '/api/'.$resource.'/'.$service['id']);
-                self::assertResponseStatusCodeSame(204);
+                self::assertResponseStatusCodeSame(409);
+                $this->retireService($service['id']);
             }
             $this->client->jsonRequest('POST', '/api/services', ['type' => $type, 'description' => 'Location edits.', 'categoryIds' => [$category->getId()]]);
             self::assertResponseStatusCodeSame(201);
@@ -196,34 +198,49 @@ class MarketplaceControllerTest extends WebTestCase
                 ]);
                 self::assertResponseStatusCodeSame(201);
                 $service = $this->data()['service'];
-                self::assertSame($flags[$field] ?? false, $service[$field]);
+                $savedFlag = $flags[$field] ?? false;
+                self::assertSame($savedFlag, $service[$field]);
                 $path = '/api/'.$resource.'/'.$service['id'];
                 $key = $type === 'OFFER' ? 'offer' : 'request';
+                // isSuspended is not an owner-editable flag: the published value stays.
+                $refused = $field === 'isSuspended';
 
                 $this->client->jsonRequest('PATCH', $path, [$field => true]);
-                self::assertResponseIsSuccessful();
-                self::assertTrue($this->data()[$key][$field]);
+                if ($refused) {
+                    self::assertResponseStatusCodeSame(409);
+                } else {
+                    self::assertResponseIsSuccessful();
+                    $savedFlag = true;
+                    self::assertTrue($this->data()[$key][$field]);
+                }
                 $this->client->jsonRequest('PATCH', $path, ['description' => 'Updated tutoring.']);
                 self::assertResponseIsSuccessful();
-                self::assertTrue($this->data()[$key][$field]);
+                self::assertSame($savedFlag, $this->data()[$key][$field]);
 
                 foreach ([null, 'true', 0, 1, [], new \stdClass()] as $invalid) {
                     $this->client->jsonRequest('PATCH', $path, ['description' => 'Must not save.', $field => $invalid]);
-                    self::assertResponseStatusCodeSame(400);
+                    self::assertResponseStatusCodeSame($refused ? 409 : 400);
                 }
                 $this->client->request('GET', '/api/'.$resource.'/mine');
                 self::assertResponseIsSuccessful();
                 $saved = array_values(array_filter($this->data()[$resource], static fn (array $row) => $row['id'] === $service['id']))[0];
-                self::assertTrue($saved[$field]);
+                self::assertSame($savedFlag, $saved[$field]);
                 self::assertSame('Updated tutoring.', $saved['description']);
 
                 $this->client->jsonRequest('PATCH', $path, [$field => false]);
-                self::assertResponseIsSuccessful();
-                self::assertFalse($this->data()[$key][$field]);
+                if ($refused) {
+                    self::assertResponseStatusCodeSame(409);
+                } else {
+                    self::assertResponseIsSuccessful();
+                    self::assertFalse($this->data()[$key][$field]);
+                    $savedFlag = false;
+                }
                 $this->entityManager->clear();
-                self::assertFalse($this->entityManager->find(Service::class, $service['id'])->$field());
+                self::assertSame($savedFlag, $this->entityManager->find(Service::class, $service['id'])->$field());
+                // Deletion is refused too, so the fixture frees the slot through the entity manager.
                 $this->client->request('DELETE', $path);
-                self::assertResponseStatusCodeSame(204);
+                self::assertResponseStatusCodeSame(409);
+                $this->retireService($service['id']);
             }
             $before = $this->entityManager->getRepository(Service::class)->count([]);
             foreach ([null, 'false', 0, 1, [], new \stdClass()] as $invalid) {
@@ -326,7 +343,7 @@ class MarketplaceControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
-    public function testUserCanDeleteAnUnusedOffer(): void
+    public function testOwnerCannotDeleteAnUnusedOffer(): void
     {
         $alice = $this->createUser('alice');
         $offer = $this->createService($alice, Service::TYPE_OFFER, 'I cook.', $this->createCategory('Cooking'));
@@ -334,26 +351,34 @@ class MarketplaceControllerTest extends WebTestCase
 
         $id = $offer->getId();
         $this->client->request('DELETE', '/api/offers/'.$id);
-        self::assertResponseStatusCodeSame(204);
+        self::assertResponseStatusCodeSame(409);
         $this->entityManager->clear();
         $saved = $this->entityManager->find(Service::class, $id);
-        self::assertTrue($saved->isDeleted());
+        self::assertFalse($saved->isDeleted());
         self::assertCount(1, $saved->getCategories());
-        self::assertNotNull($this->entityManager->getConnection()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$id]));
+        self::assertNull($this->entityManager->getConnection()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$id]));
+        // The offer stays published and its content stays editable.
         $this->client->request('GET', '/api/offers/mine');
-        self::assertSame([], $this->data()['offers']);
+        self::assertSame([$id], array_column($this->data()['offers'], 'id'));
         $this->client->jsonRequest('PATCH', '/api/offers/'.$id, ['description' => 'Changed']);
-        self::assertResponseStatusCodeSame(404);
+        self::assertResponseIsSuccessful();
+        self::assertSame('Changed', $this->data()['offer']['description']);
         $this->client->request('DELETE', '/api/offers/'.$id);
-        self::assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(409);
     }
 
     public function testDeletedServicesDisappearFromCatalog(): void
     {
         [$alice, $bob, $ids] = $this->createReciprocalCombination();
         $this->authenticate($bob);
+        // The owner cannot delete the offer, so the catalog keeps listing it.
         $this->client->request('DELETE', '/api/offers/'.$ids['candidateOfferServiceId']);
-        self::assertResponseStatusCodeSame(204);
+        self::assertResponseStatusCodeSame(409);
+        $this->authenticate($alice);
+        $this->client->request('GET', '/api/services');
+        self::assertSame([$ids['candidateOfferServiceId']], array_column($this->data()['offers'], 'id'));
+        // A row deleted outside the owner API still leaves the catalog.
+        $this->retireService($ids['candidateOfferServiceId']);
         $this->authenticate($alice);
         $this->client->request('GET', '/api/services');
         self::assertSame([], $this->data()['offers']);
@@ -533,23 +558,19 @@ class MarketplaceControllerTest extends WebTestCase
         foreach ([
             ['categoryIds' => [$secondCategory->getId()]],
             ['categoryIds' => [$firstCategory->getId()]],
-            ['isSuspended' => true],
-            ['isSuspended' => false],
         ] as $index => $update) {
             $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), $update);
             self::assertResponseIsSuccessful();
             $this->client->request('GET', '/api/services');
             self::assertResponseIsSuccessful();
-            $expected = in_array($index, [0, 2], true) ? [$second->getId(), $first->getId()] : [$first->getId(), $second->getId()];
+            $expected = $index === 0 ? [$second->getId(), $first->getId()] : [$first->getId(), $second->getId()];
             self::assertSame($expected, array_column($this->data()['offers'], 'id'));
         }
+        // The request can be neither suspended nor deleted, so it keeps personalizing the homepage.
+        $this->client->jsonRequest('PATCH', '/api/requests/'.$request->getId(), ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
         $this->client->request('DELETE', '/api/requests/'.$request->getId());
-        self::assertResponseStatusCodeSame(204);
-        $this->client->request('GET', '/api/services');
-        self::assertResponseIsSuccessful();
-        self::assertSame([$second->getId(), $first->getId()], array_column($this->data()['offers'], 'id'));
-        $this->client->request('POST', '/api/requests/'.$request->getId().'/restore');
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(409);
         $this->client->request('GET', '/api/services');
         self::assertResponseIsSuccessful();
         self::assertSame([$first->getId(), $second->getId()], array_column($this->data()['offers'], 'id'));
@@ -668,6 +689,14 @@ class MarketplaceControllerTest extends WebTestCase
     }
 
     /** @return array{User, User, array{actorOfferServiceId: int, actorRequestServiceId: int, candidateOfferServiceId: int, candidateRequestServiceId: int}} */
+    /** Frees the single slot of that type through the entity manager: the owner API no longer deletes. */
+    private function retireService(int $id): void
+    {
+        $this->entityManager->clear();
+        $this->entityManager->find(Service::class, $id)->markDeleted();
+        $this->entityManager->flush();
+    }
+
     private function createReciprocalCombination(): array
     {
         $alice = $this->createUser('alice');

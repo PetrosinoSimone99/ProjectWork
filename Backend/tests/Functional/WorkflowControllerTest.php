@@ -5,9 +5,9 @@ namespace App\Tests\Functional;
 use App\Entity\{User, Service};
 use App\Handler\QueueHandler;
 use App\Message\QueueId;
-use App\Schedule\AgreementEndDateChecker;
 use App\Tests\Support\ReferenceDatabaseSchema;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 
@@ -36,7 +36,7 @@ final class WorkflowControllerTest extends WebTestCase
         foreach ($migration->getSql() as $query) { $db->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes()); }
     }
 
-    public function testReciprocalProposalChatAuthorizationAndStableDates(): void
+    public function testChatAuthorizationFollowsTheAgreementLifecycle(): void
     {
         $alice = $this->register('alice'); $bob = $this->register('bob'); $carol = $this->register('carol');
         $this->as($alice);
@@ -45,73 +45,100 @@ final class WorkflowControllerTest extends WebTestCase
         $this->call('POST', '/api/create-exchange-agreement', ['otherParticipant' => $bob['user']['id'], 'serviceId' => $bob['offers'][0]['id']], 409);
         $this->as($bob); $this->call('POST', '/api/send-agreement-response', ['agreementId' => $id, 'response' => true]);
         self::assertSame(2, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM agreement_details'));
-        $this->call('POST', '/api/accept-agreement-details/'.$id, [], 409);
-        $this->as($alice); $this->call('POST', '/api/send-agreement-details', ['agreementId' => $id, 'fromRemote' => false, 'startDate' => '2026-01-01', 'endDate' => '2026-01-02']);
-        $before = $this->db()->fetchOne('SELECT start_date FROM agreement_details WHERE provider_id = ?', [$alice['user']['id']]);
-        $this->as($bob); $this->call('POST', '/api/accept-agreement-details/'.$id);
-        self::assertSame($before, $this->db()->fetchOne('SELECT start_date FROM agreement_details WHERE provider_id = ?', [$alice['user']['id']]));
-        $this->call('POST', '/api/accept-agreement-details/'.$id, [], 409);
         $chat = $this->call('GET', '/api/chats/agreement/'.$id);
+        // Only the two participants can read or write this chat.
         $this->as($carol); $this->call('GET', '/api/chats/agreement/'.$id, [], 404);
         $this->call('POST', '/api/chats/send-message/'.$chat['chatId'], ['message' => 'Intrusion'], 404);
         self::assertSame(0, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM chat_messages'));
         $this->as($alice); $this->call('POST', '/api/chats/send-message/'.$chat['chatId'], ['message' => 'Hello']);
-        $this->call('POST', '/api/send-agreement-details', ['agreementId' => $id, 'fromRemote' => true, 'startDate' => '2026-02-01', 'endDate' => '2026-02-02'], 409);
-        static::getContainer()->get(AgreementEndDateChecker::class)();
-        self::assertSame('ACCEPTED', $this->db()->fetchOne('SELECT status FROM agreements WHERE id = ?', [$id]), 'One missing confirmation prevents completion.');
+        self::assertSame(1, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM chat_messages'));
+        // Cancelling the agreement closes the conversation, but the history stays readable.
         $this->call('POST', '/api/cancel-agreement/'.$id);
         $this->call('POST', '/api/chats/send-message/'.$chat['chatId'], ['message' => 'After cancellation'], 409);
         $this->call('GET', '/api/chats/agreement/'.$id);
     }
 
-    public function testQueueMatchingCompletionEligibilityAndSingleCredits(): void
+    public function testRequestQueueCostsOneCreditWithoutPriorDelivery(): void
     {
         $alice = $this->register('alice'); $bob = $this->register('bob');
-        $this->as($alice); $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 409);
-        self::assertSame(1, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
-        // Bob has already delivered a service through an earlier, completed offer queue.
-        $this->db()->insert('agreements', ['status' => 'COMPLETED', 'creation_date' => '2026-01-01', 'from_queue' => 1]);
-        $history = $this->db()->lastInsertId();
-        $this->db()->insert('service_queues', ['user_id' => $bob['user']['id'], 'type' => 'OFFER', 'service_id' => $bob['offers'][0]['id'], 'status' => 'CLOSED', 'agreement_created' => $history]);
-        $this->as($bob); $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 201);
-        $this->as($alice); $this->call('POST', '/api/create-service-queue', ['queueType' => 'OFFER'], 201);
-        $source = (int) $this->db()->fetchOne("SELECT id FROM service_queues WHERE user_id = ? AND status = 'OPEN'", [$alice['user']['id']]);
+        $this->as($alice);
+        // Nothing has been delivered yet: the credit is the only cost of a request queue.
+        $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 201);
+        self::assertSame(0, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
         $this->call('POST', '/api/create-service-queue', ['queueType' => 'OFFER'], 409);
+        $queue = (int) $this->db()->fetchOne("SELECT id FROM service_queues WHERE user_id = ? AND status = 'OPEN'", [$alice['user']['id']]);
+        // A queue cancelled before a match gives the credit back.
+        $this->call('POST', '/api/cancel-queue/'.$queue);
+        self::assertSame(1, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
+        // Without a credit the request queue is refused and nothing is stored.
+        $this->db()->executeStatement('UPDATE users SET credits = 0 WHERE id = ?', [$alice['user']['id']]);
+        $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 400);
+        self::assertSame(0, (int) $this->db()->fetchOne("SELECT COUNT(*) FROM service_queues WHERE user_id = ? AND status = 'OPEN'", [$alice['user']['id']]));
+        // An offer queue costs nothing.
+        $this->call('POST', '/api/create-service-queue', ['queueType' => 'OFFER'], 201);
+        $source = (int) $this->db()->fetchOne("SELECT id FROM service_queues WHERE user_id = ? AND status = 'OPEN'", [$alice['user']['id']]);
+        self::assertSame(0, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
+        $this->as($bob); $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 201);
         $handler = static::getContainer()->get(QueueHandler::class); $handler(new QueueId($source)); $handler(new QueueId($source));
-        self::assertSame(2, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM agreements'));
+        self::assertSame(1, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM agreements'));
         $id = (int) $this->db()->fetchOne("SELECT id FROM agreements WHERE status = 'ACCEPTED'");
         self::assertSame(1, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM agreement_details WHERE agreement_id = ?', [$id]));
-        $this->call('POST', '/api/send-agreement-details', ['agreementId' => $id, 'fromRemote' => false, 'startDate' => '2026-01-01', 'endDate' => '2026-01-02']);
+        self::assertSame(2, (int) $this->db()->fetchOne("SELECT COUNT(*) FROM service_queues WHERE status = 'IN_PROGRESS'"));
+        // Confirming the sheet is the delivery: it completes the exchange and credits the provider again.
+        $this->as($alice); $this->call('POST', '/api/send-agreement-details', ['agreementId' => $id, 'notes' => 'Ritiro sabato mattina.']);
         $this->as($bob); $this->call('POST', '/api/accept-agreement-details/'.$id);
-        $scheduler = static::getContainer()->get(AgreementEndDateChecker::class); $scheduler(); $scheduler();
         self::assertSame('COMPLETED', $this->db()->fetchOne('SELECT status FROM agreements WHERE id = ?', [$id]));
-        self::assertSame(2, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
+        self::assertSame(1, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
         self::assertSame(0, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$bob['user']['id']]));
-        $this->as($alice); $profile = $this->call('GET', '/api/profile'); self::assertTrue($profile['profile']['canRequestQueue']);
-        $this->call('PATCH', '/api/offers/'.$alice['offers'][0]['id'], ['isSuspended' => true]);
-        $this->call('PATCH', '/api/offers/'.$alice['offers'][0]['id'], ['description' => 'Updated after completion']);
-        $this->call('POST', '/api/create-service-queue', ['queueType' => 'OFFER'], 409);
-        $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 201);
-        $queue = (int) $this->db()->fetchOne("SELECT id FROM service_queues WHERE user_id = ? AND status = 'OPEN'", [$alice['user']['id']]);
-        $this->call('POST', '/api/cancel-queue/'.$queue); $this->call('POST', '/api/cancel-queue/'.$queue);
-        self::assertSame(2, (int) $this->db()->fetchOne('SELECT credits FROM users WHERE id = ?', [$alice['user']['id']]));
-        $this->call('POST', '/api/cancel-queue/999999', [], 404);
+        $this->as($alice); $profile = $this->call('GET', '/api/profile');
+        self::assertArrayNotHasKey('canRequestQueue', $profile['profile']);
+        self::assertSame(1, $profile['profile']['credits']);
     }
 
-    public function testOptionalRegistrationSlotsAndLoginThrottle(): void
+    public function testOwnerCannotSuspendOrDeleteTheTwoMandatoryServices(): void
     {
-        $user = $this->register('empty', false); $this->as($user);
-        self::assertSame([], $this->call('GET', '/api/get-queues')['queues']);
-        $this->call('POST', '/api/create-service-queue', ['queueType' => 'OFFER'], 409);
+        $alice = $this->register('alice'); $bob = $this->register('bob');
+        $offer = (int) $alice['offers'][0]['id']; $request = (int) $alice['requests'][0]['id'];
+        $this->as($alice);
+        foreach (['true', 'false'] as $suspended) {
+            $this->call('PATCH', '/api/offers/'.$offer, ['isSuspended' => $suspended === 'true'], 409);
+            $this->call('PATCH', '/api/requests/'.$request, ['isSuspended' => $suspended === 'true'], 409);
+        }
+        $this->call('DELETE', '/api/offers/'.$offer, [], 409);
+        $this->call('DELETE', '/api/requests/'.$request, [], 409);
+        self::assertSame(2, (int) $this->db()->fetchOne('SELECT COUNT(*) FROM services WHERE user_id = ? AND deleted_at IS NULL AND is_suspended = 0', [$alice['user']['id']]));
+        // Content stays editable, and a missing or foreign service is still a 404.
+        self::assertSame('Updated offer', $this->call('PATCH', '/api/offers/'.$offer, ['description' => 'Updated offer'])['offer']['description']);
+        self::assertSame('Updated request', $this->call('PATCH', '/api/requests/'.$request, ['description' => 'Updated request', 'isRemote' => true])['request']['description']);
+        $this->call('DELETE', '/api/offers/'.(int) $bob['offers'][0]['id'], [], 404);
+        $this->call('DELETE', '/api/requests/999999', [], 404);
+        // Staff restore keeps working for a service deleted before this rule.
+        $this->db()->update('services', ['deleted_at' => '2026-01-01 00:00:00'], ['id' => $offer]);
+        $staff = $this->register('staff');
+        $staffUser = $this->em->find(User::class, $staff['user']['id']); $staffUser->setRoles([User::ROLE_STAFF]); $this->em->flush();
+        $staff['token'] = static::getContainer()->get(JWTTokenManagerInterface::class)->create($staffUser);
+        $this->as($staff);
+        $this->call('POST', '/api/staff/services/'.$offer.'/restore');
+        self::assertNull($this->db()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$offer]));
+        $this->as($alice);
+        self::assertSame([$offer], array_column($this->call('GET', '/api/offers/mine')['offers'], 'id'));
+    }
+
+    public function testSingleServiceSlotPerTypeAndLoginThrottle(): void
+    {
         $account = $this->register('alice'); $this->as($account);
+        self::assertSame([], $this->call('GET', '/api/get-queues')['queues']);
+        $offer = (int) $account['offers'][0]['id'];
+        // Registration fills the only slot of each type, and no owner action frees it.
         $body = ['type' => 'OFFER', 'description' => 'Duplicate', 'categoryIds' => [$account['offers'][0]['categories'][0]['id']]];
         $this->call('POST', '/api/services', $body, 409);
-        $offer = $account['offers'][0]['id']; $this->call('PATCH', '/api/offers/'.$offer, ['isSuspended' => true]);
+        $this->call('PATCH', '/api/offers/'.$offer, ['isSuspended' => true], 409);
         $this->call('POST', '/api/services', $body, 409);
-        $this->call('DELETE', '/api/offers/'.$offer, [], 204); $this->call('POST', '/api/services', $body, 201);
-        $this->call('POST', '/api/offers/'.$offer.'/restore', [], 409);
-        for ($i = 0; $i < 5; ++$i) { $this->call('POST', '/api/auth/login', ['username' => 'empty', 'password' => 'wrong'], 401); }
-        $this->call('POST', '/api/auth/login', ['username' => 'empty', 'password' => 'safe-password'], 429);
+        $this->call('DELETE', '/api/offers/'.$offer, [], 409);
+        $this->call('POST', '/api/services', $body, 409);
+        self::assertSame(0, (int) $this->db()->fetchOne("SELECT COUNT(*) FROM service_queues WHERE user_id = ?", [$account['user']['id']]));
+        for ($i = 0; $i < 5; ++$i) { $this->call('POST', '/api/auth/login', ['username' => 'alice', 'password' => 'wrong'], 401); }
+        $this->call('POST', '/api/auth/login', ['username' => 'alice', 'password' => 'safe-password'], 429);
         self::assertGreaterThan(0, (int) $this->client->getResponse()->headers->get('Retry-After'));
     }
 
@@ -132,7 +159,7 @@ final class WorkflowControllerTest extends WebTestCase
     {
         $staff = $this->register('staff'); $this->register('member');
         $user = $this->em->find(User::class, $staff['user']['id']); $user->setRoles([User::ROLE_STAFF]); $this->em->flush();
-        $staff['token'] = static::getContainer()->get(\Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface::class)->create($user);
+        $staff['token'] = static::getContainer()->get(JWTTokenManagerInterface::class)->create($user);
         $this->as($staff);
         $data = $this->call('GET', '/api/staff/users?role=STAFF&limit=1');
         self::assertSame(1, $data['pagination']['totalItems']); self::assertSame('staff', $data['users'][0]['username']);
@@ -157,9 +184,6 @@ final class WorkflowControllerTest extends WebTestCase
         self::assertSame(1, (int) $this->db()->fetchOne("SELECT COUNT(*) FROM service_queues WHERE status = 'OPEN'"));
         $source = (int) $this->db()->fetchOne('SELECT id FROM service_queues');
         $bob = $this->register('bob');
-        $this->db()->insert('agreements', ['status' => 'COMPLETED', 'creation_date' => '2026-01-01', 'from_queue' => 1]);
-        $history = $this->db()->lastInsertId();
-        $this->db()->insert('service_queues', ['user_id' => $bob['user']['id'], 'type' => 'OFFER', 'service_id' => $bob['offers'][0]['id'], 'status' => 'CLOSED', 'agreement_created' => $history]);
         $this->as($bob); $this->call('POST', '/api/create-service-queue', ['queueType' => 'REQUEST'], 201);
         $processes = [];
         for ($i = 0; $i < 2; ++$i) {
@@ -188,11 +212,11 @@ final class WorkflowControllerTest extends WebTestCase
 
     private function db(): \Doctrine\DBAL\Connection { return $this->em->getConnection(); }
     private function as(array $account): void { $this->client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$account['token']); }
-    private function register(string $name, bool $services = true): array
+    private function register(string $name): array
     {
         return $this->call('POST', '/api/auth/register', ['name' => $name, 'surname' => 'Test', 'username' => $name, 'email' => $name.'@example.test', 'password' => 'safe-password', 'location' => 'Roma',
-            'offers' => $services ? [['description' => 'Offer '.$name, 'categories' => ['Workflow category']]] : [],
-            'requests' => $services ? [['description' => 'Request '.$name, 'categories' => ['Workflow category']]] : []], 201);
+            'offers' => [['description' => 'Offer '.$name, 'categories' => ['Workflow category']]],
+            'requests' => [['description' => 'Request '.$name, 'categories' => ['Workflow category']]]], 201);
     }
     private function call(string $method, string $path, array $body = [], int $status = 200): array
     {

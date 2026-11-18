@@ -98,12 +98,16 @@ final class RetainedApiTest extends WebTestCase
         $client->setServerParameter('HTTP_AUTHORIZATION', 'Bearer '.$jwt);
         $blocked = in_array($reference, ['agreement', 'queue'], true);
         $path = '/api/'.$resource.'/'.$service->getId();
-        $client->jsonRequest('PATCH', $path, ['description' => 'Updated', 'isRemote' => true, 'isSuspended' => true, 'location' => 'Rome']);
+        // The owner never suspends nor deletes a service, whatever the reference schema says.
+        $client->jsonRequest('PATCH', $path, ['isSuspended' => true]);
+        self::assertResponseStatusCodeSame(409);
+        $client->jsonRequest('PATCH', $path, ['description' => 'Updated', 'isRemote' => true, 'location' => 'Rome']);
         self::assertResponseStatusCodeSame($blocked ? 409 : 200);
         self::assertSame($blocked ? 'Original' : 'Updated', $db->fetchOne('SELECT description FROM services WHERE id = ?', [$service->getId()]));
+        self::assertSame(0, (int) $db->fetchOne('SELECT is_suspended FROM services WHERE id = ?', [$service->getId()]));
         $client->request('DELETE', $path);
-        self::assertResponseStatusCodeSame($blocked ? 409 : 204);
-        self::assertSame($blocked, $db->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$service->getId()]) === null);
+        self::assertResponseStatusCodeSame(409);
+        self::assertNull($db->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$service->getId()]));
 
         // Existing compensation events remain readable without their former APIs.
         $db->insert('staff_operation_logs', ['staff_id' => $owner->getId(), 'staff_username' => 'owner', 'action' => 'TOKEN_DELETED', 'target_type' => 'TOKEN', 'target_id' => 42, 'before_values' => '{"deletedAt":null}', 'after_values' => '{"deletedAt":"2026-01-01"}', 'created_at' => '2026-01-01 00:00:00']);

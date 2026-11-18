@@ -66,13 +66,23 @@ final class DeletedServiceControllerTest extends WebTestCase
     }
 
     #[DataProvider('types')]
-    public function testDeleteListRestoreCycle(string $type, string $resource, string $key): void
+    public function testDeleteIsRefusedAndRestoreCycleWorks(string $type, string $resource, string $key): void
     {
         $service = $this->service($this->owner, $type, false);
         $id = $service->getId();
         $this->as($this->owner);
+        // Both entries are mandatory: the owner never deletes one of them.
         $this->client->request('DELETE', '/api/'.$resource.'/'.$id);
-        self::assertResponseStatusCodeSame(204);
+        self::assertResponseStatusCodeSame(409);
+        self::assertNull($this->em->getConnection()->fetchOne('SELECT deleted_at FROM services WHERE id = ?', [$id]));
+        $this->client->request('GET', '/api/'.$resource.'/mine');
+        self::assertSame([$id], array_column($this->data()[$resource], 'id'));
+        $this->client->request('GET', '/api/'.$resource.'/deleted');
+        self::assertSame([], $this->data()[$resource]);
+        // A row deleted before this rule is still listed and restored by its owner.
+        $this->em->clear();
+        $this->em->find(Service::class, $id)->markDeleted();
+        $this->em->flush();
         $this->client->request('GET', '/api/'.$resource.'/mine');
         self::assertSame([], $this->data()[$resource]);
         $this->client->request('GET', '/api/'.$resource.'/deleted');

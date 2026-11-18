@@ -79,6 +79,36 @@ class AuthControllerTest extends WebTestCase
         }
     }
 
+    public function testRegistrationRequiresExactlyOneOfferAndOneRequest(): void
+    {
+        $offer = ['description' => 'I can cook.', 'categoryIds' => [$this->cookingCategoryId]];
+        $request = ['description' => 'I need help.', 'categoryIds' => [$this->gardeningCategoryId]];
+        $rejections = [
+            [['offers' => []], 'offers'],
+            [['requests' => []], 'requests'],
+            [['offers' => [], 'requests' => []], 'offers'],
+            [['offers' => [$offer, $offer]], 'offers'],
+            [['requests' => [$request, $request]], 'requests'],
+            [['offers' => 'not a list'], 'offers'],
+        ];
+
+        foreach ($rejections as [$replace, $field]) {
+            $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData($replace));
+
+            self::assertResponseStatusCodeSame(400);
+            self::assertStringContainsString($field, $this->responseData()['error']);
+            self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+            self::assertSame(0, $this->entityManager->getRepository(Service::class)->count([]));
+            self::assertSame(2, $this->entityManager->getRepository(Category::class)->count([]));
+        }
+
+        // One offer and one request is the only accepted shape.
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData());
+        self::assertResponseStatusCodeSame(201);
+        self::assertCount(1, $this->responseData()['offers']);
+        self::assertCount(1, $this->responseData()['requests']);
+    }
+
     protected function setUp(): void
     {
         self::ensureKernelShutdown();

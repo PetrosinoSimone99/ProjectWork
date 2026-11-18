@@ -7,7 +7,7 @@ use App\Enum\{QueueType, QueueStatus};
 use App\Exception\{ResourceNotFound, NotEnoughCreditsException};
 use App\Message\QueueId;
 use App\Repository\{ServiceRepository, ServiceQueueRepository};
-use App\Service\{WorkflowTransaction, QueueEligibility, LocationNormalizer};
+use App\Service\{WorkflowTransaction, LocationNormalizer};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -15,7 +15,7 @@ final class ServiceQueueManager
 {
     public function __construct(private EntityManagerInterface $em, private ServiceRepository $services,
         private ServiceQueueRepository $queues, private AgreementManager $agreements,
-        private WorkflowTransaction $transaction, private QueueEligibility $eligibility, private MessageBusInterface $bus) {}
+        private WorkflowTransaction $transaction, private MessageBusInterface $bus) {}
 
     public function getQueueById(int $id): ?ServiceQueue { return $this->queues->find($id); }
     public function getRelevantQueues(QueueType $type, string $location): array
@@ -47,8 +47,8 @@ final class ServiceQueueManager
             if ($service->isDeleted() || $service->isSuspended() || $service->getCategories()->isEmpty()) { throw new \DomainException('The service is unavailable or has no category.'); }
             $location = LocationNormalizer::normalize($service->getLocation() ?? $user->getLocation());
             if ($location === null) { throw new \DomainException('A location is required.'); }
+            // A request queue costs the single credit; an offer queue is free.
             if ($type === QueueType::REQUEST) {
-                if (!$this->eligibility->canRequest($user)) { throw new \DomainException('Complete an offered service before starting a request queue.'); }
                 if ($user->getCredits() < 1) { throw new NotEnoughCreditsException('Not enough credits.'); }
                 $user->setCredits($user->getCredits() - 1);
             }

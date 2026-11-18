@@ -126,7 +126,7 @@ final class RequestControllerTest extends WebTestCase
         }
     }
 
-    public function testUnusedRequestCanBeUpdatedAndDeleted(): void
+    public function testUnusedRequestCanBeUpdatedButNotDeleted(): void
     {
         $alice = $this->user('alice');
         $request = $this->service($alice, Service::TYPE_REQUEST);
@@ -134,19 +134,19 @@ final class RequestControllerTest extends WebTestCase
         $id = $request->getId();
         $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['description' => 'New description']);
         self::assertResponseIsSuccessful();
+        // The request is mandatory for its account, so it is never removed by its owner.
         $this->client->request('DELETE', '/api/requests/'.$id);
-        self::assertResponseStatusCodeSame(204);
-        self::assertSame('', $this->client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(409);
         $this->em->clear();
         $saved = $this->em->find(Service::class, $id);
-        self::assertTrue($saved->isDeleted());
+        self::assertFalse($saved->isDeleted());
+        self::assertSame('New description', $saved->getDescription());
         self::assertCount(1, $saved->getCategories());
         $this->client->request('GET', '/api/requests/mine');
-        self::assertSame([], $this->data()['requests']);
+        self::assertSame([$id], array_column($this->data()['requests'], 'id'));
         $this->client->jsonRequest('PATCH', '/api/requests/'.$id, ['description' => 'Changed']);
-        self::assertResponseStatusCodeSame(404);
-        $this->client->request('DELETE', '/api/requests/'.$id);
-        self::assertResponseStatusCodeSame(404);
+        self::assertResponseIsSuccessful();
+        self::assertSame('Changed', $this->data()['request']['description']);
     }
 
     private function user(string $username): User

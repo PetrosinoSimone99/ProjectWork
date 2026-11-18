@@ -36,7 +36,7 @@ final class RequestController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_requests_update', requirements: ['id' => '\\d+'], methods: ['PATCH'])]
-    public function update(int $id, Request $request, EntityManagerInterface $entityManager, ServiceRepository $services, \Symfony\Component\Messenger\MessageBusInterface $bus): JsonResponse
+    public function update(int $id, Request $request, EntityManagerInterface $entityManager, ServiceRepository $services): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
@@ -53,8 +53,12 @@ final class RequestController extends AbstractController
         } catch (\JsonException|\Symfony\Component\HttpKernel\Exception\BadRequestHttpException) {
             return $this->error('The request body must contain valid JSON.', 400);
         }
-        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'isSuspended', 'location']) !== []) {
-            return $this->error('Provide a description, category IDs, isRemote, isSuspended, or location.', 400);
+        // Suspension is not an owner action: both entries must stay published.
+        if (array_key_exists('isSuspended', $data)) {
+            return $this->error('A request cannot be suspended; only its content can be modified.', 409);
+        }
+        if ($data === [] || array_diff(array_keys($data), ['description', 'categoryIds', 'isRemote', 'location']) !== []) {
+            return $this->error('Provide a description, category IDs, isRemote, or location.', 400);
         }
 
         if (array_key_exists('isRemote', $data) && !is_bool($data['isRemote'])) {
@@ -62,11 +66,6 @@ final class RequestController extends AbstractController
         }
         // Null means omitted here; an explicit false must still be saved.
         $isRemote = $data['isRemote'] ?? null;
-
-        if (array_key_exists('isSuspended', $data) && !is_bool($data['isSuspended'])) {
-            return $this->error('isSuspended must be a boolean.', 400);
-        }
-        $isSuspended = $data['isSuspended'] ?? null;
 
         // Keep presence separate from value: null explicitly clears the location.
         $hasLocation = array_key_exists('location', $data);
@@ -108,14 +107,14 @@ final class RequestController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services, $data, $bus): void {
+            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $hasLocation, $location, $entityManager, $services): void {
                 // Serialize edits and deletion of the same service.
                 $services->lockForUpdate($id);
                 // Another request may have deleted this row while we waited for the lock.
                 if (!$services->existsNotDeleted($id)) {
                     throw new ServiceNotFoundException('The request does not exist.');
                 }
-                if (array_diff(array_keys($data), ['isSuspended']) !== [] && $services->isInUse($id)) {
+                if ($services->isInUse($id)) {
                     throw new RequestInUseException();
                 }
                 // Reload after the lock so concurrent changes are reflected in this partial update.
@@ -129,9 +128,6 @@ final class RequestController extends AbstractController
                 if ($isRemote !== null) {
                     $serviceRequest->setIsRemote($isRemote);
                 }
-                if ($isSuspended !== null) {
-                    $serviceRequest->setIsSuspended($isSuspended);
-                }
                 if ($categories !== null) {
                     $serviceRequest->clearCategories();
                     foreach ($categories as $category) {
@@ -139,11 +135,6 @@ final class RequestController extends AbstractController
                     }
                 }
                 $entityManager->flush();
-                if ($isSuspended === false) {
-                    foreach ($entityManager->getConnection()->fetchFirstColumn("SELECT id FROM service_queues WHERE service_id = ? AND status = 'OPEN'", [$id]) as $queueId) {
-                        $bus->dispatch(new \App\Message\QueueId((int) $queueId));
-                    }
-                }
             });
         } catch (ServiceNotFoundException $error) {
             return $this->error($error->getMessage(), 404);
@@ -157,41 +148,18 @@ final class RequestController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_requests_delete', requirements: ['id' => '\\d+'], methods: ['DELETE'])]
-    public function delete(int $id, EntityManagerInterface $entityManager, ServiceRepository $services): JsonResponse
+    public function delete(int $id, ServiceRepository $services): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
             return $user;
         }
-        $serviceRequest = $services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_REQUEST, 'deletedAt' => null]);
-        if ($serviceRequest === null) {
+        if ($services->findOneBy(['id' => $id, 'user' => $user, 'type' => Service::TYPE_REQUEST, 'deletedAt' => null]) === null) {
             return $this->error('The request does not exist.', 404);
         }
 
-        try {
-            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $entityManager, $services): void {
-                // Lock the service before checking references or removing it.
-                $services->lockForUpdate($id);
-                // Another request may have deleted this row while we waited for the lock.
-                if (!$services->existsNotDeleted($id)) {
-                    throw new ServiceNotFoundException('The request does not exist.');
-                }
-                if ($services->isInUse($id)) {
-                    throw new RequestInUseException();
-                }
-                // Save a deletion date instead of removing the row and its related data.
-                $serviceRequest->markDeleted();
-                $entityManager->flush();
-            });
-        } catch (ServiceNotFoundException $error) {
-            return $this->error($error->getMessage(), 404);
-        } catch (RequestInUseException) {
-            return $this->error('This request is already connected to a proposal or exchange.', 409);
-        } catch (RetryableException|ForeignKeyConstraintViolationException) {
-            return $this->error('The request changed during this request. Please try again.', 409);
-        }
-
-        return new JsonResponse(null, 204);
+        // Both entries are mandatory, so the owner can no longer remove the request.
+        return $this->error('A request cannot be deleted; only its content can be modified.', 409);
     }
 
     private function activeUser(): User|JsonResponse

@@ -27,6 +27,11 @@ class AuthController extends AbstractController
             return $this->error('The request body must contain valid JSON.', 400);
         }
 
+        $slotError = $this->serviceSlotError($data);
+        if ($slotError !== null) {
+            return $this->error($slotError, 400);
+        }
+
         $fields = $this->validateRegistration($data);
         if ($fields === null) {
             return $this->error('Required user and service fields are missing or invalid.', 400);
@@ -114,6 +119,20 @@ class AuthController extends AbstractController
         }
     }
 
+    /** One offer and one request are mandatory, so the count itself is a field error. */
+    private function serviceSlotError(array $data): ?string
+    {
+        $incomplete = [];
+        foreach (['offers', 'requests'] as $field) {
+            $items = $data[$field] ?? null;
+            if (!is_array($items) || !array_is_list($items) || count($items) !== 1) {
+                $incomplete[] = $field;
+            }
+        }
+
+        return $incomplete === [] ? null : implode(' and ', $incomplete).' must contain exactly one service.';
+    }
+
     /** @return array{name: string, surname: string, username: string, email: string, password: string, location: string, offers: list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>, requests: list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>}|null */
     private function validateRegistration(array $data): ?array
     {
@@ -139,7 +158,7 @@ class AuthController extends AbstractController
     /** @return list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>|null */
     private function validateServices(mixed $services): ?array
     {
-        if (!is_array($services) || !array_is_list($services) || count($services) > 1) {
+        if (!is_array($services) || !array_is_list($services) || count($services) !== 1) {
             return null;
         }
 
