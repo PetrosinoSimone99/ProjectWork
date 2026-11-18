@@ -106,18 +106,28 @@ export function toCreateBody(entry) {
 
 /**
  * The body of a `PATCH` on one service: the same editable fields.
- * `categoryIds` replaces the whole list, `location` is always present (`null`
- * clears it), and `id`/`type`/`createdAt` are not sent: a field the contract
- * does not allow makes the backend answer `400`.
+ * `categoryIds` replaces the whole list, and the form edits one category: a
+ * changed selection therefore sends `[idCategoria]` alone. The stored list is
+ * preserved — sent whole — only while the visible category was not touched, that
+ * is while it still equals the first id of `entry.categoryIds`; picking another
+ * category is a deliberate replacement, not a merge (F6). `location` is always
+ * present (`null` clears it), and `id`/`type`/`createdAt` are not sent: a field
+ * the contract does not allow makes the backend answer `400`.
  */
 export function toUpdateBody(entry) {
   const categoryId = toIntegerOrNull(entry?.idCategoria);
   if (categoryId === null || categoryId < 1) {
     return null;
   }
+  const storedCategoryIds = Array.isArray(entry?.categoryIds)
+    ? entry.categoryIds.map((id) => toIntegerOrNull(id)).filter((id) => id !== null)
+    : [];
   return {
     description: String(entry?.mansione ?? '').trim(),
-    categoryIds: [categoryId],
+    categoryIds:
+      storedCategoryIds.length > 1 && storedCategoryIds[0] === categoryId
+        ? storedCategoryIds
+        : [categoryId],
     isRemote: entry?.daRemoto === true,
     location: entryLocation(entry),
   };
