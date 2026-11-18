@@ -98,13 +98,6 @@ export function nextAccountStatus(user) {
     : ACCOUNT_STATUSES.ACTIVE;
 }
 
-/** `Name Surname (@username)`, with what is there. */
-export function describeUser(user) {
-  const username = typeof user?.username === 'string' ? user.username.trim() : '';
-  const name = nomePersona(user);
-  return username === '' ? name : `${name} (@${username})`;
-}
-
 /** The confirmation sentence of a promotion: says what changes and for whom. */
 export function describePromotion(user) {
   return `Rendere ${nomePersona(user)} membro dello staff: potrà esaminare le segnalazioni.`;

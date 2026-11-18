@@ -148,11 +148,6 @@ export function aggiungiVoce(voci) {
   return [...voci, nuovaVoce(ultima.tipo)];
 }
 
-/** Copia dell'elenco senza la voce con quella chiave. */
-export function rimuoviVoce(voci, chiave) {
-  return voci.filter((voce) => voce.chiave !== chiave);
-}
-
 /**
  * Il tetto è raggiunto: nessuna voce nuova di questo tipo. Un elenco può
  * superare `LIMITE_VOCI` (voci pubblicate prima del tetto o da un altro
@@ -246,14 +241,6 @@ export function nomeCategoria(categorie, idCategoria) {
   }
   const trovata = categorie.find((categoria) => Number(categoria.id) === Number(idCategoria));
   return trovata && typeof trovata.nome === 'string' ? trovata.nome : null;
-}
-
-/** Riga leggibile di una voce, per i riepiloghi (schermata 2: Offro e cerco). */
-export function descriviVoce(voce, categorie) {
-  const categoria = nomeCategoria(categorie, voce.idCategoria) ?? 'Categoria da scegliere';
-  const mansione = voce.mansione.trim() || 'Mansione da descrivere';
-  const modalita = etichettaModalita(voce.daRemoto);
-  return `${categoria} · ${mansione} · ${modalita}`;
 }
 
 /**
