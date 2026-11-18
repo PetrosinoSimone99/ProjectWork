@@ -14,8 +14,8 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * Riusa `EntryEditor` — cioè la stessa forma della registrazione
  * (categoria + mansione + «da remoto») — e aggiunge la **località dell'annuncio**,
  * che è cosa diversa dalla località della persona: quella vive nella sessione.
- * Senza intestazione e senza cestino, perché qui la voce è una sola e si annulla
- * il form, non si toglie una voce.
+ * Il titolo lo dà questo form; il cestino non c'è, perché qui si annulla il form
+ * e la card della voce ha già i suoi comandi.
  *
  * Nessuno stato proprio: la voce, gli errori e le chiamate arrivano dalla
  * schermata, che è l'unica a sapere se sta creando o modificando.
@@ -66,12 +66,9 @@ export function EntryForm({
 
       <EntryEditor
         voce={voce}
-        numero={1}
         categorie={categorie}
         statoCategorie={statoCategorie}
         errori={fieldErrors}
-        mostraIntestazione={false}
-        mostraRimuovi={false}
         onCambia={onCambia}
       />
 

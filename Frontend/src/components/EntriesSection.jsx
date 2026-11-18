@@ -1,40 +1,30 @@
 import { View } from 'react-native';
-import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { Card } from './Card';
 import { EntryEditor } from './EntryEditor';
-import { limiteRaggiunto } from '@/services/offer-request';
 import { space } from '@/theme/tokens';
 
 /**
- * Una delle due sezioni ripetibili di «cosa offro» / «cosa cerco»: titolo,
- * spiegazione, l'editor della voce e, **solo se la voce non c'è**, il pulsante
- * che la crea. La regola di prodotto (2026-11-11) è una voce per tipo: finché
- * la voce c'è, un comando che ne aggiunge un'altra non deve esistere a schermo
- * — disabilitato si legge come «rotto», e con un tetto di uno non c'è nessun
- * caso in cui possa servire.
+ * Una delle due sezioni di «cosa offro» / «cosa cerco» in registrazione: titolo,
+ * spiegazione e l'editor della voce.
  *
- * Vive fuori dalla schermata di registrazione per due motivi: la schermata
- * resterebbe oltre la soglia di righe indicata dalle regole del progetto, e la
- * schermata 2 (Offro e cerco) elenca le stesse voci e userà la stessa sezione
- * cambiando solo le azioni accanto.
+ * **Una voce, sempre, senza comandi intorno.** La regola di prodotto
+ * (2026-11-11) è una voce per tipo, e qui la voce è obbligatoria: il backend
+ * rifiuta `offers`/`requests` vuoti (`AuthController::validateServices`) e il
+ * pulsante «Crea account» resta spento senza. Quindi la sezione non ha né
+ * «Aggiungi» (non c'è un secondo posto da raggiungere) né cestino (togliere
+ * l'unica voce obbligatoria vorrebbe dire solo riscriverla da zero, perdendo
+ * quello che c'era). L'unica via di modifica è `onCambia`.
  *
- * Lo stato non sta qui: voci, errori, categorie e chiamate arrivano dalla
+ * Vive fuori dalla schermata di registrazione perché la schermata resterebbe
+ * oltre la soglia di righe indicata dalle regole del progetto. La schermata 2
+ * («Offro e cerco») mostra le stesse voci ma con card e comandi propri
+ * (`PublicationsSection`), quindi non riusa questo componente.
+ *
+ * Lo stato non sta qui: voce, errori, categorie e callback arrivano dalla
  * schermata, che è l'unica a sapere cosa sta modificando.
  */
-export function EntriesSection({
-  sezione,
-  voci,
-  categorie,
-  statoCategorie,
-  fieldErrors,
-  onCambia,
-  onAggiungi,
-  onRimuovi,
-  allowEmpty = false,
-}) {
-  const pieno = limiteRaggiunto(voci);
-
+export function EntriesSection({ sezione, voci, categorie, statoCategorie, fieldErrors, onCambia }) {
   return (
     <Card>
       <View style={{ gap: space.xs }}>
@@ -53,34 +43,18 @@ export function EntriesSection({
             <View key={voce.chiave} accessibilityRole="listitem">
               <EntryEditor
                 voce={voce}
-                numero={indice + 1}
                 categorie={categorie}
                 statoCategorie={statoCategorie}
                 errori={{
                   idCategoria: fieldErrors[`${sezione.chiave}.${indice}.idCategoria`] ?? null,
                   mansione: fieldErrors[`${sezione.chiave}.${indice}.mansione`] ?? null,
                 }}
-                rimuovibile={allowEmpty || voci.length > 1}
-                motivoNonRimuovibile={voci.length === 1 ? sezione.motivoObbligo : null}
                 onCambia={(campo, valore) => onCambia(indice, campo, valore)}
-                onRimuovi={() => onRimuovi(indice)}
               />
             </View>
           ))}
         </View>
       ) : null}
-
-      {/* Il comando per aggiungere sparisce quando la voce c'è: con un tetto di
-          una voce per tipo l'unico caso in cui serve è la sezione svuotata a
-          mano (`allowEmpty`), e lì il pulsante è l'unica via d'uscita. */}
-      {pieno ? null : (
-        <AppButton
-          label={sezione.etichettaAggiungi}
-          variant="secondary"
-          icon="add-outline"
-          onPress={onAggiungi}
-        />
-      )}
     </Card>
   );
 }

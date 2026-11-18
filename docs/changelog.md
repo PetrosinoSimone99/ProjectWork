@@ -45,6 +45,49 @@ Touched: `Frontend/src/hooks/usePagedList.js` (new),
 
 ---
 
+## 2026-11-18 — No trash, no «№1» on a mandatory entry (registration)
+
+The «one offer and one request» rule (2026-11-11) made the entry in
+registration mandatory: the backend refuses an empty `offers`/`requests` array
+(`AuthController::validateServices`) and «Crea account» stays disabled without
+it. The trash icon next to the only entry could therefore do one thing only:
+delete something the user is obliged to have, losing category and description
+and forcing them to type it again in the empty editor that came back.
+
+- `register.jsx` no longer passes `allowEmpty`, `onAggiungi` and `onRimuovi`, so
+  the section is one editor plus its heading: `aggiungiAllaSezione` and
+  `rimuoviDallaSezione` are gone with it.
+- `EntriesSection` loses `onAggiungi`, `onRimuovi`, `allowEmpty` and the
+  «Aggiungi» button (unreachable with a cap of one and no removal). Its comment
+  now says why the trash is absent instead of describing a «svuotata a mano»
+  case that no longer exists.
+- `EntryEditor` loses the trash button and the dead props that used to decide
+  whether it was disabled (`rimuovibile`, `motivoNonRimuovibile`, `onRimuovi`,
+  `mostraRimuovi`). They had been dead since the 1+1 rule: `sezione.motivoObbligo`
+  was never declared by any section, so the «perché non puoi toglierla» branch
+  never rendered. `EntryForm` drops the `mostraRimuovi={false}` it used to work
+  around.
+- **«Cosa offri №1» is gone too**, with `numero` and `mostraIntestazione`. The
+  number was the last leftover of the repeatable section: with one entry per type
+  it distinguishes nothing, and without it the line was the section heading
+  repeated a second time on the next line. `EntryForm` drops its
+  `mostraIntestazione={false}` as well; the screen-reader label of the field
+  ("Mansione — cosa offri") still names the section, which is what that label
+  was for.
+- Unchanged on purpose: «Sospendi» and «Elimina» on «Offro e cerco», including
+  deleting the last entry — discussed with Andrea and left for a separate
+  decision, since the over-cap legacy accounts (5 or 7 entries) still need
+  «Elimina» to come back to one.
+
+Gate green: `npx expo lint` 0, `npx tsc --noEmit` 0.
+
+Touched: `Frontend/src/app/(auth)/register.jsx`,
+`Frontend/src/components/{EntriesSection,EntryEditor,EntryForm}.jsx`,
+`docs/ux.md` (the 44 pt row no longer cites `EntryEditor`: it has no icon-only
+control left), `docs/changelog.md`.
+
+---
+
 ## 2026-11-17 — Wiring conformance, cycle 1
 
 First of the four cycles the wiring audit

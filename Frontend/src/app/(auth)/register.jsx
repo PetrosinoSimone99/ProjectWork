@@ -5,12 +5,10 @@ import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getCategories } from '@/api';
 import {
-  LIMITE_VOCI,
   TIPI_VOCE,
   aggiornaVoce,
   nuovaVoce,
   senzaChiave,
-  senzaPrefisso,
   validaVoce,
 } from '@/services/offer-request';
 import {
@@ -267,22 +265,6 @@ export default function RegisterScreen() {
     setFieldErrors((correnti) => senzaChiave(correnti, `${chiave}.${indice}.${campo}`));
   }
 
-  function aggiungiAllaSezione(chiave) {
-    const setVoci = chiave === 'offerte' ? setOfferte : setRicerche;
-    const tipo = chiave === 'offerte' ? TIPI_VOCE.OFFERTA : TIPI_VOCE.RICERCA;
-    setVoci((correnti) =>
-      correnti.length >= LIMITE_VOCI ? correnti : [...correnti, nuovaVoce(tipo)],
-    );
-  }
-
-  function rimuoviDallaSezione(chiave, indice) {
-    const setVoci = chiave === 'offerte' ? setOfferte : setRicerche;
-    setVoci((correnti) => correnti.filter((_, posizione) => posizione !== indice));
-    // Gli indici delle voci successive si spostano: gli errori di quella sezione
-    // si azzerano e la validazione li rimette al posto giusto al prossimo invio.
-    setFieldErrors((correnti) => senzaPrefisso(correnti, `${chiave}.`));
-  }
-
   // Le stesse regole del submit, applicate prima: un pulsante attivo su un
   // modulo che non può passare sposta la scoperta dell'errore al tocco (F07).
   const anagraficaValida = Object.keys(validaAnagrafica(form)).length === 0;
@@ -467,9 +449,6 @@ export default function RegisterScreen() {
           statoCategorie={statoCategorie}
           fieldErrors={fieldErrors}
           onCambia={(indice, campo, valore) => cambiaVoce(sezione.chiave, indice, campo, valore)}
-          onAggiungi={() => aggiungiAllaSezione(sezione.chiave)}
-          onRimuovi={(indice) => rimuoviDallaSezione(sezione.chiave, indice)}
-          allowEmpty
         />
       ))}
 
