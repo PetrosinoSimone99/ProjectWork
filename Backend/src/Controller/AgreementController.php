@@ -173,7 +173,7 @@ final class AgreementController extends AbstractController
                 'message' => 'Conflict'
             ]], 409);
         }
-         catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+         catch(\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
             return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
         }
         catch(\Exception $e){

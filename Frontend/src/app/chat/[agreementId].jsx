@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   acceptAgreementSheet,
@@ -24,6 +24,7 @@ import { ModalShell } from '@/components/ModalShell';
 import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
 import { sheetsFor, statoScheda } from '@/services/agreements';
+import { formatIsoDateTimeNumeric } from '@/services/dates';
 import { space } from '@/theme/tokens';
 
 /** The header's line when the other person has not written yet. */
@@ -93,6 +94,7 @@ function rigaScheda({ accordo, letto, caricamento, errore, stato }) {
  */
 export default function ChatScreen() {
   const { token, utente } = useAuth();
+  const router = useRouter();
   const params = useLocalSearchParams();
   const listaRef = useRef(null);
 
@@ -154,6 +156,10 @@ export default function ChatScreen() {
       throw new Error('Sessione assente.');
     }
     await acceptAgreementSheet(token, agreementId);
+    // Close first: the confirmation ends the exchange, and a modal that is still
+    // open while its screen loses the accepted state is the one way this flow
+    // can leave the user with nothing to tap.
+    setSchedaAperta(false);
     await caricaAccordo();
   }, [token, agreementId, caricaAccordo]);
 
@@ -165,6 +171,7 @@ export default function ChatScreen() {
       throw new Error('Sessione assente.');
     }
     await cancelAgreement(token, agreementId);
+    setSchedaAperta(false);
     await caricaAccordo();
   }, [token, agreementId, caricaAccordo]);
 
@@ -207,6 +214,11 @@ export default function ChatScreen() {
     errore: erroreAccordo,
     stato: statoDellaScheda,
   });
+
+  // A closed exchange keeps its history readable but refuses new messages
+  // (`409`), so the composer gives way to the fact and to the way out.
+  const concluso = accordo !== null && accordo.stato !== 'ACCEPTED';
+  const conclusoIl = formatIsoDateTimeNumeric(altra?.fine);
 
   return (
     <Screen scroll={false} bottomSpacing={space.sm}>
@@ -279,7 +291,24 @@ export default function ChatScreen() {
 
         {erroreInvio ? <Banner kind="error" message={erroreInvio} /> : null}
 
-        <MessageComposer onInvia={invia} inviando={inviando} disabilitato={chatId === null} />
+        {concluso ? (
+          // A closed exchange keeps its history readable but refuses new messages
+          // (`409`): showing the composer would invite a send that cannot work.
+          <View style={{ gap: space.sm }}>
+            <AppText variant="small" tone="secondary">
+              {conclusoIl
+                ? `Accordo concluso il ${conclusoIl}. La chat resta in sola lettura.`
+                : 'Questo scambio è chiuso. La chat resta in sola lettura.'}
+            </AppText>
+            <AppButton
+              label="Torna agli accordi"
+              icon="arrow-back-outline"
+              onPress={() => router.replace('/agreements')}
+            />
+          </View>
+        ) : (
+          <MessageComposer onInvia={invia} inviando={inviando} disabilitato={chatId === null} />
+        )}
       </View>
 
       {accordo !== null && statoDellaScheda === 'daCompilare' ? (
