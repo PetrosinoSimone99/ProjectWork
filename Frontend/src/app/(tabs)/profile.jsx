@@ -390,10 +390,14 @@ export default function ProfileScreen() {
         icon="log-out-outline"
       />
 
-      {/* Il pannello vive accanto alla schermata, non dentro un'altra rotta:
-          `visible` decide se è montato visibile, `onClose` è l'unica uscita
-          (X, tocco fuori, Escape la forniscono da `ModalShell`). */}
-      <NotificationsSheet visible={notificheAperte} onClose={chiudiNotifiche} />
+      {/* Il pannello si monta solo mentre è aperto: `useNotifications` legge la
+          lista su focus, e un pannello sempre montato chiederebbe venti righe a
+          ogni ingresso nel profilo per una lista che nessuno ha aperto (solo il
+          `limit: 1` del badge serve lì). `onClose` è l'unica uscita: X, tocco
+          fuori ed Escape la forniscono da `ModalShell`. */}
+      {notificheAperte ? (
+        <NotificationsSheet visible onClose={chiudiNotifiche} />
+      ) : null}
     </Screen>
   );
 }

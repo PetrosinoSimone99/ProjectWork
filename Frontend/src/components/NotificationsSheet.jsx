@@ -30,10 +30,15 @@ const INBOX_VUOTA =
  * is the one place that states it, and the auto-read below makes a number in
  * the description drop while it is being read.
  *
- * Opening the panel marks the rows on screen read: the backend has no bulk
- * endpoint, so the hook sends one `PATCH` per unread row. The effect runs on
- * `visible` only; the second run finds no unread row left and stops there, which
- * is why no opening-cycle ref is needed.
+ * Opening the panel marks the page read: the backend has no bulk endpoint, so
+ * the hook sends one `PATCH` per unread row. It marks the rows the page holds,
+ * which is what «aperto» means here — the panel scrolls, and a row the user
+ * scrolls past is a row they opened. The effect runs on `visible` and again when
+ * the list identity changes, so a row that arrives while the panel is open (a
+ * «Riprova», the poll of the badge is not involved) is marked too, and a `PATCH`
+ * that failed gets one more try on the next change before the row settles as
+ * unread. Nothing loops: a run with no unread row returns before touching the
+ * state.
  */
 export function NotificationsSheet({ visible, onClose }) {
   const t = useTokens();

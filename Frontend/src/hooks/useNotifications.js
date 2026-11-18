@@ -35,9 +35,12 @@ import {
  * 4. **One action at a time** (`azioneInCorso` names the row), so two taps
  *    cannot clobber each other's busy state. That holds for `elimina`;
  *    reading is no longer a user action, so it does not take a turn in that
- *    slot. The rows on screen mark themselves read: the backend has no bulk
- *    read, so it is one `PATCH` per row, and a failed `PATCH` leaves the row
- *    unread with a warning that only a developer can read.
+ *    slot. The rows the page holds mark themselves read when the panel opens:
+ *    the backend has no bulk read, so it is one `PATCH` per row, and a failed
+ *    `PATCH` leaves the row unread with a warning that only a developer can
+ *    read. That row is tried once more on the next change of the list, because
+ *    `segnaVisibiliLette` depends on `elementi`; nothing loops, since a run that
+ *    finds no unread row returns before touching the state.
  */
 export function useNotifications({ token }) {
   const [elementi, setElementi] = useState(null);

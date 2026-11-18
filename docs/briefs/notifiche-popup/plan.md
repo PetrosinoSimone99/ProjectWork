@@ -57,7 +57,13 @@ stato: `Stato:`. Un file, un padrone: `profile.jsx` è del padre, nessun figlio 
    non manda richieste, quindi non serve un `ref` di ciclo di apertura. **Un `PATCH` fallito non
    disegna un banner**: la riga resta col pallino e con la parola «Non letta», cioè lo stato dice la
    verità del backend; il fallimento si annota in sviluppo (`logInSviluppo`, già nel file) perché non
-   è un'azione dell'utente da interrompere.
+   è un'azione dell'utente da interrompere. **Aggiunto dopo la review (2026-11-18):** le righe segnate
+   sono quelle della pagina (fino a 20), non solo le quattro che stanno nel viewport — «aprire» è il
+   gesto, e il backend non ha un «segna non letta» con cui tornare indietro, quindi è una conseguenza
+   accettata e va detta, non nascosta; il pannello però si monta **solo mentre è aperto**, così un
+   profilo visitato e mai aperto non scarica la lista, e l'effect rigira quando cambia `elementi`
+   (una riga arrivata da «Riprova» si segna, una `PATCH` fallita si ritenta una volta) fermandosi
+   sempre su un giro senza righe non lette.
 6. **`NotificationRow` perde il comando, non il dato.** Spariscono `onLetta`, il ramo `lettaInCorso`
    e il pulsante «Segna come letta»; restano la parola «Non letta», il pallino, il bordo accento e
    «Elimina» con la sua conferma. Il pannello non passa `onLetta` a nessuno.
