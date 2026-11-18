@@ -6,6 +6,44 @@ documents/code touched.
 
 ---
 
+## 2026-11-17 — Wiring conformance, cycle 1
+
+First of the four cycles the wiring audit
+([`briefs/wiring-audit-2026-11-17/audit.md`](briefs/wiring-audit-2026-11-17/audit.md))
+prescribes: the findings that cost a user something, plus the dead surface around
+them. Triage called it M with ~8 files; it landed on 15, because the audit's D
+items are spread across nine modules. Contract and steps:
+[`briefs/wiring-conformance/`](briefs/wiring-conformance/).
+
+- **The photo URL rule is now the backend's rule (F1).** `photoUrlError` accepted
+  `http://` and demanded `.png/.jpg`, while `ProfileController` requires https and
+  imposes no extension: a valid CDN URL without extension was blocked by the
+  client, and an `http://` value passed the client to die on a generic 400. Now
+  both sides ask for https, a URL shape and 2048 characters at most, and the copy
+  says which of the two is wrong. `docs/api.md` states it.
+- **A broken preview says why it is not saved (F2).** The image key was dropped
+  from the PATCH and the only explanation lived in the image card; the reason now
+  sits above the button that goes down, the save is blocked as a whole (with
+  another field changed it used to go through and silently keep the old photo),
+  and "Rimuovi immagine" stays the way out. The 400 copy no longer blames the
+  scheme, which the client has already guaranteed.
+- **"Segnala" no longer pretends (C2).** Without an owner id the parent handler
+  returned silently: the tap did nothing and said nothing. The button is disabled
+  on the same predicate as "Invia proposta", and the note under it explains the
+  block instead of describing an action that cannot start.
+- **Dead surface removed (D1, D2, D3, D4, D8, D9, D10).** `getStaffUser` and its
+  re-export (`GET /staff/users/{id}` had no UI), the three status arrays nobody
+  imported, the `errors.form` banner that could never light up, the `categories`
+  prop no caller passed, the `ADMIN` branch guarding a role the backend does not
+  define, and three service helpers with no call site. The role test now asserts
+  the rule that exists instead of the one that was hoped for.
+- Gate: `npx expo lint` 0, `npx tsc --noEmit` 0, `npx jest` 33 suites / 360 tests
+  green, including a new render test that pins the report guard on the panel
+  instead of on the predicate. Row 1 of §3.0 in the audit flipped to `DONE` in
+  the closing commit.
+
+---
+
 ## 2026-11-17 — Every state, from one login
 
 Follow-up to the entry below, asked by Andrea once the first cut landed: the

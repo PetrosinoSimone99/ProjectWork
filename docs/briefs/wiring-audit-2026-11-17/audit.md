@@ -173,7 +173,7 @@ place that says which cycles are already done. A cycle whose findings turned out
 
 | Cycle | Class | Findings | Prompt line | Stato |
 | --- | --- | --- | --- | --- |
-| 1 — conformance and guards | M | F1, F2, C2, D1-D4, D8-D10 | §3.1 | TODO |
+| 1 — conformance and guards | M | F1, F2, C2, D1-D4, D8-D10 | §3.1 | DONE |
 | 2 — staff lists reachable | M | F5, C5, C7 | §3.2 | TODO |
 | 3 — entry form integrity | M | F6, C3, C6 (optional D5-D7) | §3.3 | TODO |
 | 4 — notification deep link | S/M | C1 | §3.4 | TODO |
