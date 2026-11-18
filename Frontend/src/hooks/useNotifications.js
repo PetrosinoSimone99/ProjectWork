@@ -33,7 +33,11 @@ import {
  * 3. **`elementi` is `null` until the first answer**, so the screen tells
  *    "still loading" from "loaded and empty" and never draws an invented count.
  * 4. **One action at a time** (`azioneInCorso` names the row), so two taps
- *    cannot clobber each other's busy state.
+ *    cannot clobber each other's busy state. That holds for `elimina`;
+ *    reading is no longer a user action, so it does not take a turn in that
+ *    slot. The rows on screen mark themselves read: the backend has no bulk
+ *    read, so it is one `PATCH` per row, and a failed `PATCH` leaves the row
+ *    unread with a warning that only a developer can read.
  */
 export function useNotifications({ token }) {
   const [elementi, setElementi] = useState(null);
@@ -102,29 +106,38 @@ export function useNotifications({ token }) {
     [azioneInCorso, elementi, token],
   );
 
-  const segnaLetta = useCallback(
-    async (id) => {
-      if (!token || azioneInCorso !== null) {
+  const segnaVisibiliLette = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    const daSegnare = (elementi ?? []).filter((notifica) => !notifica.letta);
+    if (daSegnare.length === 0) {
+      return;
+    }
+    const esiti = await Promise.allSettled(
+      daSegnare.map((notifica) => markNotificationRead(token, notifica.id)),
+    );
+    const aggiornate = new Map();
+    esiti.forEach((esito) => {
+      if (esito.status === 'fulfilled') {
+        if (esito.value !== null) {
+          aggiornate.set(esito.value.id, esito.value);
+        }
         return;
       }
-      setAzioneInCorso({ id, nome: 'letta' });
-      setErrore(null);
-      try {
-        const aggiornata = await markNotificationRead(token, id);
-        if (aggiornata !== null) {
-          setElementi((precedenti) =>
-            (precedenti ?? []).map((riga) => (riga.id === id ? aggiornata : riga)),
-          );
-          setNonLette((conteggio) => Math.max(conteggio - 1, 0));
-        }
-      } catch (err) {
-        setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-      } finally {
-        setAzioneInCorso(null);
-      }
-    },
-    [azioneInCorso, token],
-  );
+      logInSviluppo(
+        '[notifiche] lettura automatica non riuscita',
+        esito.reason?.message ?? esito.reason,
+      );
+    });
+    if (aggiornate.size === 0) {
+      return;
+    }
+    setElementi((precedenti) =>
+      (precedenti ?? []).map((riga) => aggiornate.get(riga.id) ?? riga),
+    );
+    setNonLette((conteggio) => Math.max(conteggio - aggiornate.size, 0));
+  }, [elementi, token]);
 
   return {
     elementi,
@@ -133,7 +146,7 @@ export function useNotifications({ token }) {
     errore,
     azioneInCorso,
     ricarica: carica,
-    segnaLetta,
+    segnaVisibiliLette,
     elimina,
   };
 }

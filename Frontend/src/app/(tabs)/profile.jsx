@@ -16,6 +16,7 @@ import { AppIcon } from '@/components/AppIcon';
 import { Banner } from '@/components/Banner';
 import { Card, Chip } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { NotificationsSheet } from '@/components/NotificationsSheet';
 import { PageHeader } from '@/components/PageHeader';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { radius, space, target, useTokens } from '@/theme/tokens';
@@ -59,6 +60,9 @@ export default function ProfileScreen() {
   // The pasted photo URL may point at nothing: an explicit state says so
   // instead of leaving a blank circle that looks like a loading bug.
   const [immagineRotta, setImmagineRotta] = useState(false);
+  // Le notifiche non sono una rotta: la banda del profilo apre un pannello sopra
+  // la schermata, come la campanella delle «Proposte ricevute» negli accordi.
+  const [notificheAperte, setNotificheAperte] = useState(false);
 
   // Le richieste in volo: una risposta si applica solo se nessuna più recente è
   // già partita (il focus non litiga con un «Riprova»), come nella home.
@@ -108,6 +112,14 @@ export default function ProfileScreen() {
   // senza svuotare nulla. Il badge è nella stessa schermata: lasciarlo vecchio
   // mentre l'utente tira giù è la cosa che fa sembrare rotto il gesto.
   const { nonLette, ricarica: ricaricaNonLette } = useUnreadCount({ token });
+
+  // Chiudere il pannello ricarica anche il conteggio: nell'attimo in cui si
+  // apre, le righe visibili si segnano lette da sole, quindi un badge fermo al
+  // valore di prima resterebbe sbagliato fino al tick dei 30 s.
+  const chiudiNotifiche = useCallback(() => {
+    setNotificheAperte(false);
+    void ricaricaNonLette();
+  }, [ricaricaNonLette]);
   const { refreshing, onRefresh } = useRefresh(
     useCallback(async () => {
       await Promise.all([ricaricaSessione(), caricaProfilo(), ricaricaNonLette()]);
@@ -267,10 +279,11 @@ export default function ProfileScreen() {
           </View>
         </Banda>
 
-        {/* La casella delle notifiche è una schermata a sé, non una sesta tab:
-            la barra ne ha cinque e il menu del web le rispecchia. Il conteggio
-            arriva da una chiamata da una riga (`limit: 1`), così la riga dice se
-            c'è qualcosa da leggere senza scaricare la lista qui. */}
+        {/* Le notifiche non sono una sesta tab né una schermata a sé: la barra
+            ne ha cinque e il menu del web le rispecchia, quindi la banda apre un
+            pannello sopra il profilo. Il conteggio arriva da una chiamata da una
+            riga (`limit: 1`), così la riga dice se c'è qualcosa da leggere senza
+            scaricare la lista qui. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
@@ -278,7 +291,7 @@ export default function ProfileScreen() {
               ? `Apri le notifiche, ${nonLette} da leggere`
               : 'Apri le notifiche'
           }
-          onPress={() => router.push('/notifications')}
+          onPress={() => setNotificheAperte(true)}
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Banda riga>
@@ -376,6 +389,11 @@ export default function ProfileScreen() {
         loading={signingOut}
         icon="log-out-outline"
       />
+
+      {/* Il pannello vive accanto alla schermata, non dentro un'altra rotta:
+          `visible` decide se è montato visibile, `onClose` è l'unica uscita
+          (X, tocco fuori, Escape la forniscono da `ModalShell`). */}
+      <NotificationsSheet visible={notificheAperte} onClose={chiudiNotifiche} />
     </Screen>
   );
 }

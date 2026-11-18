@@ -11,11 +11,14 @@ import { radius, space, useTokens } from '@/theme/tokens';
 /**
  * One row of the notifications inbox.
  *
- * Data and callbacks only: no network, no mutation of the input. The screen
- * owns the calls and passes `inCorso` back down so the row can show which of
- * its two actions is flying. The one piece of state the row keeps is whether
- * its delete confirmation is open — pure UI, the same as `AgreementCard`:
- * `onElimina` fires only from the confirm panel, never from the row button.
+ * Data and callbacks only: no network, no mutation of the input. The panel
+ * owns the calls and passes `inCorso` back down for the delete in flight. The
+ * row has one command only, «Elimina», because reading is no longer manual: the
+ * rows on screen mark themselves read when the panel opens
+ * (`useNotifications.segnaVisibiliLette`). The one piece of state the row keeps
+ * is whether its delete confirmation is open — pure UI, the same as
+ * `AgreementCard`: `onElimina` fires only from the confirm panel, never from
+ * the row button.
  *
  * `type` is a free-form backend string (the scheduler even writes one in lower
  * case, which the normaliser upper-cases). Unknown types are not an error: they
@@ -81,14 +84,12 @@ export function quandoNotifica(value) {
 export function NotificationRow({
   notifica,
   inCorso = null,
-  onLetta = null,
   onElimina = null,
   onApri = null,
 }) {
   const t = useTokens();
   const quando = quandoNotifica(notifica.creataIl);
   const occupata = inCorso !== null;
-  const lettaInCorso = inCorso?.nome === 'letta';
   const eliminaInCorso = inCorso?.nome === 'elimina';
   const [confermaAperta, setConfermaAperta] = useState(false);
   // A string id would be a backend anomaly: no coercion, no destination.
@@ -186,17 +187,6 @@ export function NotificationRow({
       )}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
-        {notifica.letta ? null : (
-          <AppButton
-            label="Segna come letta"
-            variant="ghost"
-            icon="checkmark-outline"
-            onPress={onLetta}
-            loading={lettaInCorso}
-            disabled={occupata && !lettaInCorso}
-            accessibilityLabel="Segna questa notifica come letta"
-          />
-        )}
         <AppButton
           label="Elimina"
           variant="dangerGhost"

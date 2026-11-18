@@ -36,9 +36,11 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  * L'unico avviso globale è la scadenza della sessione (`SessionExpiryBanner`):
  * è l'unico punto in cui una shell è visibile in tutte le schermate che hanno una
  * sessione attiva. Il banner delle notifiche in-app resta assente perché il
- * backend non ha un canale di push: la casella delle notifiche è una schermata a
- * sé (`notifications.jsx`), che chiede la lista quando la si apre, invece di un
- * avviso che comparirebbe solo ricaricando la pagina.
+ * backend non ha un canale di push: le notifiche non sono una rotta ma un
+ * pannello dentro il profilo (`src/components/NotificationsSheet.jsx`), che
+ * chiede la lista quando lo si apre, invece di un avviso che comparirebbe solo
+ * ricaricando la pagina. Le altre schermate secondarie restano rotte, elencate
+ * qui sotto.
  */
 function RootNavigator() {
   const { utente, token, booting } = useAuth();
@@ -91,7 +93,6 @@ function RootNavigator() {
         <Stack screenOptions={{ headerShown: false }}>
           {utente ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="(auth)" />}
           {utente ? <Stack.Screen name="edit-profile" /> : null}
-          {utente ? <Stack.Screen name="notifications" /> : null}
           {utente ? <Stack.Screen name="chat/[agreementId]" /> : null}
           {utente ? <Stack.Screen name="user/[id]" /> : null}
           {utente ? <Stack.Screen name="report" /> : null}

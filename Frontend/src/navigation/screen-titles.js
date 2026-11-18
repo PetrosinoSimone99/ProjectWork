@@ -11,6 +11,9 @@ import { TAB_ROUTES } from './tab-routes';
  * di scheda che non corrisponde al titolo in pagina è una terza denominazione
  * della stessa schermata.
  *
+ * Le notifiche non sono qui: non sono una rotta ma un pannello dentro il
+ * profilo, e la scheda del browser resta quella della schermata che le apre.
+ *
  * `document.title` era vuoto su ogni rotta (`""` misurato dal vivo): ogni
  * scheda, ogni segnalibro e ogni voce di cronologia era una pagina senza nome
  * (audit UX F16). Expo Router disattiva di proposito il proprio titolo
@@ -24,9 +27,6 @@ const TITOLI_SECONDARI = {
   '/login': 'Accedi',
   '/register': 'Crea il tuo profilo',
   '/edit-profile': 'Modifica profilo',
-  // The inbox is a secondary screen like the two below it: the browser tab,
-  // the bookmark and the history entry carry the same word the page shows.
-  '/notifications': 'Notifiche',
   '/report': 'Segnala alla staff',
   '/staff': 'Area staff',
   '/staff-users': 'Utenti',
