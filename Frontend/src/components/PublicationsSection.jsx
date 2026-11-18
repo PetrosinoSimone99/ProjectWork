@@ -54,6 +54,15 @@ export const SEZIONI_PUBBLICAZIONI = [
  * indicata dalle regole del progetto, e perché la useranno anche la home («le
  * mie pubblicazioni») e il Profilo. Nessuno stato proprio: tutto arriva dalla
  * schermata, che è l'unica a sapere cosa sta pubblicando.
+ *
+ * `scritturaInCorso` è `null` oppure il segno che una scrittura è in volo da
+ * qualche parte nella schermata (salvataggio, cambio di stato, eliminazione o
+ * ripristino): con un valore la sezione non apre un form nuovo, non lascia
+ * partire l'azione di nessuna card e lascia leggere il form aperto senza poterlo
+ * salvare o annullare. Il blocco è uno solo per la schermata, così due scritture
+ * non possono incrociarsi. Le card ricevono i due motivi separati:
+ * `modificaDisabilitata` per le categorie mancanti, `azioniDisabilitate` per la
+ * scrittura in volo.
  */
 export function PublicationsSection({
   sezione,
@@ -66,6 +75,7 @@ export function PublicationsSection({
   erroreForm,
   categoriePronte,
   salvataggio,
+  scritturaInCorso = null,
   azioneInCorso,
   mostraStato,
   onApriNuova,
@@ -85,6 +95,7 @@ export function PublicationsSection({
   // Un solo pulsante primario a schermata: il primo «+ Aggiungi» resta il
   // comando forte, l'altro diventa secondario (audit UX F08).
   const varianteAggiungi = sezione.tipo === TIPI_VOCE.OFFERTA ? 'primary' : 'secondary';
+  const scritturaInVolo = scritturaInCorso !== null;
 
   return (
     <View style={{ gap: space.md }}>
@@ -108,13 +119,14 @@ export function PublicationsSection({
             (regola di prodotto: una per tipo). Resta primario solo nella prima
             sezione, perché su una schermata un solo comando è il più forte. Con
             le categorie non pronte il comando resta a schermo e spento, perché
-            lì il motivo è temporaneo e va detto. */}
+            lì il motivo è temporaneo e va detto; lo stesso vale mentre una
+            scrittura è in volo, così non se ne apre una seconda. */}
         {pieno ? null : (
           <AppButton
             label="Aggiungi"
             icon="add"
             variant={varianteAggiungi}
-            disabled={!categoriePronte}
+            disabled={!categoriePronte || scritturaInVolo}
             onPress={onApriNuova}
             accessibilityLabel={sezione.etichettaAggiungi}
             style={{ alignSelf: 'flex-start' }}
@@ -146,6 +158,7 @@ export function PublicationsSection({
           errore={erroreForm}
           categoriePronte={categoriePronte}
           salvataggio={salvataggio}
+          bloccato={scritturaInVolo}
           onCambia={onCambiaCampo}
           onSalva={onSalva}
           onAnnulla={onAnnullaForm}
@@ -164,7 +177,8 @@ export function PublicationsSection({
                 azioneInCorso={
                   azioneInCorso && azioneInCorso.id === voce.id ? azioneInCorso.nome : null
                 }
-                disabilitato={!categoriePronte}
+                modificaDisabilitata={!categoriePronte}
+                azioniDisabilitate={scritturaInVolo}
                 mostraStato={mostraStato}
                 onModifica={onModifica}
                 onCambiaStato={onCambiaStato}

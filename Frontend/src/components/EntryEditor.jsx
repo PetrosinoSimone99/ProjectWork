@@ -32,6 +32,17 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * `src/services/offer-request.js` (le regole) e dalla schermata (gli errori
  * già calcolati). Un componente che valida da sé è il modo più rapido per avere
  * due regole diverse nella stessa app.
+ *
+ * **`bloccato` è un valore che scende, non uno stato locale.** Mentre una
+ * scrittura è in volo la schermata non sa più che farsene dei tocchi: il blocco
+ * nasce da un unico valore derivato in cima (`offer-and-request.jsx`) e arriva
+ * qui già deciso. Se ognuno dei campi decidesse da sé quando spegnersi, lo
+ * stesso salvataggio avrebbe tanti giudizi quanti sono i controlli, e basterebbe
+ * un campo distratto per lasciare passare una seconda scrittura. Per questo non
+ * c'è nessuno `useState` del blocco: c'è solo l'inoltro ai tre controlli che
+ * compongono la voce, con le prop che ognuno ha già (`disabled` sulla categoria e
+ * sulla casella «da remoto», `editable` sulla mansione). Con la prop assente la
+ * registrazione si comporta come prima: `EntriesSection` non la passa.
  */
 
 const TESTI_TIPO = {
@@ -51,6 +62,7 @@ export function EntryEditor({
   statoCategorie,
   errori = {},
   onCambia,
+  bloccato = false,
   style,
 }) {
   const testi = TESTI_TIPO[voce.tipo];
@@ -76,6 +88,7 @@ export function EntryEditor({
         onChange={(idCategoria) => onCambia('idCategoria', idCategoria)}
         error={errori.idCategoria ?? null}
         stato={statoCategorie}
+        disabled={bloccato}
       />
 
       <AppInput
@@ -91,12 +104,14 @@ export function EntryEditor({
         maxLength={LIMITE_MANSIONE}
         contatore={`${voce.mansione.length}/${LIMITE_MANSIONE}`}
         error={errori.mansione ?? null}
+        editable={!bloccato}
       />
 
       <AppCheckbox
         label="Il servizio si può svolgere da remoto"
         value={voce.daRemoto}
         onChange={(daRemoto) => onCambia('daRemoto', daRemoto)}
+        disabled={bloccato}
       />
     </View>
   );

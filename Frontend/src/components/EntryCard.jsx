@@ -30,6 +30,16 @@ import { space, useTokens } from '@/theme/tokens';
  * `azioneInCorso` è `null` oppure il nome dell'azione in volo su **questa** voce
  * (`'stato'` o `'elimina'`): così lo spinner compare sul pulsante giusto e le
  * altre card restano usabili.
+ *
+ * Due motivi diversi spengono i comandi, e sono due interruttori diversi.
+ * `modificaDisabilitata` dice che mancano le categorie: senza di esse non si
+ * pubblica né si modifica, perché sono un campo obbligatorio del form, e
+ * spegne **solo** «Modifica».
+ * `azioniDisabilitate` dice che una scrittura è in volo da qualche parte nella
+ * schermata: spegne tutte e tre le azioni, perché mentre si scrive sul server
+ * una seconda scrittura non deve partire. «Sospendi/Ripubblica» ed «Elimina»
+ * non leggono le categorie: restano quindi disponibili mentre `GET /categories`
+ * sta fallendo (audit C6).
  */
 
 const ETICHETTE_TIPO = {
@@ -47,7 +57,8 @@ export function EntryCard({
   voce,
   categorie = [],
   azioneInCorso = null,
-  disabilitato = false,
+  modificaDisabilitata = false,
+  azioniDisabilitate = false,
   mostraStato = true,
   onModifica,
   onCambiaStato,
@@ -59,7 +70,10 @@ export function EntryCard({
   // con `id: undefined` (lezione di P37).
   const idValido = Number.isInteger(voce.id);
   const occupato = azioneInCorso !== null;
-  const bloccato = disabilitato || occupato || !idValido;
+  // Due motivi, due interruttori: le categorie servono per modificare, non per
+  // sospendere o eliminare.
+  const disabilitaModifica = modificaDisabilitata || azioniDisabilitate || occupato || !idValido;
+  const disabilitaAzioni = azioniDisabilitate || occupato || !idValido;
 
   const sospesa = voce.stato === STATI_PUBBLICAZIONE.SOSPESA;
   const azioneStato = sospesa ? 'Ripubblica' : 'Sospendi';
@@ -127,7 +141,7 @@ export function EntryCard({
             label="Modifica"
             variant="secondary"
             icon="create-outline"
-            disabled={bloccato}
+            disabled={disabilitaModifica}
             onPress={() => onModifica(voce)}
             accessibilityLabel={`Modifica ${articolo}: ${testoVoce}`}
             style={{ flex: 1 }}
@@ -137,7 +151,7 @@ export function EntryCard({
               label={azioneStato}
               variant="secondary"
               icon={sospesa ? 'eye-outline' : 'eye-off-outline'}
-              disabled={bloccato}
+              disabled={disabilitaAzioni}
               loading={azioneInCorso === 'stato'}
               onPress={() => onCambiaStato(voce)}
               accessibilityLabel={`${azioneStato} ${articolo}: ${testoVoce}`}
@@ -149,7 +163,7 @@ export function EntryCard({
           label="Elimina"
           variant="danger"
           icon="trash-outline"
-          disabled={bloccato}
+          disabled={disabilitaAzioni}
           loading={azioneInCorso === 'elimina'}
           onPress={() => onElimina(voce)}
           accessibilityLabel={`Elimina ${articolo}: ${testoVoce}`}

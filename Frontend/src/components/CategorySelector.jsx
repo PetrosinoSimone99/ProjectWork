@@ -18,6 +18,13 @@ import { opacity, radius, space, target, useTokens } from '@/theme/tokens';
  * che non siano "pronta" il campo è disabilitato: una tendina che si apre su una
  * lista vuota è peggio di una tendina spenta.
  *
+ * `disabled` è un motivo in più, ortogonale a `stato`: non dice niente sulla
+ * lista, dice che in questo momento il campo non va toccato perché una scrittura
+ * è in volo (C3). I due motivi si sommano e nessuno dei due sostituisce l'altro:
+ * con `disabled` il `Pressable` non è premibile, si annuncia disabilitato e prende
+ * `opacity.disabled`, quindi il pannello non si apre. Con la prop assente il
+ * comportamento è quello di sempre (la barra filtri della home non la passa).
+ *
  * `aria-expanded` e `aria-checked` viaggiano accanto ad `accessibilityState`
  * perché su web `react-native-web` ignora `accessibilityState` e legge solo gli
  * attributi `aria-*` (su native `aria-*` ha la precedenza, quindi il valore
@@ -48,6 +55,7 @@ export function CategorySelector({
   error,
   stato = 'pronto',
   etichettaAzzera = null,
+  disabled = false,
   style,
 }) {
   const t = useTokens();
@@ -68,6 +76,7 @@ export function CategorySelector({
 
   const scelta = categorie.find((categoria) => Number(categoria.id) === Number(value)) ?? null;
   const selezionabile = stato === 'pronto' && categorie.length > 0;
+  const premibile = selezionabile && !disabled;
   const testo = selezionabile
     ? scelta?.nome ?? 'Scegli una categoria'
     : TESTI_NON_PRONTO[stato] ?? TESTI_NON_PRONTO.errore;
@@ -81,9 +90,9 @@ export function CategorySelector({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${testo}`}
-        accessibilityState={{ expanded: aperto, disabled: !selezionabile }}
+        accessibilityState={{ expanded: aperto, disabled: !premibile }}
         aria-expanded={aperto}
-        disabled={!selezionabile}
+        disabled={!premibile}
         onPress={apri}
         style={({ pressed }) => [
           {
@@ -97,7 +106,7 @@ export function CategorySelector({
             borderRadius: radius.input,
             backgroundColor: pressed ? t.border : t.surface,
             borderColor: error ? t.danger : t.borderInput,
-            opacity: selezionabile ? 1 : opacity.disabled,
+            opacity: premibile ? 1 : opacity.disabled,
           },
         ]}
       >
