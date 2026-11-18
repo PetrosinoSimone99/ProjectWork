@@ -9,6 +9,7 @@ import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { WebNavMenu } from '@/components/WebNavMenu';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { EventStreamProvider } from '@/hooks/useEventStream';
 import { useSessionExpiry } from '@/hooks/useSessionExpiry';
 import { useWebColorScheme } from '@/hooks/useWebColorScheme';
 import { larghezzaBarraMenuWeb, space } from '@/theme/tokens';
@@ -35,12 +36,11 @@ import { ThemeProvider, useThemePreference } from '@/theme/theme-context';
  *
  * L'unico avviso globale è la scadenza della sessione (`SessionExpiryBanner`):
  * è l'unico punto in cui una shell è visibile in tutte le schermate che hanno una
- * sessione attiva. Il banner delle notifiche in-app resta assente perché il
- * backend non ha un canale di push: le notifiche non sono una rotta ma un
- * pannello dentro il profilo (`src/components/NotificationsSheet.jsx`), che
- * chiede la lista quando lo si apre, invece di un avviso che comparirebbe solo
- * ricaricando la pagina. Le altre schermate secondarie restano rotte, elencate
- * qui sotto.
+ * sessione attiva. Le notifiche non sono una rotta ma un pannello dentro il
+ * profilo (`src/components/NotificationsSheet.jsx`), e restano un pannello: la
+ * connessione che le rende vive è una sola per tutta l'app
+ * (`EventStreamProvider`, qui sotto), non un avviso che comparirebbe sopra ogni
+ * schermata. Le altre schermate secondarie restano rotte, elencate qui sotto.
  */
 function RootNavigator() {
   const { utente, token, booting } = useAuth();
@@ -108,8 +108,13 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <StatusBar style="auto" />
-        <RootNavigator />
+        {/* Una sola connessione allo stream per tutta l'app: sta dentro
+            `AuthProvider` perché ha bisogno del token, e sopra lo `Stack`
+            perché nessuna schermata deve aprirne una sua. Non disegna nulla. */}
+        <EventStreamProvider>
+          <StatusBar style="auto" />
+          <RootNavigator />
+        </EventStreamProvider>
       </AuthProvider>
     </ThemeProvider>
   );
