@@ -22,13 +22,16 @@ import {
   ACCOUNT_STATUSES,
   ROLES,
   accountStatusLabel,
+  describeEmptyUserList,
   describePromotion,
+  describeRoleFilterScope,
   describeStatusChange,
   filterUsers,
   nextAccountStatus,
   roleLabel,
 } from '@/services/staff-users';
 import { useRefresh } from '@/hooks/useRefresh';
+import { usePagedList } from '@/hooks/usePagedList';
 import { space } from '@/theme/tokens';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 
@@ -42,16 +45,25 @@ import { puoEntrareNellAreaStaff } from '@/services/staff';
  * and `409` as normal outcomes: when the backend refuses, its Italian mapping
  * is shown and the list is reloaded, because the state on screen can be stale.
  *
+ * The list arrives one page at a time through `usePagedList`: page 1 replaces,
+ * «Carica altri 20» appends without repeating rows, and a search or status
+ * change resets to page 1 because the server window is a different one (F5).
+ *
  * The search and the status pill are **server-side** (`q` and `accountStatus`):
- * the endpoint accepts both, and filtering only the 50 loaded rows made the
+ * the endpoint accepts both, and filtering only the loaded rows made the
  * empty state claim «Nessun utente corrisponde ai filtri» about people the
  * screen had never received (audit UX F11). The role pill stays local because
  * the endpoint has no role parameter, and the rows it hides are rows that did
- * arrive: the empty state names that case instead of blaming the search.
+ * arrive: the pill's helper line and the empty state name that limit
+ * (`describeRoleFilterScope`, `describeEmptyUserList`) instead of promising a
+ * filter the server does not have.
  */
 
 /** How long the search waits after the last key before asking the server. */
 const RICERCA_ATTESA_MS = 350;
+
+/** How many rows a page brings: one size for every staff list. */
+const PAGE_SIZE = 20;
 
 const ROLE_FILTERS = [
   { valore: null, etichetta: 'Tutti' },
@@ -70,9 +82,6 @@ export default function StaffUsersScreen() {
   const router = useRouter();
   const callerId = utente?.id ?? null;
 
-  const [users, setUsers] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -82,74 +91,65 @@ export default function StaffUsersScreen() {
   const [roleFilter, setRoleFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
 
-  const requestRef = useRef(0);
   const actionRef = useRef(false);
   const primoCaricamento = useRef(true);
-  // I filtri correnti stanno in una ref, non nelle dipendenze di `load`:
-  // `useFocusEffect` dipende da `load`, quindi con `query` fra le dipendenze
-  // ogni tasto faceva partire subito una richiesta **e** il timer ne faceva
-  // partire una seconda identica 350 ms dopo.
-  const filtriRef = useRef({ q: '', accountStatus: '' });
 
-  // Aggiornata in un effetto e non durante il render: scrivere una ref nel corpo
-  // del componente è quello che `react-hooks/refs` vieta, e con ragione.
-  useEffect(() => {
-    filtriRef.current = { q: query.trim(), accountStatus: statusFilter ?? '' };
-  }, [query, statusFilter]);
-
-  const load = useCallback(
-    async (filtri = filtriRef.current) => {
+  /**
+   * Una pagina di utenti per `usePagedList`. Ricerca e stato sono parametri del
+   * server (`q`, `accountStatus`) e partono da qui (audit UX F11); il ruolo no,
+   * e resta un filtro locale sulle righe arrivate.
+   */
+  const carica = useCallback(
+    async ({ page, limit }) => {
       if (!token) {
-        return;
+        // La schermata reindirizza al login: non c'è niente da chiedere.
+        return { righe: [], paginazione: null };
       }
-      const seq = ++requestRef.current;
-      setLoading(true);
-      try {
-        // I filtri che il backend sa applicare partono da qui: la ricerca non
-        // guarda solo le righe già arrivate (audit UX F11).
-        const page = await listStaffUsers(token, { limit: 50, ...filtri });
-      if (seq !== requestRef.current) {
-        return;
-      }
-      setUsers(page.utenti);
-      setError(null);
-    } catch (err) {
-      if (seq !== requestRef.current) {
-        return;
-      }
-      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-    } finally {
-      if (seq === requestRef.current) {
-        setLoading(false);
-      }
-    }
-  },    [token],
+      const data = await listStaffUsers(token, {
+        page,
+        limit,
+        q: query.trim(),
+        accountStatus: statusFilter ?? '',
+      });
+      return { righe: data.utenti, paginazione: data.paginazione };
+    },
+    [token, query, statusFilter],
   );
 
+  const {
+    voci: users,
+    paginazione: pagination,
+    caricamento: loading,
+    caricamentoAltri: loadingMore,
+    errore: error,
+    erroreAltri: errorMore,
+    ricarica: reload,
+    caricaAltri: loadMore,
+    haAltre: hasMore,
+  } = usePagedList({ carica, dimensione: PAGE_SIZE });
+
   // Il primo caricamento lo fa `useFocusEffect`: qui si richiede solo quando la
-  // ricerca o lo stato cambiano, un attimo dopo l'ultimo tasto.
+  // ricerca o lo stato cambiano, un attimo dopo l'ultimo tasto. Si riparte
+  // dalla pagina 1 perché la finestra che il server restituisce è un'altra.
   useEffect(() => {
     if (primoCaricamento.current) {
       primoCaricamento.current = false;
       return undefined;
     }
     const timer = setTimeout(() => {
-      void load({ q: query.trim(), accountStatus: statusFilter ?? '' });
+      void reload();
     }, RICERCA_ATTESA_MS);
     return () => clearTimeout(timer);
-  }, [load, query, statusFilter]);
+  }, [reload, query, statusFilter]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-      return () => {
-        requestRef.current += 1;
-      };
-    }, [load]),
+      void reload();
+    }, [reload]),
   );
 
   // Il gesto nativo e «Aggiorna» del web sono lo stesso comando (audit §8.8).
-  const { refreshing, onRefresh } = useRefresh(load);
+  const { refreshing, onRefresh } = useRefresh(reload);
 
   // Testo e stato li ha già applicati il server: qui resta il solo ruolo.
   const visible = useMemo(
@@ -157,6 +157,23 @@ export default function StaffUsersScreen() {
     [users, roleFilter],
   );
   const filtersActive = query.trim() !== '' || roleFilter !== null || statusFilter !== null;
+  // I due filtri che il backend applica davvero: l'elenco vuoto li distingue dal
+  // ruolo, che invece guarda solo le righe arrivate.
+  const serverFiltersActive = query.trim() !== '' || statusFilter !== null;
+  const loaded = users === null ? null : users.length;
+  const total = pagination?.elementiTotali ?? null;
+  // La riga del conteggio viene dal payload (audit UX F32): «N di M» usa
+  // `elementiTotali`. Con il ruolo attivo il denominatore sono le righe
+  // caricate, e la parola «caricati» lo dice: il backend non ha quel filtro,
+  // quindi M non sarebbe un totale.
+  const count =
+    roleFilter !== null
+      ? loaded === null
+        ? null
+        : `${visible.length} di ${loaded} utenti caricati`
+      : loaded === null || total === null
+        ? null
+        : `${visible.length} di ${total} utenti`;
 
   function askPromotion(user) {
     if (actionRef.current) {
@@ -201,7 +218,9 @@ export default function StaffUsersScreen() {
       setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       setConfirm(null);
     } finally {
-      await load();
+      // La scrittura ha cambiato una riga: la pagina 1 è l'unica che si sa
+      // rileggere senza indovinare dove sia finita.
+      await reload();
       actionRef.current = false;
       setBusy(null);
     }
@@ -271,6 +290,9 @@ export default function StaffUsersScreen() {
             valore={roleFilter}
             onChange={setRoleFilter}
           />
+          <AppText variant="small" tone="secondary">
+            {describeRoleFilterScope(loaded)}
+          </AppText>
         </View>
         <View style={{ gap: space.sm }}>
           <AppText variant="small" style={{ fontWeight: '600' }}>
@@ -295,13 +317,21 @@ export default function StaffUsersScreen() {
         ) : null}
       </Card>
 
+      {count ? (
+        <View accessibilityLiveRegion="polite" aria-live="polite">
+          <AppText variant="small" tone="secondary">
+            {count}
+          </AppText>
+        </View>
+      ) : null}
+
       {error ? (
         <Banner
           kind="error"
           message={error}
           etichettaAzione="Riprova"
           iconaAzione="refresh-outline"
-          onAzione={() => void load()}
+          onAzione={() => void reload()}
           caricamentoAzione={loading}
         />
       ) : null}
@@ -339,8 +369,8 @@ export default function StaffUsersScreen() {
         <EmptyState
           icon="people-outline"
           title="Nessun utente da mostrare"
-          description={descrizioneElencoVuoto({
-            filtri: filtersActive,
+          description={describeEmptyUserList({
+            filtri: serverFiltersActive,
             ruolo: roleFilter !== null,
           })}
         />
@@ -361,6 +391,31 @@ export default function StaffUsersScreen() {
           </View>
         ))}
       </View>
+
+      {/* Ogni pagina appesa è un'altra riga letta: il bottone resta finché il
+          backend dice che ce n'è una dopo, e quando quella richiesta fallisce
+          il suo errore ha il proprio «Riprova» invece di sparire. */}
+      {hasMore && !errorMore ? (
+        <AppButton
+          label={loadingMore ? 'Carico altri…' : 'Carica altri 20'}
+          variant="secondary"
+          icon="chevron-down-outline"
+          loading={loadingMore}
+          onPress={() => void loadMore()}
+          accessibilityLabel="Carica altri venti utenti"
+          style={{ alignSelf: 'center' }}
+        />
+      ) : null}
+      {errorMore ? (
+        <Banner
+          kind="error"
+          message={errorMore}
+          etichettaAzione="Riprova"
+          iconaAzione="refresh-outline"
+          onAzione={() => void loadMore()}
+          caricamentoAzione={loadingMore}
+        />
+      ) : null}
 
       <ConfirmModal
         visible={confirm !== null}
@@ -392,15 +447,4 @@ export default function StaffUsersScreen() {
       />
     </Screen>
   );
-}
-
-/** Perché l'elenco è vuoto: tre cause diverse, tre frasi diverse. */
-function descrizioneElencoVuoto({ filtri, ruolo }) {
-  if (!filtri) {
-    return "Non c'è nessun utente nell'elenco.";
-  }
-  if (ruolo) {
-    return 'Nessun utente con questo ruolo fra quelli che corrispondono alla ricerca: cambia ruolo o azzera i filtri.';
-  }
-  return 'Nessun utente corrisponde alla ricerca o allo stato scelto: prova un altro nome o azzera i filtri.';
 }
