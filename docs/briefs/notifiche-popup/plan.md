@@ -134,3 +134,81 @@ Wave 2, after wave 1 is committed:
 
 Shared / parent-owned (never two children at once): `Frontend/src/app/(tabs)/profile.jsx`,
 `docs/changelog.md`, `docs/architecture.md`, `docs/overview.md`, `docs/api.md`.
+
+---
+
+## Cycle 2 — read on close, not on open (2026-11-18)
+
+### How to resume
+
+- Gate (hard): `cd Frontend && npx expo lint && npx tsc --noEmit && npx jest`. Red gate, no commit.
+- `grep '| Stato: TODO' docs/briefs/notifiche-popup/plan.md` and start from the first `TODO` whose
+  condition holds. Steps 1-12 are cycle 1 and are `DONE`; cycle 2 starts at 13.
+- Branch `andrea-frontend`, cycle 1 pushed. `Backend/` read-only.
+- Trap: cycle 2 inverts cycle 1's decision 5. Any comment, test or doc line that says "the rows mark
+  themselves read when the panel opens" is now **wrong** and must be rewritten, not left standing.
+- Trap: the panel is mounted only while open (`profile.jsx`), so the close path must survive its own
+  unmount: the mark promise keeps the parent's callback in its closure and calls it when it settles.
+
+### Brief
+
+**Objective.** Le notifiche si segnano lette **alla chiusura** del pannello, non all'apertura: finché
+il pannello è aperto il pallino, la parola «Non letta» e il bordo d'accento restano dove sono, così chi
+apre vede quali sono le nuove. Il badge del profilo si aggiorna quando la marcatura è finita, non
+prima. E il pannello legge tutte le pagine (fino a un tetto), così il badge non resta sopra zero per
+righe che il pannello non ha nemmeno mostrato.
+
+**Closed decisions.**
+
+1. **La lettura è l'atto di chiudere.** `segnaVisibiliLette` si chiama `segnaLetteMostrate` e non è più
+   invocata da un effetto su `visible`: la chiama la funzione di chiusura del pannello, dopo `onClose`.
+   Nessuna marcatura mentre il pannello è aperto, nemmeno per una riga che arriva da un «Riprova».
+2. **Tre prop, non due.** `NotificationsSheet({ visible, onClose, onLette })`: `onLette` è
+   opzionale e significa «le marcature sono arrivate a destinazione, rileggi il conteggio». Il padre
+   passa `ricaricaNonLette`. Serve perché `onClose` chiude subito (la X non deve aspettare la rete) e
+   il conteggio sarebbe altrimenti letto **prima** che i `PATCH` atterrino, cioè sbagliato.
+3. **Una sola uscita, anche per la marcatura.** X, tocco fuori ed Escape passano tutti da `onClose` di
+   `ModalShell`: il pannello gli passa `chiudi`, che fa `onClose()` e poi la marcatura. Nessun secondo
+   percorso che chiude senza segnare.
+4. **Tutte le pagine, con un tetto.** `useNotifications` legge la pagina 1 e poi le successive finché
+   `paginazione.pagineTotali` lo dice, fermandosi a `NOTIFICATIONS_MAX_PAGES = 5` (100 righe) e
+   cumulando le righe. Oltre il tetto il badge può restare sopra zero: è un limite dichiarato, non un
+   contatore locale. Una pagina successiva che fallisce tiene le righe già lette e mostra l'errore
+   (il pannello disegna il banner **sopra** la lista, invariante del ciclo 1).
+5. **I `PATCH` restano uno per riga.** Il backend non ha lettura massiva: `Promise.allSettled`, si
+   applicano solo le risposte arrivate, `nonLette` scende dei soli successi, un fallimento lascia la
+   riga non letta e avvisa solo in sviluppo.
+
+**Success criteria.** (a) Con il pannello aperto e righe non lette, nessun `PATCH` parte: le righe
+mostrano ancora «Non letta». (b) Chiudendo (X, Escape o tocco fuori) parte un `PATCH` per ogni riga non
+letta mostrata, poi `onLette` viene chiamata una volta. (c) Con `pagineTotali: 2` il hook fa due `GET`
+e cumula le righe; con `pagineTotali: 9` si ferma a 5. (d) `npx expo lint`, `npx tsc --noEmit`,
+`npx jest` verdi. (e) `docs/changelog.md`, `docs/api.md` e i commenti di codice non affermano più
+«letto all'apertura».
+
+**Out of scope.** Tutto il resto del ciclo 1; endpoint nuovi; un «segna non letta» che il backend non
+ha; oltre le 100 righe.
+
+### Steps
+
+- 13. Commit this contract before any code moves | files: `docs/briefs/notifiche-popup/plan.md` | done: the appendix is on `andrea-frontend` and the tree is clean | Stato: TODO
+- 14. Hook: paged read and a mark called on demand | files: `Frontend/src/hooks/useNotifications.js` | done: `carica` cumula le pagine fino a `NOTIFICATIONS_MAX_PAGES` seguendo `paginazione.pagineTotali`; `segnaLetteMostrate` sostituisce `segnaVisibiliLette` e nessun effetto la chiama | Stato: TODO
+- 15. Panel and profile: read on close | files: `Frontend/src/components/NotificationsSheet.jsx`, `Frontend/src/app/(tabs)/profile.jsx` | done: nessun `useEffect` di marcatura; `chiudi` fa `onClose()` poi `segnaLetteMostrate()` poi `onLette?.()`; il padre passa `onLette={ricaricaNonLette}` | Stato: TODO
+- 16. Tests: the panel marks on close and never on open | files: `Frontend/src/components/__tests__/NotificationsSheet.test.js` | done: il caso «marks on open» è sostituito da «no PATCH while open» + «marks on close, then refreshes the count once» | Stato: TODO
+- 17. Tests: paging and the renamed mark | files: `Frontend/src/hooks/__tests__/useNotifications.test.js` | done: due casi nuovi (due pagine cumulate, tetto a 5) e i quattro casi della marcatura rinominati su `segnaLetteMostrate`, verdi | Stato: TODO
+- 18. Close the cycle: docs | files: `docs/changelog.md`, `docs/api.md` | done: il changelog dice «alla chiusura» e nomina il tetto di 5 pagine, `api.md` §Notifications dice lo stesso, nessuna frase residua sull'apertura | Stato: TODO
+
+### Lanes
+
+Wave 1 — no children: steps 14-15 are one contract across three coupled files, and the parent is the
+only writer that can hold it. ~20 min.
+
+Wave 2, one `subagent({ tasks: [...] })` call, shared tree, children never run `git`:
+
+- Lane H — step 16: `Frontend/src/components/__tests__/NotificationsSheet.test.js`.
+- Lane I — step 17: `Frontend/src/hooks/__tests__/useNotifications.test.js`.
+- Parent in the same wave — step 18: `docs/changelog.md`, `docs/api.md`.
+
+Shared / parent-owned: `Frontend/src/hooks/useNotifications.js`,
+`Frontend/src/components/NotificationsSheet.jsx`, `Frontend/src/app/(tabs)/profile.jsx`,
+`docs/changelog.md`, `docs/api.md`.
