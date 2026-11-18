@@ -21,6 +21,22 @@ jest.mock('@/api/areas/notifications', () => ({
   deleteNotification: jest.fn(),
 }));
 
+/**
+ * No provider in these tests: the frame is handed over by the test and the
+ * stream state is what the test declares.
+ */
+const mockStream = {
+  stato: { connected: false, unreadCount: null, lastId: null },
+  handler: undefined,
+};
+
+jest.mock('@/hooks/useEventStream', () => ({
+  useStreamEvent: (handler) => {
+    mockStream.handler = handler;
+  },
+  useStreamState: () => mockStream.stato,
+}));
+
 const TOKEN = 'jwt';
 
 /** One page of notifications is more than the row needs; it reads `nonLette`. */
@@ -108,6 +124,9 @@ let verbale;
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  // The stream starts down in every test: a case that wants frames declares it.
+  mockStream.stato = { connected: false, unreadCount: null, lastId: null };
+  mockStream.handler = undefined;
   // jest-expo does not set this: without it the tick guard sees an app that is
   // not in the foreground and every poll is silently skipped.
   AppState.currentState = 'active';
@@ -207,6 +226,64 @@ describe('useUnreadCount — the polling of the badge', () => {
     ).toBe(true);
   });
 });
+
+describe('useUnreadCount — the frames are the truth while the stream is up', () => {
+  it('shows the count the frame carries and lets no poll answer overwrite it', async () => {
+    mockStream.stato = { connected: true, unreadCount: 7, lastId: 12 };
+    const lettura = {};
+    render(lettura);
+    await flush();
+
+    // The read on entering the screen answers 2, the frame carried 7.
+    expect(getNotifications).toHaveBeenCalledWith(TOKEN, { limit: 1 });
+    expect(lettura.nonLette).toBe(7);
+
+    getNotifications.mockResolvedValue(risposta(2));
+    await unGiro();
+
+    expect(getNotifications).toHaveBeenCalledTimes(2);
+    expect(lettura.nonLette).toBe(7);
+  });
+
+  it('lets the poll answer write the count while the stream is not connected', async () => {
+    mockStream.stato = { connected: false, unreadCount: 9, lastId: 12 };
+    const lettura = {};
+    getNotifications.mockResolvedValue(risposta(1));
+    render(lettura);
+    await flush();
+
+    expect(lettura.nonLette).toBe(1);
+
+    getNotifications.mockResolvedValue(risposta(3));
+    await unGiro();
+
+    expect(lettura.nonLette).toBe(3);
+  });
+});
+describe('useNotifications — a frame re-reads the list', () => {
+  it('asks for the rows again when a notification frame arrives', async () => {
+    const lettura = {};
+    getNotifications.mockResolvedValue(page([row(1, false)], 1));
+    renderInbox(lettura);
+    await flush();
+    expect(lettura.elementi).toEqual([row(1, false)]);
+    const letturePrimaDelFrame = getNotifications.mock.calls.length;
+    expect(letturePrimaDelFrame).toBeGreaterThan(0);
+
+    getNotifications.mockResolvedValue(page([row(2, false), row(1, false)], 2));
+    await act(async () => {
+      mockStream.handler({ tipo: 'MESSAGE', dati: null });
+      for (let i = 0; i < 6; i += 1) {
+        await Promise.resolve();
+      }
+    });
+
+    expect(getNotifications).toHaveBeenCalledTimes(letturePrimaDelFrame + 1);
+    expect(lettura.elementi).toEqual([row(2, false), row(1, false)]);
+    expect(lettura.nonLette).toBe(2);
+  });
+});
+
 describe('useNotifications — the read of the rows the panel showed', () => {
   it('marks every unread row with one request each and drops the count by two', async () => {
     const lettura = {};

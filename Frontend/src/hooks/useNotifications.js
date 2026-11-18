@@ -7,6 +7,7 @@ import {
   getNotifications,
   markNotificationRead,
 } from '@/api/areas/notifications';
+import { useStreamEvent, useStreamState } from '@/hooks/useEventStream';
 
 /**
  * How many pages the inbox collects before it stops.
@@ -24,11 +25,15 @@ export const NOTIFICATIONS_MAX_PAGES = 5;
 /**
  * The data layer of the notifications inbox.
  *
- * The backend has no push channel: this hook asks again when the screen comes
- * back to the foreground and when the user pulls (the screen wires the pull into
- * `ricarica`), and reads the unread count from the same answer instead of
- * keeping a counter of its own (a counter would be a second truth, and the
- * notification that arrived from another device would never reach it).
+ * A frame on the live stream is a «read this again», not a payload: the hook
+ * subscribes with `useStreamEvent` and reloads the list on every frame. Since
+ * the panel is mounted only while it is open (`app/(tabs)/profile.jsx`), that
+ * *is* the reload while the panel is open, with no filter on the type — any
+ * notification can have changed the rows or the count. Focus and pull (the
+ * screen wires the pull into `ricarica`) stay as the fallback for when the
+ * stream is down, and the unread count comes from the same answer instead of a
+ * counter of its own (a counter would be a second truth, and the notification
+ * that arrived from another device would never reach it).
  *
  * It asks for **every page** of the inbox, up to `NOTIFICATIONS_MAX_PAGES`:
  * `pagination.totalPages` is the real total (G16 in `docs/backend-gaps.md`,
@@ -110,6 +115,10 @@ export function useNotifications({ token }) {
     }
   }, [token]);
 
+  // Every frame re-reads the list, whatever its type: the panel shows the whole
+  // inbox, so «did this one touch my rows?» is always yes.
+  useStreamEvent(carica);
+
   useFocusEffect(
     useCallback(() => {
       void carica();
@@ -187,8 +196,14 @@ export function useNotifications({ token }) {
   };
 }
 
-/** How often the profile badge asks again. */
-export const UNREAD_POLL_MS = 30000;
+/**
+ * How often the badge asks again while the stream is down.
+ *
+ * The poll is the fallback, not the channel: while `useStreamState().connected`
+ * the count rides the frames, and two minutes is late enough to be cheap and
+ * short enough that a broken stream degrades instead of going mute.
+ */
+export const UNREAD_POLL_MS = 120000;
 
 /** `console.warn` only where a developer can read it. */
 function logInSviluppo(messaggio, dettaglio) {
@@ -204,29 +219,47 @@ function logInSviluppo(messaggio, dettaglio) {
  * number, not the list, and a full page would be twenty rows the screen throws
  * away.
  *
- * It asks again every `UNREAD_POLL_MS` while the screen is focused, so a
- * notification that arrived from another device moves the row without the user
- * touching anything. The timer lives inside `useFocusEffect` (leaving the tab
- * clears it) and a tick does nothing while `AppState` is not `'active'`, so a
- * backgrounded app sends no request; coming back to the foreground reads at
- * once instead of waiting a whole interval. The inbox is not covered here — it
- * uses `useNotifications`, which reads on focus.
+ * Where the number comes from depends on the connection, one truth at a time: a
+ * frame on the live stream carries the count, so while `connected` the frame is
+ * what is drawn and the answer of the poll is kept aside unused; while the
+ * stream is down (or before any frame arrived) the answer of the poll is what is
+ * drawn. The poll's answer therefore never overwrites a newer frame, which is
+ * what makes a poll that left before a frame harmless.
  *
- * The count still comes from the response, never from a local counter: a
- * counter would be a second truth, and a notification that arrived from another
- * device would never reach it.
+ * The poll still runs every `UNREAD_POLL_MS` while the screen is focused, so a
+ * broken stream degrades instead of going mute. The timer lives inside
+ * `useFocusEffect` (leaving the tab clears it) and a tick does nothing while
+ * `AppState` is not `'active'`, so a backgrounded app sends no request; coming
+ * back to the foreground reads at once instead of waiting a whole interval. The
+ * inbox is not covered here — it uses `useNotifications`, which reads on focus
+ * and on every frame.
  *
- * A failure leaves the row neutral (`null`, not `0`) and warns in development
- * through `logInSviluppo` — no banner on the profile, the inbox itself reports
- * the error when it opens.
+ * Neither path keeps a local counter: a counter would be a second truth, and a
+ * notification that arrived from another device would never reach it. The value
+ * stays `null` until a frame or an answer arrives.
+ *
+ * A failed poll leaves the row neutral (`null`, not `0`) — unless the frames
+ * are already feeding it, in which case the last frame keeps the number — and
+ * warns in development through `logInSviluppo`: no banner on the profile, the
+ * inbox itself reports the error when it opens.
  *
  * `ricarica` exists because the profile's pull-to-refresh must move this number
  * too: a gesture that refreshes the profile and leaves the badge at the old
  * value is a gesture that looks broken.
  */
 export function useUnreadCount({ token }) {
-  const [nonLette, setNonLette] = useState(null);
+  // The frame's count, or `null` while the stream carries none: derived during
+  // render, so no effect has to copy it into state.
+  const { connected, unreadCount } = useStreamState();
+  const daFrame = connected && unreadCount !== null ? unreadCount : null;
+
+  // The answer of the last poll. It has a slot of its own and is drawn only
+  // while no frame answers: that is what keeps a poll that left before a frame
+  // from overwriting it.
+  const [daPoll, setDaPoll] = useState(null);
   const richiestaRef = useRef(0);
+
+  const nonLette = daFrame ?? daPoll;
 
   const carica = useCallback(async () => {
     if (!token) {
@@ -236,11 +269,11 @@ export function useUnreadCount({ token }) {
     try {
       const risposta = await getNotifications(token, { limit: 1 });
       if (seq === richiestaRef.current) {
-        setNonLette(risposta.nonLette);
+        setDaPoll(risposta.nonLette);
       }
     } catch (err) {
       if (seq === richiestaRef.current) {
-        setNonLette(null);
+        setDaPoll(null);
         logInSviluppo('[notifiche] conteggio non lette non riuscito', err?.message ?? err);
       }
     }

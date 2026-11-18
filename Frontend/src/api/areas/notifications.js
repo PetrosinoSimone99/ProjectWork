@@ -5,10 +5,12 @@ import { normalizeNotification, normalizeNotifications } from '../normalizers';
  * Notifications area: `GET /notifications`, `PATCH /notifications/{id}/read`,
  * `DELETE /notifications/{id}`.
  *
- * The backend has no push channel (no Mercure, no SSE): a client learns about a
- * new notification by asking again, which is why the screen re-requests `GET`
- * when it comes back to the foreground and when the user pulls, and reads
- * `nonLette` from the same answer instead of keeping a counter of its own.
+ * The list is a read, not the feed: the live row arrives as a frame of
+ * `GET /api/stream` (`api/stream.js`, `hooks/useEventStream.js`), with the same
+ * shape as one row here. The stream says *when* something changed; this call
+ * says *what*. So the client re-requests `GET` on a frame, when the screen comes
+ * back to the foreground and when the user pulls, and `nonLette` comes from the
+ * response, never from a local counter.
  *
  * The list endpoint rejects **every** query parameter it does not know with
  * `400`, so the only three that travel are the three documented ones:
