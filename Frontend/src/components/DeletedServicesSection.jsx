@@ -18,7 +18,10 @@ import { space, useTokens } from '@/theme/tokens';
  * section and appears in "Cosa offro" / "Cosa cerco" on the next reload.
  *
  * No state of its own: rows, the busy row and the callbacks come from the
- * screen, which is the only one that knows what is being restored.
+ * screen, which is the only one that knows what is being restored. `busyId`
+ * marks the row being restored and locks the others; `bloccato` is the
+ * screen-wide lock (a write in flight elsewhere), on top of it: two writes on
+ * the same lists must not overlap (C3).
  */
 export function DeletedServicesSection({
   services,
@@ -26,6 +29,7 @@ export function DeletedServicesSection({
   loading = false,
   error = null,
   busyId = null,
+  bloccato = false,
   onRetry,
   onRestore,
 }) {
@@ -118,7 +122,7 @@ export function DeletedServicesSection({
               variant="secondary"
               icon="refresh-outline"
               loading={Number(busyId) === Number(service.id)}
-              disabled={busyId !== null}
+              disabled={busyId !== null || bloccato}
               onPress={() => onRestore(service)}
               accessibilityLabel={`Ripristina ${isOffer ? "l'offerta" : 'la ricerca'}: ${
                 service.mansione

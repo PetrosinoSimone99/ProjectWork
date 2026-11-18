@@ -6,6 +6,147 @@ documents/code touched.
 
 ---
 
+## 2026-11-18 — Backend sync from `origin/main`: dictionaries, queue closing, one match per queue
+
+`git fetch origin` from `andrea-frontend`: **nothing foreign on our own branch**
+(13 local commits, `origin/andrea-frontend` is their ancestor, no force-push).
+`origin/main` moved by three commits from `yrl26`, none of them touching a
+controller, a route, a payload, the schema or `compose.yaml`:
+
+- `e83e503` *commit dizionari* — ten new keyword dictionaries in
+  `Backend/src/Dictionaries/` (`Bricolage`, `Cucina`, `Educazione`, `Fitness`,
+  `Giardinaggio`, `Informatica`, `Lingue`, `Musica`, `Pulizie`, `Sport`) and a
+  reworked `Programmazione.json`: platform split into `android`/`ios`, `c#`
+  loses its `dotnet`/`.net` aliases, `siti` reordered.
+- `256b985` *minor fix* — `AgreementRepository::findAllAgreements` uses `findBy`,
+  so the end-date task stops walking every agreement (the criteria handed to
+  `findAll` were silently ignored); `CloseQueueUseCase::execute` drops its
+  unused `User` argument; `AgreementEndDateChecker` now closes the queues of a
+  queue-born agreement when it completes.
+- `089cc78` *fix su queuehandler…* — a `break` after the first successful
+  match.
+
+Also pruned locally: the five `origin/yrl26/*` branches, deleted upstream.
+
+### What it changes on our side
+
+- **Contract: nothing.** No route, no field, no status value, no dump, no
+  `compose.yaml`. Nothing to re-seed, nothing to re-learn before coding.
+- **Matchmaking is still dead, for a different reason** (`backend-gaps.md` G28).
+  The dictionaries are named after eleven *macro areas*; the handler still opens
+  `Dictionaries/<category description>.json` with the fine-grained category of
+  the queue's service. Only `Fitness` and `Giardinaggio` exist on both sides,
+  the two queues the demo seed leaves `OPEN` are in `Cucito` and
+  `Scrittura e revisione`, so `array_keys(null)` still throws and no
+  `agreements` row appears. The match tab keeps showing queues, never a match.
+- **One handled queue now creates one agreement.** The `break` removes the
+  repeated pairing the maintainer named in the commit title, so a queue can no
+  longer spawn several agreements and several `MATCH_CREATED` pairs in one run.
+- **A queue-born exchange closes its queue on both exits.** Cancelling already
+  did; completing does too after `256b985`. Both write `CLOSED`, which
+  `GET /get-queues` filters out, so an `IN_PROGRESS` queue no longer lingers
+  after its exchange ends — the state the app already renders, so no frontend
+  change follows.
+- **No spurious completions.** With `findBy`, the task sees `ACCEPTED`
+  agreements only; before, a cancelled agreement whose sheet had a passed end
+  date still got `agreement_completed` notifications and completed rows.
+- **Scheduler still unconsumed** (`G12`): the `COMPLETED` write, the queue
+  closing and the +1 credit all live in `AgreementEndDateChecker`, which only
+  runs under a `scheduler_default` worker the local stack does not start. Every
+  line above is read from source, not seen in a local run.
+
+### What stays to implement
+
+The sync neither unblocks nor blocks the open frontend work. Fourth and last
+wiring cycle (`docs/briefs/wiring-audit-2026-11-17/audit.md` §3.4) is **C1**, the
+notification `agreementId` the row drops: still no `GET /agreement/{id}`, so the
+parameter has to be consumed by the list that already exists. The one thing
+worth asking `yrl26` is G28's one-line fix (a tolerant lookup, where a missing
+`Dictionaries/<category description>.json` means "no keywords", or a file per
+category description); without it the match tab cannot be demoed end to end.
+
+### Not merged yet
+
+`origin/main` is **not** merged into `andrea-frontend` in this session: the
+project rule is merge (never rebase) and never automatically. The delta is three
+commits entirely inside `Backend/`, so `git merge origin/main` touches no
+frontend file.
+
+### Touched
+
+`docs/changelog.md`, `docs/backend-gaps.md` (G12, G28), `docs/api.md`
+(agreement completion, queue matching, credit table). No source file.
+
+---
+
+## 2026-11-18 — Entry form integrity (wiring audit, cycle 3)
+
+Third of the four cycles in `docs/briefs/wiring-audit-2026-11-17/audit.md`
+(F6, C3, C6). Contract and step list:
+`docs/briefs/wiring-audit-2026-11-17/plan.md`.
+
+- **F6 — an edit no longer drops the categories it does not show.** `PATCH`
+  replaces the whole `categoryIds` list and the form edits one category, so a
+  service created elsewhere with two categories lost the second one on its
+  first save. `toUpdateBody` resends the stored list while the visible category
+  still equals its first id; picking another category stays a deliberate
+  replacement (`[idCategoria]`). Preserve-only was chosen over a multi-select
+  UI: whether one exchange really sits in several categories is a product
+  decision, and nothing in the app displays a second one yet — the card still
+  names one category, and that is written in the plan's exclusions.
+- **C3 — one write at a time, across the whole screen.**
+  `offer-and-request.jsx` derives one `scritturaInCorso` (save, status change,
+  delete, restore) and passes it down. Locked while it is true: category field,
+  mansione, remote checkbox, both location pickers, «Salva», «Annulla»,
+  «Aggiungi» and the three actions of every card. `salva` and `eseguiAzione`
+  also guard where the request actually leaves. The restore buttons of
+  «Eliminati» follow the same lock on top of their own per-row `busyId`:
+  review found that a restore started while a save was in flight was the one
+  remaining way to get two writes on the same lists.
+- **C6 — suspend and delete stop depending on `GET /categories`.**
+  `EntryCard` had a single `disabilitato` for all three actions; it now has
+  `modificaDisabilitata` (categories missing: «Modifica» only) and
+  `azioniDisabilitate` (a write in flight: all three). A failing categories
+  request therefore leaves «Sospendi/Ripubblica» and «Elimina» usable, and the
+  helper line under the heading ("pubblicare e modificare sono disabilitati")
+  is still exactly true.
+- **D5 and D7 closed** — the first for free, since `categoryIds` is read again;
+  the second by deriving `form.voce.localita` from `provincia`/`comune` at
+  every change instead of leaving the value read at form open. **D6 stays
+  `N/A`**: a registration-only shape for `nuovaVoce` would change the contract
+  shared with «Offro e cerco» for no visible gain, and the `motivoObbligo` half
+  of it died with the «no trash» change.
+
+Known limit, left alone on purpose: the lock is behavioural on the mansione
+field — `AppInput` has no disabled visual state anywhere in the app
+(`edit-profile` uses `editable={!saving}` the same way), so the field stops
+accepting text without dimming, while the category field and the checkbox do
+dim. Adding the visual state is a change to a shared component, not part of
+this cycle.
+
+The `categoryIds` that F6 resends travel exactly as the server sent them:
+duplicates dropped, ids the loaded catalog no longer lists kept. Pruning them
+against a catalog that may be partial or stale would delete categories the user
+never touched, which is the same silent loss F6 exists to stop.
+
+Gate green: `npx expo lint` 0, `npx tsc --noEmit` 0, `npx jest` 390 passed
+(38 suites, two of them new).
+
+Touched: `Frontend/src/api/areas/services.js`,
+`Frontend/src/api/__tests__/services.test.js` (new),
+`Frontend/src/components/CategorySelector.jsx`,
+`Frontend/src/components/DeletedServicesSection.jsx`,
+`Frontend/src/components/EntryCard.jsx`,
+`Frontend/src/components/EntryEditor.jsx`,
+`Frontend/src/components/EntryForm.jsx`,
+`Frontend/src/components/PublicationsSection.jsx`,
+`Frontend/src/components/__tests__/EntryCard.test.js` (new),
+`Frontend/src/components/__tests__/EntryEditor.test.js` (new),
+`Frontend/src/app/(tabs)/offer-and-request.jsx`,
+`docs/briefs/wiring-audit-2026-11-17/{plan,audit}.md`, this file.
+
+---
+
 ## 2026-11-18 — Staff lists reachable (wiring audit, cycle 2)
 
 Second of the four cycles in `docs/briefs/wiring-audit-2026-11-17/audit.md`

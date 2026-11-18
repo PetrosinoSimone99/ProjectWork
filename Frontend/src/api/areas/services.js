@@ -112,16 +112,23 @@ export function toCreateBody(entry) {
  * is while it still equals the first id of `entry.categoryIds`; picking another
  * category is a deliberate replacement, not a merge (F6). `location` is always
  * present (`null` clears it), and `id`/`type`/`createdAt` are not sent: a field
- * the contract does not allow makes the backend answer `400`.
+ * the contract does not allow makes the backend answer `400`. Duplicates are
+ * dropped; an id the loaded catalog no longer lists is kept as the server sent
+ * it, because pruning against a catalog that may be partial or stale would
+ * delete categories the user never touched.
  */
 export function toUpdateBody(entry) {
   const categoryId = toIntegerOrNull(entry?.idCategoria);
   if (categoryId === null || categoryId < 1) {
     return null;
   }
-  const storedCategoryIds = Array.isArray(entry?.categoryIds)
-    ? entry.categoryIds.map((id) => toIntegerOrNull(id)).filter((id) => id !== null)
-    : [];
+  const storedCategoryIds = [
+    ...new Set(
+      (Array.isArray(entry?.categoryIds) ? entry.categoryIds : [])
+        .map((id) => toIntegerOrNull(id))
+        .filter((id) => id !== null),
+    ),
+  ];
   return {
     description: String(entry?.mansione ?? '').trim(),
     categoryIds:

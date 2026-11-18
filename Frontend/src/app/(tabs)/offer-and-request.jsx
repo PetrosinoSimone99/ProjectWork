@@ -301,8 +301,15 @@ export default function OfferAndRequestScreen() {
       return { ...corrente, voce: { ...voce, localita: localitaDaVoce(voce) } };
     });
     // L'errore del campo sparisce appena lo si corregge: resterebbe rosso
-    // proprio mentre l'utente sta sistemando il dato.
-    setFieldErrors((correnti) => senzaChiave(correnti, campo));
+    // proprio mentre l'utente sta sistemando il dato. La località ha due campi
+    // per un solo errore (`validaVoce` lo scrive sotto `localita`), quindi
+    // correggere la coppia deve cancellare anche quello.
+    setFieldErrors((correnti) => {
+      const senzaCampo = senzaChiave(correnti, campo);
+      return campo === 'provincia' || campo === 'comune'
+        ? senzaChiave(senzaCampo, 'localita')
+        : senzaCampo;
+    });
   }
 
   function annullaForm() {
@@ -404,7 +411,9 @@ export default function OfferAndRequestScreen() {
 
   /** "Ripristina" of the deleted section: bring it back, then reload both lists. */
   async function ripristina(voce) {
-    if (!token || !utente) {
+    // Il ripristino è una scrittura come le altre: parte solo se nessun'altra
+    // è in volo, e i suoi bottoni lo sanno già perché ricevono lo stesso lock.
+    if (!token || !utente || scritturaInCorso) {
       return;
     }
     setRipristinoInCorso(voce.id);
@@ -512,6 +521,7 @@ export default function OfferAndRequestScreen() {
         loading={caricamentoEliminate}
         error={erroreEliminate}
         busyId={ripristinoInCorso}
+        bloccato={scritturaInCorso}
         onRetry={() => void caricaEliminate()}
         onRestore={(voce) => void ripristina(voce)}
       />

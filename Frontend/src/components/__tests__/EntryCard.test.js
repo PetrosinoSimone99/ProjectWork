@@ -4,17 +4,17 @@ import { AppButton } from '../AppButton';
 import { EntryCard } from '../EntryCard';
 
 /**
- * I due motivi dietro i due interruttori (audit C6).
+ * The two reasons behind the two switches (audit C6).
  *
- * `modificaDisabilitata` nasce dalle categorie mancanti: senza di esse non si
- * pubblica né si modifica, ma «Sospendi» ed «Elimina» non le leggono e devono
- * restare disponibili. `azioniDisabilitate` nasce da una scrittura in volo:
- * lì si spengono tutte e tre. Il test pinna la promessa sul controllo
- * renderizzato, non sulla formula che la calcola.
+ * `modificaDisabilitata` comes from the missing categories: without them nothing
+ * is published or modified, but «Sospendi» and «Elimina» do not read them and
+ * must stay available. `azioniDisabilitate` comes from a write in flight: there
+ * all three go off. The test pins the promise on the rendered control, not on
+ * the formula that computes it.
  */
-// Le icone caricano il font in modo asincrono e aggiornano stato fuori da ogni
-// `act`: qui non sono sotto test, e il loro ciclo di vita sporcherebbe l'output
-// con un avviso che non riguarda la card.
+// Icons load their font asynchronously and set state outside any `act`: they are
+// not under test here, and their lifecycle would only add a warning that does
+// not concern the card.
 jest.mock('../AppIcon', () => ({
   AppIcon: () => null,
 }));
@@ -49,7 +49,7 @@ function render(extra = {}) {
   return renderer;
 }
 
-/** L'azione con questa etichetta, come la incontra chi legge: un bottone, uno stato. */
+/** The action with this label, as a reader meets it: one button, one state. */
 function pulsante(renderer, etichetta) {
   const nodo = renderer.root
     .findAllByType(AppButton)

@@ -40,8 +40,11 @@ keep compiling untouched.
    resends `entry.categoryIds` when the form's `idCategoria` still equals the row's first category
    (the user did not touch the field), and sends `[idCategoria]` otherwise. Picking a different
    category is a deliberate replacement of the whole list, and the card still displays one category.
-   Multi-select is a product decision (does one exchange really sit in N categories? what does the
-   home ranking do then?) that this cycle must not take on the way past.
+   The list travels exactly as the server sent it — duplicates dropped, ids the loaded catalog no
+   longer lists kept — because pruning it against a catalog that may be partial or stale would
+   delete categories the user never touched. Multi-select is a product decision (does one exchange
+   really sit in N categories? what does the home ranking do then?) that this cycle must not take on
+   the way past.
 2. **C3 is one lock for the whole screen.** A single derived value,
    `scritturaInCorso = salvataggio || azioneInCorso !== null || ripristinoInCorso !== null`, is
    computed in `offer-and-request.jsx` and passed down as `scritturaInCorso` to both sections and
@@ -62,8 +65,9 @@ keep compiling untouched.
    «no trash» change.
 5. **Pinned prop contract for the lanes** (no lane renegotiates these names):
    `CategorySelector.disabled = false`, `EntryEditor.bloccato = false`, `EntryForm.bloccato = false`,
-   `PublicationsSection.scritturaInCorso = null`, `EntryCard.modificaDisabilitata = false` and
-   `EntryCard.azioniDisabilitate = false`.
+   `PublicationsSection.scritturaInCorso = false` (boolean: `true` while a write is in flight),
+   `EntryCard.modificaDisabilitata = false` and `EntryCard.azioniDisabilitate = false`,
+   `DeletedServicesSection.bloccato = false`.
 
 **Success criteria.** (a) `updateService` on a row with `categoryIds: [3, 5]` whose selection is
 still `3` sends `[3, 5]`; with the selection changed to `7` it sends `[7]`. (b) While a save is in
@@ -79,14 +83,14 @@ F5, C1.
 ## Steps
 
 - 1. Commit the pending «no trash / no №1» work as the cycle's base | files: `Frontend/src/app/(auth)/register.jsx`, `Frontend/src/components/EntriesSection.jsx`, `Frontend/src/components/EntryEditor.jsx`, `Frontend/src/components/EntryForm.jsx`, `docs/ux.md`, `docs/changelog.md` | done: gate green and the commit exists on `andrea-frontend` | Stato: DONE
-- 2. Commit this contract and plan before any child runs | files: `docs/briefs/wiring-audit-2026-11-17/plan.md` | done: `git status --porcelain` empty and the plan is on `andrea-frontend` | Stato: TODO
-- 3. F6: keep the untouched category list in the PATCH body | files: `Frontend/src/api/areas/services.js`, `Frontend/src/api/__tests__/services.test.js` | done: `toUpdateBody` with `{idCategoria: 3, categoryIds: [3, 5]}` returns `categoryIds: [3, 5]`, with `idCategoria: 7` returns `[7]`, and `updateService` sends that body through `apiFetch`; test green | Stato: TODO
-- 4. C3: `CategorySelector` accepts `disabled`, `EntryEditor` accepts `bloccato` and forwards it to category field, mansione, remote checkbox | files: `Frontend/src/components/CategorySelector.jsx`, `Frontend/src/components/EntryEditor.jsx` | done: default `false` leaves both registration and `EntryForm` behaviour unchanged; flipped, the selector is not pressable, the mansione is not editable and the checkbox is disabled | Stato: TODO
-- 5. C6: the card has two reasons, the section passes both | files: `Frontend/src/components/EntryCard.jsx`, `Frontend/src/components/PublicationsSection.jsx` | done: with `modificaDisabilitata` only "Modifica" is disabled; with `azioniDisabilitate` all three are; `PublicationsSection` passes `scritturaInCorso` to `EntryForm` as `bloccato`, to every card as `azioniDisabilitate`, and to "Aggiungi" | Stato: TODO
-- 6. C3: `EntryForm` accepts `bloccato` and locks Salva, Annulla, both pickers | files: `Frontend/src/components/EntryForm.jsx` | done: with `bloccato` every control in the form is non-interactive and "Salva" carries `loading={salvataggio}` | Stato: TODO
-- 7. Tests for the two locks | files: `Frontend/src/components/__tests__/EntryEditor.test.js`, `Frontend/src/components/__tests__/EntryCard.test.js` | done: `EntryEditor` with `bloccato` renders a disabled category field, a non-editable input and a disabled checkbox; `EntryCard` announces disabled exactly on the buttons the two props name | Stato: TODO
-- 8. Wire the single lock and close D7 in the screen | files: `Frontend/src/app/(tabs)/offer-and-request.jsx` | done: `scritturaInCorso` computed once and passed to both sections; `form.voce.localita` equals `localitaDaVoce(voce)` after every province/comune change; `grep -c scritturaInCorso` proves one source | Stato: TODO
-- 9. Close the cycle: changelog, audit row 3, docs touched | files: `docs/changelog.md`, `docs/briefs/wiring-audit-2026-11-17/audit.md` | done: row 3 reads `DONE`, changelog entry names F6/C3/C6 and the two closed `D` items, full gate green in the same commit | Stato: TODO
+- 2. Commit this contract and plan before any child runs | files: `docs/briefs/wiring-audit-2026-11-17/plan.md` | done: `git status --porcelain` empty and the plan is on `andrea-frontend` | Stato: DONE
+- 3. F6: keep the untouched category list in the PATCH body | files: `Frontend/src/api/areas/services.js`, `Frontend/src/api/__tests__/services.test.js` | done: `toUpdateBody` with `{idCategoria: 3, categoryIds: [3, 5]}` returns `categoryIds: [3, 5]`, with `idCategoria: 7` returns `[7]`, and `updateService` sends that body through `apiFetch`; test green | Stato: DONE
+- 4. C3: `CategorySelector` accepts `disabled`, `EntryEditor` accepts `bloccato` and forwards it to category field, mansione, remote checkbox | files: `Frontend/src/components/CategorySelector.jsx`, `Frontend/src/components/EntryEditor.jsx` | done: default `false` leaves both registration and `EntryForm` behaviour unchanged; flipped, the selector is not pressable, the mansione is not editable and the checkbox is disabled | Stato: DONE
+- 5. C6: the card has two reasons, the section passes both | files: `Frontend/src/components/EntryCard.jsx`, `Frontend/src/components/PublicationsSection.jsx` | done: with `modificaDisabilitata` only "Modifica" is disabled; with `azioniDisabilitate` all three are; `PublicationsSection` passes `scritturaInCorso` to `EntryForm` as `bloccato`, to every card as `azioniDisabilitate`, and to "Aggiungi" | Stato: DONE
+- 6. C3: `EntryForm` accepts `bloccato` and locks Salva, Annulla, both pickers | files: `Frontend/src/components/EntryForm.jsx` | done: with `bloccato` every control in the form is non-interactive and "Salva" carries `loading={salvataggio}` | Stato: DONE
+- 7. Tests for the two locks | files: `Frontend/src/components/__tests__/EntryEditor.test.js`, `Frontend/src/components/__tests__/EntryCard.test.js` | done: `EntryEditor` with `bloccato` renders a disabled category field, a non-editable input and a disabled checkbox; `EntryCard` announces disabled exactly on the buttons the two props name | Stato: DONE
+- 8. Wire the single lock and close D7 in the screen | files: `Frontend/src/app/(tabs)/offer-and-request.jsx` | done: `scritturaInCorso` computed once and passed to both sections; `form.voce.localita` equals `localitaDaVoce(voce)` after every province/comune change; `grep -c scritturaInCorso` proves one source | Stato: DONE
+- 9. Close the cycle: changelog, audit row 3, docs touched | files: `docs/changelog.md`, `docs/briefs/wiring-audit-2026-11-17/audit.md` | done: row 3 reads `DONE`, changelog entry names F6/C3/C6 and the two closed `D` items, full gate green in the same commit | Stato: DONE
 
 ## Lanes
 

@@ -175,7 +175,7 @@ place that says which cycles are already done. A cycle whose findings turned out
 | --- | --- | --- | --- | --- |
 | 1 — conformance and guards | M | F1, F2, C2, D1-D4, D8-D10 | §3.1 | DONE |
 | 2 — staff lists reachable | M | F5, C5, C7 | §3.2 | DONE |
-| 3 — entry form integrity | M | F6, C3, C6 (optional D5-D7) | §3.3 | TODO |
+| 3 — entry form integrity | M | F6, C3, C6 (D5, D7 closed; D6 N/A) | §3.3 | DONE |
 | 4 — notification deep link | S/M | C1 | §3.4 | TODO |
 
 ### 3.1 Cycle 1 — conformance and guards (class M, ~8 files)
