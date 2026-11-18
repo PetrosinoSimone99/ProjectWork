@@ -14,10 +14,13 @@ import { normalizeAgreement, normalizeAgreements } from '../normalizers';
 const SCHEDA_PROVIDER = {
   providerUsername: 'mario.rossi',
   serviceDescription: 'Riparazione biciclette',
+  serviceType: 'OFFER',
   beneficiaryUsername: 'luca.ferrari',
   fromRemote: false,
   startDate: '2026-12-01T09:00:00+00:00',
   endDate: '2026-12-05T18:00:00+00:00',
+  notes: 'Porto io gli attrezzi.',
+  sentAt: '2026-11-10T08:00:00+00:00',
   beneficiaryAccepted: null,
   status: 'UNCOMPILED',
 };
@@ -53,10 +56,13 @@ describe('normalizeAgreement', () => {
     expect(scheda).toMatchObject({
       username: 'mario.rossi',
       descrizione: 'Riparazione biciclette',
+      tipoServizio: 'OFFER',
       beneficiario: 'luca.ferrari',
       daRemoto: false,
       inizio: '2026-12-01T09:00:00+00:00',
       fine: '2026-12-05T18:00:00+00:00',
+      note: 'Porto io gli attrezzi.',
+      inviataIl: '2026-11-10T08:00:00+00:00',
       stato: 'UNCOMPILED',
     });
     expect(scheda.beneficiarioAccettato).toBeNull();
@@ -94,11 +100,11 @@ describe('normalizeAgreements', () => {
  * The two sheet calls of `api/areas/agreements.js`.
  *
  * The route contract is narrow and worth pinning: `send-agreement-details`
- * reads exactly `{agreementId, fromRemote, startDate, endDate}` (a participant
- * id in the body changes nothing, `docs/api.md`), and
- * `accept-agreement-details/{id}` takes the agreement in the path and no body.
- * The three statuses each route can answer are mapped to Italian here, so no
- * screen translates a status.
+ * reads exactly `{agreementId, notes}` — `startDate` is written by the backend
+ * and `fromRemote` is copied from the caller's own service, so neither travels
+ * from here — and `accept-agreement-details/{id}` takes the agreement in the
+ * path and no body. The statuses each route can answer are mapped to Italian
+ * here, so no screen translates a status.
  */
 const TOKEN = 'test-token';
 
@@ -116,55 +122,58 @@ describe('sendAgreementSheet', () => {
     global.fetch = jest.fn().mockResolvedValue(jsonResponse(200, { success: { code: 200 } }));
   });
 
-  it('posts the four fields the route reads, as date-only strings', async () => {
-    await sendAgreementSheet(TOKEN, {
-      agreementId: 9,
-      fromRemote: true,
-      startDate: '2026-12-01',
-      endDate: '2026-12-05',
-    });
+  it('posts the agreement id and the note, and nothing the backend writes itself', async () => {
+    await sendAgreementSheet(TOKEN, { agreementId: 9, notes: 'Ci vediamo in piazza alle 10.' });
 
     const [url, options] = global.fetch.mock.calls[0];
     expect(String(url).endsWith('/send-agreement-details')).toBe(true);
     expect(options.method).toBe('POST');
     expect(JSON.parse(options.body)).toEqual({
       agreementId: 9,
-      fromRemote: true,
-      startDate: '2026-12-01',
-      endDate: '2026-12-05',
+      notes: 'Ci vediamo in piazza alle 10.',
     });
   });
 
-  it('turns a 400 into the sentence about the two dates', async () => {
+  it('turns a 400 into the sentence about the note', async () => {
     global.fetch.mockResolvedValue(jsonResponse(400, { error: { code: 400 } }));
 
-    await expect(
-      sendAgreementSheet(TOKEN, {
-        agreementId: 9,
-        fromRemote: false,
-        startDate: '2026-12-05',
-        endDate: '2026-12-01',
-      }),
-    ).rejects.toMatchObject({
+    await expect(sendAgreementSheet(TOKEN, { agreementId: 9, notes: '' })).rejects.toMatchObject({
       status: 400,
-      message: "Controlla le date: la fine deve venire dopo l'inizio.",
+      message: 'Scrivi la descrizione dell’accordo: da 1 a 500 caratteri.',
     });
   });
 
-  it('turns a 404 into the sentence about an agreement or sheet that is gone', async () => {
+  it('turns a 401 into the sentence about the missing session', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(401, { error: { code: 401 } }));
+
+    await expect(sendAgreementSheet(TOKEN, { agreementId: 9, notes: 'Ciao' })).rejects.toMatchObject(
+      {
+        status: 401,
+        message: 'Devi accedere per inviare la scheda.',
+      },
+    );
+  });
+
+  it('turns a 404 into the sentence about an agreement that is gone', async () => {
     global.fetch.mockResolvedValue(jsonResponse(404, { error: { code: 404 } }));
 
-    await expect(
-      sendAgreementSheet(TOKEN, {
-        agreementId: 9,
-        fromRemote: false,
-        startDate: '2026-12-01',
-        endDate: '2026-12-05',
-      }),
-    ).rejects.toMatchObject({
-      status: 404,
-      message: 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.',
-    });
+    await expect(sendAgreementSheet(TOKEN, { agreementId: 9, notes: 'Ciao' })).rejects.toMatchObject(
+      {
+        status: 404,
+        message: 'Non trovo più questo accordo: potrebbe essere cambiato.',
+      },
+    );
+  });
+
+  it('turns the 409 of a locked round into the sentence about the other sheet', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(409, { error: { code: 409 } }));
+
+    await expect(sendAgreementSheet(TOKEN, { agreementId: 9, notes: 'Ciao' })).rejects.toMatchObject(
+      {
+        status: 409,
+        message: 'L’altra persona ha già inviato la sua scheda: tocca a te accettarla o rifiutarla.',
+      },
+    );
   });
 });
 

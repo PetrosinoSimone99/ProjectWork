@@ -2,108 +2,82 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
-import { AppCheckbox } from './AppCheckbox';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { ConfirmModal } from './ConfirmModal';
-import { DateField } from './DateField';
-import { formatIsoDate } from '@/services/dates';
-import { dataDaInput, isSheetCompiled, periodoValido } from '@/services/agreements';
-import { etichettaModalita } from '@/services/offer-request';
+import { formatIsoDateTimeNumeric } from '@/services/dates';
+import { isSheetCompiled } from '@/services/agreements';
 import { radius, space, useTokens } from '@/theme/tokens';
 
-/** `periodoValido` still owns the rule: two real days, the end after the start. */
-const ERRORE_DATE = "Scegli le due date, con la fine dopo l'inizio.";
-const ERRORE_GENERICO = 'Non è stato possibile inviare la scheda. Riprova.';
+/** The line the sheet prints where a timestamp has not been written yet. */
+const NON_ANCORA = '—';
+
 const ERRORE_CONFERMA = 'Non è stato possibile confermare la scheda. Riprova.';
+const ERRORE_RIFIUTO = 'Non è stato possibile rifiutare la scheda. Riprova.';
+
+/** Il tipo di servizio della riga, con le parole del prodotto. */
+const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Richiesta' };
 
 /**
- * One of the two delivery-sheet rows of an agreement: the one I fill and the
- * one I confirm.
+ * The delivery sheet as the reader meets it once it has left the form: two
+ * timestamps the backend wrote, the sender's own service, the free description
+ * the sender typed, and — for the recipient — the two decisions that are left.
  *
- * The backend creates one row per participant when a proposal is accepted
- * (`createBlankDetails` on both sides), and each row names who fills it
- * (`username`) and who confirms it (`beneficiario`), so the card can hand each
- * row the action it actually accepts — no participant id is guessed anywhere
- * here (`docs/backend-gaps.md` G6).
+ * Everything on the sheet belongs to one participant's row: `inizio` is the
+ * moment the proposal was accepted, `fine` is written when the recipient
+ * confirms, `tipoServizio`/`descrizione` come from the sender's published
+ * service, `note` is the only field a person writes (`send-agreement-details`
+ * takes `{agreementId, notes}` and nothing else). Both timestamps are shown
+ * `GG/MM/AAAA HH:MM` as read-only facts; a missing `fine` prints `—` instead of
+ * a date nobody wrote.
  *
- * Three shapes, decided by the caller (`azione`):
+ * `azione` decides the only interactive shape left:
  *
- * - `compila`: the form. Two date fields, a remote checkbox, and the same rule
- *   the backend enforces (the end must come after the start) checked before
- *   the call, so a typo does not cost a round trip. Each day is entered with
- *   the platform's own picker (`DateField`) and shown as `GG/MM/AAAA`, while
- *   the state and the wire keep `YYYY-MM-DD`: `send-agreement-details` parses
- *   that string, and inventing a time or a timezone would be a datum the
- *   reader did not choose.
- * - `conferma`: the other side's row, read-only, with the confirmation behind a
- *   `ConfirmModal` (it is final: the route answers `500` on a second attempt).
- * - `null`: read-only, for a row whose action belongs to the other person or to
- *   a later moment.
+ * - `conferma`: the row the viewer has to confirm, behind a `ConfirmModal`
+ *   (confirmation writes the end date and closes the exchange) with the refusal
+ *   next to it — the first sender locked the round, so accepting or refusing is
+ *   all that is left, and the refusal ends the exchange;
+ * - `null`: read-only, for the viewer's own sent sheet and for a row whose
+ *   action belongs to the other person or to a later moment.
  *
- * Errors stay on the component and never reach a banner: the row is what the
- * reader acted on. A success is shown by the screen reloading the list, which
- * turns the form into the compiled row.
+ * A sheet that does not exist draws nothing at all: an empty card would claim a
+ * step that has not happened. Errors stay on the component and never reach a
+ * banner: the row is what the reader acted on.
  */
 export function AgreementSheet({
   titolo,
   scheda,
   azione = null,
-  onInvia = null,
   onConferma = null,
+  onRifiuta = null,
   occupata = false,
-  onInVolo = null,
 }) {
   const t = useTokens();
-  const [inizio, setInizio] = useState(formatIsoDate(scheda?.inizio) ? scheda.inizio.slice(0, 10) : '');
-  const [fine, setFine] = useState(formatIsoDate(scheda?.fine) ? scheda.fine.slice(0, 10) : '');
-  const [daRemoto, setDaRemoto] = useState(scheda?.daRemoto === true);
   const [errore, setErrore] = useState(null);
   const [inVolo, setInVolo] = useState(false);
   const [confermaAperta, setConfermaAperta] = useState(false);
+  const [rifiutoAperto, setRifiutoAperto] = useState(false);
 
   if (!scheda) {
     return null;
   }
 
   const compilata = isSheetCompiled(scheda);
+  const tipo = TIPI_SERVIZIO[scheda.tipoServizio] ?? null;
 
-  async function invia() {
-    if (inVolo || occupata) {
-      return;
-    }
-    if (!periodoValido(inizio, fine)) {
-      setErrore(ERRORE_DATE);
-      return;
-    }
-    setErrore(null);
-    setInVolo(true);
-    onInVolo?.(true);
-    try {
-      await onInvia({ fromRemote: daRemoto, startDate: dataDaInput(inizio), endDate: dataDaInput(fine) });
-    } catch (err) {
-      setErrore(err instanceof ApiError ? err.message : ERRORE_GENERICO);
-    } finally {
-      setInVolo(false);
-      onInVolo?.(false);
-    }
-  }
-
-  async function conferma() {
-    setConfermaAperta(false);
+  async function esegui(chiudi, call, messaggioGenerico) {
+    chiudi(false);
     if (inVolo || occupata) {
       return;
     }
     setErrore(null);
     setInVolo(true);
-    onInVolo?.(true);
     try {
-      await onConferma();
+      await call();
     } catch (err) {
-      setErrore(err instanceof ApiError ? err.message : ERRORE_CONFERMA);
+      setErrore(err instanceof ApiError ? err.message : messaggioGenerico);
     } finally {
       setInVolo(false);
-      onInVolo?.(false);
     }
   }
 
@@ -118,96 +92,66 @@ export function AgreementSheet({
         backgroundColor: t.background,
       }}
     >
-      <AppText variant="small" style={{ fontWeight: '600' }}>
-        {titolo}
-      </AppText>
+      {titolo ? (
+        <AppText variant="small" style={{ fontWeight: '600' }}>
+          {titolo}
+        </AppText>
+      ) : null}
+
+      <View style={{ gap: space.xs }}>
+        <RigaFatto etichetta="Inizio" valore={formatIsoDateTimeNumeric(scheda.inizio) ?? NON_ANCORA} />
+        <RigaFatto etichetta="Fine" valore={formatIsoDateTimeNumeric(scheda.fine) ?? NON_ANCORA} />
+      </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="grid-outline" size={14} color={t.textSecondary} />
-        <AppText variant="small">{scheda.descrizione}</AppText>
+        <AppText variant="small">
+          {tipo === null ? scheda.descrizione : `${tipo}: ${scheda.descrizione}`}
+        </AppText>
       </View>
 
-      {azione === 'compila' ? (
-        <View style={{ gap: space.sm }}>
-          <DateField etichetta="Inizio" valore={inizio} onCambia={setInizio} disabled={inVolo} />
-          <DateField etichetta="Fine" valore={fine} onCambia={setFine} disabled={inVolo} />
-          <AppCheckbox label="Si svolge da remoto" value={daRemoto} onChange={setDaRemoto} disabled={inVolo} />
+      {scheda.note !== null ? (
+        <View style={{ gap: space.xs }}>
+          <AppText variant="small" tone="secondary">
+            Descrizione
+          </AppText>
+          <AppText variant="small">{scheda.note}</AppText>
+        </View>
+      ) : null}
+
+      {azione === 'conferma' ? (
+        <>
+          <AppText variant="small" tone="secondary">
+            Confermando, lo scambio si chiude alle date indicate e non si può ritirare.
+          </AppText>
           {errore ? (
             <AppText variant="label" tone="danger">
               {errore}
             </AppText>
           ) : null}
           <AppButton
-            label={inVolo ? 'Invio…' : 'Invia la scheda'}
-            icon="document-text-outline"
-            onPress={() => void invia()}
+            label={inVolo ? 'Confermo…' : 'Conferma la scheda'}
+            icon="checkmark-outline"
+            onPress={() => setConfermaAperta(true)}
             disabled={inVolo || occupata}
           />
-        </View>
+          {onRifiuta !== null ? (
+            <AppButton
+              label="Rifiuta la scheda"
+              variant="danger"
+              icon="close-circle-outline"
+              onPress={() => setRifiutoAperto(true)}
+              disabled={inVolo || occupata}
+            />
+          ) : null}
+        </>
       ) : (
         <View style={{ gap: space.xs }}>
-          {compilata ? (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <AppIcon
-                  name={scheda.daRemoto === true ? 'videocam-outline' : 'people-outline'}
-                  size={14}
-                  color={t.textSecondary}
-                />
-                <AppText variant="small" tone="secondary">
-                  {`Si svolge ${etichettaModalita(scheda.daRemoto === true)}`}
-                </AppText>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <AppIcon name="calendar-outline" size={14} color={t.textSecondary} />
-                <AppText variant="small" tone="secondary">
-                  {descriviPeriodo(scheda.fine)}
-                </AppText>
-              </View>
-              {/* Only the end date is shown on purpose: the schema resets
-                  `start_date` on every update, so the start the reader set is
-                  not what the API returns (backend-gaps.md G20). Claiming it
-                  would show a date nobody chose. */}
-              <AppText variant="small" tone="secondary">
-                L&apos;inizio non è disponibile: il server non lo conserva (limite noto).
-              </AppText>
-            </>
-          ) : (
+          {compilata ? null : (
             <AppText variant="small" tone="secondary">
               Scheda non ancora compilata.
             </AppText>
           )}
-
-          {azione === 'conferma' ? (
-            <>
-              <AppText variant="small" tone="secondary">
-                Confermando, l&apos;altra persona può dare lo scambio per concluso alle date indicate.
-              </AppText>
-              {errore ? (
-                <AppText variant="label" tone="danger">
-                  {errore}
-                </AppText>
-              ) : null}
-              <AppButton
-                label={inVolo ? 'Confermo…' : 'Conferma la scheda'}
-                icon="checkmark-outline"
-                onPress={() => setConfermaAperta(true)}
-                disabled={inVolo || occupata}
-              />
-              <ConfirmModal
-                visible={confermaAperta}
-                titolo="Confermare questa scheda?"
-                messaggio="La conferma è definitiva: non si può ritirare."
-                // Lo stesso verbo del bottone che ha aperto il pannello: la
-                // conferma dice l'atto, non «Conferma» (WCAG 3.2.4).
-                etichettaConferma="Conferma la scheda"
-                loading={inVolo}
-                onConferma={() => void conferma()}
-                onAnnulla={() => setConfermaAperta(false)}
-              />
-            </>
-          ) : null}
-
           {scheda.beneficiarioAccettato === true ? (
             <AppText variant="small" tone="secondary">
               Scheda confermata.
@@ -215,19 +159,43 @@ export function AgreementSheet({
           ) : null}
         </View>
       )}
+
+      <ConfirmModal
+        visible={confermaAperta}
+        titolo="Confermare questa scheda?"
+        messaggio="La conferma è definitiva: non si può ritirare."
+        // Lo stesso verbo del bottone che ha aperto il pannello: la conferma
+        // dice l'atto, non «Conferma» (WCAG 3.2.4).
+        etichettaConferma="Conferma la scheda"
+        varianteConferma="primary"
+        loading={inVolo}
+        onConferma={() => void esegui(setConfermaAperta, onConferma, ERRORE_CONFERMA)}
+        onAnnulla={() => setConfermaAperta(false)}
+      />
+
+      {onRifiuta !== null ? (
+        <ConfirmModal
+          visible={rifiutoAperto}
+          titolo="Rifiutare questa scheda?"
+          messaggio="Rifiutando, lo scambio si chiude e risulta annullato: non puoi inviare una scheda tua."
+          etichettaConferma="Rifiuta la scheda"
+          loading={inVolo}
+          onConferma={() => void esegui(setRifiutoAperto, onRifiuta, ERRORE_RIFIUTO)}
+          onAnnulla={() => setRifiutoAperto(false)}
+        />
+      ) : null}
     </View>
   );
 }
 
-/**
- * "Fino al 5 dic 2026", or "Date non indicate".
- *
- * The wire timestamp is UTC midnight for a date-only value, so it is read at
- * noon UTC: formatting it directly would show the previous day on any device
- * west of UTC (`services/dates.js` uses the device timezone).
- */
-function descriviPeriodo(fine) {
-  const giorno = typeof fine === 'string' ? fine.slice(0, 10) : '';
-  const formattata = /^\d{4}-\d{2}-\d{2}$/.test(giorno) ? formatIsoDate(`${giorno}T12:00:00Z`) : null;
-  return formattata ? `Fino al ${formattata}` : 'Date non indicate';
+/** One read-only fact of the sheet: the label, then the value beside it. */
+function RigaFatto({ etichetta, valore }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+      <AppText variant="small" tone="secondary">
+        {`${etichetta}:`}
+      </AppText>
+      <AppText variant="small">{valore}</AppText>
+    </View>
+  );
 }

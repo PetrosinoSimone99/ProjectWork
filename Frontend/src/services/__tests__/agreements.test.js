@@ -1,10 +1,9 @@
 import {
   classifyAgreements,
   counterpartOf,
-  dataDaInput,
   isSheetCompiled,
-  periodoValido,
   sheetsFor,
+  statoScheda,
 } from '../agreements';
 
 /** The clock every test pins: mid-2026, between the fixtures' two dates. */
@@ -319,40 +318,80 @@ describe('isSheetCompiled', () => {
   });
 });
 
-describe('dataDaInput', () => {
-  it('keeps a real calendar day exactly as typed, without inventing a time', () => {
-    expect(dataDaInput('2026-12-01')).toBe('2026-12-01');
-    expect(dataDaInput(' 2026-02-28 ')).toBe('2026-02-28');
-    expect(dataDaInput('2028-02-29')).toBe('2028-02-29');
+describe('statoScheda', () => {
+  /** An accepted agreement whose rows are the ones `sheetsFor` will have to pick. */
+  function accepted(mia, altra) {
+    return agreement({ stato: 'ACCEPTED', scheda: mia, schede: [mia, altra].filter(Boolean) });
+  }
+
+  it('asks the viewer to write the sheet when nobody has sent one', () => {
+    const accordo = accepted(sheet({ username: ME, beneficiario: OTHER }), null);
+
+    expect(statoScheda(accordo, ME)).toBe('daCompilare');
   });
 
-  it('refuses a day that does not exist instead of letting Date roll it over', () => {
-    expect(dataDaInput('2026-02-31')).toBeNull();
-    expect(dataDaInput('2026-13-01')).toBeNull();
-    expect(dataDaInput('2026-04-31')).toBeNull();
-    expect(dataDaInput('2027-02-29')).toBeNull();
+  it('asks the viewer to write the sheet when the agreement carries no rows at all', () => {
+    expect(statoScheda(agreement({ stato: 'ACCEPTED', schede: [] }), ME)).toBe('daCompilare');
   });
 
-  it('refuses anything that is not YYYY-MM-DD', () => {
-    expect(dataDaInput('01/12/2026')).toBeNull();
-    expect(dataDaInput('2026-12-1')).toBeNull();
-    expect(dataDaInput('2026-12-01T09:00:00')).toBeNull();
-    expect(dataDaInput('')).toBeNull();
-    expect(dataDaInput(null)).toBeNull();
-    expect(dataDaInput(undefined)).toBeNull();
+  it('waits once the viewer has sent their own row', () => {
+    const accordo = accepted(
+      sheet({ username: ME, beneficiario: OTHER, stato: 'COMPILED' }),
+      sheet({ username: OTHER, beneficiario: ME }),
+    );
+
+    expect(statoScheda(accordo, ME)).toBe('inAttesaDiConferma');
+  });
+
+  it('asks the viewer to confirm the row the other person sent', () => {
+    const accordo = accepted(
+      sheet({ username: ME, beneficiario: OTHER }),
+      sheet({ username: OTHER, beneficiario: ME, stato: 'COMPILED' }),
+    );
+
+    expect(statoScheda(accordo, ME)).toBe('daConfermare');
+  });
+
+  it('reads the same agreement the other way round for the other participant', () => {
+    const accordo = accepted(
+      sheet({ username: ME, beneficiario: OTHER, stato: 'COMPILED' }),
+      sheet({ username: OTHER, beneficiario: ME }),
+    );
+
+    expect(statoScheda(accordo, ME)).toBe('inAttesaDiConferma');
+    expect(statoScheda(accordo, OTHER)).toBe('daConfermare');
+  });
+
+  it('reports a confirmed row as confermata, before COMPILED can claim it', () => {
+    const accordo = accepted(
+      sheet({ username: ME, beneficiario: OTHER }),
+      sheet({ username: OTHER, beneficiario: ME, stato: 'COMPILED', beneficiarioAccettato: true }),
+    );
+
+    expect(statoScheda(accordo, ME)).toBe('confermata');
+  });
+
+  it('does not mutate the agreement it reads', () => {
+    const accordo = deepFreeze(
+      accepted(
+        sheet({ username: ME, beneficiario: OTHER }),
+        sheet({ username: OTHER, beneficiario: ME, stato: 'COMPILED' }),
+      ),
+    );
+    const prima = JSON.stringify(accordo);
+
+    expect(statoScheda(accordo, ME)).toBe('daConfermare');
+    expect(JSON.stringify(accordo)).toBe(prima);
+  });
+
+  it('falls back to daCompilare without a viewer username', () => {
+    const accordo = accepted(
+      sheet({ username: ME, beneficiario: OTHER }),
+      sheet({ username: OTHER, beneficiario: ME, stato: 'COMPILED' }),
+    );
+
+    expect(statoScheda(accordo, null)).toBe('daCompilare');
+    expect(statoScheda(null, ME)).toBe('daCompilare');
   });
 });
 
-describe('periodoValido', () => {
-  it('accepts a period whose end comes after the start', () => {
-    expect(periodoValido('2026-12-01', '2026-12-05')).toBe(true);
-    expect(periodoValido('2026-12-01', '2027-01-01')).toBe(true);
-  });
-
-  it('refuses the same day, a reversed period and anything unparseable', () => {
-    expect(periodoValido('2026-12-01', '2026-12-01')).toBe(false);
-    expect(periodoValido('2026-12-05', '2026-12-01')).toBe(false);
-    expect(periodoValido('2026-12-01', '')).toBe(false);
-    expect(periodoValido('domani', 'dopodomani')).toBe(false);
-  });
-});

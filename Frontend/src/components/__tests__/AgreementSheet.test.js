@@ -3,37 +3,38 @@ import { act, create } from 'react-test-renderer';
 import { ApiError } from '@/api/client';
 import { AgreementSheet } from '../AgreementSheet';
 import { DateField } from '../DateField';
+import { formatIsoDateTimeNumeric } from '@/services/dates';
 
 /**
- * The sheet row as the reader meets it: the form refuses a period the backend
- * would refuse, and the confirm button asks first.
+ * The sheet as the reader meets it after the form: what the backend wrote is
+ * printed, what is left to decide is behind a confirmation, and the fields a
+ * person used to fill (the two dates, the "si svolge da remoto" checkbox) are
+ * gone.
  *
- * `dataDaInput`/`periodoValido` have their own tests; these are about the
- * component wiring — that nothing leaves the component before the local rule
- * passes, and that the payload is the three fields the route reads.
+ * `formatIsoDateTimeNumeric` has its own test; what is measured here is the
+ * wiring — that both timestamps reach the screen as `GG/MM/AAAA HH:MM`, that a
+ * missing end date prints the empty mark instead of an invented one, that
+ * confirming and refusing pass through the panel, and that a sheet that does
+ * not exist draws nothing at all.
  */
 const SCHEDA = {
   username: 'mario.rossi',
   descrizione: 'Riparazione biciclette',
+  tipoServizio: 'OFFER',
   beneficiario: 'luca.ferrari',
   daRemoto: false,
-  inizio: null,
-  fine: null,
+  inizio: '2026-12-01T09:00:00+00:00',
+  fine: '2026-12-05T18:00:00+00:00',
+  note: 'Porto io gli attrezzi, ci vediamo in piazza.',
+  inviataIl: '2026-12-01T09:00:00+00:00',
   beneficiarioAccettato: null,
-  stato: 'UNCOMPILED',
-};
-
-const SCHEDA_COMPILATA = {
-  ...SCHEDA,
-  inizio: '2026-12-01T00:00:00+00:00',
-  fine: '2026-12-05T00:00:00+00:00',
   stato: 'COMPILED',
 };
 
-function render(azione, extra = {}) {
+function render(props = {}) {
   let renderer;
   act(() => {
-    renderer = create(<AgreementSheet titolo="La tua scheda" scheda={SCHEDA} azione={azione} {...extra} />);
+    renderer = create(<AgreementSheet titolo="La scheda di @mario.rossi" scheda={SCHEDA} {...props} />);
   });
   return renderer;
 }
@@ -53,10 +54,7 @@ function premi(renderer, accessibilityLabel) {
   });
 }
 
-/**
- * The same control, the last one carrying that name: the button that opens a
- * panel and the confirm inside the panel can be called the same.
- */
+/** The last control with this name: the confirm inside the panel it opened. */
 function premiUltimo(renderer, accessibilityLabel) {
   const controllo = renderer.root
     .findAll(
@@ -71,113 +69,77 @@ function premiUltimo(renderer, accessibilityLabel) {
   });
 }
 
-/** The two date fields, in the order they appear, set the way a picker would. */
-function scriviDate(renderer, inizio, fine) {
-  const campi = renderer.root.findAllByType(DateField);
-  expect(campi).toHaveLength(2);
-  act(() => {
-    campi[0].props.onCambia(inizio);
-    campi[1].props.onCambia(fine);
-  });
-}
-
 function testoVisibile(renderer, testo) {
   return renderer.root.findAll((node) => node.props?.children === testo).length > 0;
 }
 
-describe('AgreementSheet — the form', () => {
-  it('refuses a period the backend would refuse, without calling the API', () => {
-    const onInvia = jest.fn();
-    const renderer = render('compila', { onInvia });
+function conQuelNome(renderer, accessibilityLabel) {
+  return renderer.root.findAll(
+    (node) =>
+      node.props?.accessibilityLabel === accessibilityLabel &&
+      typeof node.props.onPress === 'function',
+  );
+}
 
-    scriviDate(renderer, '2026-12-05', '2026-12-01');
-    premi(renderer, 'Invia la scheda');
+describe('AgreementSheet — the read-only sheet', () => {
+  it('prints the two timestamps the backend wrote, as GG/MM/AAAA HH:MM', () => {
+    const renderer = render();
 
-    expect(onInvia).not.toHaveBeenCalled();
-    expect(testoVisibile(renderer, "Scegli le due date, con la fine dopo l'inizio.")).toBe(true);
+    expect(testoVisibile(renderer, 'Inizio:')).toBe(true);
+    expect(testoVisibile(renderer, formatIsoDateTimeNumeric(SCHEDA.inizio))).toBe(true);
+    expect(testoVisibile(renderer, 'Fine:')).toBe(true);
+    expect(testoVisibile(renderer, formatIsoDateTimeNumeric(SCHEDA.fine))).toBe(true);
   });
 
-  it('sends the three fields the route reads, as date-only strings', async () => {
-    const onInvia = jest.fn().mockResolvedValue(undefined);
-    const renderer = render('compila', { onInvia });
+  it('prints the empty mark while the end date has not been written', () => {
+    const renderer = render({ scheda: { ...SCHEDA, fine: null } });
 
-    scriviDate(renderer, '2026-12-01', '2026-12-05');
-    await act(async () => {
-      premi(renderer, 'Invia la scheda');
-    });
-
-    expect(onInvia).toHaveBeenCalledWith({
-      fromRemote: false,
-      startDate: '2026-12-01',
-      endDate: '2026-12-05',
-    });
+    expect(testoVisibile(renderer, '—')).toBe(true);
   });
 
-  it('shows the Italian message the API area produced for a rejected call', async () => {
-    const onInvia = jest
-      .fn()
-      .mockRejectedValue(new ApiError(404, 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.'));
-    const renderer = render('compila', { onInvia });
+  it('shows the sender service and the description that was typed', () => {
+    const renderer = render();
 
-    scriviDate(renderer, '2026-12-01', '2026-12-05');
-    await act(async () => {
-      premi(renderer, 'Invia la scheda');
-    });
-
-    expect(
-      testoVisibile(renderer, 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.'),
-    ).toBe(true);
+    expect(testoVisibile(renderer, 'Offerta: Riparazione biciclette')).toBe(true);
+    expect(testoVisibile(renderer, 'Descrizione')).toBe(true);
+    expect(testoVisibile(renderer, SCHEDA.note)).toBe(true);
   });
 
-  it('falls back to its own sentence when the failure carries no message from the API layer', async () => {
-    const onInvia = jest.fn().mockRejectedValue(new Error('boom'));
-    const renderer = render('compila', { onInvia });
+  it('draws no field of its own: no date picker, no form button', () => {
+    const renderer = render();
 
-    scriviDate(renderer, '2026-12-01', '2026-12-05');
-    await act(async () => {
-      premi(renderer, 'Invia la scheda');
-    });
+    expect(renderer.root.findAllByType(DateField)).toHaveLength(0);
+    expect(conQuelNome(renderer, 'Invia la scheda')).toHaveLength(0);
+    expect(testoVisibile(renderer, 'Si svolge da remoto')).toBe(false);
+  });
 
-    expect(
-      testoVisibile(renderer, "Non è stato possibile inviare la scheda. Riprova."),
-    ).toBe(true);
+  it('says when the other person has not written the sheet yet', () => {
+    const renderer = render({ scheda: { ...SCHEDA, stato: 'UNCOMPILED', inizio: null, fine: null, note: null } });
+
+    expect(testoVisibile(renderer, 'Scheda non ancora compilata.')).toBe(true);
+  });
+
+  it('says when the sheet is already confirmed', () => {
+    const renderer = render({ scheda: { ...SCHEDA, beneficiarioAccettato: true } });
+
+    expect(testoVisibile(renderer, 'Scheda confermata.')).toBe(true);
+    expect(conQuelNome(renderer, 'Conferma la scheda')).toHaveLength(0);
+  });
+
+  it('draws nothing when the sheet does not exist', () => {
+    const renderer = render({ scheda: null });
+
+    expect(renderer.toJSON()).toBeNull();
   });
 });
 
-describe('AgreementSheet — read-only and confirmation', () => {
-  it('draws no form when the action is not the viewer’s to take', () => {
-    const renderer = render(null, { scheda: SCHEDA_COMPILATA });
-
-    expect(renderer.root.findAllByType(DateField)).toHaveLength(0);
-    expect(
-      renderer.root.findAll(
-        (node) =>
-          node.props?.accessibilityLabel === 'Invia la scheda' &&
-          typeof node.props.onPress === 'function',
-      ),
-    ).toHaveLength(0);
-    // Only the end date: the schema resets `start_date` on every update, so the
-    // row says the start is unavailable instead of claiming a date nobody chose
-    // (backend-gaps.md G20).
-    expect(testoVisibile(renderer, 'Fino al 5 dic 2026')).toBe(true);
-    expect(
-      testoVisibile(renderer, "L'inizio non è disponibile: il server non lo conserva (limite noto)."),
-    ).toBe(true);
-  });
-
+describe('AgreementSheet — the two decisions of the recipient', () => {
   it('confirms only after the panel, never on the first tap', async () => {
     const onConferma = jest.fn().mockResolvedValue(undefined);
-    const renderer = render('conferma', { scheda: SCHEDA_COMPILATA, onConferma });
+    const renderer = render({ azione: 'conferma', onConferma });
 
     premi(renderer, 'Conferma la scheda');
     expect(onConferma).not.toHaveBeenCalled();
-
-    // Two nodes carry the name of the act: the button that opened the panel and
-    // the confirm inside it. The second one is the one that confirms.
-    const conQuelNome = (node) =>
-      node.props?.accessibilityLabel === 'Conferma la scheda' &&
-      typeof node.props.onPress === 'function';
-    expect(renderer.root.findAll(conQuelNome)).toHaveLength(2);
 
     await act(async () => {
       premiUltimo(renderer, 'Conferma la scheda');
@@ -185,14 +147,53 @@ describe('AgreementSheet — read-only and confirmation', () => {
     expect(onConferma).toHaveBeenCalledTimes(1);
   });
 
-  it('says when the row is already confirmed and offers nothing else', () => {
-    const renderer = render(null, {
-      scheda: { ...SCHEDA_COMPILATA, beneficiarioAccettato: true },
+  it('refuses only after the panel, never on the first tap', async () => {
+    const onRifiuta = jest.fn().mockResolvedValue(undefined);
+    const renderer = render({ azione: 'conferma', onConferma: jest.fn(), onRifiuta });
+
+    premi(renderer, 'Rifiuta la scheda');
+    expect(onRifiuta).not.toHaveBeenCalled();
+
+    await act(async () => {
+      premiUltimo(renderer, 'Rifiuta la scheda');
+    });
+    expect(onRifiuta).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the Italian message the API area produced for a rejected confirmation', async () => {
+    const onConferma = jest
+      .fn()
+      .mockRejectedValue(
+        new ApiError(409, 'La scheda non può essere modificata o confermata nello stato attuale.'),
+      );
+    const renderer = render({ azione: 'conferma', onConferma });
+
+    premi(renderer, 'Conferma la scheda');
+    await act(async () => {
+      premiUltimo(renderer, 'Conferma la scheda');
     });
 
-    expect(testoVisibile(renderer, 'Scheda confermata.')).toBe(true);
-    expect(renderer.root.findAll((node) => node.props?.accessibilityLabel === 'Conferma la scheda')).toHaveLength(
-      0,
-    );
+    expect(
+      testoVisibile(renderer, 'La scheda non può essere modificata o confermata nello stato attuale.'),
+    ).toBe(true);
+  });
+
+  it('falls back to its own sentence when the failure carries no API message', async () => {
+    const onConferma = jest.fn().mockRejectedValue(new Error('boom'));
+    const renderer = render({ azione: 'conferma', onConferma });
+
+    premi(renderer, 'Conferma la scheda');
+    await act(async () => {
+      premiUltimo(renderer, 'Conferma la scheda');
+    });
+
+    expect(testoVisibile(renderer, 'Non è stato possibile confermare la scheda. Riprova.')).toBe(true);
+  });
+
+  it('offers no decision when the action is not the viewer’s to take', () => {
+    const renderer = render();
+
+    expect(conQuelNome(renderer, 'Conferma la scheda')).toHaveLength(0);
+    expect(conQuelNome(renderer, 'Rifiuta la scheda')).toHaveLength(0);
   });
 });

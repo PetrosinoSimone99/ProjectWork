@@ -1,8 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
-import { acceptAgreementSheet, sendAgreementSheet } from '@/api';
 import { AgreementCard } from '@/components/AgreementCard';
 import { AppButton } from '@/components/AppButton';
 import { AppIcon } from '@/components/AppIcon';
@@ -45,6 +44,11 @@ import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
  * shows silence where a state belongs. Errors of the list and errors of an
  * action are separate Banners: one says the data did not arrive, the other that
  * the tap did not go through.
+ *
+ * The delivery sheet is not part of this screen any more: it is written and
+ * confirmed inside the chat of the agreement, so the card keeps only the phone
+ * book of the exchange (who, what, the state) and the way into the
+ * conversation. That is why no sheet callback is wired here.
  */
 const SECTIONS = [
   {
@@ -177,33 +181,6 @@ export default function AgreementsScreen() {
 
   const occupato = azioneInCorso !== null;
 
-  // The two sheet calls. The card owns the in-flight and error state of the row
-  // it acts on, so a failure is an error the card can throw for ("not sent"),
-  // and a success is the list reloading into the compiled row. The reload is
-  // fire-and-forget: its own failure belongs to the screen's Banner, not to the
-  // card's "could not send".
-  const inviaScheda = useCallback(
-    async (agreementId, payload) => {
-      if (!token) {
-        throw new Error('Sessione assente.');
-      }
-      await sendAgreementSheet(token, { agreementId, ...payload });
-      void riprova();
-    },
-    [token, riprova],
-  );
-
-  const confermaScheda = useCallback(
-    async (agreementId) => {
-      if (!token) {
-        throw new Error('Sessione assente.');
-      }
-      await acceptAgreementSheet(token, agreementId);
-      void riprova();
-    },
-    [token, riprova],
-  );
-
   // The bell number: real proposals only, and nothing at all before the first
   // response or without the viewer's username (a "0" would be an invented
   // count, and without my username no row can be classified as mine).
@@ -298,8 +275,6 @@ export default function AgreementsScreen() {
                 myUsername={myUsername}
                 onCancel={accordo.stato === 'ACCEPTED' ? () => annulla(accordo.id) : null}
                 azioneInCorso={azioneInCorso}
-                onInviaScheda={inviaScheda}
-                onConfermaScheda={confermaScheda}
                 onApriChat={
                   accordo.stato === 'ACCEPTED' ? () => router.push(`/chat/${accordo.id}`) : null
                 }

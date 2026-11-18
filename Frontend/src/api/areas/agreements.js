@@ -11,6 +11,12 @@ const MESSAGES = {
     404: 'Non trovo più questo accordo o la sua scheda: ricarica e riprova.',
     500: "Il server non ha accettato la scheda: riprova, e se l'errore resta segnalalo.",
   },
+  sendSheet: {
+    400: 'Scrivi la descrizione dell’accordo: da 1 a 500 caratteri.',
+    401: 'Devi accedere per inviare la scheda.',
+    404: 'Non trovo più questo accordo: potrebbe essere cambiato.',
+    409: 'L’altra persona ha già inviato la sua scheda: tocca a te accettarla o rifiutarla.',
+  },
   list: {
     401: 'Devi accedere per vedere i tuoi accordi.',
   },
@@ -103,34 +109,36 @@ export async function cancelAgreement(token, agreementId) {
 }
 
 /**
- * POST /send-agreement-details — fills the caller's own sheet row.
+ * POST /send-agreement-details — fills the caller's own sheet row with the one
+ * field the client still writes.
  *
- * The body carries only the agreement id, the remote flag and the two dates:
- * the row is looked up by `ad.user = caller`
- * (`Backend/src/Manager/AgreementManager.php:149-175`), so no participant id
- * is guessed (the old G6 blocker). The dates travel as date-only
- * `YYYY-MM-DD` strings — the backend parses them with `DateTimeImmutable` and
- * rejects an end that is not after the start with a `400`, which the form
- * checks first. The route answers `404` for an agreement that is not
- * `ACCEPTED`, `500` when the row cannot be written.
+ * The body carries the agreement id and `notes`, nothing else: the row is
+ * looked up by `ad.user = caller` (`Backend/src/Manager/AgreementManager.php`),
+ * `start_date` is written by the backend from the agreement's acceptance moment
+ * and `from_remote` is copied from the caller's own service, so sending either
+ * from here would be a client deciding a fact it does not own.
+ *
+ * The route answers `400` for a missing or out-of-range note, `401`, `404` for
+ * an agreement that is not `ACCEPTED`, and `409` once the other participant has
+ * sent their row: the first sender locks the round, and that conflict is the
+ * one the person can still act on (accept or refuse), so it has its own copy.
  */
-export async function sendAgreementSheet(token, { agreementId, fromRemote, startDate, endDate }) {
+export async function sendAgreementSheet(token, { agreementId, notes }) {
   await withMessage(
     apiFetch('send-agreement-details', {
       method: 'POST',
       token,
-      body: {
-        agreementId: Number(agreementId),
-        fromRemote: fromRemote === true,
-        startDate: String(startDate),
-        endDate: String(endDate),
-      },
+      body: { agreementId: Number(agreementId), notes: String(notes) },
     }),
-    MESSAGES.sheet,
+    MESSAGES.sendSheet,
   );
 }
 
-
+/**
+ * POST /accept-agreement-details/{agreementId} — the recipient confirms the
+ * sheet, which writes its end date and closes the exchange. The agreement id is
+ * the only datum: the row to confirm is the one where `ad.beneficiary = caller`.
+ */
 export async function acceptAgreementSheet(token, agreementId) {
   await withMessage(
     apiFetch(`accept-agreement-details/${Number(agreementId)}`, { method: 'POST', token }),

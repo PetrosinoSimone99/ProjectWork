@@ -3,8 +3,9 @@
  * `GET /get-agreements` to the section of the tab that shows it.
  *
  * The same file also holds the delivery-sheet helpers (`sheetsFor`,
- * `isSheetCompiled`) that pick the sheet rows belonging to the viewer; both
- * halves are pure and read only what the agreement already carries.
+ * `isSheetCompiled`, `statoScheda`) that pick the sheet rows belonging to the
+ * viewer and say which move is theirs; both halves are pure and read only what
+ * the agreement already carries.
  *
  * The real lifecycle (`AgreementManager::createExchangeAgreement` and
  * `sendResponse`) decides the rules:
@@ -157,6 +158,40 @@ export function sheetsFor(accordo, myUsername) {
 }
 
 /**
+ * Which move the viewer has on the delivery sheet of one agreement, as the
+ * chat needs it before it draws anything:
+ *
+ * - `daCompilare`: no sheet has been sent yet — the viewer writes the first one
+ *   ("Crea accordo");
+ * - `inAttesaDiConferma`: the viewer's row is `COMPILED` and the other side has
+ *   not confirmed, so there is nothing left to do but wait;
+ * - `daConfermare`: the other side's row is `COMPILED` — the first sender locked
+ *   the round, the viewer can only accept or refuse it;
+ * - `confermata`: the row the viewer had to confirm carries
+ *   `beneficiarioAccettato`, so the exchange is agreed on the details too.
+ *
+ * The four words are the contract (`docs/briefs/agreements-workflow/plan.md`),
+ * not display copy: a screen decides which panel to open from this value and
+ * never re-reads the rows itself. The check order matters — a confirmed row is
+ * also `COMPILED`, so `confermata` is asked first. An agreement with no sheet
+ * rows, or a missing username, is `daCompilare`, which is the only honest
+ * reading of "we have not heard from anyone yet".
+ */
+export function statoScheda(accordo, myUsername) {
+  const { mia, altra } = sheetsFor(accordo, myUsername);
+  if (altra !== null && altra.beneficiarioAccettato === true) {
+    return 'confermata';
+  }
+  if (isSheetCompiled(mia)) {
+    return 'inAttesaDiConferma';
+  }
+  if (isSheetCompiled(altra)) {
+    return 'daConfermare';
+  }
+  return 'daCompilare';
+}
+
+/**
  * `true` only for a row the backend marked `COMPILED`. The enum has exactly
  * two values (`UNCOMPILED`/`COMPILED`, `AgreementDetailsStatus`) and the
  * normaliser upper-cases the wire word, so anything else — including a
@@ -165,42 +200,4 @@ export function sheetsFor(accordo, myUsername) {
  */
 export function isSheetCompiled(scheda) {
   return scheda?.stato === 'COMPILED';
-}
-
-/**
- * One `YYYY-MM-DD` date as the backend wants it, or `null` when the text is
- * not a real calendar day.
- *
- * The form hands over the day the platform picker produced, still as
- * `YYYY-MM-DD`; this function is the last guard before the call: the shape, and
- * then the round trip through `Date` that rejects `2026-02-31` (which would
- * silently become 3 March). Date-only strings are what
- * `send-agreement-details` accepts — it parses them with
- * `DateTimeImmutable` — so no time and no timezone is invented here.
- */
-export function dataDaInput(valore) {
-  const testo = typeof valore === 'string' ? valore.trim() : '';
-  const pezzi = /^(\d{4})-(\d{2})-(\d{2})$/.exec(testo);
-  if (pezzi === null) {
-    return null;
-  }
-  const [, anno, mese, giorno] = pezzi;
-  const data = new Date(Date.UTC(Number(anno), Number(mese) - 1, Number(giorno)));
-  const esiste =
-    data.getUTCFullYear() === Number(anno) &&
-    data.getUTCMonth() + 1 === Number(mese) &&
-    data.getUTCDate() === Number(giorno);
-  return esiste ? testo : null;
-}
-
-/**
- * Whether the two fields are two real dates with the end after the start — the
- * same rule the backend enforces with a `400` (`The end date must come after the
- * start date`), checked here so the reader sees it without a round trip.
- * `YYYY-MM-DD` strings compare correctly as strings, so no conversion back.
- */
-export function periodoValido(inizio, fine) {
-  const da = dataDaInput(inizio);
-  const a = dataDaInput(fine);
-  return da !== null && a !== null && a > da;
 }

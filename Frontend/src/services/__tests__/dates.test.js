@@ -3,6 +3,7 @@ import {
   formatIsoDate,
   formatIsoDateNumeric,
   formatIsoDateTime,
+  formatIsoDateTimeNumeric,
   isoDateFromDate,
 } from '../dates';
 
@@ -104,5 +105,25 @@ describe('formatIsoDateNumeric', () => {
     expect(formatIsoDateNumeric('')).toBe('');
     expect(formatIsoDateNumeric(null)).toBe('');
     expect(formatIsoDateNumeric('2026-02-31')).toBe('');
+  });
+});
+
+describe('formatIsoDateTimeNumeric', () => {
+  it('shows day and minute as GG/MM/AAAA HH:MM', () => {
+    const resa = formatIsoDateTimeNumeric('2026-11-16T14:03:22+00:00');
+    // The machine's timezone moves the hour, never the day or the shape.
+    expect(resa).toMatch(/^16\/11\/2026 \d{2}:\d{2}$/);
+  });
+
+  it('keeps the minute the device reads, zero-padded', () => {
+    const date = new Date(2026, 0, 5, 9, 7, 0);
+    expect(formatIsoDateTimeNumeric(date.toISOString())).toBe('05/01/2026 09:07');
+  });
+
+  it('returns null for anything that is not a date', () => {
+    expect(formatIsoDateTimeNumeric(null)).toBe(null);
+    expect(formatIsoDateTimeNumeric(undefined)).toBe(null);
+    expect(formatIsoDateTimeNumeric('')).toBe(null);
+    expect(formatIsoDateTimeNumeric('non-una-data')).toBe(null);
   });
 });

@@ -50,6 +50,26 @@ export function formatIsoDateTime(value) {
 }
 
 /**
+ * The same day and minute in numeric form, `24/11/2026 15:20`: the shape the
+ * delivery sheet prints for the two timestamps the backend writes (`inizio`,
+ * `fine`).
+ *
+ * Numeric and not `formatIsoDateTime` because those two are facts read back and
+ * compared, not a timestamp next to a bubble: the day and the minute have to be
+ * unambiguous digits. Same guard as every formatter here — `null` for a missing
+ * or unusable value, never a throw — and the local getters, so the minute shown
+ * is the one the device reads; a date-only string is UTC midnight and would
+ * print the previous day west of UTC, so the caller passes a full timestamp.
+ */
+export function formatIsoDateTimeNumeric(value) {
+  const date = isoDateOrNull(value);
+  if (date === null) {
+    return null;
+  }
+  return `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+/**
  * One `YYYY-MM-DD` day as a local `Date` at noon, or `null` when the string is
  * not a real calendar day (`2026-02-31` must not become 3 March).
  *
