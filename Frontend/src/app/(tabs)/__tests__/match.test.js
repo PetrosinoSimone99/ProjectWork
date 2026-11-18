@@ -3,6 +3,17 @@ import { act, create } from 'react-test-renderer';
 import MatchScreen from '../match';
 import { cancelQueue, createQueue, listQueues, getProfile } from '@/api';
 
+// The screen subscribes through `useStreamEvent`, which is a no-op outside a
+// provider: the test holds the handler the screen registered and fires frames
+// at it by hand, so the real provider (and its socket) never enters this file.
+let streamHandler = null;
+
+jest.mock('@/hooks/useEventStream', () => ({
+  useStreamEvent: (handler) => {
+    streamHandler = handler;
+  },
+}));
+
 jest.mock('expo-router', () => ({
   // `useFocusEffect` needs a navigator; in this test the screen is always the
   // focused one, so it is an effect that re-runs when its callback changes.
@@ -62,6 +73,18 @@ async function flush() {
       await Promise.resolve();
     }
   });
+}
+
+/**
+ * Hands the screen one notification frame, in the internal shape the stream
+ * delivers it, then lets the reload it may start settle.
+ */
+async function emit(notifica) {
+  expect(streamHandler).not.toBeNull();
+  await act(async () => {
+    streamHandler(notifica);
+  });
+  await flush();
 }
 
 /**
@@ -139,10 +162,28 @@ function visibleText(renderer) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  streamHandler = null;
   createQueue.mockResolvedValue(undefined);
   // `cancel` is not exercised here, but the screen imports it: a mock that
   // answers keeps an unexpected call from hanging the test.
   cancelQueue.mockResolvedValue(undefined);
+});
+
+describe('match — the stream', () => {
+  it('re-reads queues and balance when a match lands, and nothing else', async () => {
+    await renderMatch();
+    expect(listQueues).toHaveBeenCalledTimes(1);
+    expect(getProfile).toHaveBeenCalledTimes(1);
+
+    // A row about an agreement the user answers is not this screen's business:
+    // nothing on the match tab changes until the backend writes the match.
+    await emit({ tipo: 'AGREEMENT_PROPOSAL', dati: { agreementId: 7 } });
+    expect(listQueues).toHaveBeenCalledTimes(1);
+
+    await emit({ tipo: 'MATCH_CREATED', dati: { agreementId: 7 } });
+    expect(listQueues).toHaveBeenCalledTimes(2);
+    expect(getProfile).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('match — the two create actions', () => {

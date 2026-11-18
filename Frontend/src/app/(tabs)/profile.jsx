@@ -8,6 +8,8 @@ import { getProfile } from '@/api';
 import { localitaPerDisplay } from '@/services/italian-locations';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 import { useRefresh } from '@/hooks/useRefresh';
+import { useStreamEvent } from '@/hooks/useEventStream';
+import { affectsProfile } from '@/api/stream';
 import { useUnreadCount } from '@/hooks/useNotifications';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
@@ -112,6 +114,23 @@ export default function ProfileScreen() {
   // senza svuotare nulla. Il badge è nella stessa schermata: lasciarlo vecchio
   // mentre l'utente tira giù è la cosa che fa sembrare rotto il gesto.
   const { nonLette, ricarica: ricaricaNonLette } = useUnreadCount({ token });
+
+  // Un evento che cambia chi sei (promozione, sospensione, servizio ripristinato)
+  // non porta il dato nuovo con sé: ruolo e stato dell'account vivono nella
+  // sessione salvata, e il profilo in `GET /profile`. Si rilegge tutto e due,
+  // invece di applicare il payload: è la stessa regola delle altre schermate.
+  useStreamEvent(
+    useCallback(
+      (notifica) => {
+        if (!affectsProfile(notifica)) {
+          return;
+        }
+        void caricaProfilo();
+        void ricaricaSessione();
+      },
+      [caricaProfilo, ricaricaSessione],
+    ),
+  );
 
   // Chiudere il pannello non ricarica il conteggio qui: il pannello marca le
   // righe che ha mostrato **alla chiusura**, quindi un `GET` immediato leggerebbe

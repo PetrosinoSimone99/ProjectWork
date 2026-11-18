@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { affectsMatch } from '@/api/stream';
 import { cancelQueue, createQueue, listQueues, getProfile } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
@@ -13,6 +14,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { QueueCard } from '@/components/QueueCard';
 import { Screen } from '@/components/Screen';
 import { hasActiveQueue, queueTypeLabel } from '@/services/queues';
+import { useStreamEvent } from '@/hooks/useEventStream';
 import { useRefresh } from '@/hooks/useRefresh';
 import { space } from '@/theme/tokens';
 
@@ -107,6 +109,22 @@ export default function MatchScreen() {
         requestSeqRef.current += 1;
       };
     }, [load]),
+  );
+
+  // Un frame `MATCH_CREATED` non porta con sé la riga nuova: il match automatico
+  // gira nel worker del backend, che scrive lui l'accordo. Coda e saldo vanno
+  // quindi riletti, perché un accordo creato consuma il credito della coda di
+  // ricerca. Nessuno stato nuovo e nessun payload disegnato.
+  useStreamEvent(
+    useCallback(
+      (notifica) => {
+        if (!affectsMatch(notifica)) {
+          return;
+        }
+        void load();
+      },
+      [load],
+    ),
   );
 
   const { refreshing, onRefresh } = useRefresh(load);
