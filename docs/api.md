@@ -4,7 +4,7 @@ Endpoints that exist in the backend **today**, as the frontend consumes them.
 Canonical sources: `Backend/src/Controller/**`, `Backend/tests/**`, and
 `Context_and_DB_V2/API docs/DATABASE_AND_API_GUIDE.md` (the backend-written
 guide). What the frontend needs and the backend does not have is in
-[`backend-gaps.md`](backend-gaps.md).
+[`backend-ledger.md`](backend-ledger.md).
 
 Base URL: `http://localhost:8000/api` in development. **Authentication is
 mandatory on every route except `POST /auth/*` and `GET /categories`**: since
@@ -262,7 +262,7 @@ profile re-reads the unread count, so the badge is not read before the writes
 land.
 
 The inbox reads every page, up to `NOTIFICATIONS_MAX_PAGES` (5, i.e. 100 rows):
-`pagination.totalPages` is the real total (`backend-gaps.md` G16, retracted), and
+`pagination.totalPages` is the real total (`backend-ledger.md` G16, retracted), and
 with page 1 alone twenty-one unread notifications would leave the badge above
 zero forever. Beyond the cap the badge can stay above zero: declared limit, not a
 local counter.
@@ -296,11 +296,11 @@ frontend upper-cases `type` when it normalises a row.
 `{"agreementId": <id>, "chatId": <id>, "message": "<full text>"}` on
 `CHAT_MESSAGE`. A chat notification therefore already carries the body of the
 message that arrived, so a preview needs no new backend field
-(`backend-gaps.md` G27).
+(`backend-ledger.md` G27).
 
 ## Live stream (Server-Sent Events)
 
-The only push-shaped route of the API, added on 2026-11-20 (`backend-gaps.md`
+The only push-shaped route of the API, added on 2026-11-20 (`backend-ledger.md`
 G32) without a new dependency: no Mercure, no socket server, no broker. The
 route holds one normal request open and writes `text/event-stream` frames; a
 chat message needs no second channel, because sending one already writes a
@@ -357,7 +357,7 @@ stream holds one worker.
 | Call | Contract |
 | --- | --- |
 | `GET /get-queues` | `200 {queues: [...]}`, including an empty array; only OPEN and IN_PROGRESS rows. Each row has `id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId, createdAt`. Historical unknown creation times remain null. |
-| `POST /create-service-queue` | `{queueType: "OFFER"|"REQUEST"}`. Returns `201`; malformed types return `400`. Missing/unavailable services, another active queue or missing delivery history return `409`. |
+| `POST /create-service-queue` | `{queueType: "OFFER"|"REQUEST"}`. Returns `201`; malformed types return `400`. Missing or unavailable services and another active queue return `409`. |
 | `POST /cancel-queue/{queueId}` | `200`; closing an already closed own queue is idempotent. Unknown or foreign IDs return `404`. An in-progress queue cancels its agreement too. |
 
 One active queue total per account is enforced by row locks and a database

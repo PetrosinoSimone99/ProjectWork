@@ -6,7 +6,41 @@ documents/code touched.
 
 ---
 
-## 2026-11-21 — The browser check of the agreements cycle, and the way back into a finished exchange
+## 2026-11-21 - `backend-gaps.md` becomes `backend-ledger.md`, and the queue contract loses a phantom 409
+
+Every G id was re-read against `Backend/src` (read-only) and `api.md`: none of
+them is an open gap. G1–G32 are closed, G9/G15/G23 are superseded by the credit
+and registration decisions, and G16 was already retracted. The file was still
+shaped like a request list, with G9, G15 and G23 repeated in two rows that
+contradicted each other. The 26 resolution rows are now three id groups
+(closed, superseded, retracted) with the one-line rule each superseded id
+stands for, keeping the numbers stable for the audits and the `api.md` cites
+without restating behavior `api.md` already documents; per-id history stays in
+this changelog.
+
+The sections that stay are the ones still true: the residual limits (stream
+coverage, polling fallbacks, restart at the live edge) and the data/rollout
+constraints around `Version20261119000100`.
+
+The file is renamed `docs/backend-ledger.md`: a document called "gaps" with no gap
+in it sends the next reader looking for work that does not exist. The living
+docs (`README.md`, `api.md`, `overview.md`, `setup.md`, `decisions.md`,
+`database.md`) and the code comments in `Frontend/src` follow the new path;
+changelog entries, audits and briefs keep the old name, because they record what
+was true then.
+
+One real error surfaced: `api.md` promised `409` for `POST
+/create-service-queue` on "missing delivery history", a rule retired with G23 —
+`ServiceQueueManager::createServiceQueue` only checks the queue type, another
+active queue, the service availability and the credit. The line is corrected.
+
+Touched: `docs/backend-ledger.md` (renamed), `docs/api.md`, `docs/README.md`,
+`docs/overview.md`, `docs/setup.md`, `docs/decisions.md`, `docs/database.md`,
+eight `Frontend/src` comments.
+
+---
+
+## 2026-11-21 - The browser check of the agreements cycle, and the way back into a finished exchange
 
 Step 11 of `briefs/agreements-workflow/plan.md` was the only block left: the
 four product rules had never been watched working in a real browser. They were,
