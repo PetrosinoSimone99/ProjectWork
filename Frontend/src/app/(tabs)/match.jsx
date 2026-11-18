@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
-import { cancelQueue, createQueue, listMyServices, listQueues, getProfile } from '@/api';
+import { cancelQueue, createQueue, listQueues, getProfile } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -12,24 +12,15 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
 import { QueueCard } from '@/components/QueueCard';
 import { Screen } from '@/components/Screen';
-import { hasActiveQueue, queueTypeLabel, servicesOfQueueType } from '@/services/queues';
+import { hasActiveQueue, queueTypeLabel } from '@/services/queues';
 import { useRefresh } from '@/hooks/useRefresh';
 import { space } from '@/theme/tokens';
 
-/** Why a create button is disabled when the account has no service of that type. */
-const GATE_NEED_ONE = {
-  OFFER: 'Per una coda di offerta ti serve un servizio pubblicato in «Offro e cerco».',
-  REQUEST: 'Per una coda di ricerca ti serve un servizio pubblicato in «Offro e cerco».',
-};
-
-
-function manyServicesReason(tipo, count) {
-  const typeWord = tipo === 'OFFER' ? 'offerta' : 'ricerca';
-  return `Hai ${count} servizi di questo tipo: il server crea una coda di ${typeWord} solo se ne hai uno (limite noto).`;
-}
-
 /** The cost of a request queue, in words: a balance figure does not exist. */
 const REQUEST_COST_COPY = 'Una coda di ricerca costa un credito.';
+
+/** Why the request action is off while the balance is at zero. */
+const NO_CREDIT_REASON = 'Non hai crediti disponibili.';
 
 
 const ACTIVE_QUEUE_REASON =
@@ -60,10 +51,9 @@ export default function MatchScreen() {
   const router = useRouter();
 
   // `null` until the first answer, so "still loading" and "loaded and empty"
-  // stay apart and the create buttons only appear once the services are known.
+  // stay apart.
   const [profile, setProfile] = useState(null);
   const [queues, setQueues] = useState(null);
-  const [services, setServices] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -82,11 +72,10 @@ export default function MatchScreen() {
     setLoading(true);
     setLoadError(null);
     // Two independent answers, so one failing does not throw away the other: a
-    // list that arrived stays on screen even when the own-services call did not,
-    // and the banner names the failure that costs something.
-    const [outcomeQueues, outcomeServices, outcomeProfile] = await Promise.allSettled([
+    // list that arrived stays on screen even when the profile call did not, and
+    // the banner names the failure that costs something.
+    const [outcomeQueues, outcomeProfile] = await Promise.allSettled([
       listQueues(token),
-      listMyServices(token),
       getProfile(token),
     ]);
     if (seq !== requestSeqRef.current) {
@@ -96,17 +85,12 @@ export default function MatchScreen() {
     if (outcomeQueues.status === 'fulfilled') {
       setQueues(outcomeQueues.value);
     }
-    if (outcomeServices.status === 'fulfilled') {
-      setServices(outcomeServices.value);
-    }
     // A failed reload keeps what is on screen: blanking a list that had rows a
     // second ago is worse than a banner that says why.
     const failure =
       outcomeQueues.status === 'rejected'
         ? outcomeQueues.reason
-        : outcomeServices.status === 'rejected'
-          ? outcomeServices.reason
-          : outcomeProfile.status === 'rejected' ? outcomeProfile.reason : null;
+        : outcomeProfile.status === 'rejected' ? outcomeProfile.reason : null;
     setLoadError(
       failure === null ? null : failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE,
     );
@@ -177,10 +161,6 @@ export default function MatchScreen() {
   );
 
   const firstLoadDone = queues !== null;
-  // Exactly one service of the type: see `servicesOfQueueType` for why one is the
-  // number the backend can actually use.
-  const offerCount = servicesOfQueueType(services, 'OFFER').length;
-  const requestCount = servicesOfQueueType(services, 'REQUEST').length;
   // One active queue closes both create actions: the backend counts the two
   // types together and answers a `500` to the second call (G23).
   const activeQueue = hasActiveQueue(queues);
@@ -211,11 +191,11 @@ export default function MatchScreen() {
       ) : null}
 
       {profile !== null ? <AppText variant="small">{`Crediti disponibili: ${profile.crediti ?? 0}`}</AppText> : null}
-      {services !== null ? (
+      {/* Le due azioni compaiono quando la coda e il saldo sono noti: il saldo
+          decide quella di ricerca, e senza non si potrebbe dire il vero. */}
+      {firstLoadDone && profile !== null ? (
         <CreateQueueActions
           profile={profile}
-          offerCount={offerCount}
-          requestCount={requestCount}
           activeQueue={activeQueue}
           busy={busy}
           actionInFlight={actionInFlight}
@@ -244,9 +224,17 @@ export default function MatchScreen() {
 }
 
 
-function CreateQueueActions({ profile, offerCount, requestCount, activeQueue, busy, actionInFlight, onCreate }) {
-  const offerDisabled = activeQueue || offerCount !== 1;
-  const requestDisabled = activeQueue || requestCount !== 1 || !profile?.puoAccodareRicerca || !(profile?.crediti > 0);
+/**
+ * Le due azioni di creazione, una per tipo: l'account ha sempre un'offerta e una
+ * ricerca, quindi il tipo della coda non dipende più da quante voci esistono.
+ * Restano due soli motivi per cui un pulsante è spento: una coda già attiva (il
+ * backend ne ammette una sola, di un tipo) e, per la ricerca, il credito che
+ * costa.
+ */
+function CreateQueueActions({ profile, activeQueue, busy, actionInFlight, onCreate }) {
+  const hasCredit = (profile?.crediti ?? 0) > 0;
+  const offerDisabled = activeQueue;
+  const requestDisabled = activeQueue || !hasCredit;
 
   return (
     <View style={{ gap: space.xs }}>
@@ -260,11 +248,6 @@ function CreateQueueActions({ profile, offerCount, requestCount, activeQueue, bu
             loading={actionInFlight === 'create:OFFER'}
             accessibilityLabel="Crea una coda per la tua offerta"
           />
-          {!activeQueue && offerDisabled ? (
-            <AppText variant="small" tone="secondary">
-              {offerCount === 0 ? GATE_NEED_ONE.OFFER : manyServicesReason('OFFER', offerCount)}
-            </AppText>
-          ) : null}
         </View>
         <View style={{ flex: 1, gap: space.xs }}>
           <AppButton
@@ -278,9 +261,9 @@ function CreateQueueActions({ profile, offerCount, requestCount, activeQueue, bu
           <AppText variant="small" tone="secondary">
             {REQUEST_COST_COPY}
           </AppText>
-          {!activeQueue && requestDisabled ? (
+          {!activeQueue && !hasCredit ? (
             <AppText variant="small" tone="secondary">
-              {requestCount !== 1 ? (requestCount === 0 ? GATE_NEED_ONE.REQUEST : manyServicesReason('REQUEST', requestCount)) : !profile?.puoAccodareRicerca ? 'Completa prima una prestazione tramite coda di offerta.' : 'Non hai crediti disponibili.'}
+              {NO_CREDIT_REASON}
             </AppText>
           ) : null}
         </View>

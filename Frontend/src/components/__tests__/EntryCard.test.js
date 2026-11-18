@@ -4,13 +4,12 @@ import { AppButton } from '../AppButton';
 import { EntryCard } from '../EntryCard';
 
 /**
- * The two reasons behind the two switches (audit C6).
+ * One action, and the two reasons that switch it off.
  *
- * `modificaDisabilitata` comes from the missing categories: without them nothing
- * is published or modified, but «Sospendi» and «Elimina» do not read them and
- * must stay available. `azioniDisabilitate` comes from a write in flight: there
- * all three go off. The test pins the promise on the rendered control, not on
- * the formula that computes it.
+ * Every account holds one offer and one request, both mandatory, so the card
+ * cannot offer suspend, reactivate or delete: those controls are gone, not
+ * disabled. What remains is «Modifica», which still stops for the missing
+ * categories and while a write is in flight.
  */
 // Icons load their font asynchronously and set state outside any `act`: they are
 // not under test here, and their lifecycle would only add a warning that does
@@ -40,13 +39,16 @@ function render(extra = {}) {
         voce={VOCE}
         categorie={CATEGORIE}
         onModifica={jest.fn()}
-        onCambiaStato={jest.fn()}
-        onElimina={jest.fn()}
         {...extra}
       />,
     );
   });
   return renderer;
+}
+
+/** The actions the card draws, by their visible label. */
+function etichette(renderer) {
+  return renderer.root.findAllByType(AppButton).map((bottone) => bottone.props.label);
 }
 
 /** The action with this label, as a reader meets it: one button, one state. */
@@ -58,35 +60,44 @@ function pulsante(renderer, etichetta) {
   return nodo;
 }
 
-describe('EntryCard — what the two reasons switch off', () => {
-  it('leaves all three actions enabled when no reason is given', () => {
+describe('EntryCard — one action, not three', () => {
+  it('draws «Modifica» and none of the controls the product rule removed', () => {
     const renderer = render();
 
-    expect(pulsante(renderer, 'Modifica').props.disabled).toBe(false);
-    expect(pulsante(renderer, 'Sospendi').props.disabled).toBe(false);
-    expect(pulsante(renderer, 'Elimina').props.disabled).toBe(false);
+    expect(etichette(renderer)).toEqual(['Modifica']);
+    expect(etichette(renderer)).not.toContain('Elimina');
+    expect(etichette(renderer)).not.toContain('Sospendi');
+    expect(etichette(renderer)).not.toContain('Ripubblica');
   });
 
-  it('keeps suspend and delete enabled when the categories are missing', () => {
-    const renderer = render({ modificaDisabilitata: true });
+  it('hands the entry to «Modifica»', () => {
+    const onModifica = jest.fn();
+    const renderer = render({ onModifica });
+
+    act(() => {
+      pulsante(renderer, 'Modifica').props.onPress();
+    });
+
+    expect(onModifica).toHaveBeenCalledWith(VOCE);
+  });
+});
+
+describe('EntryCard — what the two reasons switch off', () => {
+  it('leaves «Modifica» enabled when no reason is given', () => {
+    expect(pulsante(render(), 'Modifica').props.disabled).toBe(false);
+  });
+
+  it('switches «Modifica» off when the categories are missing', () => {
+    expect(pulsante(render({ modificaDisabilitata: true }), 'Modifica').props.disabled).toBe(true);
+  });
+
+  it('switches «Modifica» off while a write is in flight', () => {
+    expect(pulsante(render({ azioniDisabilitate: true }), 'Modifica').props.disabled).toBe(true);
+  });
+
+  it('switches «Modifica» off on a row the server has not given an id to', () => {
+    const renderer = render({ voce: { ...VOCE, id: null } });
 
     expect(pulsante(renderer, 'Modifica').props.disabled).toBe(true);
-    expect(pulsante(renderer, 'Sospendi').props.disabled).toBe(false);
-    expect(pulsante(renderer, 'Elimina').props.disabled).toBe(false);
-  });
-
-  it('switches off every action while a write is in flight', () => {
-    const renderer = render({ azioniDisabilitate: true });
-
-    expect(pulsante(renderer, 'Modifica').props.disabled).toBe(true);
-    expect(pulsante(renderer, 'Sospendi').props.disabled).toBe(true);
-    expect(pulsante(renderer, 'Elimina').props.disabled).toBe(true);
-  });
-
-  it('switches off suspend and delete while this card has a state change in flight', () => {
-    const renderer = render({ azioneInCorso: 'stato' });
-
-    expect(pulsante(renderer, 'Sospendi').props.disabled).toBe(true);
-    expect(pulsante(renderer, 'Elimina').props.disabled).toBe(true);
   });
 });

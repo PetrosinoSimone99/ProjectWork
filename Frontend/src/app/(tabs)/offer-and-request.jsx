@@ -3,18 +3,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { createService, getCategories, listMyServices, updateService } from '@/api';
 import {
-  createService,
-  deleteService,
-  getCategories,
-  listDeletedServices,
-  listMyServices,
-  restoreService,
-  setServiceSuspended,
-  updateService,
-} from '@/api';
-import {
-  STATI_PUBBLICAZIONE,
   TIPI_VOCE,
   aggiornaVoce,
   localitaDaVoce,
@@ -33,39 +23,32 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { PublicationsSection, SEZIONI_PUBBLICAZIONI } from '@/components/PublicationsSection';
-import { DeletedServicesSection } from '@/components/DeletedServicesSection';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
- * Offro e cerco: pubblica le proprie offerte e ricerche.
+ * Offro e cerco: le proprie offerte e ricerche.
+ *
+ * Ogni account ha **un'offerta e una ricerca**, entrambe obbligatorie: non si
+ * sospendono, non si eliminano e non si ripristinano — si modificano. Per
+ * questo ogni voce ha un solo comando («Modifica»), e «Aggiungi» compare solo
+ * nel caso limite in cui quella voce manchi del tutto (per esempio dopo un
+ * errore del server in registrazione): la norma è che ci siano entrambe.
  *
  * Le voci hanno la **stessa forma della registrazione** (categoria + mansione +
  * «da remoto»), più la località dell'annuncio; la forma del dato e le sue regole
  * vivono in `src/services/offer-request.js` e non si ridichiarano qui. Il form
  * di pubblicazione è uno solo (`EntryForm`) e serve creazione e modifica.
  *
- * Il backend fa **creazione e elenco** delle proprie voci (`POST /api/services`,
- * `GET /api/offers/mine` + `GET /api/requests/mine`): l'elenco mostrato è
- * sempre quello del layer, vero o finto. Quindi:
- *
- * - con i finti spenti la creazione è reale e l'elenco si rilegge dopo ogni
- *   scrittura: la voce appena pubblicata compare subito;
- * - con i finti accesi il comportamento demo resta quello di prima: elenco,
- *   modifica, stato ed eliminazione passano dal deposito finto.
- *
- * Anche la **modifica**, l'**eliminazione** e il **cambio di stato**
- * (pubblica/sospesa) sono reali (PATCH/DELETE su `/api/offers/{id}` e
- * `/api/requests/{id}`; lo stato passa da `isSuspended`, PR #34): tutte le
- * azioni delle card funzionano allo stesso modo con i finti e senza.
- *
- * Con i finti accesi l'elenco non ha una copia locale come verità: dopo ogni
- * scrittura riuscita si richiama `carica()`, così «ho pubblicato e non lo vedo»
- * non esiste per costruzione.
+ * Il backend fa creazione, elenco e modifica (`POST /api/services`,
+ * `GET /api/offers/mine` + `GET /api/requests/mine`, `PATCH` su
+ * `/api/offers/{id}` e `/api/requests/{id}`): l'elenco mostrato è sempre quello
+ * del layer. Dopo ogni scrittura riuscita si richiama `carica()`, così «ho
+ * salvato e non lo vedo» non esiste per costruzione.
  */
 
-/** La spiegazione sotto il titolo: elenco, correzione, eliminazione e stato. */
+/** La spiegazione sotto il titolo: elenco e correzione, senza stato né cestino. */
 const INTRODUZIONE =
-  'Le tue offerte e le tue ricerche: qui le pubblichi, le correggi e decidi quando non sono più visibili.';
+  'Le tue offerte e le tue ricerche: una per tipo, sempre presenti. Qui le correggi quando cambiano.';
 
 /** Il testo del Banner di esito, con la parola giusta per il tipo di voce. */
 function testoEsito(azione, tipo) {
@@ -75,12 +58,6 @@ function testoEsito(azione, tipo) {
       return `${nome} pubblicata.`;
     case 'aggiornata':
       return 'Modifica salvata.';
-    case 'sospesa':
-      return `${nome} sospesa: non è più visibile agli altri.`;
-    case 'ripubblicata':
-      return `${nome} di nuovo pubblicata.`;
-    case 'eliminata':
-      return `${nome} eliminata.`;
     default:
       return '';
   }
@@ -97,19 +74,6 @@ function messaggioCategorie(stato, dettaglio) {
   return `Non riesco a caricare le categorie: senza, non posso farti pubblicare né modificare.${
     dettaglio ? ` ${dettaglio}` : ''
   }`;
-}
-
-/** Il testo della conferma di eliminazione, con l'avviso quando è l'ultima voce. */
-function messaggioEliminazione(voce, ultimaDelTipo) {
-  if (!voce) {
-    return '';
-  }
-  const avviso = ultimaDelTipo
-    ? voce.tipo === TIPI_VOCE.OFFERTA
-      ? ' Senza offerte non entri nel match: potrai pubblicarne una nuova quando vuoi.'
-      : ' Senza ricerche non entri nel match: potrai pubblicarne una nuova quando vuoi.'
-    : '';
-  return `${voce.mansione.trim() || 'Questa voce'} sparisce dall'elenco: la trovi in «Eliminati» e puoi ripristinarla. Gli accordi già avviati non cambiano.${avviso}`;
 }
 
 export default function OfferAndRequestScreen() {
@@ -134,16 +98,7 @@ export default function OfferAndRequestScreen() {
   const [erroreForm, setErroreForm] = useState(null);
   const [salvataggio, setSalvataggio] = useState(false);
 
-  const [azioneInCorso, setAzioneInCorso] = useState(null);
-  const [eliminazione, setEliminazione] = useState(null);
   const [esito, setEsito] = useState(null);
-
-  // The "Eliminati" section has its own request and its own states: a failure
-  // there must not make the active list look broken.
-  const [eliminate, setEliminate] = useState(null);
-  const [caricamentoEliminate, setCaricamentoEliminate] = useState(false);
-  const [erroreEliminate, setErroreEliminate] = useState(null);
-  const [ripristinoInCorso, setRipristinoInCorso] = useState(null);
 
   const carica = useCallback(async () => {
     if (!token || !utente) {
@@ -157,21 +112,6 @@ export default function OfferAndRequestScreen() {
       setErroreElenco(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
       setLoading(false);
-    }
-  }, [token, utente]);
-
-  const caricaEliminate = useCallback(async () => {
-    if (!token || !utente) {
-      return;
-    }
-    setCaricamentoEliminate(true);
-    setErroreEliminate(null);
-    try {
-      setEliminate(await listDeletedServices(token));
-    } catch (err) {
-      setErroreEliminate(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-    } finally {
-      setCaricamentoEliminate(false);
     }
   }, [token, utente]);
 
@@ -193,25 +133,22 @@ export default function OfferAndRequestScreen() {
   useFocusEffect(
     useCallback(() => {
       void carica();
-      void caricaEliminate();
       void caricaCategorie();
-    }, [carica, caricaEliminate, caricaCategorie]),
+    }, [carica, caricaCategorie]),
   );
 
   const ricaricaTutto = useCallback(async () => {
-    await Promise.all([carica(), caricaEliminate(), caricaCategorie()]);
-  }, [carica, caricaEliminate, caricaCategorie]);
+    await Promise.all([carica(), caricaCategorie()]);
+  }, [carica, caricaCategorie]);
 
   const { refreshing, onRefresh } = useRefresh(ricaricaTutto);
 
   const categoriePronte = statoCategorie === 'pronto';
-  // Una scrittura alla volta, su tutta la schermata: il form e le azioni delle
-  // card leggono questo unico valore derivato, invece di decidere ognuno per sé
-  // quando spegnersi (C3). Il ripristino di una voce eliminata è una scrittura
-  // come le altre, quindi entra nel conto; i suoi bottoni restano sul `busyId`
-  // della sezione «Eliminati», che ha uno stato suo (quella lista è un'altra
-  // richiesta).
-  const scritturaInCorso = salvataggio || azioneInCorso !== null || ripristinoInCorso !== null;
+  // Una scrittura alla volta, su tutta la schermata: il form e le card leggono
+  // questo unico valore derivato, invece di decidere ognuno per sé quando
+  // spegnersi (C3). L'unica scrittura della schermata è il salvataggio del form,
+  // perché non ci sono più sospensione, eliminazione né ripristino.
+  const scritturaInCorso = salvataggio;
   const lista = pubblicazioni ?? [];
   const offerte = lista.filter((voce) => voce.tipo === TIPI_VOCE.OFFERTA);
   const ricerche = lista.filter((voce) => voce.tipo === TIPI_VOCE.RICERCA);
@@ -342,8 +279,8 @@ export default function OfferAndRequestScreen() {
       } else {
         await createService(token, form.voce);
       }
-      // Ora l'elenco esiste sempre (vero o finto): la conferma di una nuova
-      // voce è piena e si rilegge la lista «senza ricaricare la pagina».
+      // La conferma di una nuova voce è piena e si rilegge la lista «senza
+      // ricaricare la pagina».
       setEsito(testoEsito(inModifica ? 'aggiornata' : 'creata', tipo));
       setForm(null);
       setFieldErrors({});
@@ -356,81 +293,6 @@ export default function OfferAndRequestScreen() {
     }
   }
 
-  /** Una scrittura su una voce esistente: azione, esito, poi si rilegge l'elenco. */
-  async function eseguiAzione(voce, nome, azione, messaggio) {
-    if (!token || !utente || scritturaInCorso) {
-      return;
-    }
-    setEsito(null);
-    setErroreElenco(null);
-    setAzioneInCorso({ id: voce.id, nome });
-    try {
-      await azione();
-      setEsito(messaggio);
-      // A delete moves the row into "Eliminati" and a restore moves it back:
-      // both lists are reloaded after every write so neither can go stale.
-      await Promise.all([carica(), caricaEliminate()]);
-    } catch (err) {
-      // Voce sparita (404: eliminata altrove o sessione successiva): l'elenco si
-      // rilegge comunque, così non resta in carta una riga morta. Si rilegge
-      // prima di mostrare l'errore, perché `carica()` ripulisce il messaggio a
-      // inizio lettura; con un 409 la voce c'è ancora, e il reload non serve.
-      if (err instanceof ApiError && err.status === 404) {
-        await Promise.all([carica(), caricaEliminate()]);
-      }
-      setErroreElenco(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-    } finally {
-      setAzioneInCorso(null);
-    }
-  }
-
-  function cambiaStato(voce) {
-    const sospesa = voce.stato === STATI_PUBBLICAZIONE.SOSPESA;
-    const nuovoStato = sospesa ? STATI_PUBBLICAZIONE.PUBBLICATA : STATI_PUBBLICAZIONE.SOSPESA;
-    void eseguiAzione(
-      voce,
-      'stato',
-      () => setServiceSuspended(token, { ...voce, stato: nuovoStato }),
-      testoEsito(sospesa ? 'ripubblicata' : 'sospesa', voce.tipo),
-    );
-  }
-
-  async function confermaEliminazione() {
-    const voce = eliminazione;
-    if (!voce) {
-      return;
-    }
-    await eseguiAzione(
-      voce,
-      'elimina',
-      () => deleteService(token, voce),
-      testoEsito('eliminata', voce.tipo),
-    );
-    setEliminazione(null);
-  }
-
-  /** "Ripristina" of the deleted section: bring it back, then reload both lists. */
-  async function ripristina(voce) {
-    // Il ripristino è una scrittura come le altre: parte solo se nessun'altra
-    // è in volo, e i suoi bottoni lo sanno già perché ricevono lo stesso lock.
-    if (!token || !utente || scritturaInCorso) {
-      return;
-    }
-    setRipristinoInCorso(voce.id);
-    setErroreEliminate(null);
-    try {
-      await restoreService(token, voce);
-      setEsito(
-        voce.tipo === TIPI_VOCE.OFFERTA ? 'Offerta ripristinata.' : 'Ricerca ripristinata.',
-      );
-      await Promise.all([carica(), caricaEliminate()]);
-    } catch (err) {
-      setErroreEliminate(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-    } finally {
-      setRipristinoInCorso(null);
-    }
-  }
-
   // Spinner a schermo pieno solo al primo caricamento: i ricarichi successivi
   // (focus della scheda, pull-to-refresh) lasciano il contenuto a schermo.
   if (loading && pubblicazioni === null) {
@@ -438,11 +300,6 @@ export default function OfferAndRequestScreen() {
   }
 
   const ricaricoInCorso = loading && pubblicazioni !== null;
-  const vociEliminazione = !eliminazione
-    ? []
-    : eliminazione.tipo === TIPI_VOCE.OFFERTA
-      ? offerte
-      : ricerche;
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
@@ -498,14 +355,11 @@ export default function OfferAndRequestScreen() {
           categoriePronte={categoriePronte}
           salvataggio={salvataggio}
           scritturaInCorso={scritturaInCorso}
-          azioneInCorso={azioneInCorso}
           onApriNuova={() => apriNuova(sezione.tipo)}
           onCambiaCampo={cambiaCampoForm}
           onSalva={salva}
           onAnnullaForm={annullaForm}
           onModifica={apriModifica}
-          onCambiaStato={cambiaStato}
-          onElimina={setEliminazione}
         />
       ))}
 
@@ -514,31 +368,6 @@ export default function OfferAndRequestScreen() {
           <ActivityIndicator color={t.primary} />
         </View>
       ) : null}
-
-      <DeletedServicesSection
-        services={eliminate}
-        categories={categorie}
-        loading={caricamentoEliminate}
-        error={erroreEliminate}
-        busyId={ripristinoInCorso}
-        bloccato={scritturaInCorso}
-        onRetry={() => void caricaEliminate()}
-        onRestore={(voce) => void ripristina(voce)}
-      />
-
-      <ConfirmModal
-        visible={eliminazione !== null}
-        titolo={
-          eliminazione?.tipo === TIPI_VOCE.RICERCA
-            ? 'Eliminare questa ricerca?'
-            : "Eliminare quest'offerta?"
-        }
-        messaggio={messaggioEliminazione(eliminazione, vociEliminazione.length <= 1)}
-        etichettaConferma="Elimina"
-        onConferma={() => void confermaEliminazione()}
-        onAnnulla={() => setEliminazione(null)}
-        loading={azioneInCorso?.nome === 'elimina'}
-      />
 
       {/* Sostituire un form con del testo non salvato si chiede prima: il testo
           digitato non si perde mai in silenzio (audit UX F03). */}

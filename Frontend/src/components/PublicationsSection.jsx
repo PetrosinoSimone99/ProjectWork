@@ -56,10 +56,10 @@ export const SEZIONI_PUBBLICAZIONI = [
  * schermata, che è l'unica a sapere cosa sta pubblicando.
  *
  * `scritturaInCorso` è `false` finché nessuna scrittura è in volo, `true` mentre
- * lo è (salvataggio, cambio di stato, eliminazione o ripristino): con `true` la
- * sezione non apre un form nuovo, non lascia partire l'azione di nessuna card e lascia leggere il form aperto senza poterlo
- * salvare o annullare. Il blocco è uno solo per la schermata, così due scritture
- * non possono incrociarsi. Le card ricevono i due motivi separati:
+ * lo è (salvataggio di una voce): con `true` la sezione non apre un form nuovo,
+ * lascia leggere il form aperto senza poterlo salvare o annullare e spegne
+ * «Modifica» sulle card. Il blocco è uno solo per la schermata, così due
+ * scritture non possono incrociarsi. Le card ricevono i due motivi separati:
  * `modificaDisabilitata` per le categorie mancanti, `azioniDisabilitate` per la
  * scrittura in volo.
  */
@@ -75,15 +75,11 @@ export function PublicationsSection({
   categoriePronte,
   salvataggio,
   scritturaInCorso = false,
-  azioneInCorso,
-  mostraStato,
   onApriNuova,
   onCambiaCampo,
   onSalva,
   onAnnullaForm,
   onModifica,
-  onCambiaStato,
-  onElimina,
 }) {
   const pieno = limiteRaggiunto(voci);
   const formQui = form !== null && form.tipo === sezione.tipo;
@@ -173,15 +169,9 @@ export function PublicationsSection({
               <EntryCard
                 voce={voce}
                 categorie={categorie}
-                azioneInCorso={
-                  azioneInCorso && azioneInCorso.id === voce.id ? azioneInCorso.nome : null
-                }
                 modificaDisabilitata={!categoriePronte}
                 azioniDisabilitate={scritturaInVolo}
-                mostraStato={mostraStato}
                 onModifica={onModifica}
-                onCambiaStato={onCambiaStato}
-                onElimina={onElimina}
               />
             </View>
           ))}

@@ -5,16 +5,20 @@ import {
   normalizeUserServices,
   toIntegerOrNull,
 } from '../normalizers';
-import { STATI_PUBBLICAZIONE, TIPI_VOCE } from '@/services/offer-request';
+import { TIPI_VOCE } from '@/services/offer-request';
 import { formattaLocalita } from '@/services/italian-locations';
 
 /**
  * Own services area: the viewer's offers and requests.
  *
  * Real endpoints only: `POST /services`, `GET /offers/mine` +
- * `GET /requests/mine`, `PATCH`/`DELETE` on `/offers/{id}` and `/requests/{id}`,
- * the deleted lists and the restore calls. Suspension is the `isSuspended` flag
- * through `PATCH`, which is why there is no separate endpoint for it.
+ * `GET /requests/mine` and `PATCH` on `/offers/{id}` and `/requests/{id}`.
+ *
+ * Every account holds exactly one offer and one request, both mandatory, so the
+ * owner can only modify them: there is no delete, no restore and no suspend
+ * call here. The backend answers `409` to `DELETE` and to a status-only `PATCH`
+ * (`isSuspended`), and a control that cannot succeed is not drawn. The deleted
+ * lists and the staff restore live in `./staff.js`.
  *
  * This file translates the form shape (`tipo`, `mansione`, `idCategoria`,
  * `daRemoto`, `provincia`/`comune`) into the contract shape
@@ -38,10 +42,6 @@ const SERVICE_MESSAGES = {
 
 const CONFLICT_UPDATE =
   'Questa voce è usata in una proposta o in uno scambio: non si può modificare finché dura.';
-const CONFLICT_DELETE =
-  'Questa voce è usata in una proposta o in uno scambio: non si può eliminare finché dura.';
-const CONFLICT_STATUS =
-  'La voce è cambiata durante la richiesta: ricarica e riprova.';
 
 /** Rethrows with the Italian message of the table, other statuses untouched. */
 async function withMessage(call, messages = CREATION_MESSAGES) {
@@ -154,19 +154,6 @@ export async function listMyServices(token) {
 }
 
 /**
- * GET /offers/deleted + GET /requests/deleted — the viewer's soft-deleted
- * services, with `deletedAt`. Same shape as `listMyServices`, plus
- * `eliminataIl`.
- */
-export async function listDeletedServices(token) {
-  const [offers, requests] = await Promise.all([
-    apiFetch('offers/deleted', { token }),
-    apiFetch('requests/deleted', { token }),
-  ]);
-  return normalizeOwnedServices(offers, requests);
-}
-
-/**
  * POST /services — publishes a new service. The guard on the body is
  * defensive: the screen validates first and disables submit without a
  * category, so no real flow reaches here without type and description.
@@ -193,51 +180,6 @@ export async function updateService(token, entry) {
       ...SERVICE_MESSAGES,
       409: CONFLICT_UPDATE,
     }),
-  );
-}
-
-/**
- * PATCH /offers/{id} or PATCH /requests/{id} with `{isSuspended}` only: the
- * partial update leaves the other fields as they are. A suspended service stays
- * in the owner's list and disappears from the home.
- */
-export async function setServiceSuspended(token, entry) {
-  const route = serviceRoute(entry?.tipo, entry?.id);
-  if (!route) {
-    throw new ApiError(400, INVALID_INPUT_MESSAGE);
-  }
-  const body = { isSuspended: entry?.stato === STATI_PUBBLICAZIONE.SOSPESA };
-  return normalizeServiceEnvelope(
-    await withMessage(apiFetch(route, { method: 'PATCH', token, body }), {
-      ...SERVICE_MESSAGES,
-      409: CONFLICT_STATUS,
-    }),
-  );
-}
-
-/** DELETE /offers/{id} or DELETE /requests/{id} — soft delete, `204`, no body. */
-export async function deleteService(token, entry) {
-  const route = serviceRoute(entry?.tipo, entry?.id);
-  if (!route) {
-    throw new ApiError(400, INVALID_INPUT_MESSAGE);
-  }
-  await withMessage(apiFetch(route, { method: 'DELETE', token }), {
-    ...SERVICE_MESSAGES,
-    409: CONFLICT_DELETE,
-  });
-}
-
-/** POST /offers/{id}/restore or POST /requests/{id}/restore — brings it back. */
-export async function restoreService(token, entry) {
-  const route = serviceRoute(entry?.tipo, entry?.id);
-  if (!route) {
-    throw new ApiError(400, INVALID_INPUT_MESSAGE);
-  }
-  return normalizeServiceEnvelope(
-    await withMessage(
-      apiFetch(`${route}/restore`, { method: 'POST', token }),
-      SERVICE_MESSAGES,
-    ),
   );
 }
 

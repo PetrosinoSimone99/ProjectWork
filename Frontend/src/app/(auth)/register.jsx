@@ -9,7 +9,7 @@ import {
   aggiornaVoce,
   nuovaVoce,
   senzaChiave,
-  validaVoce,
+  validaVociRegistrazione,
 } from '@/services/offer-request';
 import {
   MIN_PASSWORD_LENGTH,
@@ -43,6 +43,11 @@ import { space } from '@/theme/tokens';
  *
  * Le regole delle voci stanno in `src/services/offer-request.js`; qui restano
  * solo le regole anagrafiche, la chiamata e i messaggi da disegnare.
+ *
+ * **Un'offerta e una ricerca sono obbligatorie** (`validaVociRegistrazione`):
+ * ogni account deve poter entrare nel match dal primo istante, e le due voci si
+ * potranno poi solo modificare da «Offro e cerco». Una sezione vuota non è più
+ * una sezione da saltare.
  */
 
 /**
@@ -73,7 +78,7 @@ const SEZIONI = [
     tipo: TIPI_VOCE.OFFERTA,
     titolo: 'Cosa offri',
     introduzione:
-      'Scegli la categoria e spiega in due righe cosa fai. Puoi lasciare vuota questa sezione e pubblicare dopo la registrazione.',
+      'Scegli la categoria e spiega in due righe cosa fai. La tua offerta è obbligatoria: potrai modificarla quando vuoi.',
     etichettaAggiungi: "Aggiungi un'offerta",
   },
   {
@@ -81,7 +86,7 @@ const SEZIONI = [
     tipo: TIPI_VOCE.RICERCA,
     titolo: 'Cosa cerchi',
     introduzione:
-      'Scegli la categoria di quello che ti serve e racconta in due righe cosa devi risolvere.',
+      'Scegli la categoria di quello che ti serve e racconta in due righe cosa devi risolvere. Anche la tua ricerca è obbligatoria.',
     etichettaAggiungi: 'Aggiungi una ricerca',
   },
 ];
@@ -141,28 +146,10 @@ function validaAnagrafica(form) {
   return errori;
 }
 
-/** An entry the user has not filled at all: it is skipped, not validated. */
+/** An entry the user has not filled at all: it never reaches the payload. */
 function isBlankEntry(entry) {
   const description = typeof entry?.mansione === 'string' ? entry.mansione.trim() : '';
   return description === '' && (entry?.idCategoria === null || entry?.idCategoria === undefined);
-}
-
-/**
- * Errori delle voci, con la chiave che indica la riga (`offerte.0.mansione`):
- * così un errore sulla voce 2 non blocca la voce 1 e il messaggio finisce sotto
- * il campo giusto.
- */
-function validaSezione(chiave, voci, categorie) {
-  return voci.reduce((errori, voce, indice) => {
-    if (isBlankEntry(voce)) {
-      return errori;
-    }
-    const esito = validaVoce(voce, categorie);
-    Object.entries(esito).forEach(([campo, messaggio]) => {
-      errori[`${chiave}.${indice}.${campo}`] = messaggio;
-    });
-    return errori;
-  }, {});
 }
 
 /**
@@ -183,12 +170,12 @@ function toServiceEntries(entries) {
 /** Il messaggio della Card quando le categorie non sono utilizzabili. */
 function messaggioCategorie(stato, dettaglio) {
   if (stato === 'caricamento') {
-    return 'Sto caricando le categorie: puoi creare l’account anche senza pubblicare servizi.';
+    return 'Sto caricando le categorie: senza, non posso creare l’account, perché un’offerta e una ricerca sono obbligatorie.';
   }
   if (stato === 'vuoto') {
-    return 'Non ci sono categorie disponibili.';
+    return 'Non ci sono categorie disponibili: senza, non posso creare l’account.';
   }
-  return `Non riesco a caricare le categorie: puoi registrarti senza pubblicare servizi.${
+  return `Non riesco a caricare le categorie: senza, non posso creare l’account.${
     dettaglio ? ` ${dettaglio}` : ''
   }`;
 }
@@ -268,13 +255,14 @@ export default function RegisterScreen() {
   // Le stesse regole del submit, applicate prima: un pulsante attivo su un
   // modulo che non può passare sposta la scoperta dell'errore al tocco (F07).
   const anagraficaValida = Object.keys(validaAnagrafica(form)).length === 0;
-  const puoInviare = anagraficaValida && Object.keys(validaSezione('offerte', offerte, categorie)).length === 0 && Object.keys(validaSezione('ricerche', ricerche, categorie)).length === 0;
+  const vociValide =
+    Object.keys(validaVociRegistrazione({ offerte, ricerche }, categorie)).length === 0;
+  const puoInviare = anagraficaValida && vociValide;
 
   function validate() {
     const errori = {
       ...validaAnagrafica(form),
-      ...validaSezione('offerte', offerte, categorie),
-      ...validaSezione('ricerche', ricerche, categorie),
+      ...validaVociRegistrazione({ offerte, ricerche }, categorie),
     };
     setFieldErrors(errori);
     return Object.keys(errori).length === 0;
@@ -295,10 +283,11 @@ export default function RegisterScreen() {
     // compilabile e l'errore giusto è quello delle categorie, non quello delle
     // voci mancanti (il pulsante lo dice già, l'Invio no).
 
-    // The backend rejects an empty `offers`/`requests` array today
-    // (`AuthController::validateServices`), so an account cannot be created
-    // without at least one entry per section. Declared here instead of letting
-    // the generic 400 explain nothing; see docs/backend-gaps.md.
+    // The backend requires exactly one offer and one request
+    // (`AuthController::validateServices`) and the product rule says the same:
+    // an account without them could not enter the match. `validaVociRegistrazione`
+    // has already refused the empty or half-filled sections, so this is the
+    // payload of two complete entries.
     const offersEntries = toServiceEntries(offerte);
     const requestEntries = toServiceEntries(ricerche);
 
@@ -456,7 +445,7 @@ export default function RegisterScreen() {
         {puoInviare ? null : (
           <AppText variant="small" tone="secondary">
             {categoriePronte
-              ? "Per attivare il pulsante completa i dati obbligatori e controlla i dati delle eventuali voci aggiunte."
+              ? 'Per attivare il pulsante completa i dati obbligatori, comprese la tua offerta e la tua ricerca.'
               : "Aspetto le categorie dal servizio: senza non posso creare l'account."}
           </AppText>
         )}

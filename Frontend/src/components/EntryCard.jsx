@@ -5,7 +5,6 @@ import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import {
   ETICHETTE_STATO_PUBBLICAZIONE,
-  STATI_PUBBLICAZIONE,
   TIPI_VOCE,
   etichettaModalita,
   nomeCategoria,
@@ -15,31 +14,25 @@ import { localitaPerDisplay } from '@/services/italian-locations';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
- * Una voce pubblicata: che tipo è, in che stato, cosa dice, e le tre azioni.
+ * Una voce pubblicata: che tipo è, in che stato, cosa dice, e l'unica azione.
  *
  * Solo dati e callback: nessuno stato proprio, nessuna chiamata di rete. È la
  * card che la schermata «Offro e cerco» usa per le proprie offerte e ricerche, e
  * la useranno anche la home («le mie pubblicazioni») e il Profilo quando
  * mostreranno le voci dell'utente.
  *
- * `mostraStato` (default `true`) spegne chip di stato e «Sospendi/Ripubblica»:
- * con il backend vero il cambio di stato non è nel contratto (segnalazione 27),
- * e un'azione non disponibile non si disegna spenta — si toglie (convenzione in
- * `design-system.md`).
+ * L'unica azione è «Modifica»: ogni account ha sempre un'offerta e una ricerca,
+ * entrambe obbligatorie, quindi sospendere o eliminare una voce renderebbe
+ * l'account inutilizzabile. Il backend risponde `409` a `DELETE` e a una
+ * `PATCH` di solo stato, e un comando che non può riuscire non si disegna
+ * (`design-system.md`). Il chip dello stato resta: una voce sospesa prima di
+ * questa regola deve restare leggibile, senza bisogno di un pulsante.
  *
- * `azioneInCorso` è `null` oppure il nome dell'azione in volo su **questa** voce
- * (`'stato'` o `'elimina'`): così lo spinner compare sul pulsante giusto e le
- * altre card restano usabili.
- *
- * Due motivi diversi spengono i comandi, e sono due interruttori diversi.
+ * Due motivi diversi spengono il comando, e sono due interruttori diversi.
  * `modificaDisabilitata` dice che mancano le categorie: senza di esse non si
- * pubblica né si modifica, perché sono un campo obbligatorio del form, e
- * spegne **solo** «Modifica».
+ * pubblica né si modifica, perché sono un campo obbligatorio del form.
  * `azioniDisabilitate` dice che una scrittura è in volo da qualche parte nella
- * schermata: spegne tutte e tre le azioni, perché mentre si scrive sul server
- * una seconda scrittura non deve partire. «Sospendi/Ripubblica» ed «Elimina»
- * non leggono le categorie: restano quindi disponibili mentre `GET /categories`
- * sta fallendo (audit C6).
+ * schermata: mentre si scrive sul server una seconda scrittura non deve partire.
  */
 
 const ETICHETTE_TIPO = {
@@ -56,27 +49,17 @@ const ARTICOLI = {
 export function EntryCard({
   voce,
   categorie = [],
-  azioneInCorso = null,
   modificaDisabilitata = false,
   azioniDisabilitate = false,
-  mostraStato = true,
   onModifica,
-  onCambiaStato,
-  onElimina,
 }) {
   const t = useTokens();
 
-  // Senza id non si può modificare, sospendere né eliminare: mai una richiesta
-  // con `id: undefined` (lezione di P37).
+  // Senza id non si può modificare: mai una richiesta con `id: undefined`
+  // (lezione di P37).
   const idValido = Number.isInteger(voce.id);
-  const occupato = azioneInCorso !== null;
-  // Due motivi, due interruttori: le categorie servono per modificare, non per
-  // sospendere o eliminare.
-  const disabilitaModifica = modificaDisabilitata || azioniDisabilitate || occupato || !idValido;
-  const disabilitaAzioni = azioniDisabilitate || occupato || !idValido;
+  const disabilitaModifica = modificaDisabilitata || azioniDisabilitate || !idValido;
 
-  const sospesa = voce.stato === STATI_PUBBLICAZIONE.SOSPESA;
-  const azioneStato = sospesa ? 'Ripubblica' : 'Sospendi';
   const nomeCategoriaVoce = nomeCategoria(categorie, voce.idCategoria);
   const testoVoce = voce.mansione.trim() || 'Mansione non indicata';
   const articolo = ARTICOLI[voce.tipo] ?? 'la voce';
@@ -97,13 +80,11 @@ export function EntryCard({
             {ETICHETTE_TIPO[voce.tipo] ?? voce.tipo}
           </AppText>
         </Chip>
-        {mostraStato ? (
-          <Chip background={paletteStato.background}>
-            <AppText variant="caption" style={{ color: paletteStato.color }}>
-              {etichettaStato}
-            </AppText>
-          </Chip>
-        ) : null}
+        <Chip background={paletteStato.background}>
+          <AppText variant="caption" style={{ color: paletteStato.color }}>
+            {etichettaStato}
+          </AppText>
+        </Chip>
       </View>
 
       <View style={{ gap: space.xs }}>
@@ -131,10 +112,9 @@ export function EntryCard({
         </View>
       </View>
 
-      {/* Le azioni stanno in una colonna (audit UX F83): le due reversibili
-          dividono una riga, quella che distrugge ha la sua per regola. Prima le
-          tre pillole andavano a capo secondo lo spazio rimasto, quindi a 360 la
-          riga diventava due righe diverse da una card all'altra. */}
+      {/* L'unica azione resta sola sulla riga: le due che la affiancavano
+          (sospendi, elimina) sono sparite con la regola «una voce per tipo,
+          obbligatoria» e non si disegnano spente. */}
       <View style={{ gap: space.sm }}>
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <AppButton
@@ -146,29 +126,7 @@ export function EntryCard({
             accessibilityLabel={`Modifica ${articolo}: ${testoVoce}`}
             style={{ flex: 1 }}
           />
-          {mostraStato ? (
-            <AppButton
-              label={azioneStato}
-              variant="secondary"
-              icon={sospesa ? 'eye-outline' : 'eye-off-outline'}
-              disabled={disabilitaAzioni}
-              loading={azioneInCorso === 'stato'}
-              onPress={() => onCambiaStato(voce)}
-              accessibilityLabel={`${azioneStato} ${articolo}: ${testoVoce}`}
-              style={{ flex: 1 }}
-            />
-          ) : null}
         </View>
-        <AppButton
-          label="Elimina"
-          variant="danger"
-          icon="trash-outline"
-          disabled={disabilitaAzioni}
-          loading={azioneInCorso === 'elimina'}
-          onPress={() => onElimina(voce)}
-          accessibilityLabel={`Elimina ${articolo}: ${testoVoce}`}
-          style={{ alignSelf: 'flex-start' }}
-        />
       </View>
     </Card>
   );

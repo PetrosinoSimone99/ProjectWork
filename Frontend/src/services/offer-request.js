@@ -154,11 +154,10 @@ export function aggiungiVoce(voci) {
  * client), quindi il tetto blocca chi **aggiunge**, non chi elenca: la
  * schermata deve dire il vero su entrambe le cose.
  *
- * Conta anche le voci sospese, ed è la regola che si vuole: con «1 cosa che
- * cerchi e 1 che offri» sospendere non libera un posto. Non serve un filtro
- * sullo stato — chi chiama passa l'elenco completo del tipo
- * (`(tabs)/offer-and-request.jsx` divide per tipo e mai per stato), e questo
- * è il motivo per cui la regola vale già senza codice in più.
+ * Con una voce per tipo obbligatoria il tetto si tocca solo nell'elenco, perché
+ * la voce c'è sempre: qui non serve nessun filtro sullo stato né sul tipo — chi
+ * chiama passa l'elenco completo del tipo (`(tabs)/offer-and-request.jsx`
+ * divide per tipo e mai per stato).
  */
 export function limiteRaggiunto(voci) {
   return voci.length >= LIMITE_VOCI;
@@ -181,18 +180,15 @@ export function testoConteggioVoci(voci) {
  * Con più voci del tetto — voci pubblicate prima che il limite esistesse, o da
  * un altro percorso — la frase costruita sulla costante («Hai raggiunto il
  * massimo di …») accanto a un conteggio più alto si contraddice da sola (audit
- * UX F92): qui la frase nomina il conteggio e dice cosa fare, invece di stampare
- * la costante. Con un tetto di 1 «eliminane una» sarebbe aritmeticamente falso
- * (da 3 ne vanno tolte 2), quindi la frase dice quante ne servono per tornare a
- * una: è anche l'unico modo che ha chi ha più voci di sapere che non gli viene
- * cancellato niente.
+ * UX F92): qui la frase nomina il conteggio e dice cosa si può fare. Da quando
+ * una voce per tipo è obbligatoria e si può solo modificare, «eliminane una»
+ * sarebbe un consiglio impossibile da seguire: le voci in più restano, si
+ * correggono e non se ne aggiungono altre.
  */
 export function testoLimiteVoci(voci, tipo) {
   const quanti = voci.length;
   if (quanti > LIMITE_VOCI) {
-    const daRimuovere = quanti - LIMITE_VOCI;
-    const altre = LIMITE_VOCI === 1 ? "un'altra" : 'altre';
-    return `Massimo raggiunto: hai ${quanti} ${sostantivoVoce(tipo, quanti)}, il massimo è ${LIMITE_VOCI}. Eliminane ${daRimuovere} per aggiungerne ${altre}.`;
+    return `Massimo raggiunto: hai ${quanti} ${sostantivoVoce(tipo, quanti)}, il massimo è ${LIMITE_VOCI}. Puoi modificare quelle che hai, non aggiungerne altre.`;
   }
   return `Hai raggiunto il massimo di ${LIMITE_VOCI} ${sostantivoVoce(tipo, LIMITE_VOCI)}.`;
 }
@@ -227,6 +223,45 @@ export function validaVoce(voce, categorie = []) {
     errori.localita = `Massimo ${LIMITE_LOCALITA} caratteri.`;
   }
 
+  return errori;
+}
+
+/**
+ * Errori della voce che manca: gli stessi campi vuoti di `nuovaVoce`, senza
+ * consumare una chiave del contatore (questa funzione non crea voci).
+ */
+function voceMancante(tipo) {
+  return { tipo, idCategoria: null, mansione: '', provincia: '', comune: '' };
+}
+
+/** Le due sezioni che la registrazione non può lasciare vuote. */
+const SEZIONI_VOCI_OBBLIGATORIE = [
+  { chiave: 'offerte', tipo: TIPI_VOCE.OFFERTA },
+  { chiave: 'ricerche', tipo: TIPI_VOCE.RICERCA },
+];
+
+/**
+ * La regola della registrazione: **un'offerta e una ricerca, entrambe
+ * compilate**. Ogni account deve poter entrare nel match dal primo istante,
+ * quindi una sezione senza voci non si salta come faceva il form quando le voci
+ * erano facoltative: è la voce obbligatoria che manca.
+ *
+ * `voci` è `{ offerte, ricerche }`, le due liste del form. Gli errori hanno le
+ * chiavi che il form disegna (`offerte.0.mansione`), così un errore cade sotto
+ * il campo giusto; una lista vuota produce gli errori della riga 0, che è il
+ * posto dove la voce mancante andrebbe.
+ */
+export function validaVociRegistrazione(voci, categorie = []) {
+  const errori = {};
+  SEZIONI_VOCI_OBBLIGATORIE.forEach(({ chiave, tipo }) => {
+    const elenco = Array.isArray(voci?.[chiave]) ? voci[chiave] : [];
+    const righe = elenco.length > 0 ? elenco : [voceMancante(tipo)];
+    righe.forEach((voce, indice) => {
+      Object.entries(validaVoce(voce, categorie)).forEach(([campo, messaggio]) => {
+        errori[`${chiave}.${indice}.${campo}`] = messaggio;
+      });
+    });
+  });
   return errori;
 }
 

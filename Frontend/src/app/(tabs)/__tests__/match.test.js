@@ -1,7 +1,7 @@
 import { act, create } from 'react-test-renderer';
 
 import MatchScreen from '../match';
-import { cancelQueue, createQueue, listMyServices, listQueues, getProfile } from '@/api';
+import { cancelQueue, createQueue, listQueues, getProfile } from '@/api';
 
 jest.mock('expo-router', () => ({
   // `useFocusEffect` needs a navigator; in this test the screen is always the
@@ -19,7 +19,6 @@ jest.mock('@/auth/auth-context', () => ({
 jest.mock('@/api', () => ({
   getProfile: jest.fn(),
   listQueues: jest.fn(),
-  listMyServices: jest.fn(),
   createQueue: jest.fn(),
   cancelQueue: jest.fn(),
 }));
@@ -44,10 +43,6 @@ const TOKEN = 'jwt';
 const BUTTON_OFFER = 'Crea una coda per la tua offerta';
 const BUTTON_REQUEST = 'Crea una coda per la tua ricerca';
 
-/** One row of `listMyServices`: only `tipo` takes part in the gate. */
-const OFFER_SERVICE = { id: 11, tipo: 'OFFERTA' };
-const REQUEST_SERVICE = { id: 12, tipo: 'RICERCA' };
-
 /** One active row of `GET /get-queues`, as the card below the buttons reads it. */
 const ACTIVE_QUEUE = {
   id: 42,
@@ -69,11 +64,16 @@ async function flush() {
   });
 }
 
-/** Renders the screen the match tab mounts, once both loads have answered. */
-async function renderMatch({ queues = [], services = [], profile = { crediti: 1, puoAccodareRicerca: true } } = {}) {
+/**
+ * Renders the screen the match tab mounts, once both loads have answered.
+ *
+ * No services are passed any more: the create actions no longer depend on how
+ * many entries the account owns (one offer and one request, always), only on
+ * the balance and on the active queue.
+ */
+async function renderMatch({ queues = [], profile = { crediti: 1 } } = {}) {
   getProfile.mockResolvedValue(profile);
   listQueues.mockResolvedValue(queues);
-  listMyServices.mockResolvedValue(services);
   let renderer;
   act(() => {
     renderer = create(<MatchScreen />);
@@ -82,20 +82,23 @@ async function renderMatch({ queues = [], services = [], profile = { crediti: 1,
   return renderer;
 }
 
+/** Every pressable carrying this accessibility label. */
+function pressables(renderer, accessibilityLabel) {
+  return renderer.root.findAll(
+    (candidate) =>
+      candidate.props?.accessibilityLabel === accessibilityLabel &&
+      candidate.props?.accessibilityState !== undefined &&
+      typeof candidate.props.onPress === 'function',
+  );
+}
+
 /**
  * The pressable carrying this accessibility label: the node that also announces
  * the state, so the `AppButton` wrapper above it (which has no
  * `accessibilityState`) is not the one the assertions read.
  */
 function pressable(renderer, accessibilityLabel) {
-  const node = renderer.root
-    .findAll(
-      (candidate) =>
-        candidate.props?.accessibilityLabel === accessibilityLabel &&
-        candidate.props?.accessibilityState !== undefined &&
-        typeof candidate.props.onPress === 'function',
-    )
-    .at(0);
+  const node = pressables(renderer, accessibilityLabel).at(0);
   expect(node).toBeDefined();
   return node;
 }
@@ -142,58 +145,38 @@ beforeEach(() => {
   cancelQueue.mockResolvedValue(undefined);
 });
 
-describe('match — the create-queue gate', () => {
-  it('enables a create button only when the account has exactly one service of that type', async () => {
-    // One offer and no request: only the offer queue has a single service for
-    // `POST /create-service-queue` to find.
-    const singleOffer = await renderMatch({ services: [OFFER_SERVICE] });
+describe('match — the two create actions', () => {
+  it('offers both with no queue and one credit, without asking for a service first', async () => {
+    const renderer = await renderMatch();
 
-    expect(isDisabled(singleOffer, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(singleOffer, BUTTON_REQUEST)).toBe(true);
-
-    const oneServicePerType = await renderMatch({
-      services: [OFFER_SERVICE, REQUEST_SERVICE],
-    });
-
-    expect(isDisabled(oneServicePerType, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(oneServicePerType, BUTTON_REQUEST)).toBe(false);
+    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(false);
+    expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(false);
   });
 
-  it('says why the button is disabled when there is no service of that type', async () => {
-    const renderer = await renderMatch({ services: [] });
+  it('says what a request queue costs, in words, next to the button', async () => {
+    expect(visibleText(await renderMatch())).toContain('Una coda di ricerca costa un credito.');
+  });
 
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
+  it('creates the queue type the button names', async () => {
+    const renderer = await renderMatch();
+
+    await press(renderer, BUTTON_OFFER);
+    expect(createQueue).toHaveBeenCalledWith(TOKEN, 'OFFER');
+
+    await press(renderer, BUTTON_REQUEST);
+    expect(createQueue).toHaveBeenCalledWith(TOKEN, 'REQUEST');
+  });
+
+  it('closes only the request action at a zero balance, and says why', async () => {
+    const renderer = await renderMatch({ profile: { crediti: 0 } });
+
+    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(false);
     expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
-
-    const text = visibleText(renderer);
-    expect(text).toContain(
-      'Per una coda di offerta ti serve un servizio pubblicato in «Offro e cerco».',
-    );
-    expect(text).toContain(
-      'Per una coda di ricerca ti serve un servizio pubblicato in «Offro e cerco».',
-    );
+    expect(visibleText(renderer)).toContain('Non hai crediti disponibili.');
   });
 
-  it('says how many services of that type exist when there is more than one', async () => {
-    const renderer = await renderMatch({
-      services: [OFFER_SERVICE, { id: 13, tipo: 'OFFERTA' }],
-    });
-
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
-    // The count is named: two rows of the same type are a `500` on the route
-    // (`backend-gaps.md` G19), not a button that could be pressed.
-    expect(visibleText(renderer)).toContain(
-      'Hai 2 servizi di questo tipo: il server crea una coda di offerta solo se ne hai uno (limite noto).',
-    );
-  });
-
-  it('closes both create buttons while a queue is still active', async () => {
-    // One service of each type would enable both buttons on their own, so only
-    // the active queue can be what closes them.
-    const renderer = await renderMatch({
-      queues: [ACTIVE_QUEUE],
-      services: [OFFER_SERVICE, REQUEST_SERVICE],
-    });
+  it('closes both actions while a queue is still active', async () => {
+    const renderer = await renderMatch({ queues: [ACTIVE_QUEUE] });
 
     expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
     expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
@@ -206,30 +189,22 @@ describe('match — the create-queue gate', () => {
     // The create call never answers: the first queue stays in flight for the
     // whole test, which is the only way to observe the guard.
     createQueue.mockReturnValue(new Promise(() => {}));
-    const renderer = await renderMatch({
-      services: [OFFER_SERVICE, REQUEST_SERVICE],
-    });
+    const renderer = await renderMatch();
 
     await press(renderer, BUTTON_OFFER);
     expect(createQueue).toHaveBeenCalledTimes(1);
-    expect(createQueue).toHaveBeenCalledWith(TOKEN, 'OFFER');
 
     await press(renderer, BUTTON_REQUEST);
 
     expect(createQueue).toHaveBeenCalledTimes(1);
   });
-});
 
+  it('draws no create action while the balance is unknown', async () => {
+    // A failed `GET /profile` leaves the credit undecided: the screen says why
+    // with its banner instead of guessing what the request action may do.
+    const renderer = await renderMatch({ profile: null });
 
-describe('request eligibility', () => {
-  it('requires a completed offered service even when a credit exists', async () => {
-    const renderer = await renderMatch({ services: [OFFER_SERVICE, REQUEST_SERVICE], profile: { crediti: 1, puoAccodareRicerca: false } });
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
-    expect(visibleText(renderer)).toContain('Completa prima una prestazione tramite coda di offerta.');
-  });
-  it('does not enqueue suspended offers', async () => {
-    const renderer = await renderMatch({ services: [{ ...OFFER_SERVICE, stato: 'SOSPESA' }] });
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
+    expect(pressables(renderer, BUTTON_OFFER)).toHaveLength(0);
+    expect(pressables(renderer, BUTTON_REQUEST)).toHaveLength(0);
   });
 });

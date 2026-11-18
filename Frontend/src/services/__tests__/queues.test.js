@@ -4,7 +4,6 @@ import {
   hasActiveQueue,
   queueStatusLabel,
   queueTypeLabel,
-  servicesOfQueueType,
 } from '../queues';
 import {
   INSUFFICIENT_CREDITS_MESSAGE,
@@ -14,8 +13,8 @@ import {
 } from '../../api/areas/queues';
 
 /**
- * Queue labels, the local create gate, and the three calls of
- * `src/api/areas/queues.js`.
+ * Queue labels, the one local gate that is left (`hasActiveQueue`) and the three
+ * calls of `src/api/areas/queues.js`.
  *
  * The API tests run against the **real** `client.js` with `global.fetch`
  * mocked: the copy under test is chosen from the HTTP status and from the
@@ -90,48 +89,6 @@ describe('queue labels', () => {
     expect(queueStatusLabel('SOMETHING_ELSE')).toBe('Stato non indicato');
     expect(queueStatusLabel(null)).toBe('Stato non indicato');
     expect(queueStatusLabel(undefined)).toBe('Stato non indicato');
-  });
-});
-
-describe('servicesOfQueueType', () => {
-  const SERVIZI = [
-    { chiave: 'OFFERTA-1', tipo: 'OFFERTA', id: 1 },
-    { chiave: 'RICERCA-2', tipo: 'RICERCA', id: 2 },
-  ];
-
-  it('returns the rows of the requested type, so the caller can count them', () => {
-    expect(servicesOfQueueType(SERVIZI, 'OFFER')).toEqual([SERVIZI[0]]);
-    expect(servicesOfQueueType(SERVIZI, 'REQUEST')).toEqual([SERVIZI[1]]);
-  });
-
-  it('returns every row of that type, which is how the caller learns it cannot create a queue', () => {
-    const due = [SERVIZI[0], { ...SERVIZI[0], chiave: 'OFFERTA-3', id: 3 }];
-
-    expect(servicesOfQueueType(due, 'OFFER')).toHaveLength(2);
-  });
-
-  it('returns [] for an empty list or for a type with no row', () => {
-    expect(servicesOfQueueType([], 'OFFER')).toEqual([]);
-    expect(servicesOfQueueType([SERVIZI[1]], 'OFFER')).toEqual([]);
-    expect(servicesOfQueueType(SERVIZI, 'CLOSED')).toEqual([]);
-  });
-
-  it('fails closed on a wrong-case queue type', () => {
-    expect(servicesOfQueueType(SERVIZI, 'offer')).toEqual([]);
-    expect(servicesOfQueueType(SERVIZI, 'Request')).toEqual([]);
-  });
-
-  it('fails closed when the list is not a list', () => {
-    expect(servicesOfQueueType(null, 'OFFER')).toEqual([]);
-    expect(servicesOfQueueType(undefined, 'OFFER')).toEqual([]);
-  });
-
-  it('never mutates the input list', () => {
-    const copia = SERVIZI.map((voce) => ({ ...voce }));
-
-    servicesOfQueueType(SERVIZI, 'OFFER');
-
-    expect(SERVIZI).toEqual(copia);
   });
 });
 

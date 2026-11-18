@@ -29,12 +29,8 @@ export {
 export { getProfile, updateProfile } from './areas/profile';
 export {
   createService,
-  deleteService,
   getUserServices,
-  listDeletedServices,
   listMyServices,
-  restoreService,
-  setServiceSuspended,
   updateService,
 } from './areas/services';
 export {
