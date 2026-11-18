@@ -68,9 +68,12 @@ stato: `Stato:`. Un file, un padrone: `profile.jsx` è del padre, nessun figlio 
    (`profile.jsx:52`); il `onClose` che il padre passa al pannello chiude **e** chiama `ricarica` del
    conteggio, così il badge non aspetta i 30 s di `UNREAD_POLL_MS`. Dentro il pannello il numero non si
    ripete: mentre l'auto-lettura scende, un numero nella descrizione cambierebbe sotto gli occhi.
-   Nota accettata: il backend pagina per pagina (`backend-gaps.md` G16), quindi oltre le 20 righe della
-   prima pagina il badge può restare sopra zero dopo un'apertura. È il limite del backend, non della
-   UI: va scritto in una riga nel changelog, non nascosto con un contatore locale.
+   **Corretto il 2026-11-18:** G16 è ritirato (revisione backend, `backend-gaps.md` §Closed and
+   retracted) — `totalItems` è il totale vero e la pagina 2 è raggiungibile, quindi «pagina 1 e basta»
+   è una scelta nostra, non un limite. Conseguenza accettata in questo ciclo: oltre le 20 righe della
+   prima pagina il badge può restare sopra zero dopo un'apertura, perché quelle righe non sono mai
+   state mostrate. Leggere anche la pagina 2 per azzerarlo è un blocco a sé (fuori da questo ciclo, da
+   proporre separatamente), non un contatore locale.
 
 **Success criteria.** (a) `grep -rn "push('/notifications')" Frontend/src` vuoto; nessun
 `Stack.Screen name="notifications"`; `''/notifications''` fuori da `screen-titles.js`. (b) Nel profilo,
@@ -100,7 +103,7 @@ inventa); la scheda `AGREEMENT_DETAILS` come pannello a sé; `useUnreadCount`; q
 - 9. Wave 2, lane F — test the panel's branches | files: `Frontend/src/components/__tests__/NotificationsSheet.test.js` (new) | done: with `useNotifications` mocked, the test asserts the loading text when `elementi === null`, the empty sentence when `[]`, the error `Banner` plus «Riprova», one rendered row when there is a notification, and that «Chiudi le notifiche» calls `onClose` | Stato: TODO
 - 10. Wave 2, lane G — test the auto-read | files: `Frontend/src/hooks/__tests__/useNotifications.test.js` | done: with two unread rows `segnaVisibiliLette` calls `markNotificationRead` twice, the state ends with both rows read, `nonLette` drops by two, and a rejected call leaves that row unread with `nonLette` decremented only by the successes | Stato: TODO
 - 11. Verify no test still asserts the removed command | files: `Frontend/src/components/__tests__/NotificationRow.test.js` | done: `grep -c "Segna come letta\|onLetta"` is 0 and the file is green untouched — if a test does assert it, the removal of the assertion is justified in the commit body | Stato: N/A
-- 12. Close the cycle: docs | files: `docs/changelog.md`, `docs/architecture.md`, `docs/overview.md`, `docs/api.md` | done: the changelog entry names the panel, the auto-read and the removed route (plus the G16 residual note), `architecture.md:61` no longer lists `/notifications`, `overview.md` says the inbox is a panel in the profile, `api.md` §Notifications says the rows shown are marked read on open; full gate green in the same commit | Stato: TODO
+- 12. Close the cycle: docs | files: `docs/changelog.md`, `docs/architecture.md`, `docs/overview.md`, `docs/api.md` | done: the changelog entry names the panel, the auto-read and the removed route (plus the page-1-only note, G16 retracted), `architecture.md:61` no longer lists `/notifications`, `overview.md` says the inbox is a panel in the profile, `api.md` §Notifications says the rows shown are marked read on open; full gate green in the same commit | Stato: TODO
 
 ## Lanes
 
