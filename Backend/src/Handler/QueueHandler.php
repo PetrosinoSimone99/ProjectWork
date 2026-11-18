@@ -40,7 +40,6 @@ class QueueHandler
             return $queue->getService()->getCategories()->contains($userServiceCategory) && $queue->getService()->isRemote() === $userServiceFromRemote;
         });
         $userQueueKeywords = $this->extractKeywordsFromDescription(strtolower($userQueue->getService()->getDescription()), $userServiceCategory->getDescription());
-        
         if(!empty($relevantQueues)){
             foreach($relevantQueues as $queue){
                 $queueKeywords = $this->extractKeywordsFromDescription(strtolower($queue->getService()->getDescription()), $userServiceCategory->getDescription());
@@ -67,6 +66,7 @@ class QueueHandler
 
                     $this->notificationService->notify($provider, 'MATCH_CREATED', 'Nuovo match creato con: '.$beneficiary->getUsername());
                     $this->notificationService->notify($beneficiary, 'MATCH_CREATED', 'Nuovo match creato con: '.$provider->getUsername());
+                    break;
                 }
             }
         }

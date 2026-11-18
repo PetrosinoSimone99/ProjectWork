@@ -34,6 +34,6 @@ class AgreementRepository extends ServiceEntityRepository
 
     public function findAllAgreements(): array
     {
-        return $this->findAll(['agreementStatus' => AgreementStatus::ACCEPTED]);
+        return $this->findBy(['agreementStatus' => AgreementStatus::ACCEPTED]);
     }
 }

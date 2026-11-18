@@ -189,7 +189,7 @@ class AgreementManager{
             if($agreement->getFromQueue()){
                 $agreementProposal = $this->agreementProposalRepository->findProposalAgreementBeneficiary($agreementId);
                 $this->userManager->IncreaseOrRefundCredit($agreementProposal->getUser());
-                $this->closeQueueUseCase->execute($user, $agreement);
+                $this->closeQueueUseCase->execute($agreement);
             }
             $otherParticipant = $this->agreementProposalRepository->findOtherParticipant($agreementId, $user);
             $this->notificationService->notify($otherParticipant, 'AGREEMENT_CANCELLED', 'Accordo annullato da: '.$user->getUsername(),

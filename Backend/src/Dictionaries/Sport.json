@@ -1,0 +1,37 @@
+{
+
+        "volley":["volley", "pallavolo", "palla volo"],
+        "basket":["basket", "pallacanestro", "palla canestro"],
+        "ciclismo":["ciclismo", "bicicletta","biciclette", "bici", "fare una pedalata"],
+        "padel":["padel"],
+        "calcio":["calcio", "calcetto"],
+        "pingpong":["ping pong", "tennis tavolo", "tennistavolo"],
+        "badminton":["badminton"],
+        "nuoto":["nuoto", "nuotare"],
+        "rugby":["rugby"],
+        "arrampicata":["arrampicata", "arrampicare", "bouldering"],
+        "corsa":["corsa","correre", "running", "podismo", "maratona", "mezza maratona", "trail running", 
+            "ultramaratona", "gara di corsa", "allenamento di corsa"
+        ],
+        "tennis":["giocare a tennis","tennis"],
+        "pattinaggio_ghiacchio":["pattinaggio su ghiaccio", "pattinare sul ghiaccio", "hockey su ghiaccio", "pista di ghiaccio"],
+        "rollerskating":["rollerskating", "pattini a rotelle", "pattinare a rotelle", "pattinaggio a rotelle"],
+        "sci":["sci", "sci alpino", "sci di fondo", "sci da discesa", "sci da pista", "sci da neve", "sci da montagna"],
+        "ginnastica":["ginnastica artistica", "ginnastica ritmica", "ginnastica aerobica", "ginnastica acrobatica", "ginnastica"],
+        "ruoli_e_reparti": [
+            "portiere", "difensore", "centrocampista", "attaccante", "playmaker", 
+            "capitano", "mister", "allenatore", "arbitro", "giocatore"
+        ],
+        "riscaldamento_e_recupero": [
+            "stretching", "riscaldamento", "defaticamento", "recupero"
+        ],
+        "allenamento_e_preparazione": [
+            "allenare","allenarsi","allenarmi", "allenamento","allenamenti", "preparare","prepararmi", "preparazione", "riscaldare", 
+            "riscaldamento", "correre", "faticare", "sudare", "migliorare", "potenziare"
+        ],
+        "insegnamento_e_tecnica": [
+            "insegnare","insegnarmi","insegni", "insegnamento", "spiegare","spieghi", "spiegazione", "imparare", 
+            "apprendere", "correggere", "correzione", "perfezionare", "perfezionamento", 
+            "dimostrare", "dimostrazione", "iniziare"
+        ]
+}

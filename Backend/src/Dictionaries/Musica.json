@@ -1,0 +1,60 @@
+{
+        "canto":[
+            "canto", "cantare", "voce", "cantante", "coro", "cori", "solista", "solisti", "intonazione", "l'intonazione",
+            "riscaldamento vocale", "canto lirico", "canto popolare", "canto jazz", "canto moderno", "canto classico", "canto corale"
+        ],
+        "strumenti_corda":["chitarra elettrica", "chitarra","basso elettrico", "basso","viola", "violino", "violoncello", "contrabbasso", "arpa",
+             "ukulele", "mandolino", "liuto", "banjo", "bouzouki", "sitar", "cavaquinho"],
+        "strumenti_a_fiato":["flauto traverso", "flauto dolce","flauto indiano","flauto di pan", "flauto", "sassofono", "tromba",
+         "trombone", "corno", "clarinetto", "oboe", "fagotto", "tuba", "armonica", "ocarina", "l'ocarina"],
+        "strumenti_a_percussione":["batteria", "percussioni", "tamburo", "cajon", "bonghi", "conga", "timpani", "marimba", "xilofono", "vibrafono", "campanelli"],
+        "strumenti_a_tastiera":["pianoforte", "pianoforte digitale", "tastiera", "organo", "fisarmonica"],
+        "strumenti_elettronici":["sintetizzatore", "synth", "drum machine", "sampler", "sequencer", "controller midi", "interfaccia audio"],
+        "generi_e_stili": [
+            "rock", "pop", "jazz", "blues", "metal", "classica", 
+            "acustico", "elettronica", "cantautorato", "cover", "inediti","folk", "rap", "hip hop", "reggae", "soul", "funk", "country", "dance", "house",
+            "techno", "acustica"
+        ],
+        "teoria_e_tecnica": [
+            "teoria", "solfeggio", "armonia","armonie", "accordi","accordo", "spartito","spartiti", 
+            "tablature", "tab", "ritmo", "tempo", "improvvisazione", "voce"
+        ],
+        "attrezzatura_e_audio": [
+            "amplificatore","amplificatori", "pedale", "effetti", "microfono","microfoni", "cuffie", 
+            "scheda audio","schede audio", "cavi", "mixer", "monitor", "sala prove", "studio", "monitor da studio",
+            "l'impianto audio","impianto audio","cassa", "casse"
+        ],
+        "contesti_e_formazione": [
+            "gruppo", "band","jam session", "jam", "sessione", "concerto", "live", 
+            "duetto", "collaborazione", "brano", "canzone", "canzoni", "pezzo", "notazione musicale",
+            "sessioni musicali improvvisate", "sessione musicale improvvisata"
+        ],
+        "lezioni_e_corsi": [
+            "lezione", "lezioni", "corso", "corsi", "ripetizioni", 
+            "masterclass", "workshop", "seminario", "tutorial", "video tutorial"
+        ],
+        "parti_strumenti":["corde", "corda", "tasti", "tasto", "battente", "battenti", "pulsante", "pulsanti", "pedale", "pedali", "pulsantiera", "manopola", "manopole"],
+        "note": ["note alte", "nota alta", "note basse", "nota bassa", "note medie", "nota media"],
+        "tecniche":["respiro", "respirazione", "vibrato", "legato", "staccato", "pizzicato", "arco",
+            "col legno", "col ponticello", "col tasto"],
+        "melodie": ["melodia", "melodie", "ritornello", "ritornelli", "assolo", "assoli", "coro", "cori"],
+        "scala_musicale":["scala musicale", "scale musicali", "scala maggiore", "scale maggiori",
+         "scala minore", "scale minori", "scala", "scale"],
+        "tecnologie":["fl studio", "logic pro", "ableton live","ableton", "audacity", "cubase",
+            "pro tools", "studio one", "garageband","garage band", "reaper"],
+        "dj":["dj", "deejay", "turntable", "piatti", "giradischi", "controller", "software dj", "software per dj"],
+        "produzione": ["produzione musicale", "produzione audio", "produzione", "mixaggio", "mixare","mixing",
+         "mastering", "masterizzare" ,"traccia audio", "tracce audio", "registrazione", "registrazioni",
+        "edit", "editing"],
+        "playlist":["playlist", "brani", "brano", "canzoni", "canzone", "musica", "musiche", "album", "disco", "dischi"],
+        "suonare_e_produrre": [
+            "suonare", "cantare", "registrare", "registrazione", "comporre", 
+            "composizione", "arrangiare", "arrangiamento", "improvvisare", "jammaste", "leggere", "scrivere",
+            "armonizzare", "trascrivere", "trascrizione", "improvvisazione", "mixare"
+        ],
+        "supporto_e_setup": [
+            "accordare","accordata", "accordatura", "montare","montaggio", "collegare", "configurare", 
+            "riparare","riparazione", "sistemare", "trasportare", "spostare", "cambiare", "cambiano",
+            "preparare", "preparazione", "manutenzione", "manutenzioni"
+        ]
+}

@@ -1,11 +1,44 @@
 {
-    "python": ["python"],
-    "php": ["php"],
-    "javascript": ["javascript", "js"],
-    "c#":["c#", "c sharp"],
-    "c++":["c++", "cpp"],
-    "reactnative":["reactnative", "react native"],
-    "react":["react"],
-    "java":["java"],
-    "mysql":["mysql","mariadb"]
+        "python": ["python", "py"],
+        "django": ["django", "django framework"],
+        "flask": ["flask", "flask framework"],
+        "fastapi": ["fastapi", "fast api", "fast api framework"],
+        "php": ["php"],
+        "symfony": ["symfony", "symfony framework"],
+        "laravel": ["laravel", "laravel framework"],
+        "javascript": ["javascript", "js"],
+        "typescript": ["typescript", "ts"],
+        "reactnative": ["reactnative", "react native"],
+        "react": ["react"],
+        "c#": ["c#", "c sharp"],
+        "c++": ["c++", "cpp"],
+        "c": [" c "],
+        "expo": ["expo", "expo framework"],
+        "java": ["java"],
+        "mysql": ["mysql", "mariadb"],
+        "postgres":["postgresql", "postgres", "pg", "pgadmin"],
+        "html": ["html"],
+        "css": ["css"],
+        "tailwind": ["tailwind", "tailwindcss"],
+        "bootstrap": ["bootstrap"],
+        "github": ["github"],
+        "gitlab":["gitlab"],
+        "git": ["git"],
+        "script": ["script"],
+        "debugging": [
+            "debuggare", "debugging", "correggere", "correzione", "risolvere", 
+            "risoluzione","fixare", "fix", "fixing", "individuare", "correggere"
+        ],
+        "bug": ["bug", "errore", "errori"],
+        "siti": ["sito web", "siti web","sito", "siti", "webapp", "web app", "applicazione web", "applicazioni web", "pagina web", "pagine web"
+         ,"interfaccia web", "interfacce web", "web"],
+        "applicazione":["applicazioni", "applicazione", "app"],
+        "android": ["android", "android app", "app android"],
+        "ios": ["ios", "ios app", "app ios"],
+        "api":["api rest", "api"],
+        "rifattorizzazione_e_ottimizzazione": [
+            "rifattorizzare", "rifattorizzazione", "refactoring", "ottimizzare", 
+            "ottimizzazione", "pulire", "pulizia", "rivedere", "revisione", "migliorare", "revisione", "miglioramento"
+        ]
+    
 }
