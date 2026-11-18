@@ -186,9 +186,15 @@ the backend's end-date scheduler once every delivery of the agreement is
 finished — but nothing consumes that scheduler in the local stack, so a sheet
 can stay `ACCEPTED` past its end date (see `setup.md`). On a queue-born
 agreement that same task credits +1 to the user of the sheet row
-(`UserManager::IncreaseOrRefundCredit`, backend `11cffda`): a movement no route
-exposes (`backend-gaps.md` G15) and one that cannot happen before a worker
-exists (`backend-gaps.md` G12). `response: null` means
+(`UserManager::IncreaseOrRefundCredit`, backend `11cffda`) and, since backend
+`256b985`, also closes the agreement's queues: they turn `CLOSED` and leave
+`GET /get-queues`, exactly like the cancel path. `256b985` also narrowed the
+task to `ACCEPTED` agreements (`findAllAgreements` now uses `findBy`; the
+criteria previously passed to `findAll` were ignored), so a cancelled agreement
+with a passed end date is no longer completed and no longer notifies both
+sides that the service is finished. The credit is a movement no route exposes
+(`backend-gaps.md` G15) and none of it can happen before a worker exists
+(`backend-gaps.md` G12). `response: null` means
 "has not answered yet" and is not a refusal. Rows carry no user ids: the viewer
 is identified by username, and no row names the exchanged service until the
 sheet does (`backend-gaps.md` G4). Until an agreement is accepted it carries no sheet at
@@ -301,7 +307,14 @@ transport. Nothing consumes that transport in the local stack, so queues stay
 | --- | --- | --- |
 | `POST /create-service-queue` | `{queueType: "OFFER"\|"REQUEST"}` | `201`. **One active queue per account, of either type** since backend `4c90ccd`: while a non-`CLOSED` queue exists, a second create throws `User already has an active queue.`, which the controller cannot catch (`backend-gaps.md` G13) and answers **`500`** to the client (`backend-gaps.md` G23). A `REQUEST` queue costs one credit: `400 {error: "Not enough credits"}` when the account has none — the one-queue guard runs **first**, so a refused second queue costs nothing |
 | `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back. It always answers `200`, **even when nothing happened** (unknown id, another account's queue, an already closed one): the app prints «Coda annullata» off that status, so a no-op reads as a success (`backend-gaps.md` G21) |
-| `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`. The repository keeps only rows whose status is **not `CLOSED`** (`ServiceQueueRepository::getServiceQueuesByUser`), so the list carries `OPEN` and `IN_PROGRESS` only: a cancelled queue disappears from it instead of appearing as history |
+| `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`. The repository keeps only rows whose status is **not `CLOSED`** (`ServiceQueueRepository::getServiceQueuesByUser`), so the list carries `OPEN` and `IN_PROGRESS` only: a cancelled queue disappears from it instead of appearing as history. Two backend paths write `CLOSED`, both about a queue-born exchange: `POST /cancel-agreement` and the end-date scheduler once the agreement completes (backend `256b985`) |
+
+A handled queue creates **at most one** agreement per run since backend `089cc78`
+(the handler breaks after the first keyword match), where before it kept pairing
+one queue with every candidate that shared keywords. That is why a single queue
+must not produce several `MATCH_CREATED` pairs or several `IN_PROGRESS` rows; it
+is still unreachable in practice while the keyword dictionaries are missing
+(`backend-gaps.md` G28).
 
 Matching compares `location` with **exact equality**, so the app must always
 send the same composed string it uses everywhere else: `Comune - Provincia`
@@ -362,7 +375,7 @@ and translate the refusal.
 | Create a `REQUEST` queue | −1 | `ServiceQueueManager::createServiceQueue:69-77`, spent **before** the service lookup | States the cost under the button (`REQUEST_COST_COPY`), refuses anything but the two exact types before calling, and maps `Not enough credits` to its own sentence (`api/areas/queues.js`) |
 | Cancel a `REQUEST` queue with no agreement | +1 | `ServiceQueueManager::cancelServiceQueue:97-101` | The confirm modal and the outcome banner say the credit comes back, and only on that row: `OFFER` queues never spent one, and an agreement queue takes the agreement, not the credit |
 | Cancel a queue-born agreement | +1 | `AgreementManager::cancelAgreement:187-193`, credited to the proposal's user | Nothing to show: the credit goes to the counterpart, and no route returns a balance |
-| Complete a queue-born agreement | +1 | `AgreementEndDateChecker:57-63` | Nothing to show, and it cannot happen in the local stack: no worker consumes the scheduler (`G12`) |
+| Complete a queue-born agreement | +1 | `AgreementEndDateChecker:57-63`, which since backend `256b985` also closes that agreement's queues | Nothing to show, and it cannot happen in the local stack: no worker consumes the scheduler (`G12`) |
 
 Three guards the app owes and keeps: it never creates a queue when the account
 does not have **exactly one** service of that type (G19 spends the credit before

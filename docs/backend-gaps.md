@@ -9,6 +9,33 @@ data.
 Everything here is a **request to the backend maintainer**, not a description of
 current behaviour. When one lands, it moves to `api.md`.
 
+## Backend review of this file — 2026-11-18
+
+The backend maintainer read every block against `main` (`089cc78`) and
+`origin/andrea-frontend` (`3bbe361`) plus the reference dump, reading only: no
+file changed, no database touched. His verdicts are folded into each block
+below. Summary:
+
+| Verdict | Blocks |
+| --- | --- |
+| Already implemented, nothing to ask | G1, G2 |
+| Implemented; the remaining half is our work | G3 |
+| Confirmed | G4, G7, G9, G11, G13, G14, G15, G17, G20, G21, G22, G24, G25, G26, G29 |
+| Partially confirmed, or the premise needed fixing | G6, G18, G19, G23, G27, G28 |
+| Branch-dependent | G10 |
+| Product decision, not a defect | G5 |
+| Wrong — retracted | G16 |
+
+Two of the reproductions in this file were conclusions of a run rather than
+readings of the code, and the review did not re-run them: **G16** (wrong
+premise, `Paginator` counts the filtered set, not the page) and **G20** (defect
+right, mechanism overstated). Both are corrected in place. The frontend
+consequences are in the same blocks.
+
+Priority agreed with the backend: `G24` first; then the integrity of agreements,
+queues and credits (`G10`, `G18`, `G19`); then `G20`. After that `G28` and `G12`,
+then error bodies (`G25`) and the login throttle (`G26`).
+
 ## G1 — Relevance ordering on the home catalog — LANDED 2026-11-09
 
 Implemented with a different shape from the request: the priority is
@@ -53,6 +80,10 @@ The service detail's "what they offer and look for" block is now
 gone. The recipient of a proposal could use the same call to see the proposer;
 that screen is not built yet, and it is the only remaining half of this gap.
 
+**Confirmed by the backend review (2026-11-18):** the call exists as described,
+nothing is missing on their side. The proposer-side card is our work, not a
+request.
+
 ## G4 — A proposal that names the service
 
 `POST /create-exchange-agreement` takes only `{otherParticipant}`: the exchange
@@ -66,12 +97,27 @@ Also requested: a list split into `sent` and `received` with the counterpart
 summary, so the bell and the "sent" section do not have to derive their state
 from the agreement list.
 
+**Confirmed (backend review, 2026-11-18).** The creation receives the participant
+and never the service, so the gap is real. Their plan matches the request — keep
+the chosen service on the agreement, check its owner and availability, refuse a
+pending duplicate for the same pair with an atomic rule — with one refinement:
+splitting `sent`/`received` is a **contract extension**, not part of the fix, and
+could land later.
+
 ## G5 — Per-participant answers
 
 `POST /send-agreement-response` now refuses a second answer and an agreement
 that is no longer pending (`409`), but the model is still whole-agreement: one
 refusal sets `REFUSED`, whatever the other participant answered. Requested:
 keep the two answers independent and derive the agreement state from them.
+
+**Reclassified as a product decision (backend review, 2026-11-18).** Per-side
+answers already exist: the sender starts at `true`, the recipient decides, and
+one refusal ends an agreement that needs mutual consent. That is not a bug. The
+model changes only if the product wants two answers still open at once, and then
+the state must be derived from the answers inside one transaction. No frontend
+change follows either way; the block stays open as an unanswered product
+question, not as a backend defect.
 
 ## G6 — Agreement rows with ids and a concluded state
 
@@ -90,6 +136,12 @@ and which it confirms without a user id. The app now calls both sheet routes
 missing `serviceId` (a sheet cannot name another of the provider's services
 without it) and the counterpart `id` (a sheet cannot link back to a profile).
 
+**Confirmed, with one correction (backend review, 2026-11-18).** Missing ids are
+real. The concluded state is **not** missing: `COMPLETED` exists and the
+scheduler writes it, so the conclusion gap is `G12` (nothing consumes that task),
+not a new status. Consequence for the client: a passed `endDate` must not be
+read as "the exchange is complete" — a sheet with rows still unfilled is not.
+
 ## G7 — Confirmation of the delivery sheet — LANDED 2026-11-15
 
 `POST /accept-agreement-details/{agreementId}` now sets `beneficiaryAccepted` and
@@ -100,6 +152,11 @@ exception message appended** instead of a `409`
 writes the sheet answers a clean `Internal Server Error`. Both routes are called
 by the app since the second cycle; the `500` on a double confirmation is what the
 card shows as "Il server non ha accettato la scheda".
+
+**Confirmed (backend review, 2026-11-18).** A double confirmation does answer
+`500`. Their preference is either a `409` on the dedicated `DomainException` or
+an idempotent confirmation; both are acceptable here — the card only has to stop
+reporting a server fault for a repeated tap.
 
 ## G8 — Chat attached to an agreement — LANDED 2026-11-15
 
@@ -126,6 +183,10 @@ person may want to look at the catalog before publishing anything), and the
 registration screen stops before the request and says that one entry per section
 is required.
 
+**Confirmed (backend review, 2026-11-18).** Empty lists are rejected. The agreed
+shape is to accept `[]` while still validating every item that is present; the
+frontend drops its "one entry per section" stop in the same change.
+
 Response: unchanged (`201 {token, user, offers, requests}`), with the empty
 section simply an empty list.
 
@@ -140,6 +201,15 @@ the first, or re-read the queue status inside the loop) and a single transaction
 around agreement + queue status + notification. Today the three writes flush
 separately, and `NotificationService::notify` flushes the whole unit of work
 (`Backend/src/Service/NotificationService.php:16-18`).
+
+**Branch-dependent (backend review, 2026-11-18).** `origin/main` already carries
+the `break` after the first match (`089cc78`); `andrea-frontend` (`3bbe361`) does
+not, and the loop described above is what this working copy runs. The `break`
+alone does not close the block: still missing are one transaction around
+agreement + both queue statuses + notifications, a lock and a re-read of both
+queues so two concurrent workers cannot pair the same queue twice, and
+idempotence for a re-delivered `QueueId` message (Messenger retries the same
+message after a failure).
 
 ## G11 — Queue matching compares location by exact string
 
@@ -168,6 +238,16 @@ inside a loop that can find details without one. Since `11cffda` the same task
 is also the only path that credits +1 when a queue-born agreement completes:
 with no worker that credit never arrives either.
 
+Two more things hang off the same task since backend `256b985` (2026-11-18): it
+ow closes the queues of a completed queue-born agreement through
+`CloseQueueUseCase` (they turn `CLOSED` and disappear from `GET /get-queues`,
+which is the exit a cancelled agreement already had), and it only walks
+`ACCEPTED` agreements — `findAllAgreements` moved from `findAll(criteria)`, whose
+argument PHP silently ignores, to `findBy`. Before that, a `CANCELLED` agreement
+whose sheet had a passed end date was marked completed and still told both sides
+the service was finished. Neither is visible locally while no worker consumes
+`scheduler_default`.
+
 ## G13 — Queue routes swallow their own error branch
 
 `QueueController` writes `catch (Exception $e)` without `use Exception`
@@ -177,6 +257,11 @@ and real failures escape unhandled instead of answering the documented `500`.
 `GET /get-queues` also dereferences `getService()->getCategories()->first()`
 without a null check (`Backend/src/Manager/ServiceQueueManager.php:52-54`), so a
 service without a category answers `500`.
+
+**Confirmed (backend review, 2026-11-18).** The exception name resolves in the
+wrong namespace and `first()` can return `false`. Their rule: qualified
+exceptions, explicit domain cases, and the service validated before any
+dereference — a generic `catch` is not a substitute for those checks.
 
 ## G14 — The demo generator cannot regenerate the demo data
 
@@ -188,6 +273,11 @@ current schema, so the tool dies) and requires the database host to be
 current dump ships **no rows** and the only way to get a working local database
 is the seed we wrote (`Backend/docker/seed-demo.sql`). Requested: the tool
 retargeted to the current schema and to a filename the compose stack mounts.
+
+**Confirmed, one complaint withdrawn (backend review, 2026-11-18).** The old
+dump name, the restricted hosts and the `DROP TABLE` of absent tables are real.
+Refusing to overwrite an existing dump is a **useful protection and stays**;
+only the target filename, the host list and the stale DDL statements change.
 
 ## G15 — The credit balance is never exposed
 
@@ -201,18 +291,33 @@ a balance and a `REQUEST` queue that fails with `Not enough credits` has no
 visible number behind it. Requested: `credits` in `GET /profile` (or a small
 `GET /credits`).
 
-## G16 — The notifications page count is page-scoped
+**Confirmed (backend review, 2026-11-18).** `credits` goes into the authenticated
+profile and stays non-writable through the profile `PATCH`; a separate
+`GET /credits` is not needed.
 
-`NotificationController` answers `pagination.totalItems = count($items)` — the
-rows of the page it just returned — and `totalPages = ceil(total / limit)`
-(`Backend/src/Controller/NotificationController.php:38` for the count, `:41` for
-the payload). With a full first page
-that is `{totalItems: 20, totalPages: 1}` whatever the real total is, so a client
-cannot tell whether a second page exists and `page=2` is unreachable by design:
-notifications past the twentieth cannot be read from the app at all. Requested:
-`totalItems` from a `COUNT(*)` of the same filter (the repository already has
-`countUnread`, so the shape exists). Until then the inbox shows the newest page
-and does **not** draw a "load more" button it could never justify.
+## G16 — RETRACTED 2026-11-18: the notifications count is not page-scoped
+
+**This block was wrong.** `NotificationController` calls `count($items)` on the
+`Doctrine\ORM\Tools\Pagination\Paginator` returned by
+`NotificationRepository::paginate`. That `Paginator` implements `Countable` and
+its `count()` runs a **count query over the same filter**
+(`Backend/vendor/doctrine/orm/src/Tools/Pagination/Paginator.php:85-96`), so
+`totalItems` is the number of filtered results, not the rows of the page. The
+backend also ships a test that asks for `limit=1`, expects three total items and
+requests page 2. Nothing to fix, and this block must not be counted as a bug
+again.
+
+What was true, and what follows on this side:
+
+- the client **can** tell whether a second page exists, so a "load more" is
+  possible. The inbox's "page 1 only" is a **frontend choice** — the newest
+  page is enough for a small inbox — not a workaround for a missing count;
+- `Frontend/src/hooks/useNotifications.js` carries the wrong premise in its
+  header comment ("`totalItems` counts the rows of the page it just returned") and
+  names this block; the comment must be corrected when that file is next
+  touched, and the paging caveat removed from the reasoning;
+- no screen reads the notification pagination today, so nothing in the UI shows
+  a wrong number either way.
 
 ## G17 — An empty queue list is a `404`
 
@@ -223,6 +328,9 @@ that means "empty" is the one the frontend uses everywhere for "route missing",
 so every client has to special-case it: `listQueues` reads `404` as `[]`
 (`Frontend/src/api/areas/queues.js`). Requested: `200` with `{"queues": []}`, so
 "empty" and "broken" stop sharing a status.
+
+**Confirmed (backend review, 2026-11-18).** `200 {"queues": []}` first, then the
+client's `404 -> []` special case can go.
 
 ## G18 — Accepting an agreement can leave half a sheet and answer 500
 
@@ -239,8 +347,18 @@ pair ends up with one sheet row out of two. Today's seed gives every account
 exactly one offer and one request, so the case needs two services of the same
 type to reproduce. The app copes — it draws the row that exists and offers only the action
 that row allows — but the missing second row is not a UI state, it is a lost
-write. Same root cause as G19. Requested: `setMaxResults(1)` (with a documented
-choice) or a deterministic "primary service" per type.
+write. Same root cause as G19.
+
+**Confirmed, solution revised (backend review, 2026-11-18).** The
+`NonUniqueResultException` on the second `createBlankDetails` is real. Their
+objection to the original request is accepted: `setMaxResults(1)` would pick an
+arbitrary service and **hide the duplicates** instead of fixing them. The
+coherent fix is to enforce **one non-deleted offer of that type** in the backend
+(suspended rows included), clean the duplicates that already exist, and answer a
+controlled error when the service is absent; the agreement should also keep the
+service chosen at creation (`G4`). Acceptance must write response, status, both
+sheet rows and notifications in **one transaction** — today state and sheets are
+flushed separately.
 
 ## G19 — Creating a queue needs exactly one service of that type
 
@@ -261,6 +379,14 @@ type, and only one added account could). The
 app gates on "exactly one" and says why rather than calling
 (`Frontend/src/app/(tabs)/match.jsx`). Requested: pick one service deliberately
 and deduct the credit only after the queue is persisted.
+
+**Confirmed, solution widened (backend review, 2026-11-18).** The uncaught
+`TypeError` on zero services, the `NonUniqueResultException` on two, and the
+credit spent **before** the failing lookup are all real. Moving the debit after
+the save is not enough on its own: service and availability are checked first,
+queue and credit are written in one transaction, and the balance is protected
+against concurrent requests (conditional `UPDATE` or a lock). The same "one
+non-deleted offer per type" rule as `G18` removes the ambiguity at the source.
 
 ## G20 — `agreement_details.start_date` cannot hold a date
 
@@ -290,12 +416,21 @@ unreachable (the list excludes `CLOSED` rows), but a client cannot tell a real
 cancellation from a no-op. Requested: `404` when the caller is not a participant
 and `409` when the queue is already closed.
 
+**Confirmed (backend review, 2026-11-18).** `404` for an unknown or foreign
+queue; for an already closed one they accept either a `409` or a documented
+idempotent success. What this side needs is only that a caller can tell the two
+apart, and the copy follows whichever status lands.
+
 ## G22 — A queue row carries no date
 
 `ServiceQueueDTO` has no `createdAt` (and no `updatedAt`), so the app cannot say
 how old a queue is: an `OPEN` queue from three weeks ago and one created a minute
 ago look identical (`In attesa` is a state, not a duration). Requested: one
 timestamp in the row.
+
+**Confirmed as a missing field, not as a runtime error (backend review,
+2026-11-18).** `createdAt` goes into the entity, the schema and the DTO, with an
+explicit rule for rows that predate the column.
 
 ## G23 — A second active queue is a `500`, and one queue total is not the product rule
 
@@ -343,6 +478,13 @@ is another `500`; and `getActiveQueueByUser` now duplicates
 `getServiceQueuesByUser` with `!= CLOSED`, so the queue list can never show a
 cancelled row either.
 
+**Half confirmed (backend review, 2026-11-18).** The `500` for a second active
+queue is a bug: typed exception, mapped to `409`. Whether an account may hold one
+queue **per type** is a **product decision**, not something the backend should
+infer — "one offer per account" does not imply that two active queues are
+allowed. Whichever rule wins must also hold under concurrent requests, so the
+check and the insert share a transaction.
+
 ## G24 — No chat route checks that the caller is a participant
 
 Found while writing W1 (2026-11-16), from reading only. None of the four chat
@@ -369,6 +511,11 @@ existence of the chat should not leak) for a caller who is not in
 `chat_participants` of that chat / in the proposals of that agreement. Until
 then this is a backend authorization defect, not a frontend one.
 
+**Priority confirmed (backend review, 2026-11-18).** This is their first item: the
+caller is verified against `chat_participants` before reading, before creating
+the chat, and before writing a message, answering `403`/`404`. The two cursor
+routes stay correctly scoped.
+
 **How the app lives with it today:** it does not widen the hole further. The
 chat is reachable only from an `ACCEPTED` row of the caller's own agreements
 (`AgreementCard`, `puoAprireChat`), the route carries no agreement id from a
@@ -388,14 +535,19 @@ accept. Recorded so nobody reads the "ACCEPTED only" rule as enforced.
 ## G25 — A `500` body carries the exception message
 
 Five handlers append `$e->getMessage()` to the `500` sentence: the three chat
-routes (`Backend/src/Controller/ChatController.php:44,71,120`) and both details
-routes of an agreement (`Backend/src/Controller/AgreementController.php:264,285`).
+routes (`Backend/src/Controller/ChatController.php:44,81,122`) and, in
+`AgreementController`, the agreement cancellation (`:255`) and the sheet
+confirmation (`:287`). The route that **writes** the sheet answers a fixed
+`Internal Server Error` (`:222`), so it is not on the list.
 This is the general form of **A3** in `audits/api-authz-2026-11-17.md` (reproduced
 there on an unknown `agreementId`). The status sentence the app shows comes from
 `api/client.js`, never from the body, but the text still leaves the server: it
 reaches any caller and any proxy log, and it can name a table, a query or an
 internal path. Requested: log the message on the server with the rest of the
 context and answer a fixed sentence, as every other controller already does.
+
+**Confirmed, references corrected (backend review, 2026-11-18)** — the list above
+is the corrected one.
 
 Found by the read-only documentation audit of 2026-11-17
 (`docs/audits/check-2026-11-17.md`, §Security). Nothing in the frontend depends
@@ -411,30 +563,29 @@ nothing and the next correct one succeeds. Requested: a login throttle
 is not free to run. The app already maps `429` to «Troppe richieste in poco
 tempo» (`Frontend/src/api/client.js`), so nothing changes on this side.
 
-## G27 — A notification carries no message preview
+## G27 — REWRITTEN 2026-11-18: a chat notification already carries the text
 
-A notification row is `{id, type, message, data, createdAt, readAt}`
-(`docs/api.md` §Notifications). For `CHAT_MESSAGE` the backend writes
-`message = "Nuovo messaggio da: <username>"` and nothing else: `data` carries the
-`{agreementId}` and no part of the text that arrived. Two messages from the same
-person are therefore two identical rows and only the minute tells them apart —
-measured in `audits/ux-mobile-audit-2026-11-17.md` (**F5**), screenshot
-`iphone-14-pro/06-notifiche.png`.
+The premise above was wrong. `ChatManager::sendMessage` writes
+`data = {agreementId, chatId, message}` — `message` being the **full text** that
+just arrived (`Backend/src/Manager/ChatManager.php:98-99`, identical on `main` and
+on this branch) — while `message` on the row stays the
+"Nuovo messaggio da: <username>" subject line. `normalizeNotification` already
+passes `dati` through to the screen (`Frontend/src/api/normalizers.js:617`), so
+the preview is **available today**: this is frontend work, not a backend gap.
 
-What the inbox cannot do until the payload carries it: triage. The only way to
-know which message is waiting is to open the agreement, so the notification's
-whole value — deciding *whether* to open anything — is lost for the most
-frequent type. Nothing on this side can paper over it: guessing a subject from
-the agreement would print a fact the payload does not hold.
+The audit finding stands — two messages from the same person are two identical
+rows today (`audits/ux-mobile-audit-2026-11-17.md` **F5**, screenshot
+`iphone-14-pro/06-notifiche.png`); the diagnosis ("the payload does not hold the
+text") does not.
 
-The text is available where the row is written (notifications are created
-synchronously inside the request that causes them, `docs/api.md` §Notifications),
-so no new query is needed. Requested: for `CHAT_MESSAGE` (and for
-`AGREEMENT_*` rows where a description exists), add the first ~60 characters of
-the body as one more field of the row — a server-truncated, single-line, plain
-text preview — escaping or stripping newlines server-side. The app already
-prints `message` as text, so this side changes once, when the field exists;
-until then the row stays untriageable on purpose rather than approximate.
+What the frontend does with it: for `CHAT_MESSAGE` show the first line of
+`dati.message`, single-line and truncated, rendered as **text** (it is user
+input — no HTML), falling back to today's subject when the field is absent.
+`AGREEMENT_*` rows carry no description in `data`, so they keep their `message`.
+
+A server-side, pre-truncated preview field stays **optional**: it would save the
+client the truncation and guarantee one length everywhere, and nothing depends
+on it. Do not wait for it.
 
 ## G28 — The matchmaking worker cannot match anything
 
@@ -471,6 +622,33 @@ match. The demo seed carries two queues that already satisfy the location and
 type rule (`giulia.bianchi`'s OPEN request and `demo.staff`'s OPEN offer), so the
 first working worker has something to do without new data (`docs/setup.md`).
 
+**Partially addressed 2026-11-18 (`e83e503`) — still blocking.** `origin/main`
+now ships eleven dictionaries, but they are named after macro areas
+(`Bricolage`, `Cucina`, `Educazione`, `Fitness`, `Giardinaggio`, `Informatica`,
+`Lingue`, `Musica`, `Pulizie`, `Sport`, `Programmazione`) while the lookup key is
+unchanged: the queue service's category description, one of the fifty
+fine-grained rows in `categories` (`Assistenza computer`, `Programmazione web`,
+`Scrittura e revisione`, …). Exactly two names exist on both sides, `Fitness` and
+`Giardinaggio`; every other category still reaches `array_keys(null)` and
+throws. The two queues the demo seed leaves `OPEN` are in `Cucito` (id 11) and
+`Scrittura e revisione` (id 25), so the measured failure above is unchanged.
+The same push adds the `break` after the first match (`089cc78`): one handled
+queue now creates at most one agreement per run instead of pairing it with every
+keyword-sharing candidate. That fix is correct and invisible until the lookup
+stops throwing.
+
+Requested (revised): a mapping from category description to dictionary file (or
+one dictionary per category description) **and** the tolerant lookup. The
+mapping is the real gap; tolerance alone would only turn a fatal error into a
+match with no keywords.
+
+**Confirmed per branch (backend review, 2026-11-18).** `main` carries eleven
+dictionaries against one here, so on `main` the categories whose description is
+literally a macro-area name can match; here nothing does. The fix is unchanged:
+a stable key between a category and its dictionary (not the human-readable
+description), tolerant loading of a missing or invalid JSON file, and an explicit
+decision about matching a service that has no keywords.
+
 ## G29 — `GET /staff/users` has no `role` filter
 
 `StaffController::users` accepts only `page`, `limit`, `q` and `accountStatus`
@@ -486,6 +664,10 @@ The repository already filters the other two dimensions server-side
 Requested: `role=USER|STAFF` on `GET /staff/users`, validated like
 `accountStatus` (a `400` on anything else) and applied to the same paginated
 query, so `totalItems` counts the filtered set.
+
+**Confirmed (backend review, 2026-11-18).** Validated parameter, applied before
+pagination, remembering that a staff account can also hold `ROLE_USER` — the
+filter asks for "has `ROLE_STAFF`", never "is not `ROLE_USER`".
 
 ## Cross-cutting notes for the backend
 
