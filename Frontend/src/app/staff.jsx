@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
@@ -37,14 +37,16 @@ import { StaffAreaGate } from '@/components/StaffAreaGate';
 import { REVIEW_LABELS, emptyReview, puoEntrareNellAreaStaff, validateReview } from '@/services/staff';
 import { statusLabel } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
+import { usePagedList } from '@/hooks/usePagedList';
 import { useRefresh } from '@/hooks/useRefresh';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
- * Quanti servizi eliminati per richiesta: il backend ferma `limit` a 50, quindi
- * «tutti» non è una pagina sola e la sezione pagina davvero.
+ * Quante righe per richiesta in tutte e tre le liste dell'area staff: il backend
+ * ferma `limit` a 50, quindi «tutti» non è una pagina sola e ogni lista pagina
+ * davvero (segnalazioni, registro e servizi eliminati, stessa dimensione).
  */
-const DELETED_PAGE_SIZE = 20;
+const STAFF_PAGE_SIZE = 20;
 
 /**
  * "Area staff": the reports to examine.
@@ -65,14 +67,6 @@ export default function StaffScreen() {
   const staffId = utente?.id ?? null;
 
   const [filter, setFilter] = useState(null);
-  const [reports, setReports] = useState(null);
-  const [operations, setOperations] = useState(null);
-  // Il registro ha il suo esito: con un `Promise.all` un guasto delle
-  // segnalazioni faceva dire alla scheda del registro che l'endpoint non
-  // esiste, cioè il contrario di quello che era successo (audit UX F57).
-  const [operationError, setOperationError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -84,12 +78,6 @@ export default function StaffScreen() {
   // I servizi eliminati hanno richiesta ed esito propri: sono di tutti gli
   // utenti e un loro guasto non deve riscrivere il significato delle
   // segnalazioni (la stessa lezione F57 del registro).
-  const [deletedServices, setDeletedServices] = useState(null);
-  const [deletedPage, setDeletedPage] = useState(1);
-  const [deletedPages, setDeletedPages] = useState(1);
-  const [deletedLoading, setDeletedLoading] = useState(false);
-  const [deletedLoadingMore, setDeletedLoadingMore] = useState(false);
-  const [deletedError, setDeletedError] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [restoringId, setRestoringId] = useState(null);
 
@@ -99,128 +87,85 @@ export default function StaffScreen() {
   const [detail, setDetail] = useState(null);
   const [operationDetail, setOperationDetail] = useState(null);
 
-  const requestRef = useRef(0);
-  const deletedRequestRef = useRef(0);
   const actionRef = useRef(false);
 
-  const load = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-    const seq = ++requestRef.current;
-    setLoading(true);
-    try {
-      // Due richieste indipendenti: ognuna porta il proprio esito, così una che
-      // cade non riscrive il significato dell'altra (audit UX F57).
-      const [reportResult, operationResult] = await Promise.all([
-        listStaffReports(token, { status: filter, limit: 50 }).then(
-          (page) => ({ page }),
-          (err) => ({ err }),
-        ),
-        listStaffOperations(token, { limit: 10 }).then(
-          (page) => ({ page }),
-          (err) => ({ err }),
-        ),
-      ]);
-      if (seq !== requestRef.current) {
-        return;
-      }
-      if (reportResult.err) {
-        setError(
-          reportResult.err instanceof ApiError
-            ? reportResult.err.message
-            : GENERIC_ERROR_MESSAGE,
-        );
-      } else {
-        setReports(reportResult.page.segnalazioni);
-        setError(null);
-      }
-      if (operationResult.err) {
-        setOperationError(operationResult.err);
-      } else {
-        setOperations(operationResult.page.operazioni);
-        setOperationError(null);
-      }
-    } finally {
-      if (seq === requestRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [token, filter]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-      return () => {
-        requestRef.current += 1;
-      };
-    }, [load]),
+  // Ogni lista chiede la sua pagina: paginazione, righe appese, risposte
+  // superate e doppio tocco vivono in `usePagedList`. Qui resta solo come si
+  // chiede una pagina, cioè il nome della collezione che il backend manda.
+  const loadReports = useCallback(
+    ({ page, limit }) =>
+      listStaffReports(token, { page, limit, status: filter }).then((result) => ({
+        righe: result.segnalazioni,
+        paginazione: result.paginazione,
+      })),
+    [token, filter],
   );
 
-  /**
-   * Una pagina di servizi eliminati. La prima sostituisce la lista, le altre si
-   * appendono: «Carica altri 20» non deve far sparire le righe già lette.
-   */
-  const loadDeleted = useCallback(
-    async (page = 1) => {
-      if (!token) {
-        return;
-      }
-      const seq = ++deletedRequestRef.current;
-      if (page === 1) {
-        setDeletedLoading(true);
-      } else {
-        setDeletedLoadingMore(true);
-      }
-      try {
-        const result = await listStaffDeletedServices(token, {
-          page,
-          limit: DELETED_PAGE_SIZE,
-        });
-        if (seq !== deletedRequestRef.current) {
-          return;
-        }
-        setDeletedServices((previous) => {
-          if (page === 1) {
-            return result.servizi;
-          }
-          // La paginazione è a offset su una lista che può cambiare (un
-          // ripristino sposta la finestra): una riga già letta non si ripete,
-          // altrimenti `chiave` collide nel render.
-          const seen = new Set((previous ?? []).map((row) => row.chiave));
-          return [...(previous ?? []), ...result.servizi.filter((row) => !seen.has(row.chiave))];
-        });
-        setDeletedPage(result.paginazione.pagina ?? page);
-        setDeletedPages(result.paginazione.pagineTotali ?? page);
-        setDeletedError(null);
-      } catch (err) {
-        if (seq !== deletedRequestRef.current) {
-          return;
-        }
-        setDeletedError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
-      } finally {
-        if (seq === deletedRequestRef.current) {
-          setDeletedLoading(false);
-          setDeletedLoadingMore(false);
-        }
-      }
-    },
+  const loadOperations = useCallback(
+    ({ page, limit }) =>
+      listStaffOperations(token, { page, limit }).then((result) => ({
+        righe: result.operazioni,
+        paginazione: result.paginazione,
+      })),
     [token],
   );
 
+  const loadDeletedServices = useCallback(
+    ({ page, limit }) =>
+      listStaffDeletedServices(token, { page, limit }).then((result) => ({
+        righe: result.servizi,
+        paginazione: result.paginazione,
+      })),
+    [token],
+  );
+
+  // Tre liste, tre esiti: una che cade non riscrive il significato delle altre
+  // (audit UX F57).
+  const reports = usePagedList({ carica: loadReports, dimensione: STAFF_PAGE_SIZE });
+  const operations = usePagedList({ carica: loadOperations, dimensione: STAFF_PAGE_SIZE });
+  const deletedServices = usePagedList({ carica: loadDeletedServices, dimensione: STAFF_PAGE_SIZE });
+
+  // L'hook torna un oggetto nuovo a ogni render, ma `ricarica` ha identità
+  // stabile: `reloadAll` e il refresh si agganciano a quella, non all'oggetto
+  // (un'identità che cambia riavvierebbe l'effetto di fuoco a ogni render).
+  const ricaricaSegnalazioni = reports.ricarica;
+  const ricaricaRegistro = operations.ricarica;
+  const ricaricaServiziEliminati = deletedServices.ricarica;
+
+  /**
+   * Tutto quello che la schermata mostra, da pagina 1: è il comando del gesto
+   * nativo, di «Aggiorna» del web (audit §8.8) e del ritorno sulla schermata.
+   */
+  const reloadAll = useCallback(
+    () =>
+      Promise.all([ricaricaSegnalazioni(), ricaricaRegistro(), ricaricaServiziEliminati()]),
+    [ricaricaSegnalazioni, ricaricaRegistro, ricaricaServiziEliminati],
+  );
+
   useFocusEffect(
     useCallback(() => {
-      void loadDeleted(1);
-      return () => {
-        deletedRequestRef.current += 1;
-      };
-    }, [loadDeleted]),
+      if (!token) {
+        return;
+      }
+      void reloadAll();
+    }, [token, reloadAll]),
   );
+
+  // Cambiare filtro cambia la richiesta: le segnalazioni ripartono da pagina 1,
+  // le altre due liste non c'entrano e restano dove sono.
+  const lastFilterRef = useRef(filter);
+  useEffect(() => {
+    if (lastFilterRef.current === filter) {
+      return;
+    }
+    lastFilterRef.current = filter;
+    void ricaricaSegnalazioni();
+  }, [filter, ricaricaSegnalazioni]);
 
   // Il gesto nativo e «Aggiorna» del web sono lo stesso comando (audit §8.8):
   // prima l'unico ricaricamento era il pulsante dello stato vuoto, che esiste
   // solo quando la lista è vuota.
-  const { refreshing, onRefresh } = useRefresh(load);
+  const { refreshing, onRefresh } = useRefresh(reloadAll);
 
   async function claim(report) {
     if (actionRef.current) {
@@ -236,7 +181,9 @@ export default function StaffScreen() {
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
     } finally {
-      await load();
+      // Presa in carico e chiusura scrivono un'operazione: rileggono la prima
+      // pagina di segnalazioni e registro, non quella che si stava guardando.
+      await Promise.all([ricaricaSegnalazioni(), ricaricaRegistro()]);
       actionRef.current = false;
       setBusy(null);
     }
@@ -282,7 +229,7 @@ export default function StaffScreen() {
       setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       setConfirm(null);
     } finally {
-      await load();
+      await Promise.all([ricaricaSegnalazioni(), ricaricaRegistro()]);
       actionRef.current = false;
       setBusy(null);
     }
@@ -374,7 +321,7 @@ export default function StaffScreen() {
       // Prima del reload: nessun'altra riga deve restare disabilitata mentre la
       // pagina 1 si ricarica.
       setRestoringId(null);
-      await loadDeleted(1);
+      await ricaricaServiziEliminati();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       setRestoreTarget(null);
@@ -402,11 +349,11 @@ export default function StaffScreen() {
     );
   }
 
-  if (reports === null && !error) {
+  if (reports.voci === null && !reports.errore) {
     return <LoadingScreen label="Guardo le segnalazioni…" />;
   }
 
-  const list = reports ?? [];
+  const list = reports.voci ?? [];
   const busyOn = (report) => busy !== null && Number(busy.id) === Number(report.id);
 
   return (
@@ -427,33 +374,36 @@ export default function StaffScreen() {
       />
 
       <StaffDeletedServicesSection
-        services={deletedServices}
-        loading={deletedLoading}
-        error={deletedError}
+        services={deletedServices.voci}
+        loading={deletedServices.caricamento}
+        error={deletedServices.errore}
         busyId={restoringId}
-        onRetry={() => void loadDeleted(1)}
+        onRetry={() => void ricaricaServiziEliminati()}
         onRestore={askRestore}
-        onLoadMore={() => {
-          // Mentre la pagina 1 ricarica, un'altra pagina non può partire: la
-          // risposta vincerebbe lei e le righe aggiornate andrebbero perse.
-          if (deletedLoading || deletedLoadingMore) {
-            return;
-          }
-          void loadDeleted(deletedPage + 1);
-        }}
-        hasMore={deletedPage < deletedPages}
-        loadingMore={deletedLoadingMore}
+        // Il doppio tocco lo ferma l'hook: una richiesta già in volo non ne
+        // apre un'altra e una pagina superata non si appende alla lista nuova.
+        onLoadMore={() => void deletedServices.caricaAltri()}
+        hasMore={deletedServices.haAltre}
+        loadingMore={deletedServices.caricamentoAltri}
       />
 
-      <StaffStatusBar filter={filter} onChange={setFilter} disabled={loading} />
+      {/* L'esito della pagina successiva è suo: le righe già lette restano e
+          quello che è andato storto si dice qui invece di sparire. */}
+      {deletedServices.erroreAltri ? (
+        <AppText variant="small" tone="danger">
+          {deletedServices.erroreAltri}
+        </AppText>
+      ) : null}
 
-      {error ? (
+      <StaffStatusBar filter={filter} onChange={setFilter} disabled={reports.caricamento} />
+
+      {reports.errore ? (
         <Banner
           kind="error"
-          message={error}
+          message={reports.errore}
           etichettaAzione="Riprova"
-          onAzione={() => void load()}
-          caricamentoAzione={loading}
+          onAzione={() => void ricaricaSegnalazioni()}
+          caricamentoAzione={reports.caricamento}
         />
       ) : null}
 
@@ -470,13 +420,13 @@ export default function StaffScreen() {
       ) : null}
       {actionError ? <Banner kind="error" message={actionError} /> : null}
 
-      {reports !== null && list.length === 0 ? (
+      {reports.voci !== null && list.length === 0 ? (
         <EmptyState
           icon="shield-checkmark-outline"
           title="Niente da esaminare"
           description={emptyTextForFilter(filter)}
           etichettaAzione="Ricarica"
-          onAzione={() => void load()}
+          onAzione={() => void ricaricaSegnalazioni()}
         />
       ) : null}
 
@@ -495,10 +445,28 @@ export default function StaffScreen() {
         ))}
       </View>
 
-      {loading && reports !== null ? (
+      {reports.caricamento && reports.voci !== null ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
           <ActivityIndicator color={t.primary} />
         </View>
+      ) : null}
+
+      {reports.erroreAltri ? (
+        <AppText variant="small" tone="danger">
+          {reports.erroreAltri}
+        </AppText>
+      ) : null}
+
+      {reports.haAltre ? (
+        <AppButton
+          label={reports.caricamentoAltri ? 'Carico altri…' : 'Carica altri 20'}
+          variant="secondary"
+          icon="chevron-down-outline"
+          loading={reports.caricamentoAltri}
+          onPress={() => void reports.caricaAltri()}
+          accessibilityLabel="Carica altre venti segnalazioni"
+          style={{ alignSelf: 'center' }}
+        />
       ) : null}
 
       <Card>
@@ -507,11 +475,19 @@ export default function StaffScreen() {
           Le ultime azioni fatte dallo staff, nell&apos;ordine in cui sono state registrate.
         </AppText>
         <StaffOperationsLog
-          operations={operations}
-          error={operationError}
-          loading={loading}
-          onRetry={load}
+          operations={operations.voci}
+          error={operations.errore}
+          // Un endpoint assente non è un guasto: la sezione ha uno stato suo
+          // (audit UX F57), e il flag lo porta l'hook.
+          nonDisponibile={operations.erroreNonDisponibile}
+          loadMoreError={operations.erroreAltri}
+          loading={operations.caricamento}
+          onRetry={ricaricaRegistro}
           onOpen={(operation) => void openOperationDetail(operation)}
+          onLoadMore={() => void operations.caricaAltri()}
+          hasMore={operations.haAltre}
+          loadingMore={operations.caricamentoAltri}
+          totalCount={operations.paginazione?.elementiTotali ?? null}
         />
       </Card>
 
