@@ -6,6 +6,66 @@ documents/code touched.
 
 ---
 
+## 2026-11-18 — Backend review of the gap list: G16 retracted, G27 rewritten, G5 reclassified
+
+The backend maintainer read `docs/backend-gaps.md` against `main` (`089cc78`) and
+`origin/andrea-frontend` (`3bbe361`) plus the reference dump — source only, no
+file changed and no database touched — and answered block by block. His verdicts
+are now part of the file, next to each request, so nobody re-files a closed or
+non-existent gap.
+
+### What changed in the gap list
+
+- **G16 retracted.** `count($items)` counts a Doctrine `Paginator`, whose
+  `count()` runs a count query over the filter, so `pagination.totalItems` is the
+  real total and page 2 is reachable. The block is not a bug and no longer counts
+  as one.
+- **G27 rewritten as frontend work.** A `CHAT_MESSAGE` notification already
+  carries `{agreementId, chatId, message}` — `message` being the full text — in
+  `data`, and `normalizeNotification` already exposes `dati`. The preview waits
+  for nobody; the dedicated server field is optional.
+- **G5 reclassified as a product decision.** Per-side answers exist; one refusal
+  ending the agreement is a product rule to confirm, not a defect.
+- **G10 is branch-dependent.** `main` already has the `break` after the first
+  match; this branch does not. Transaction, concurrency and message redelivery
+  remain open.
+- **G28 is branch-dependent.** `main` ships eleven dictionaries against our one,
+  so some categories work there; the fix (stable key, tolerant lookup) is
+  unchanged.
+- **Solutions corrected.** `setMaxResults(1)` was withdrawn for `G18`/`G19` in
+  favour of "one non-deleted offer per type" plus one transaction; `G20` keeps
+  the fix but drops the over-absolute explanation (`ON UPDATE` never overwrites
+  an explicitly assigned value, and the tests strip it during conversion);
+  `G14` keeps the refusal to overwrite an existing dump as a protection.
+- **Confirmed as-is:** G4, G7, G9, G11, G13, G15, G17, G20, G21, G22, G24, G25
+  (route list corrected), G26, G29. G3's remaining half is ours; G1/G2 are done.
+- **Priority agreed:** G24, then G10/G18/G19, then G20; after that G28 and G12,
+  then G25 and G26.
+
+### What it changes on this side
+
+`useNotifications`'s header comment carried the retracted premise ("`totalItems`
+counts the rows of the page"); it now says the count is real and page 1 is a
+choice. `api.md` §Notifications documents the per-type `data` shape, including
+`data.message`. No behaviour changed.
+
+### Open follow-ups (not done here)
+
+- The chat-message preview in the inbox is now unblocked (G27) — it belongs to
+the notifications panel cycle, whose plan still describes it as waiting on a
+backend gap.
+- `docs/briefs/wiring-audit-2026-11-17/audit.md` and
+  `docs/audits/check-2026-11-17.md` still state that the notifications count is
+  page-scoped. They are dated audit records and read as such; the correction
+  lives in the gap file.
+
+### Touched
+
+`docs/backend-gaps.md`, `docs/api.md`, `docs/changelog.md`,
+`Frontend/src/hooks/useNotifications.js` (comment only).
+
+---
+
 ## 2026-11-18 — Backend sync from `origin/main`: dictionaries, queue closing, one match per queue
 
 `git fetch origin` from `andrea-frontend`: **nothing foreign on our own branch**
