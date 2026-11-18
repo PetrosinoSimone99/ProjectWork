@@ -32,8 +32,13 @@ const LIMITS = {
   localita: 255,
 };
 
-const PHOTO_HTTPS_MESSAGE =
-  "L'indirizzo dell'immagine deve iniziare con https://.";
+// A 400 that names the image field can only come from the backend's own shape
+// or length rule now: `photoUrlError` already refused anything that is not an
+// https URL, so blaming the scheme would be false. Neutral, and true for every
+// remaining cause (port out of range, non-ASCII host, a value the server reads
+// differently).
+const PHOTO_REFUSED_MESSAGE =
+  "Il server non ha accettato l'indirizzo dell'immagine: controlla che sia un indirizzo https valido.";
 
 /**
  * La bozza di una modifica interrotta.
@@ -287,7 +292,7 @@ export default function EditProfileScreen() {
         err instanceof ApiError
           ? err.status === 400
             ? 'immagineProfilo' in changes
-              ? `${INVALID_PROFILE_MESSAGE} ${PHOTO_HTTPS_MESSAGE}`
+              ? `${INVALID_PROFILE_MESSAGE} ${PHOTO_REFUSED_MESSAGE}`
               : INVALID_PROFILE_MESSAGE
             : err.message
           : GENERIC_ERROR_MESSAGE;
@@ -480,7 +485,11 @@ export default function EditProfileScreen() {
         label={saving ? 'Salvataggio in corso…' : 'Salva modifiche'}
         onPress={() => void save()}
         loading={saving}
-        disabled={!dirty || !valid}
+        // `photoDropped` blocks the save as a whole, not only the image: the
+        // payload drops the key, so a save with other changes would silently
+        // keep the old photo while the screen shows the typed one (F2). The
+        // line above says why, and "Rimuovi immagine" is the way out.
+        disabled={!dirty || !valid || photoDropped}
         icon="checkmark-outline"
       />
     </Screen>
