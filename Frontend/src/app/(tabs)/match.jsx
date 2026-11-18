@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
-import { cancelQueue, createQueue, listMyServices, listQueues } from '@/api';
+import { cancelQueue, createQueue, listMyServices, listQueues, getProfile } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -22,13 +22,7 @@ const GATE_NEED_ONE = {
   REQUEST: 'Per una coda di ricerca ti serve un servizio pubblicato in «Offro e cerco».',
 };
 
-/**
- * Why a create button is disabled when the account has more than one service of
- * that type: the backend looks the service up with `getOneOrNullResult()`, so
- * two rows make the route answer a `500` (`backend-gaps.md` G19). Saying it
- * here is the only honest option: the button cannot work, and a `500` after a
- * tap would charge the credit first.
- */
+
 function manyServicesReason(tipo, count) {
   const typeWord = tipo === 'OFFER' ? 'offerta' : 'ricerca';
   return `Hai ${count} servizi di questo tipo: il server crea una coda di ${typeWord} solo se ne hai uno (limite noto).`;
@@ -37,15 +31,7 @@ function manyServicesReason(tipo, count) {
 /** The cost of a request queue, in words: a balance figure does not exist. */
 const REQUEST_COST_COPY = 'Una coda di ricerca costa un credito.';
 
-/**
- * Why **both** create buttons are disabled while a queue is still active.
- *
- * Backend `4c90ccd` rejects a second queue of either type with an untranslatable
- * `500` (`backend-gaps.md` G23), so the only honest screen is one that says why
- * it will not call the route. The sentence promises nothing the backend does not
- * do: cancelling the queue is the way back, and it is the same button this tab
- * already shows on every row.
- */
+
 const ACTIVE_QUEUE_REASON =
   'Hai già una coda attiva: annullala per poterne crearne un’altra.';
 
@@ -68,41 +54,14 @@ const EMPTY_TITLE = 'Nessuna coda attiva';
 const EMPTY_DESCRIPTION =
   'Una coda è un servizio che metti in attesa: il match automatico confronterà le tue code con quelle della tua località. Creane una con i due pulsanti qui sotto.';
 
-/**
- * The match tab: the viewer's service queues (`GET /get-queues`) with the two
- * create actions and cancel behind a `ConfirmModal`.
- *
- * The automatic matchmaker itself is still a backend gap, so what the tab
- * shows is the queue the matchmaker consumes — real rows, not invented
- * candidates (the old "not available" empty state is gone because the queue
- * is a real surface now).
- *
- * Two backend facts shape the copy and the guards:
- *
- * - `POST /create-service-queue` looks the account's service of that type up
- *   with `getOneOrNullResult()`: no service fatals, two services fatal too, and
- *   a `REQUEST` queue spends the credit before that lookup. Each create button
- *   therefore stays disabled — with the reason spelled out — unless
- *   `listMyServices` says there is **exactly one** service of that type
- *   (`servicesOfQueueType`).
- * - `POST /create-service-queue` also refuses a second queue of **either** type
- *   (`hasActiveQueue`, backend `4c90ccd`) and it refuses it with a `500` the app
- *   cannot translate (`backend-gaps.md` G23), so while a queue is active the two
- *   buttons are disabled together and the reason replaces theirs.
- * - A request queue costs one credit and **no route exposes the balance**
- *   (`docs/backend-gaps.md` G15): the tab states the cost in words and never
- *   a figure.
- *
- * Loading follows the `useNotifications` pattern: both requests in parallel
- * on every focus, a stale response dropped by sequence, a failed reload
- * keeping the rows already on screen, and `useRefresh` for the pull.
- */
+
 export default function MatchScreen() {
   const { token } = useAuth();
   const router = useRouter();
 
   // `null` until the first answer, so "still loading" and "loaded and empty"
   // stay apart and the create buttons only appear once the services are known.
+  const [profile, setProfile] = useState(null);
   const [queues, setQueues] = useState(null);
   const [services, setServices] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -125,13 +84,15 @@ export default function MatchScreen() {
     // Two independent answers, so one failing does not throw away the other: a
     // list that arrived stays on screen even when the own-services call did not,
     // and the banner names the failure that costs something.
-    const [outcomeQueues, outcomeServices] = await Promise.allSettled([
+    const [outcomeQueues, outcomeServices, outcomeProfile] = await Promise.allSettled([
       listQueues(token),
       listMyServices(token),
+      getProfile(token),
     ]);
     if (seq !== requestSeqRef.current) {
       return;
     }
+    if (outcomeProfile.status === 'fulfilled') { setProfile(outcomeProfile.value); }
     if (outcomeQueues.status === 'fulfilled') {
       setQueues(outcomeQueues.value);
     }
@@ -145,7 +106,7 @@ export default function MatchScreen() {
         ? outcomeQueues.reason
         : outcomeServices.status === 'rejected'
           ? outcomeServices.reason
-          : null;
+          : outcomeProfile.status === 'rejected' ? outcomeProfile.reason : null;
     setLoadError(
       failure === null ? null : failure instanceof ApiError ? failure.message : GENERIC_ERROR_MESSAGE,
     );
@@ -249,8 +210,10 @@ export default function MatchScreen() {
         />
       ) : null}
 
+      {profile !== null ? <AppText variant="small">{`Crediti disponibili: ${profile.crediti ?? 0}`}</AppText> : null}
       {services !== null ? (
         <CreateQueueActions
+          profile={profile}
           offerCount={offerCount}
           requestCount={requestCount}
           activeQueue={activeQueue}
@@ -280,26 +243,10 @@ export default function MatchScreen() {
   );
 }
 
-/**
- * The two create actions with their reasons: a disabled button always says why,
- * and the request one carries its cost in words right under it — never a
- * balance figure, because no route exposes one.
- *
- * A third state sits above both: while a queue is still active the backend
- * refuses **any** second create with a `500` (`backend-gaps.md` G23), so the two
- * buttons go down together and one sentence under the row replaces the two
- * per-button reasons — the only thing that changed is the queue, and cancelling
- * it is the way back.
- *
- * Both are `secondary`: two choices of equal weight are not two primary
- * actions, and `DESIGN.md` gives a screen **one** filled accent ("a screen with
- * no primary action has no filled accent, and that is the rule working"). Each
- * also carries an explicit accessibility name, because "Offerta" alone does not
- * say what pressing it does.
- */
-function CreateQueueActions({ offerCount, requestCount, activeQueue, busy, actionInFlight, onCreate }) {
+
+function CreateQueueActions({ profile, offerCount, requestCount, activeQueue, busy, actionInFlight, onCreate }) {
   const offerDisabled = activeQueue || offerCount !== 1;
-  const requestDisabled = activeQueue || requestCount !== 1;
+  const requestDisabled = activeQueue || requestCount !== 1 || !profile?.puoAccodareRicerca || !(profile?.crediti > 0);
 
   return (
     <View style={{ gap: space.xs }}>
@@ -333,7 +280,7 @@ function CreateQueueActions({ offerCount, requestCount, activeQueue, busy, actio
           </AppText>
           {!activeQueue && requestDisabled ? (
             <AppText variant="small" tone="secondary">
-              {requestCount === 0 ? GATE_NEED_ONE.REQUEST : manyServicesReason('REQUEST', requestCount)}
+              {requestCount !== 1 ? (requestCount === 0 ? GATE_NEED_ONE.REQUEST : manyServicesReason('REQUEST', requestCount)) : !profile?.puoAccodareRicerca ? 'Completa prima una prestazione tramite coda di offerta.' : 'Non hai crediti disponibili.'}
             </AppText>
           ) : null}
         </View>

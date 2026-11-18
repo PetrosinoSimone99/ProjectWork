@@ -53,6 +53,7 @@ final class ReferenceDatabaseSchema
                 $line = preg_replace('/DEFAULT \(now\(\)\)/i', 'DEFAULT CURRENT_TIMESTAMP', $line);
                 $line = preg_replace('/ON UPDATE current_timestamp\(\)/i', '', $line);
                 $line = str_ireplace('current_timestamp()', 'CURRENT_TIMESTAMP', $line);
+                if ($table[1] === 'agreement_proposal' && str_starts_with($line, '`response_date`')) { $line = '`response_date` DATETIME DEFAULT NULL'; }
                 if ($generatedId !== null && str_starts_with($line, '`'.$generatedId.'` ')) {
                     $line .= ' PRIMARY KEY AUTOINCREMENT';
                 }
@@ -60,5 +61,13 @@ final class ReferenceDatabaseSchema
             }
             $db->executeStatement('CREATE TABLE `'.$table[1].'` ('.implode(', ', $definitions).')');
         }
+        $db->executeStatement('ALTER TABLE agreement_proposal ADD service_id INTEGER NULL REFERENCES services(id)');
+        $db->executeStatement('ALTER TABLE agreements ADD pending_pair_key VARCHAR(80) NULL');
+        $db->executeStatement('CREATE UNIQUE INDEX agreement_pending_pair_unique ON agreements(pending_pair_key)');
+        $db->executeStatement('ALTER TABLE service_queues ADD created_at DATETIME NULL');
+        $db->executeStatement("CREATE UNIQUE INDEX queue_active_user_unique ON service_queues(user_id) WHERE status IN ('OPEN','IN_PROGRESS')");
+        $db->executeStatement('CREATE UNIQUE INDEX service_active_slot_unique ON services(user_id,type) WHERE deleted_at IS NULL');
+        $db->executeStatement('CREATE TABLE login_attempts (attempt_key VARCHAR(64) PRIMARY KEY, failures INTEGER NOT NULL, expires_at BIGINT NOT NULL)');
+
     }
 }

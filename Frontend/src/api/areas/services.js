@@ -41,7 +41,7 @@ const CONFLICT_UPDATE =
 const CONFLICT_DELETE =
   'Questa voce è usata in una proposta o in uno scambio: non si può eliminare finché dura.';
 const CONFLICT_STATUS =
-  'Questa voce è usata in una proposta o in uno scambio: non si può sospendere né ripubblicare finché dura.';
+  'La voce è cambiata durante la richiesta: ricarica e riprova.';
 
 /** Rethrows with the Italian message of the table, other statuses untouched. */
 async function withMessage(call, messages = CREATION_MESSAGES) {

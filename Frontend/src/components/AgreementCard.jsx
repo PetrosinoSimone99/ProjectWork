@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { AgreementSheet } from './AgreementSheet';
 import { AppButton } from './AppButton';
@@ -38,6 +39,8 @@ export function AgreementCard({
   onConfermaScheda = null,
   onApriChat = null,
 }) {
+  const router = useRouter();
+  const other = accordo.proposte?.find((proposal) => proposal.username !== myUsername);
   const t = useTokens();
   const [confermaAperta, setConfermaAperta] = useState(false);
   // A sheet call is local to its row, so the card tracks it too: cancelling the
@@ -111,9 +114,12 @@ export function AgreementCard({
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="person-outline" size={16} color={t.textSecondary} />
-        <AppText>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
+        <AppText onPress={other?.idUtente ? () => router.push('/user/' + other.idUtente) : undefined}>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
       </View>
 
+      {accordo.proposte?.filter((proposal) => proposal.descrizioneServizio).map((proposal) => (
+        <AppText key={proposal.username} variant="small">{'@' + proposal.username + ': ' + proposal.descrizioneServizio}</AppText>
+      ))}
       {mia !== null || altra !== null ? (
         <View style={{ gap: space.sm }}>
           {mia !== null ? (

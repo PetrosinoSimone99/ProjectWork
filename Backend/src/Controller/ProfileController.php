@@ -19,14 +19,14 @@ class ProfileController extends AbstractController
     private const EDITABLE_FIELDS = ['name', 'surname', 'location', 'bio', 'profileImageUrl'];
 
     #[Route('', name: 'api_profile_read', methods: ['GET'])]
-    public function read(): JsonResponse
+    public function read(\App\Service\QueueEligibility $eligibility): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        return $this->json(['profile' => $user->toProfileApiArray()]);
+        return $this->json(['profile' => $user->toProfileApiArray() + ['credits' => $user->getCredits(), 'canRequestQueue' => $eligibility->canRequest($user)]]);
     }
 
     #[Route('', name: 'api_profile_update', methods: ['PATCH'])]

@@ -6,9 +6,9 @@ class QueueId
 {
     private string $id;
 
-    public function __construct(string $id)
+    public function __construct(int|string $id)
     {
-        $this->id = $id;
+        $this->id = (string) $id;
     }
 
     public function getId(): string

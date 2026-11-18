@@ -111,28 +111,18 @@ final class ServiceRepository extends ServiceEntityRepository
     /** Protect agreement history and queues from service mutations. */
     public function isInUse(int $serviceId): bool
     {
-        $tables = $this->db->createSchemaManager()->listTableNames();
+        return (bool) $this->db->fetchOne("SELECT 1 FROM service_queues WHERE service_id = ? AND status IN ('OPEN', 'IN_PROGRESS') LIMIT 1", [$serviceId])
+            || (bool) $this->db->fetchOne("SELECT 1 FROM agreement_proposal p JOIN agreements a ON a.id = p.agreement_id WHERE p.service_id = ? AND a.status IN ('PENDING', 'ACCEPTED') LIMIT 1", [$serviceId])
+            || (bool) $this->db->fetchOne("SELECT 1 FROM agreement_details d JOIN agreements a ON a.id = d.agreement_id WHERE d.service_provided = ? AND a.status IN ('PENDING', 'ACCEPTED') LIMIT 1", [$serviceId]);
+    }
+
+    public function assertSlotAvailable(User $user, string $type, ?int $except = null): void
+    {
         $suffix = $this->db->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\SQLitePlatform ? '' : ' FOR UPDATE';
-        // These are the service references in the dump selected by LAST_DB_TO_USE.txt.
-        $references = [
-            'agreement_details' => ['service_provided'],
-            'service_queues' => ['service_id'],
-        ];
-
-        foreach ($references as $table => $columns) {
-            if (!in_array($table, $tables, true)) {
-                continue;
-            }
-            $existingColumns = $this->db->createSchemaManager()->listTableColumns($table);
-            foreach ($columns as $column) {
-                if (isset($existingColumns[$column])
-                    && $this->db->fetchOne("SELECT 1 FROM $table WHERE $column = ? LIMIT 1$suffix", [$serviceId]) !== false) {
-                    return true;
-                }
-            }
+        $this->db->fetchOne('SELECT id FROM users WHERE id = ?'.$suffix, [$user->getId()]);
+        if ($this->db->fetchOne('SELECT id FROM services WHERE user_id = ? AND type = ? AND deleted_at IS NULL AND id != ? LIMIT 1', [$user->getId(), $type, $except ?? 0]) !== false) {
+            throw new \DomainException('Only one service per type is allowed.');
         }
-
-        return false;
     }
 
     /**

@@ -79,6 +79,7 @@ services:
         else
           composer update --no-interaction --no-progress
         fi
+        php tools/upgrade-workflows.php || exit 1
         php bin/console lexik:jwt:generate-keypair --skip-if-exists
         # opcache is off in the CLI SAPI by default, which is what `php -S`
         # uses: without these flags every request recompiles the whole
@@ -94,6 +95,43 @@ services:
             -d opcache.validate_timestamps=1 \
             -d opcache.revalidate_freq=60 \
             -S 0.0.0.0:8000 -t public
+
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8000/api/categories') === false ? 1 : 0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  worker:
+    build: ./docker
+    working_dir: /app
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: "mysql://root:root@database:3306/barattolo?serverVersion=8.0&charset=utf8mb4"
+    volumes:
+      - .:/app
+      - ../Context_and_DB_V2:/Context_and_DB_V2:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=128M"]
+    restart: unless-stopped
+
+  scheduler:
+    build: ./docker
+    working_dir: /app
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: "mysql://root:root@database:3306/barattolo?serverVersion=8.0&charset=utf8mb4"
+    volumes:
+      - .:/app
+      - ../Context_and_DB_V2:/Context_and_DB_V2:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["php", "bin/console", "messenger:consume", "scheduler_default", "--time-limit=3600", "--memory-limit=128M"]
+    restart: unless-stopped
 
 volumes:
   database_data:

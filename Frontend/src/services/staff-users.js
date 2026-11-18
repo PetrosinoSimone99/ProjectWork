@@ -110,43 +110,15 @@ export function describeStatusChange(user, status) {
   return `Cambiare lo stato di ${nomePersona(user)} da ${from} a ${to}.`;
 }
 
-/**
- * The helper line of the role pill, and the limit the count line repeats: the
- * backend has no `role` parameter (`StaffController::users` takes only `page`,
- * `limit`, `q` and `accountStatus`), so the role pill sifts the rows that
- * already arrived instead of the whole collection. The loaded count is said
- * out loud so the pill cannot be read as a server-side filter.
- *
- * `null` means the first page has not arrived yet: the sentence drops the
- * number instead of inventing a zero.
- */
-export function describeRoleFilterScope(caricati = null) {
-  const numero = typeof caricati === 'number' && Number.isFinite(caricati) ? caricati : null;
-  if (numero === null) {
-    return "Il ruolo filtra gli utenti già caricati, non tutto l'elenco.";
-  }
-  return `Filtra gli utenti caricati (${numero}), non tutto l'elenco.`;
+/** Role, search and account status are filtered before server pagination. */
+export function describeRoleFilterScope() {
+  return 'Il ruolo filtra tutto l’elenco, prima della paginazione.';
 }
 
-/**
- * Why the list is empty: four causes, four sentences.
- *
- * `filtri` is "the search or the chosen status is active" — the two filters the
- * server applies — and `ruolo` is the role pill, which is local. Keeping them
- * apart is the point: an empty result under an active role may only mean "not
- * among the rows that arrived", and the two role sentences say that instead of
- * blaming the search.
- */
 export function describeEmptyUserList({ filtri = false, ruolo = false } = {}) {
-  if (ruolo && filtri) {
-    return 'Nessun utente con questo ruolo fra gli utenti caricati che corrispondono a ricerca e stato: il ruolo guarda solo le righe caricate. Cambia ruolo, ricerca o stato, oppure azzera i filtri.';
-  }
-  if (ruolo) {
-    return 'Nessun utente con questo ruolo fra gli utenti caricati: il ruolo guarda solo le righe caricate. Carica altri utenti o cambia ruolo.';
-  }
-  if (filtri) {
-    return 'Nessun utente corrisponde alla ricerca o allo stato scelto: prova un altro nome o azzera i filtri.';
-  }
+  if (ruolo && filtri) { return 'Nessun utente corrisponde a ruolo, ricerca e stato: cambia o azzera i filtri.'; }
+  if (ruolo) { return 'Nessun utente con questo ruolo: scegli un altro ruolo.'; }
+  if (filtri) { return 'Nessun utente corrisponde alla ricerca o allo stato scelto: prova un altro nome o azzera i filtri.'; }
   return "Non c'è nessun utente nell'elenco.";
 }
 

@@ -81,7 +81,7 @@ class AuthController extends AbstractController
     }
 
     #[Route('/login', name: 'api_auth_login', methods: ['POST'])]
-    public function login(Request $request, UserRepository $users, UserPasswordHasherInterface $passwordHasher, JWTTokenManagerInterface $jwtManager): JsonResponse
+    public function login(Request $request, UserRepository $users, UserPasswordHasherInterface $passwordHasher, JWTTokenManagerInterface $jwtManager, \App\Service\LoginThrottle $throttle): JsonResponse
     {
         $data = $this->readJsonBody($request);
         if ($data === null || !is_string($data['username'] ?? null) || !is_string($data['password'] ?? null)) {
@@ -89,7 +89,11 @@ class AuthController extends AbstractController
         }
 
         $user = $users->findOneBy(['username' => trim($data['username'])]);
-        if ($user === null || !$passwordHasher->isPasswordValid($user, $data['password'])) {
+        $attempt = $throttle->attempt(trim($data['username']), $request->getClientIp() ?? 'unknown', fn () => $user !== null && $passwordHasher->isPasswordValid($user, $data['password']));
+        if (!$attempt['allowed']) {
+            return $this->json(['error' => 'Too many login attempts.'], 429, ['Retry-After' => (string) $attempt['retry']]);
+        }
+        if (!$attempt['valid']) {
             // A generic response avoids revealing whether a username exists.
             return $this->error('Invalid username or password.', 401);
         }
@@ -119,8 +123,8 @@ class AuthController extends AbstractController
         $email = trim((string) ($data['email'] ?? ''));
         $password = (string) ($data['password'] ?? '');
         $location = is_string($data['location'] ?? null) ? trim($data['location']) : '';
-        $offers = $this->validateServices($data['offers'] ?? null);
-        $requests = $this->validateServices($data['requests'] ?? null);
+        $offers = $this->validateServices($data['offers'] ?? []);
+        $requests = $this->validateServices($data['requests'] ?? []);
 
         if ($name === '' || $surname === '' || $username === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)
             || strlen($password) < 8 || mb_strlen($name) > 50 || mb_strlen($surname) > 50
@@ -135,7 +139,7 @@ class AuthController extends AbstractController
     /** @return list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>|null */
     private function validateServices(mixed $services): ?array
     {
-        if (!is_array($services) || !array_is_list($services) || $services === []) {
+        if (!is_array($services) || !array_is_list($services) || count($services) > 1) {
             return null;
         }
 

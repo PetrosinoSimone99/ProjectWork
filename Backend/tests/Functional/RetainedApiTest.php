@@ -45,7 +45,7 @@ final class RetainedApiTest extends WebTestCase
             'GET /api/profile', 'PATCH /api/profile', 'GET /api/categories',
             'GET /api/services', 'POST /api/services',
             'GET /api/get-agreements', 'POST /api/create-exchange-agreement',
-            'POST /api/send-agreement-response', 'POST /api/send-agreement-details',
+            'POST /api/send-agreement-response', 'POST /api/send-agreement-details', 'POST /api/accept-agreement-details/{agreementId}',
             'POST /api/cancel-agreement/{agreementId}',
             'GET /api/offers/deleted', 'POST /api/offers/{id}/restore',
             'GET /api/requests/deleted', 'POST /api/requests/{id}/restore',
@@ -89,7 +89,7 @@ final class RetainedApiTest extends WebTestCase
         foreach ([$owner, $category, $service] as $entity) { $em->persist($entity); }
         $em->flush();
         if ($reference === 'agreement') {
-            $db->insert('agreements', ['id' => 1]);
+            $db->insert('agreements', ['id' => 1, 'status' => 'ACCEPTED']);
             $db->insert('agreement_details', ['agreement_id' => 1, 'provider_id' => $owner->getId(), 'beneficiary_id' => $owner->getId(), 'service_provided' => $service->getId()]);
         } elseif ($reference === 'queue') {
             $db->insert('service_queues', ['user_id' => $owner->getId(), 'type' => $type, 'service_id' => $service->getId()]);

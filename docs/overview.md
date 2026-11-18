@@ -5,8 +5,8 @@ what it **offers** and what it **looks for**; the home shows what other people
 offer; a proposal starts the conversation and, once both sides accept, the
 exchange becomes an agreement with a chat to settle the practical details.
 
-The exchange is **pairwise and directional**: one agreement means "this user
-provides this service to that user". There is no closed loop to complete and no
+Direct exchanges are **pairwise and reciprocal**, with one offer per participant.
+Queue matches represent one directional delivery. There is no closed loop to complete and no
 minimum group size. Longer paths (A receives from B, B receives from C) are
 just independent agreements that happen to line up.
 
@@ -22,7 +22,7 @@ just independent agreements that happen to line up.
 | # | Tab | What it does | State today |
 | --- | --- | --- | --- |
 | 1 | **Servizi** (home) | Every service other people offer, ordered by relevance: first everything that shares a category with what the viewer looks for, newest first, then everything else. Filters: free text, categories, location. A card opens the detail popup. | Working against the real backend; the relevance ordering is computed by the backend (`backend-gaps.md` G1 landed) |
-| 2 | **Match** | Queues: a standing offer or request the backend will match in the background | Working: the tab creates and cancels a queue and lists the account's own; the server refuses a second active queue and the UI gates both create actions (`decisions.md` D025). No match ever arrives, because nothing consumes the `async` transport in the local stack (`backend-gaps.md` G12) |
+| 2 | **Match** | Queues: a standing offer or request the backend will match in the background | Working: the tab creates and cancels a queue and lists the account's own; the server refuses a second active queue and the UI gates both create actions (`decisions.md` D025). The async and scheduler consumers run in the local stack |
 | 3 | **Offro e cerco** | The user's own services: create, edit, suspend and reactivate, delete, and restore from a "Deleted" section | Working |
 | 4 | **Accordi** | Three sections (sent, in progress, concluded) plus a bell with the proposals waiting for an answer | Working: proposals, answers, cancellation, both sheet routes (each side fills its own row and confirms the other's) and the chat. What remains of `backend-gaps.md` G6 is the missing `serviceId` and the counterpart id |
 | 5 | **Profilo** | Name, surname, location, bio, profile photo URL, theme, logout, staff entry when the role allows it | Working |
@@ -34,8 +34,7 @@ panel opened from the same profile and not a route of its own.
 ## The lifecycle: proposal, agreement, chat
 
 1. **Proposal.** From a service detail popup the user presses "Invia proposta".
-   Nothing is filled in: the proposal is deliberately blind, meaning "I want
-   this service". The recipient decides by looking at what the proposer offers
+   The selected service and the sender’s own offer are retained in the proposal. The recipient decides by looking at what the proposer offers
    and looks for.
 2. **Notification.** Two things tell the user something arrived: the bell in the
    agreements tab, which counts the proposals waiting for **their** answer, and
@@ -47,15 +46,14 @@ panel opened from the same profile and not a route of its own.
 4. **Details inside the chat.** Either participant fills the agreement sheet
    (place, service, start and end datetime) and the other one reviews and
    confirms it. Until confirmed the agreement stays "details to be defined".
-5. **Conclusion.** When the agreed end datetime passes, the agreement is
-   concluded: the card keeps the day and the time, and the chat can no longer be
-   opened. A service that is not delivered is a contested agreement, which is
+5. **Conclusion.** The scheduler completes the agreement after every required
+   sheet is compiled, confirmed and expired. Participants retain read access to
+   the chat; new messages require an accepted agreement. A service that is not delivered is a contested agreement, which is
    staff territory.
 
 Every step has a screen today (`docs/api.md`): the sheet form, the confirmation
 and the chat inside an accepted agreement. The conclusion in step 5 is written by
-the backend's end-date scheduler, which needs a worker nobody starts yet
-(`backend-gaps.md` G12).
+the backend’s end-date scheduler, consumed by the dedicated Compose worker.
 
 ## What is deliberately not in the product
 
@@ -72,7 +70,7 @@ the backend's end-date scheduler, which needs a worker nobody starts yet
 | --- | --- |
 | **Offer / Request** | The two types of a service: what the user provides, what the user looks for. On the wire the values are `OFFER` and `REQUEST` |
 | **Service** | One row in `services`: owner, type, description, categories, optional location, remote flag, suspended flag, soft delete |
-| **Proposal** | A blind request for someone else's service; accepted or refused by the recipient |
+| **Proposal** | A service-bound request for someone else's service; accepted or refused by the recipient |
 | **Agreement** | The exchange unit created when both sides accept: one provider, one beneficiary, one service |
 | **Agreement sheet** | The details compiled inside the chat (place, service, start and end) and confirmed by the other participant |
 | **Queue** | A service waiting for a counterpart in the schema (`service_queues`), used by the future matching engine |

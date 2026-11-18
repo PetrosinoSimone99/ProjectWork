@@ -6,6 +6,22 @@ documents/code touched.
 
 ---
 
+## 2026-11-18 — Essential backend and frontend workflow corrections
+
+Implemented participant-scoped chat, service-bound reciprocal proposals, atomic
+acceptance/matching/credits, single service and active-queue slots, optional
+registration, request eligibility after an offered delivery, confirmed-sheet
+completion, stable domain dates, login throttling, staff role pagination and
+chat previews. Added an incremental MySQL migration with a duplicate preflight,
+shared login counters and workflow regression tests on SQLite and MySQL.
+Docker now runs async and scheduler consumers; its backend image includes the
+SQLite driver for tests. The maintained demo seed is reused by the generator.
+Verification details and the browser limitation are in
+[workflow-verification-2026-11-18.md](workflow-verification-2026-11-18.md).
+Existing notifications-panel behavior and the user's .gitignore additions are
+preserved. No commits or pushes are made by this implementation session.
+
+
 ## 2026-11-18 — The notifications inbox is a panel, and reading is automatic
 
 The inbox stops being a screen. The band in the profile opens a centered panel

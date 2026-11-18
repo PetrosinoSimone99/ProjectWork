@@ -106,6 +106,8 @@ final class DeletedServiceController extends AbstractController
             $service = $this->restorer->restore($id, $this->getUser(), $type, $asStaff);
         } catch (ServiceNotFoundException $error) {
             return $this->error($error->getMessage(), 404);
+        } catch (\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException) {
+            return $this->error('Only one service per type is allowed.', 409);
         } catch (RetryableException) {
             return $this->error('The service changed during this request. Please try again.', 409);
         }

@@ -73,7 +73,7 @@ const SEZIONI = [
     tipo: TIPI_VOCE.OFFERTA,
     titolo: 'Cosa offri',
     introduzione:
-      'Scegli la categoria e spiega in due righe cosa fai. Serve almeno una voce qui e una in «Cosa cerchi».',
+      'Scegli la categoria e spiega in due righe cosa fai. Puoi lasciare vuota questa sezione e pubblicare dopo la registrazione.',
     etichettaAggiungi: "Aggiungi un'offerta",
   },
   {
@@ -183,12 +183,12 @@ function toServiceEntries(entries) {
 /** Il messaggio della Card quando le categorie non sono utilizzabili. */
 function messaggioCategorie(stato, dettaglio) {
   if (stato === 'caricamento') {
-    return 'Sto caricando le categorie: servono per dirti cosa offri e cosa cerchi.';
+    return 'Sto caricando le categorie: puoi creare l’account anche senza pubblicare servizi.';
   }
   if (stato === 'vuoto') {
     return 'Non ci sono categorie disponibili.';
   }
-  return `Non riesco a caricare le categorie: senza, non posso completare la registrazione.${
+  return `Non riesco a caricare le categorie: puoi registrarti senza pubblicare servizi.${
     dettaglio ? ` ${dettaglio}` : ''
   }`;
 }
@@ -268,9 +268,7 @@ export default function RegisterScreen() {
   // Le stesse regole del submit, applicate prima: un pulsante attivo su un
   // modulo che non può passare sposta la scoperta dell'errore al tocco (F07).
   const anagraficaValida = Object.keys(validaAnagrafica(form)).length === 0;
-  const offertePresenti = offerte.some((voce) => !isBlankEntry(voce));
-  const ricerchePresenti = ricerche.some((voce) => !isBlankEntry(voce));
-  const puoInviare = categoriePronte && anagraficaValida && offertePresenti && ricerchePresenti;
+  const puoInviare = anagraficaValida && Object.keys(validaSezione('offerte', offerte, categorie)).length === 0 && Object.keys(validaSezione('ricerche', ricerche, categorie)).length === 0;
 
   function validate() {
     const errori = {
@@ -296,22 +294,14 @@ export default function RegisterScreen() {
     // Le voci si scelgono dalle categorie del backend: senza, il modulo non è
     // compilabile e l'errore giusto è quello delle categorie, non quello delle
     // voci mancanti (il pulsante lo dice già, l'Invio no).
-    if (!categoriePronte) {
-      setError("Aspetto le categorie dal servizio: senza non posso creare l'account.");
-      return;
-    }
+
     // The backend rejects an empty `offers`/`requests` array today
     // (`AuthController::validateServices`), so an account cannot be created
     // without at least one entry per section. Declared here instead of letting
     // the generic 400 explain nothing; see docs/backend-gaps.md.
     const offersEntries = toServiceEntries(offerte);
     const requestEntries = toServiceEntries(ricerche);
-    if (offersEntries.length === 0 || requestEntries.length === 0) {
-      setError(
-        "Per creare l'account serve almeno un'offerta e almeno una ricerca: aggiungine una per sezione. Potrai modificarle o eliminarle dopo la registrazione.",
-      );
-      return;
-    }
+
     setSubmitting(true);
     try {
       await signUp({
@@ -466,7 +456,7 @@ export default function RegisterScreen() {
         {puoInviare ? null : (
           <AppText variant="small" tone="secondary">
             {categoriePronte
-              ? "Per attivare il pulsante completa i dati obbligatori e aggiungi almeno una voce per sezione."
+              ? "Per attivare il pulsante completa i dati obbligatori e controlla i dati delle eventuali voci aggiunte."
               : "Aspetto le categorie dal servizio: senza non posso creare l'account."}
           </AppText>
         )}

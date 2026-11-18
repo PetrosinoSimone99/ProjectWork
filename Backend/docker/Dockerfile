@@ -14,10 +14,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       libicu-dev \
       libzip-dev \
+      libsqlite3-dev \
       zip \
       unzip \
       git \
- && docker-php-ext-install -j"$(nproc)" pdo_mysql intl zip \
+ && docker-php-ext-install -j"$(nproc)" pdo_mysql pdo_sqlite intl zip \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

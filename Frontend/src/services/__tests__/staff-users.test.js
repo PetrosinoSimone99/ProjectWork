@@ -17,17 +17,17 @@ import {
  */
 
 describe('describeRoleFilterScope', () => {
-  it('names the loaded rows and their count', () => {
+  it('describes the server-wide role filter', () => {
     const frase = describeRoleFilterScope(40);
-    expect(frase).toContain('40');
-    expect(frase).toContain('caricati');
-    expect(frase).toContain('non tutto');
+    expect(frase).not.toContain('40');
+    expect(frase).toContain('tutto');
+    expect(frase).toContain('prima della paginazione');
   });
 
-  it('drops the number, not the limit, before the first page arrives', () => {
+  it('does not depend on how many pages are loaded', () => {
     const frase = describeRoleFilterScope(null);
-    expect(frase).toContain('caricati');
-    expect(frase).toContain('non tutto');
+    expect(frase).toContain('tutto');
+    expect(frase).toContain('prima della paginazione');
     expect(frase).not.toMatch(/\d/);
   });
 });
@@ -46,8 +46,8 @@ describe('describeEmptyUserList', () => {
     expect(new Set([nessunFiltro, soloRuolo, ruoloERicerca]).size).toBe(3);
   });
 
-  it('names the loaded rows when the role pill emptied the list', () => {
-    expect(soloRuolo).toContain('caricati');
+  it('names the selected role when the filtered result is empty', () => {
+    expect(soloRuolo).toContain('questo ruolo');
     expect(soloRuolo).not.toBe(ruoloERicerca);
   });
 

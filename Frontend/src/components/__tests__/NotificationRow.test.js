@@ -279,3 +279,9 @@ describe('NotificationRow opening', () => {
     expect(onApri).not.toHaveBeenCalled();
   });
 });
+
+
+it('shows a single-line preview from the chat notification payload', () => {
+  const renderer = renderRiga({ ...NOTIFICA, tipo: 'CHAT_MESSAGE', dati: { message: 'Ciao\n  a tutti' } });
+  expect(renderer.root.findAll((node) => node.props?.children === 'Ciao a tutti').length).toBeGreaterThan(0);
+});

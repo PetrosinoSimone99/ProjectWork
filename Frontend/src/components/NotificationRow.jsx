@@ -155,6 +155,9 @@ export function NotificationRow({
       </View>
 
       <AppText>{notifica.messaggio ?? 'Notifica senza testo.'}</AppText>
+      {notifica.tipo === 'CHAT_MESSAGE' && typeof notifica.dati?.message === 'string' ? (
+        <AppText variant="small" tone="secondary">{notifica.dati.message.replace(/\s+/g, ' ').trim().slice(0, 60)}</AppText>
+      ) : null}
     </>
   );
 

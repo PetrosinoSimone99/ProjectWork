@@ -14,7 +14,7 @@ inactive account is a `403` (`ActiveAccountSubscriber`). The app attaches the
 token from the session on every call (`Frontend/src/api/client.js`).
 
 Catalog, auth and staff routes answer errors as `{"error": "<text>"}` with a
-4xx/5xx status. The **agreement routes** use the wrapped shape
+4xx/5xx status. The **agreement routes** may also use the wrapped shape
 `{"error": {"code": …, "message": …}}` instead: the app maps those by status
 (`Frontend/src/api/areas/agreements.js`), never by body, so both shapes reach
 the user as Italian copy.
@@ -26,18 +26,18 @@ the user as Italian copy.
 | `POST /auth/register` | `{name, surname, username, email, password, location, offers[], requests[]}` | `201 {token, user, offers, requests}` |
 | `POST /auth/login` | `{username, password}` | `{token, user}` |
 
-`location` is mandatory. **Each of `offers` and `requests` must contain at least
-one entry today**: `AuthController::validateServices` rejects an empty list with
-a `400`, so the frontend states that limit instead of sending a doomed request
-(see [`backend-gaps.md`](backend-gaps.md) G9). Items are
-`{description, categoryIds[], isRemote, location?}`. Registration always assigns
-`ROLE_USER` and an active account. The token lasts one hour.
+`location` is mandatory. Offers and requests may be omitted or empty; each list
+accepts at most one entry. Items are `{description, categoryIds[], isRemote,
+isSuspended?, location?}`. Registration assigns an active `ROLE_USER` account.
+The token lasts one hour. Login allows five failed attempts per username/IP and
+fifty per IP in fifteen minutes, then returns `429` with `Retry-After`.
+Counters are shared through MySQL, including across PHP workers.
 
 ## Profile
 
 | Call | Notes |
 | --- | --- |
-| `GET /profile` | `{profile: {id, name, surname, location, username, email, bio, profileImageUrl}}` |
+| `GET /profile` | `{profile: {id, name, surname, location, username, email, bio, profileImageUrl, credits, canRequestQueue}}` |
 | `PATCH /profile` | Editable: `name`, `surname`, `location`, `bio`, `profileImageUrl`. Any other field is rejected; the whole request is validated before writing |
 
 `profileImageUrl` is a pasted URL (no upload). The frontend applies the same
@@ -101,6 +101,12 @@ value is a `400`, not a silently different result.
 
 ## Services: the user's own
 
+There is at most one non-deleted service per owner/type, including suspended
+services. Creating or restoring into an occupied slot returns `409`.
+A status-only PATCH may suspend/reactivate even when historical references exist;
+content edits and deletion are blocked only by active queues or pending/accepted
+agreements. Accepted agreements are retained when a service is suspended.
+
 | Call | Notes |
 | --- | --- |
 | `GET /offers/mine` | `{offers: [...]}` — the viewer's own offers, newest first |
@@ -113,7 +119,7 @@ value is a `400`, not a silently different result.
 Suspending is the `isSuspended` flag through `PATCH`: a suspended service stays
 in the owner's list but disappears from the home.
 
-**A `PATCH` always carries `location`,** and `null` there clears the column
+**The content edit form carries `location`,** and `null` there clears the column
 (`OfferController:71-73`). The edit form composes the value from the province and
 comune it shows, so editing an entry whose stored location predates the
 `Comune - Provincia` format — `Milano (Lombardia)`, a bare `Roma` — sends `null`
@@ -121,85 +127,32 @@ and the old value is lost on the first save. Accepted on 2026-10-13 with the
 decision that a deploy database starts fresh (`services/offer-request.js`), and
 unreachable on the current seed, where every row is in the new format.
 
-Known conflict: `409` when the service is already used by a proposal or an
-exchange; the message is shown as it is.
+Content changes return `409` while an active queue or pending/accepted agreement
+uses the service. Status-only changes preserve those commitments.
 
 ## Agreements
 
-An agreement is the exchange unit. A `PENDING` agreement is one participant's
-proposal; the other participant answers once and it becomes `ACCEPTED` or
-`REFUSED`.
+| Call | Contract |
+| --- | --- |
+| `POST /create-exchange-agreement` | `{otherParticipant, serviceId}`; the service belongs to the recipient. The sender must have one available offer. Returns `201`; duplicate pending service pairs or unavailable offers return `409`. |
+| `GET /get-agreements` | Existing `{success: {code, message, agreements: [...]}}` envelope. Rows include `id, agreementStatus, creationDate, fromQueue, direction, agreementProposal, agreementDetails`. |
+| `POST /send-agreement-response` | `{agreementId, response: boolean}`. The sender already consented; the recipient answers once. Repeated answers return `409`. |
+| `POST /send-agreement-details` | `{agreementId, fromRemote: boolean, startDate, endDate}`. Writes the caller's sheet; end must follow start. Confirmed sheets are immutable. |
+| `POST /accept-agreement-details/{agreementId}` | Confirms the caller's beneficiary sheet. Uncompiled, repeated or non-accepted confirmations return `409`. |
+| `POST /cancel-agreement/{agreementId}` | Cancels an accepted agreement and its queues; repeated cancellation succeeds without another refund. |
 
-| Call | Body | Notes |
-| --- | --- | --- |
-| `GET /get-agreements` | — | `{success: {code, message, agreements: [...]}}`, every agreement the viewer participates in |
-| `POST /create-exchange-agreement` | `{otherParticipant}` | `201`. Creates a `PENDING` exchange: the caller answers `true` (they proposed), the other participant has `response: null` (has not answered yet). `400` for yourself, `404` for an unknown user |
-| `POST /send-agreement-response` | `{agreementId, response: true\|false}` | The answer, once. `true` → `ACCEPTED`, `false` → `REFUSED`. `409` when the agreement is no longer `PENDING` or this participant already answered |
-| `POST /send-agreement-details` | `{agreementId, fromRemote, startDate, endDate}` | The delivery sheet on an `ACCEPTED` agreement. `serviceId` and `beneficiaryId` are **no longer read**: since 2026-11-15 the manager takes the service and the beneficiary from the agreement itself, so sending them changes nothing. `400` when a field is missing or the end date does not come after the start date, `404` when the agreement is not accepted. The sheet starts `UNCOMPILED` with `beneficiaryAccepted: null` and the beneficiary gets an `AGREEMENT_DETAILS` notification |
-| `POST /accept-agreement-details/{agreementId}` | — | The beneficiary's confirmation of the sheet: sets `beneficiaryAccepted` (the row is already `COMPILED`, written by the route above) and notifies the provider with `AGREEMENT_DETAILS_ACCEPTED`. `404` when the agreement is unknown, the caller is not the beneficiary, or there is no sheet; `500` when it was already accepted (the backend answers an exception, not a `409`) |
-| `POST /cancel-agreement/{agreementId}` | — | An `ACCEPTED` exchange becomes `CANCELLED` (before 2026-11-15 it became `VOID`). `404` when the caller is not a participant. A queue-born exchange refunds or increments a credit on this path. **Only an `ACCEPTED` agreement is touched**: any other status answers `200 {"success": …}` and changes nothing, and since backend `cccd44c` the `AGREEMENT_CANCELLED` notification is sent inside that branch only — before, a cancel on a `PENDING`/`REFUSED` agreement changed no row and still told the counterpart the exchange had been called off. The app offers the action on `ACCEPTED` rows only, so it never reaches the no-op branch |
+Each proposal participant includes `userId, username, role, response,
+responseDate, serviceId, serviceDescription`. Each sheet includes
+`providerId, providerUsername, beneficiaryId, beneficiaryUsername, serviceId,
+serviceDescription, fromRemote, startDate, endDate, beneficiaryAccepted, status`.
+`direction` is `sent` or `received` relative to the caller.
 
-The details route used to be a `GET` that read a JSON body, which a browser
-cannot send: the sheet was unreachable from the app. It is a `POST` now, and
-**the app calls both sheet routes** since the second cycle: the provider fills
-the row whose `providerUsername` is its own, the beneficiary confirms the row
-whose `beneficiaryUsername` is its own (`services/agreements.js` → `sheetsFor`).
-An accepted agreement therefore carries **two** sheet rows, one per participant,
-and the UI decides which one each side may act on from those two usernames:
-no participant id is guessed.
-
-Known defect in the schema behind these rows: `agreement_details.start_date` is
-`timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP` in the reference dump,
-so the `UPDATE` that writes the two dates resets the start to the moment of the
-write while `end_date` is stored correctly (`backend-gaps.md` G20). The card
-renders what the API returns; the start date is not trustworthy until the column
-is fixed.
-
-One agreement:
-
-```json
-{
-  "id": 3,
-  "agreementStatus": "PENDING",
-  "creationDate": "2026-11-09T17:27:40+00:00",
-  "agreementProposal": [
-    {"username": "mario.rossi", "role": "Provider", "response": true,
-     "responseDate": "2026-11-09T17:27:41+00:00"},
-    {"username": "luca.ferrari", "role": "Beneficiary", "response": null,
-     "responseDate": null}
-  ],
-  "agreementDetails": [
-    {"providerUsername": "mario.rossi", "serviceDescription": "Bicycle repairs",
-     "beneficiaryUsername": "luca.ferrari", "fromRemote": false,
-     "startDate": "2026-12-01T09:00:00+00:00",
-     "endDate": "2026-12-05T18:00:00+00:00",
-     "beneficiaryAccepted": null, "status": "UNCOMPILED"}
-  ]
-}
-```
-
-`agreementStatus` is `PENDING`, `ACCEPTED`, `REFUSED`, `CONTESTED`,
-`CANCELLED` or `COMPLETED`. `CANCELLED` is what calling off an accepted
-exchange writes now; `VOID` survives only on rows created before the rename,
-and the frontend classifies both as closed history. `COMPLETED` is written by
-the backend's end-date scheduler once every delivery of the agreement is
-finished — but nothing consumes that scheduler in the local stack, so a sheet
-can stay `ACCEPTED` past its end date (see `setup.md`). On a queue-born
-agreement that same task credits +1 to the user of the sheet row
-(`UserManager::IncreaseOrRefundCredit`, backend `11cffda`) and, since backend
-`256b985`, also closes the agreement's queues: they turn `CLOSED` and leave
-`GET /get-queues`, exactly like the cancel path. `256b985` also narrowed the
-task to `ACCEPTED` agreements (`findAllAgreements` now uses `findBy`; the
-criteria previously passed to `findAll` were ignored), so a cancelled agreement
-with a passed end date is no longer completed and no longer notifies both
-sides that the service is finished. The credit is a movement no route exposes
-(`backend-gaps.md` G15) and none of it can happen before a worker exists
-(`backend-gaps.md` G12). `response: null` means
-"has not answered yet" and is not a refusal. Rows carry no user ids: the viewer
-is identified by username, and no row names the exchanged service until the
-sheet does (`backend-gaps.md` G4). Until an agreement is accepted it carries no sheet at
-all, and the card renders the single line "Scheda non compilata"
-(`backend-gaps.md` G6).
+Direct exchanges persist both offers when proposed and create two sheets upon
+acceptance. Queue matches represent a single delivery and create one sheet.
+Acceptance, sheets and notifications commit together. Legacy unresolved proposal
+services cause a controlled conflict instead of selecting an arbitrary offer.
+The scheduler writes `COMPLETED` only after all expected sheets are compiled,
+confirmed and expired. The frontend does not infer completion from its clock.
 
 ## Reports
 
@@ -209,11 +162,14 @@ is a `400`; a pair that already reported each other is a `409`.
 
 ## Staff
 
+`GET /staff/users` also accepts `role=USER|STAFF`. USER excludes staff members;
+the role is applied before pagination and totals. Invalid roles return `400`.
+
 All of these return `403` for a non-staff caller.
 
 | Call | Notes |
 | --- | --- |
-| `GET /staff/users` | Query `page`, `limit`, `q`, `accountStatus`; **no `role` filter** (`backend-gaps.md` G29) |
+| `GET /staff/users` | Query `page`, `limit`, `q`, `accountStatus`, `role=USER|STAFF`; filters and totals are server-side |
 | `GET /staff/users/{id}` | One user |
 | `POST /staff/users/{id}/promote` | No body: adds `ROLE_STAFF`, the role is not the client's choice |
 | `PATCH /staff/users/{id}/status` | Body `{accountStatus}` — `ACTIVE` or `INACTIVE` |
@@ -231,6 +187,11 @@ deleted-services section all page through it with a "Carica altri 20" button
 (`usePagedList`), so no list stops at its first page.
 
 ## Chat (attached to an agreement)
+
+History and creation verify agreement participation; sending verifies chat and
+agreement participation. Unknown/foreign resources return `404`. Participants
+can read historical chats; sending requires ACCEPTED and returns `409` otherwise.
+Unexpected errors are logged server-side and return fixed text.
 
 `GET /chats/agreement/{agreementId}`, `POST /chats/send-message/{chatId}` with
 `{message: string}`, `GET /chats/most-recent-message`,
@@ -253,8 +214,7 @@ the check its own answer's lower bound and always get an empty array back.
 Sending returns only the acknowledgement: the screen re-reads the history
 instead of drawing a bubble the backend never confirmed.
 
-The routes check the token but **not** that the caller participates in that
-chat: see `backend-gaps.md` G24.
+Both history and send enforce participation; G24 is corrected.
 
 ## Notifications
 
@@ -319,96 +279,32 @@ message that arrived, so a preview needs no new backend field
 
 ## Service queues (matchmaker)
 
-A queue is a standing "I offer this" or "I look for this" that the backend
-matches in the background through `App\Message\QueueId` on the `async`
-transport. Nothing consumes that transport in the local stack, so queues stay
-`OPEN` until a worker runs (`setup.md`).
+| Call | Contract |
+| --- | --- |
+| `GET /get-queues` | `200 {queues: [...]}`, including an empty array; only OPEN and IN_PROGRESS rows. Each row has `id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId, createdAt`. Historical unknown creation times remain null. |
+| `POST /create-service-queue` | `{queueType: "OFFER"|"REQUEST"}`. Returns `201`; malformed types return `400`. Missing/unavailable services, another active queue or missing delivery history return `409`. |
+| `POST /cancel-queue/{queueId}` | `200`; closing an already closed own queue is idempotent. Unknown or foreign IDs return `404`. An in-progress queue cancels its agreement too. |
 
-| Call | Body | Notes |
-| --- | --- | --- |
-| `POST /create-service-queue` | `{queueType: "OFFER"\|"REQUEST"}` | `201`. **One active queue per account, of either type** since backend `4c90ccd`: while a non-`CLOSED` queue exists, a second create throws `User already has an active queue.`, which the controller cannot catch (`backend-gaps.md` G13) and answers **`500`** to the client (`backend-gaps.md` G23). A `REQUEST` queue costs one credit: `400 {error: "Not enough credits"}` when the account has none — the one-queue guard runs **first**, so a refused second queue costs nothing |
-| `POST /cancel-queue/{queueId}` | — | Closes the queue; a queue already attached to an agreement cancels that agreement, a `REQUEST` queue with no agreement gets its credit back. It always answers `200`, **even when nothing happened** (unknown id, another account's queue, an already closed one): the app prints «Coda annullata» off that status, so a no-op reads as a success (`backend-gaps.md` G21) |
-| `GET /get-queues` | — | `{queues: [{id, queueType, queueStatus, location, serviceDescription, serviceCategory, serviceRemote, agreementId}]}`. The repository keeps only rows whose status is **not `CLOSED`** (`ServiceQueueRepository::getServiceQueuesByUser`), so the list carries `OPEN` and `IN_PROGRESS` only: a cancelled queue disappears from it instead of appearing as history. Two backend paths write `CLOSED`, both about a queue-born exchange: `POST /cancel-agreement` and the end-date scheduler once the agreement completes (backend `256b985`) |
+One active queue total per account is enforced by row locks and a database
+unique index. Suspended services still occupy the user's single service slot
+but cannot enter or receive matches. Reactivation reschedules any OPEN queue.
+A request requires a previously completed queue-born offered delivery and one
+credit. Creation and debit commit atomically. Cancellation refunds the request
+owner once; completed queue delivery credits its provider once and closes both
+queues. `GET /profile` exposes the balance and the historical eligibility flag
+`canRequestQueue`; the flag does not replace the balance or active-queue checks.
 
-A handled queue creates **at most one** agreement per run since backend `089cc78`
-(the handler breaks after the first keyword match), where before it kept pairing
-one queue with every candidate that shared keywords. That is why a single queue
-must not produce several `MATCH_CREATED` pairs or several `IN_PROGRESS` rows; it
-is still unreachable in practice while the keyword dictionaries are missing
-(`backend-gaps.md` G28).
+The async worker locks and rechecks both queues, creates at most one agreement,
+and commits agreement, sheet, queue changes and notifications together.
+Redelivery is safe; a closed, matched, suspended or deleted service is skipped.
+Matching requires different owners, a shared category, equal remote mode and
+equal normalized location. Known municipalities normalize to `Comune - Provincia`;
+unknown or ambiguous text is preserved. A mapped valid dictionary adds a
+shared-keyword condition; missing or invalid dictionaries fall back to category.
+Remote services retain the same location rule.
 
-Matching compares `location` with **exact equality**, so the app must always
-send the same composed string it uses everywhere else: `Comune - Provincia`
-(`Frontend/src/services/italian-locations.js`, e.g. `Milano - Milano`,
-`Sesto San Giovanni - Milano`). The **catalogue** filter is the opposite kind of
-match: the backend runs `LOWER(service.location) LIKE '%…%'`, so the app sends the
-composed string when a comune is chosen and `" - " + provincia` when only the
-province is (`formattaProvinciaPerFiltro`). The leading separator anchors the
-match to the province half; without it `Torino` also found
-`Torino di Sangro - Chieti` and `Roma` found `Romano di Lombardia - Bergamo`.
-`Context_and_DB_V2/province-comuni.json`
-(upstream `7408f52`, province → comuni, 110 provinces and 7.894 comuni) is the
-dataset the picker reads from; no endpoint serves it and no `Backend/` code
-reads it, so the app carries a verbatim copy
-(`Frontend/src/services/data/province-comuni.json`, `sha256` equal to the
-upstream file) and the upstream file stays read-only.
-
-The queue surface is the `match` tab (`Frontend/src/app/(tabs)/match.jsx`, second
-cycle). Five facts decide how a client must talk to these routes:
-
-- **A second active queue is refused, and it is refused with a `500`.** Since
-  backend `4c90ccd` `createServiceQueue` asks
-  `ServiceQueueRepository::getActiveQueueByUser` first and throws when the answer
-  is not `null`, before the credit is spent and before the service lookup; the
-  throw is a plain `\Exception`, the controller's `catch (Exception)` names
-  `App\Controller\Exception` and never matches (`G13`), so the client reads the
-  refusal as a server fault (`backend-gaps.md` G23). The guard counts **both**
-  types together, so one offer queue also blocks the request one; the app follows
-  the server and disables **both** create actions while a queue is active
-  (`hasActiveQueue`, decision **D025**), instead of offering a call that cannot
-  succeed and cannot be explained.
-- **`GET /get-queues` answers `404` when the list is empty** (`if (!$queuesDTO)`
-  in `QueueController::getQueues`): a client reads `404` as `[]`, not as an error
-  (`backend-gaps.md` G17).
-- **`POST /create-service-queue` needs exactly one service of that type.** The
-  lookup ends with `getOneOrNullResult()`, so zero services throw an uncaught
-  `TypeError` and two or more throw `NonUniqueResultException`, which escapes to
-  the framework error handler as a `500` (the controller's `catch (Exception)`
-  never matches: `backend-gaps.md` G13);
-  for a `REQUEST` queue the credit is spent **before** the lookup, so a failed
-  creation can cost a credit (`backend-gaps.md` G19). The app disables the button
-  and says why instead of calling.
-- **Any `queueType` other than `OFFER` becomes `REQUEST`** server-side, so a
-  client must send one of the two exact strings; the app refuses anything else
-  before the request.
-- **`400 {"error": "Not enough credits"}`** is the only way to learn that the
-  account has no credit: no route exposes the balance (`G15`). The app matches
-  that body and shows its own sentence; it never displays a number.
-
-### Credits: the four paths and what the app does with each
-
-A new account starts at `credits = 1` (`Backend/src/Entity/User.php:73`). Four
-paths move the number, and the app never reads it: it can only describe the cost
-and translate the refusal.
-
-| Path | Movement | Where it lives | What the app does |
-| --- | --- | --- | --- |
-| Create a `REQUEST` queue | −1 | `ServiceQueueManager::createServiceQueue:69-77`, spent **before** the service lookup | States the cost under the button (`REQUEST_COST_COPY`), refuses anything but the two exact types before calling, and maps `Not enough credits` to its own sentence (`api/areas/queues.js`) |
-| Cancel a `REQUEST` queue with no agreement | +1 | `ServiceQueueManager::cancelServiceQueue:97-101` | The confirm modal and the outcome banner say the credit comes back, and only on that row: `OFFER` queues never spent one, and an agreement queue takes the agreement, not the credit |
-| Cancel a queue-born agreement | +1 | `AgreementManager::cancelAgreement:187-193`, credited to the proposal's user | Nothing to show: the credit goes to the counterpart, and no route returns a balance |
-| Complete a queue-born agreement | +1 | `AgreementEndDateChecker:57-63`, which since backend `256b985` also closes that agreement's queues | Nothing to show, and it cannot happen in the local stack: no worker consumes the scheduler (`G12`) |
-
-Three guards the app owes and keeps: it never creates a queue when the account
-does not have **exactly one** service of that type (G19 spends the credit before
-the lookup), it never asks for a **second active queue** — both create buttons go
-down while a queue is listed, with one sentence saying why (G23 would answer a
-`500` that reads like a server fault, decision **D025**) — and it never displays a
-balance, because inventing one would be a number the backend does not confirm.
-
-A dry verification of the whole cycle, with an account that has exactly one offer
-and one request (`luca.ferrari` / `demo1234`, in the seed): `create REQUEST` →
-`201` and the credit goes from 1 to 0; `get-queues` → the row; `cancel-queue/{id}`
-→ `200` and the credit returns to 1; `get-queues` again → `404`.
+Compose runs separate `async` and `scheduler_default` workers. No browser polling
+is responsible for matching or completing agreements.
 
 ## Another user's services
 

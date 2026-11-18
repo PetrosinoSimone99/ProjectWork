@@ -1,114 +1,78 @@
 <?php
-
+declare(strict_types=1);
 namespace App\Manager;
 
-use App\Entity\User;
-use App\Entity\ServiceQueue;
-use App\Manager\ServiceManager;
-use App\Manager\UserManager;
-use App\Manager\AgreementManager;
-use App\DTO\ServiceQueueDTO;
-use App\Repository\ServiceQueueRepository;
-use App\Enum\QueueType;
-use App\Enum\QueueStatus;
+use App\Entity\{User, Service, ServiceQueue};
+use App\Enum\{QueueType, QueueStatus};
+use App\Exception\{ResourceNotFound, NotEnoughCreditsException};
 use App\Message\QueueId;
-use App\Exception\NotEnoughCreditsException;
+use App\Repository\{ServiceRepository, ServiceQueueRepository};
+use App\Service\{WorkflowTransaction, QueueEligibility, LocationNormalizer};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-class ServiceQueueManager
+
+final class ServiceQueueManager
 {
-    private ServiceManager $serviceManager;
-    private UserManager $userManager;
-    private AgreementManager $agreementManager;
-    private ServiceQueueRepository $serviceQueueRepository;
-    private EntityManagerInterface $entityManager;
-    private MessageBusInterface $messageBus;
+    public function __construct(private EntityManagerInterface $em, private ServiceRepository $services,
+        private ServiceQueueRepository $queues, private AgreementManager $agreements,
+        private WorkflowTransaction $transaction, private QueueEligibility $eligibility, private MessageBusInterface $bus) {}
 
-    public function __construct(ServiceManager $serviceManager, ServiceQueueRepository $serviceQueueRepository,
-     UserManager $userManager, AgreementManager $agreementManager, EntityManagerInterface $entityManager, MessageBusInterface $messageBus)
+    public function getQueueById(int $id): ?ServiceQueue { return $this->queues->find($id); }
+    public function getRelevantQueues(QueueType $type, string $location): array
     {
-        $this->serviceManager = $serviceManager;
-        $this->serviceQueueRepository = $serviceQueueRepository;
-        $this->userManager = $userManager;
-        $this->agreementManager = $agreementManager;
-        $this->entityManager = $entityManager;
-        $this->messageBus = $messageBus;
+        return array_values(array_filter($this->queues->findBy(['queueType' => $type, 'queueStatus' => QueueStatus::OPEN, 'agreement' => null]), fn ($q) => LocationNormalizer::normalize($q->getLocation()) === LocationNormalizer::normalize($location)));
+    }
+    public function getServiceQueuesByUser(User $user): array
+    {
+        return array_map(fn (ServiceQueue $q) => [
+            'id' => $q->getId(), 'queueType' => $q->getQueueType()->value, 'queueStatus' => $q->getQueueStatus()->value,
+            'location' => $q->getLocation(), 'createdAt' => $q->getCreatedAt()?->format(DATE_ATOM),
+            'serviceDescription' => $q->getService()?->getDescription(),
+            'serviceCategory' => $q->getService()?->getCategories()->first() ? $q->getService()->getCategories()->first()->getDescription() : null,
+            'serviceRemote' => $q->getService()?->isRemote(), 'agreementId' => $q->getAgreement()?->getId(),
+        ], $this->queues->getServiceQueuesByUser($user));
     }
 
-    public function getQueueById(int $queueId): ?ServiceQueue
-    {
-        return $this->serviceQueueRepository->getQueueById($queueId);
-    }
-
-    public function getServiceQueuesByUser(User $user): ?array
-    {
-        $dtos = [];
-        $queues = $this->serviceQueueRepository->getServiceQueuesByUser($user);
-        foreach ($queues as $queue) {
-            $dtos[] = new ServiceQueueDTO(
-                $queue->getId(),
-                $queue->getQueueType(),
-                $queue->getQueueStatus(),
-                $queue->getLocation(),
-                $queue->getService()->getDescription(),
-                $queue->getService()->getCategories()->first()->getDescription(),
-                $queue->getService()->isRemote(),
-                $queue->getAgreement() ? $queue->getAgreement()->getId() : null
-            );
-        }
-        return $dtos;
-    }
     public function createServiceQueue(User $user, string $queueType): void
     {
-        $queue = $this->serviceQueueRepository->getActiveQueueByUser($user);
-        if ($queue !== null) {
-            throw new \Exception("User already has an active queue.");
-        }
-
-        $type = null;
-        if($queueType === 'OFFER'){
-            $type = QueueType::OFFER;
-        }
-        
-        if($queueType === 'REQUEST'){
-            $type = QueueType::REQUEST;
-        }
-        if($type === QueueType::REQUEST){
-            if($user->getCredits() > 0){
-                $this->userManager->deductCreditForQueue($user);
+        $type = QueueType::tryFrom($queueType);
+        if (!$type) { throw new \InvalidArgumentException('Invalid queue type.'); }
+        $this->transaction->run(function () use ($user, $type): void {
+            $this->transaction->lock('users', [$user->getId()]); $this->em->refresh($user);
+            if (!$user->isActive()) { throw new \DomainException('Account is inactive.'); }
+            if ($this->queues->getActiveQueueByUser($user)) { throw new \DomainException('User already has an active queue.'); }
+            $service = $this->services->getUserServiceByType($user, $type->value);
+            if (!$service) { throw new \DomainException('Publish a service of this type first.'); }
+            $this->transaction->lock('services', [$service->getId()]); $this->em->refresh($service);
+            if ($service->isDeleted() || $service->isSuspended() || $service->getCategories()->isEmpty()) { throw new \DomainException('The service is unavailable or has no category.'); }
+            $location = LocationNormalizer::normalize($service->getLocation() ?? $user->getLocation());
+            if ($location === null) { throw new \DomainException('A location is required.'); }
+            if ($type === QueueType::REQUEST) {
+                if (!$this->eligibility->canRequest($user)) { throw new \DomainException('Complete an offered service before starting a request queue.'); }
+                if ($user->getCredits() < 1) { throw new NotEnoughCreditsException('Not enough credits.'); }
+                $user->setCredits($user->getCredits() - 1);
             }
-            else{
-                throw new NotEnoughCreditsException("User does not have enough credits to create an request queue.");
-            }
-        }
-       
-        $userService = $this->serviceManager->getUserServiceByType($user, $queueType);
-        $serviceQueue = new ServiceQueue($user, $type, $userService, $user->getLocation(), QueueStatus::OPEN);
-        $this->entityManager->persist($user);
-        $this->entityManager->persist($serviceQueue);
-        $this->entityManager->flush();
-
-        $this->messageBus->dispatch(new QueueId($serviceQueue->getId()));
+            $queue = new ServiceQueue($user, $type, $service, $location, QueueStatus::OPEN);
+            $this->em->persist($queue); $this->em->flush();
+            // Doctrine Messenger uses this same DB connection, so dispatch rolls back too.
+            $this->bus->dispatch(new QueueId($queue->getId()));
+        });
     }
 
-    public function getRelevantQueues(QueueType $queueType, string $location): array
+    public function cancelServiceQueue(User $user, int $id): void
     {
-        return $this->serviceQueueRepository->getRelevantQueues($queueType, $location);
-    }
-
-    public function cancelServiceQueue(User $user, int $queueId): void
-    {
-        $queue = $this->getQueueById($queueId);
-        if ($queue && $queue->getUser() === $user && $queue->getQueueStatus() !== QueueStatus::CLOSED) {
+        $this->transaction->run(function () use ($user, $id): void {
+            $this->transaction->lock('users', [$user->getId()]); $this->em->refresh($user);
+            $queue = $this->queues->find($id);
+            if (!$queue || $queue->getUser()->getId() !== $user->getId()) { throw new ResourceNotFound('Queue not found.'); }
+            if ($queue->getQueueStatus() === QueueStatus::CLOSED) { return; }
+            // Lock agreements before their queues, consistently with cancellation/completion.
+            if ($queue->getAgreement()) { $this->agreements->cancelAgreement($user, $queue->getAgreement()->getId()); return; }
+            $this->transaction->lock('service_queues', [$id]); $this->em->refresh($queue);
+            if ($queue->getQueueStatus() === QueueStatus::CLOSED) { return; }
+            if ($queue->getAgreement()) { throw new \DomainException('Queue was matched; reload before cancelling.'); }
             $queue->setQueueStatus(QueueStatus::CLOSED);
-            $agreement = $queue->getAgreement();
-            if ($agreement !== null) {
-                $this->agreementManager->cancelAgreement($user, $agreement->getId());
-            }else if($queue->getQueueType() === QueueType::REQUEST){
-                $this->userManager->IncreaseOrRefundCredit($user);
-            }
-            $this->entityManager->persist($queue);
-            $this->entityManager->flush();
-        }
+            if ($queue->getQueueType() === QueueType::REQUEST) { $user->setCredits($user->getCredits() + 1); }
+        });
     }
 }

@@ -72,9 +72,10 @@ export async function createQueue(token, tipo) {
     if (err instanceof ApiError && err.status === 400) {
       throw new ApiError(
         400,
-        err.raw === NOT_ENOUGH_CREDITS_RAW ? INSUFFICIENT_CREDITS_MESSAGE : INVALID_INPUT_MESSAGE,
+        err.raw?.replace(/\.$/, '') === NOT_ENOUGH_CREDITS_RAW ? INSUFFICIENT_CREDITS_MESSAGE : INVALID_INPUT_MESSAGE,
       );
     }
+    if (err instanceof ApiError && err.status === 409) { throw new ApiError(409, 'Hai già una coda attiva, il servizio non è disponibile oppure devi prima completare una prestazione offerta.'); }
     if (err instanceof ApiError && err.status === 401) {
       throw new ApiError(401, NOT_AUTHENTICATED_MESSAGE);
     }

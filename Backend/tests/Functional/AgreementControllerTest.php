@@ -52,10 +52,10 @@ final class AgreementControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
         $client->jsonRequest('POST', '/api/create-exchange-agreement', ['otherParticipant' => $aliceId]);
         self::assertResponseStatusCodeSame(400);
-        $client->jsonRequest('POST', '/api/create-exchange-agreement', ['otherParticipant' => 999999]);
+        $client->jsonRequest('POST', '/api/create-exchange-agreement', ['otherParticipant' => 999999, 'serviceId' => $bob['offers'][0]['id']]);
         self::assertResponseStatusCodeSame(404);
 
-        $client->jsonRequest('POST', '/api/create-exchange-agreement', ['otherParticipant' => $bobId]);
+        $client->jsonRequest('POST', '/api/create-exchange-agreement', ['otherParticipant' => $bobId, 'serviceId' => $bob['offers'][0]['id']]);
         self::assertResponseStatusCodeSame(201);
         $agreements = $this->agreements($client);
         self::assertCount(1, $agreements);
@@ -97,15 +97,15 @@ final class AgreementControllerTest extends WebTestCase
 
         $this->authenticate($client, (string) $bob['token']);
         $details = $this->agreements($client)[0]['agreementDetails'];
-        self::assertCount(1, $details);
+        self::assertCount(2, $details);
         self::assertSame('alice offers repairs', $details[0]['serviceDescription']);
-        self::assertSame('UNCOMPILED', $details[0]['status']);
+        self::assertSame('COMPILED', $details[0]['status']);
         self::assertNull($details[0]['beneficiaryAccepted']);
         self::assertFalse($details[0]['fromRemote']);
 
         $client->request('POST', '/api/cancel-agreement/'.$agreementId);
         self::assertResponseStatusCodeSame(200);
-        self::assertSame('VOID', $this->agreements($client)[0]['agreementStatus']);
+        self::assertSame('CANCELLED', $this->agreements($client)[0]['agreementStatus']);
 
         $carol = $this->register($client, 'carol');
         $this->authenticate($client, (string) $carol['token']);

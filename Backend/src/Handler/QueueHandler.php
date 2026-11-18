@@ -1,101 +1,89 @@
 <?php
-
+declare(strict_types=1);
 namespace App\Handler;
 
 use App\Entity\ServiceQueue;
-use App\Entity\User;
-use App\Entity\Service;
-use App\Entity\Category;
+use App\Enum\{QueueType, QueueStatus};
 use App\Message\QueueId;
-use App\Manager\ServiceQueueManager;
-use App\Manager\AgreementManager;
-use App\Service\NotificationService;
-use App\Enum\QueueType;
-use App\Enum\QueueStatus;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use App\Manager\{ServiceQueueManager, AgreementManager};
+use App\Service\{WorkflowTransaction, NotificationService};
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
-class QueueHandler
+final class QueueHandler
 {
-    private ServiceQueueManager $serviceQueueManager;
-    private AgreementManager $agreementManager;
-    private NotificationService $notificationService;
-    private EntityManagerInterface $entityManager;
-    public function __construct(ServiceQueueManager $serviceQueueManager, AgreementManager $agreementManager, NotificationService $notificationService,
-    EntityManagerInterface $entityManager)
-    {
-        $this->serviceQueueManager = $serviceQueueManager;
-        $this->agreementManager = $agreementManager;
-        $this->notificationService = $notificationService;
-        $this->entityManager = $entityManager;
-    }
-    public function __invoke(QueueId $queueId)
-    {
-        $userQueue = $this->serviceQueueManager->getQueueById($queueId->getId());
-        $userServiceCategory = $userQueue->getService()->getCategories()->first();
-        $userServiceFromRemote = $userQueue->getService()->isRemote();
-        $relevantQueues = $this->getRelevantQueues($this->serviceQueueManager, $userQueue);
-        $relevantQueues = array_filter($relevantQueues, function (ServiceQueue $queue) use ($userServiceCategory, $userServiceFromRemote) {
-            return $queue->getService()->getCategories()->contains($userServiceCategory) && $queue->getService()->isRemote() === $userServiceFromRemote;
-        });
-        $userQueueKeywords = $this->extractKeywordsFromDescription(strtolower($userQueue->getService()->getDescription()), $userServiceCategory->getDescription());
-        if(!empty($relevantQueues)){
-            foreach($relevantQueues as $queue){
-                $queueKeywords = $this->extractKeywordsFromDescription(strtolower($queue->getService()->getDescription()), $userServiceCategory->getDescription());
-                $commonKeywords = array_intersect($userQueueKeywords, $queueKeywords);
-                if(!empty($commonKeywords)){
-                    $provider = null;
-                    $beneficiary = null;
-                    if($userQueue->getQueueType() === QueueType::OFFER){
-                        $provider = $userQueue->getUser();
-                        $beneficiary = $queue->getUser();
-                    }
-                    if($userQueue->getQueueType() === QueueType::REQUEST){
-                        $provider = $queue->getUser();
-                        $beneficiary = $userQueue->getUser();
-                    }
-                    $agreeement = $this->agreementManager->createProvisionAgreement($provider, $beneficiary);
-                    $userQueue->setAgreement($agreeement);
-                    $queue->setAgreement($agreeement);
-                    $userQueue->setQueueStatus(QueueStatus::IN_PROGRESS);
-                    $queue->setQueueStatus(QueueStatus::IN_PROGRESS);
-                    $this->entityManager->persist($userQueue);
-                    $this->entityManager->persist($queue);
-                    $this->entityManager->flush();
+    public function __construct(private ServiceQueueManager $queues, private AgreementManager $agreements,
+        private NotificationService $notifications, private WorkflowTransaction $transaction, private EntityManagerInterface $em) {}
 
-                    $this->notificationService->notify($provider, 'MATCH_CREATED', 'Nuovo match creato con: '.$beneficiary->getUsername());
-                    $this->notificationService->notify($beneficiary, 'MATCH_CREATED', 'Nuovo match creato con: '.$provider->getUsername());
-                    break;
-                }
+    public function __invoke(QueueId $message): void
+    {
+        $source = $this->queues->getQueueById((int) $message->getId());
+        if (!$source || !$this->available($source)) { return; }
+        $opposite = $source->getQueueType() === QueueType::OFFER ? QueueType::REQUEST : QueueType::OFFER;
+        foreach ($this->queues->getRelevantQueues($opposite, $source->getLocation()) as $candidate) {
+            $matched = $this->transaction->run(function () use ($source, $candidate): bool {
+                $this->transaction->lock('service_queues', [$source->getId(), $candidate->getId()]);
+                $this->em->refresh($source); $this->em->refresh($candidate);
+                $this->em->refresh($source->getUser()); $this->em->refresh($candidate->getUser());
+                if (!$this->available($source) || !$this->available($candidate) || $source->getUser()->getId() === $candidate->getUser()->getId()) { return false; }
+                $this->transaction->lock('services', [$source->getService()->getId(), $candidate->getService()->getId()]);
+                $this->em->refresh($source->getService()); $this->em->refresh($candidate->getService());
+                if (!$this->available($source) || !$this->available($candidate) || !$this->compatible($source, $candidate)) { return false; }
+                $offer = $source->getQueueType() === QueueType::OFFER ? $source : $candidate;
+                $request = $source->getQueueType() === QueueType::REQUEST ? $source : $candidate;
+                $agreement = $this->agreements->createProvisionAgreement($offer->getUser(), $request->getUser(), $offer->getService());
+                foreach ([$offer, $request] as $queue) { $queue->setAgreement($agreement); $queue->setQueueStatus(QueueStatus::IN_PROGRESS); }
+                foreach ([$offer, $request] as $queue) { $this->notifications->notify($queue->getUser(), 'MATCH_CREATED', 'Nuovo abbinamento disponibile.', ['agreementId' => $agreement->getId()]); }
+                return true;
+            });
+            if ($matched) { return; }
+        }
+    }
+    private function available(ServiceQueue $queue): bool
+    {
+        $service = $queue->getService();
+        return $queue->getQueueStatus() === QueueStatus::OPEN && $queue->getAgreement() === null && $service !== null
+            && !$service->isDeleted() && !$service->isSuspended() && $queue->getUser()->isActive() && !$service->getCategories()->isEmpty();
+    }
+    private function compatible(ServiceQueue $a, ServiceQueue $b): bool
+    {
+        if ($a->getService()->isRemote() !== $b->getService()->isRemote()) { return false; }
+        foreach ($a->getService()->getCategories() as $category) {
+            if (!$b->getService()->getCategories()->contains($category)) { continue; }
+            $dictionary = $this->dictionary($category->getDescription());
+            if ($dictionary === null) { return true; }
+            $left = $this->keywords($a->getService()->getDescription(), $dictionary);
+            $right = $this->keywords($b->getService()->getDescription(), $dictionary);
+            if (array_intersect($left, $right) !== []) { return true; }
+        }
+        return false;
+    }
+    private function dictionary(string $category): ?array
+    {
+        $map = [
+            'Bricolage' => 'Bricolage', 'Cucina' => 'Cucina', 'Educazione' => 'Educazione', 'Fitness' => 'Fitness',
+            'Giardinaggio' => 'Giardinaggio', 'Informatica' => 'Informatica', 'Lingue' => 'Lingue', 'Musica' => 'Musica',
+            'Programmazione' => 'Programmazione', 'Pulizie' => 'Pulizie', 'Sport' => 'Sport',
+            'Programmazione web' => 'Programmazione', 'Programmazione Python' => 'Programmazione',
+            'Assistenza computer' => 'Informatica', 'Assistenza smartphone' => 'Informatica',
+        ];
+        if (!isset($map[$category])) { return null; }
+        $path = dirname(__DIR__).'/Dictionaries/'.$map[$category].'.json';
+        if (!is_file($path)) { return null; }
+        $dictionary = json_decode(file_get_contents($path), true);
+        if (!is_array($dictionary) || $dictionary === []) { return null; }
+        foreach ($dictionary as $words) { if (!is_array($words) || array_any($words, fn ($word) => !is_string($word))) { return null; } }
+        return $dictionary;
+    }
+    private function keywords(string $description, array $dictionary): array
+    {
+        $text = mb_strtolower($description); $found = [];
+        foreach ($dictionary as $key => $words) {
+            foreach ($words as $word) {
+                if ($word !== '' && str_contains($text, mb_strtolower($word))) { $found[] = (string) $key; break; }
             }
         }
-    }
-
-
-    private function getRelevantQueues(ServiceQueueManager $serviceQueueManager, ServiceQueue $userQueue): array
-    {
-        $queueType = $userQueue->getQueueType();
-        if($queueType === QueueType::OFFER){
-            return $serviceQueueManager->getRelevantQueues(QueueType::REQUEST, $userQueue->getLocation());
-        }else{
-            return $serviceQueueManager->getRelevantQueues(QueueType::OFFER, $userQueue->getLocation());
-        }
-    }
-    private function extractKeywordsFromDescription(string $description, string $category): array
-    {
-        $keywords = [];
-        $categoryKeywords = json_decode(file_get_contents(__DIR__ . '/../Dictionaries/'.$category.'.json'), true);
-        $keys = array_keys($categoryKeywords);
-        foreach ($keys as $key) {
-            foreach($categoryKeywords[$key] as $keyword){
-                if(str_contains($description, $keyword)) {
-                    $keywords[] = $keyword;
-                    $description = str_replace($keyword, '', $description);
-                    break;
-                }
-            }
-        }
-        return $keywords;
+        return $found;
     }
 }

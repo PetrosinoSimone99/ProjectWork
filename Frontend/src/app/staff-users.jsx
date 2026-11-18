@@ -26,7 +26,6 @@ import {
   describePromotion,
   describeRoleFilterScope,
   describeStatusChange,
-  filterUsers,
   nextAccountStatus,
   roleLabel,
 } from '@/services/staff-users';
@@ -35,29 +34,7 @@ import { usePagedList } from '@/hooks/usePagedList';
 import { space } from '@/theme/tokens';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 
-/**
- * "Area staff → Utenti": the list with role and account status, and the two
- * commands that change them.
- *
- * A secondary route like `/staff`: back arrow, no new tab, and a link to the
- * reports section. The permission rules live in `services/staff-users.js` (they
- * mirror `StaffController`), the screen draws what they allow and treats `403`
- * and `409` as normal outcomes: when the backend refuses, its Italian mapping
- * is shown and the list is reloaded, because the state on screen can be stale.
- *
- * The list arrives one page at a time through `usePagedList`: page 1 replaces,
- * «Carica altri 20» appends without repeating rows, and a search or status
- * change resets to page 1 because the server window is a different one (F5).
- *
- * The search and the status pill are **server-side** (`q` and `accountStatus`):
- * the endpoint accepts both, and filtering only the loaded rows made the
- * empty state claim «Nessun utente corrisponde ai filtri» about people the
- * screen had never received (audit UX F11). The role pill stays local because
- * the endpoint has no role parameter, and the rows it hides are rows that did
- * arrive: the pill's helper line and the empty state name that limit
- * (`describeRoleFilterScope`, `describeEmptyUserList`) instead of promising a
- * filter the server does not have.
- */
+
 
 /** How long the search waits after the last key before asking the server. */
 const RICERCA_ATTESA_MS = 350;
@@ -110,10 +87,11 @@ export default function StaffUsersScreen() {
         limit,
         q: query.trim(),
         accountStatus: statusFilter ?? '',
+        role: roleFilter?.replace('ROLE_', '') ?? '',
       });
       return { righe: data.utenti, paginazione: data.paginazione };
     },
-    [token, query, statusFilter],
+    [token, query, statusFilter, roleFilter],
   );
 
   const {
@@ -140,7 +118,7 @@ export default function StaffUsersScreen() {
       void reload();
     }, RICERCA_ATTESA_MS);
     return () => clearTimeout(timer);
-  }, [reload, query, statusFilter]);
+  }, [reload, query, statusFilter, roleFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,27 +131,20 @@ export default function StaffUsersScreen() {
 
   // Testo e stato li ha già applicati il server: qui resta il solo ruolo.
   const visible = useMemo(
-    () => filterUsers(users ?? [], '', roleFilter, null),
-    [users, roleFilter],
+    () => users ?? [],
+    [users],
   );
   const filtersActive = query.trim() !== '' || roleFilter !== null || statusFilter !== null;
   // I due filtri che il backend applica davvero: l'elenco vuoto li distingue dal
   // ruolo, che invece guarda solo le righe arrivate.
-  const serverFiltersActive = query.trim() !== '' || statusFilter !== null;
+  const serverFiltersActive = filtersActive;
   const loaded = users === null ? null : users.length;
   const total = pagination?.elementiTotali ?? null;
   // La riga del conteggio viene dal payload (audit UX F32): «N di M» usa
   // `elementiTotali`. Con il ruolo attivo il denominatore sono le righe
   // caricate, e la parola «caricati» lo dice: il backend non ha quel filtro,
   // quindi M non sarebbe un totale.
-  const count =
-    roleFilter !== null
-      ? loaded === null
-        ? null
-        : `${visible.length} di ${loaded} utenti caricati`
-      : loaded === null || total === null
-        ? null
-        : `${visible.length} di ${total} utenti`;
+  const count = loaded === null || total === null ? null : `${visible.length} di ${total} utenti`;
 
   function askPromotion(user) {
     if (actionRef.current) {

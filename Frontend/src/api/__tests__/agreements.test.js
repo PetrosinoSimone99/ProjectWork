@@ -1,4 +1,4 @@
-import { acceptAgreementSheet, sendAgreementSheet } from '../areas/agreements';
+import { acceptAgreementSheet, sendAgreementSheet, sendExchangeProposal } from '../areas/agreements';
 import { normalizeAgreement, normalizeAgreements } from '../normalizers';
 
 /**
@@ -187,5 +187,14 @@ describe('acceptAgreementSheet', () => {
       status: 500,
       message: "Il server non ha accettato la scheda: riprova, e se l'errore resta segnalalo.",
     });
+  });
+});
+
+
+describe('service-bound exchange proposals', () => {
+  it('sends the selected service together with its owner', async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(201, { success: { code: 201 } }));
+    await sendExchangeProposal(TOKEN, 7, 12);
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ otherParticipant: 7, serviceId: 12 });
   });
 });

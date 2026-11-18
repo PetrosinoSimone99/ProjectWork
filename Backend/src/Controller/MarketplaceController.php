@@ -87,7 +87,7 @@ class MarketplaceController extends AbstractController
     }
 
     #[Route('/services', name: 'api_services_create', methods: ['POST'])]
-    public function createService(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function createService(Request $request, EntityManagerInterface $entityManager, ServiceRepository $services): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
@@ -135,8 +135,15 @@ class MarketplaceController extends AbstractController
         foreach ($categories as $category) {
             $service->addCategory($category);
         }
-        $entityManager->persist($service);
-        $entityManager->flush();
+        try {
+            $entityManager->getConnection()->transactional(function () use ($entityManager, $services, $user, $type, $service): void {
+                $services->assertSlotAvailable($user, $type);
+                $entityManager->persist($service);
+                $entityManager->flush();
+            });
+        } catch (\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $error) {
+            return $this->error('Only one service per type is allowed.', 409);
+        }
 
         return $this->json(['service' => $service->toApiArray()], 201);
     }

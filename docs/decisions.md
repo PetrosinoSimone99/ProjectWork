@@ -310,3 +310,16 @@ which is why rule (2) says *data* hooks and not *every* hook. `services/queues.j
 keeps `hasActiveQueue(code)` with its `coda` callback for the same reason — that
 folder is D013 territory. All of them go with their file's next touch. D013 stays
 as history and is read through this entry.
+
+
+## D027 — Essential workflow corrections (2026-11-18)
+
+User-confirmed rules supersede the earlier directional-only overview and the
+proposed one-queue-per-type change: direct swaps retain two offers/two sheets;
+queue deliveries have one sheet. Each owner has one non-deleted service per
+type and one active queue total. Request queues require a previously completed
+offer queue and a credit. Missing keyword dictionaries use category/mode/location
+matching. Services at registration are optional. Suspension retains the service
+slot and history; accepted agreements continue, but new matches are excluded.
+The backend, not a client clock, decides completion. Historical chat is readable
+by participants; only accepted agreements allow messages.

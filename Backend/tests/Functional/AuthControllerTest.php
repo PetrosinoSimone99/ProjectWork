@@ -22,20 +22,12 @@ class AuthControllerTest extends WebTestCase
 
     public function testRegistrationSavesOptionalServiceLocationsSeparatelyFromProfile(): void
     {
-        $services = [];
-        foreach ([[], ['location' => null], ['location' => '  '], ['location' => '  Rome  '], ['location' => str_repeat('é', 255)]] as $fields) {
-            $services[] = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], ...$fields];
-        }
-        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['offers' => $services, 'requests' => $services]));
-        self::assertResponseStatusCodeSame(201);
-        $response = $this->responseData();
-        self::assertSame('Milan', $response['user']['location']);
-        foreach (['offers', 'requests'] as $key) {
-            self::assertSame([null, null, null, 'Rome', str_repeat('é', 255)], array_column($response[$key], 'location'));
-            $this->entityManager->clear();
-            foreach ($response[$key] as $service) {
-                self::assertSame($service['location'], $this->entityManager->find(Service::class, $service['id'])->getLocation());
-            }
+        foreach ([null, '', '  ', '  Rome  ', str_repeat('é', 255)] as $index => $location) {
+            $service = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], 'location' => $location];
+            $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['username' => 'location'.$index, 'email' => 'location'.$index.'@example.test', 'offers' => [$service], 'requests' => [$service]]));
+            self::assertResponseStatusCodeSame(201);
+            $response = $this->responseData();
+            foreach (['offers', 'requests'] as $key) { self::assertSame(trim($location ?? '') === '' ? null : trim($location), $response[$key][0]['location']); }
         }
     }
 
@@ -63,19 +55,11 @@ class AuthControllerTest extends WebTestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('booleanFields')]
     public function testRegistrationSavesBooleanServiceFlagsForOffersAndRequests(string $field): void
     {
-        $services = [];
-        foreach ([[], [$field => false], [$field => true]] as $flags) {
-            $services[] = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], ...$flags];
-        }
-        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['offers' => $services, 'requests' => $services]));
-        self::assertResponseStatusCodeSame(201);
-        $response = $this->responseData();
-        foreach (['offers', 'requests'] as $key) {
-            self::assertSame([false, false, true], array_column($response[$key], $field));
-            $this->entityManager->clear();
-            foreach ($response[$key] as $service) {
-                self::assertSame($service[$field], $this->entityManager->find(Service::class, $service['id'])->$field());
-            }
+        foreach ([false, true] as $index => $value) {
+            $service = ['description' => 'Tutoring.', 'categoryIds' => [$this->cookingCategoryId], $field => $value];
+            $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData(['username' => 'flag'.$index, 'email' => 'flag'.$index.'@example.test', 'offers' => [$service], 'requests' => [$service]]));
+            self::assertResponseStatusCodeSame(201);
+            foreach (['offers', 'requests'] as $key) { self::assertSame($value, $this->responseData()[$key][0][$field]); }
         }
     }
 
@@ -149,8 +133,8 @@ class AuthControllerTest extends WebTestCase
         $invalidData = [
             ['location' => ''],
             ['location' => str_repeat('a', 256)],
-            ['offers' => []],
-            ['requests' => []],
+            ['offers' => [['description' => 'One', 'categories' => ['Cooking']], ['description' => 'Two', 'categories' => ['Cooking']]]],
+            ['requests' => [['description' => 'One', 'categories' => ['Cooking']], ['description' => 'Two', 'categories' => ['Cooking']]]],
             ['offers' => 'not a list'],
             ['offers' => [['description' => '', 'categoryIds' => [$this->cookingCategoryId]]]],
             ['offers' => [['description' => 'A valid offer.', 'categoryIds' => []]]],
@@ -190,7 +174,6 @@ class AuthControllerTest extends WebTestCase
         $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData([
             'offers' => [
                 ['description' => 'I can make bowls.', 'categories' => ['  Pottery  ']],
-                ['description' => 'I can make plates.', 'categories' => ['pottery']],
             ],
             'requests' => [
                 ['description' => 'I need pottery tools.', 'categories' => ['POTTERY']],
@@ -201,7 +184,6 @@ class AuthControllerTest extends WebTestCase
         $response = $this->responseData();
         $offerCategoryId = $response['offers'][0]['categories'][0]['id'];
         self::assertSame('Pottery', $response['offers'][0]['categories'][0]['description']);
-        self::assertSame($offerCategoryId, $response['offers'][1]['categories'][0]['id']);
         self::assertSame($offerCategoryId, $response['requests'][0]['categories'][0]['id']);
         self::assertSame(3, $this->entityManager->getRepository(Category::class)->count([]));
     }

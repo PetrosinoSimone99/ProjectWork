@@ -43,8 +43,10 @@ class ChatManager
         $this->notificationService = $notificationService;
     }
 
-    public function getOrCreateChat(int $agreementId): Chat
+    public function getOrCreateChat(int $agreementId, User $user): Chat
     {
+        $agreement = $this->agreementManager->getAgreementById($agreementId);
+        if (!$agreement || !array_any($agreement->getAgreementProposals()->toArray(), fn ($p) => $p->getUser()->getId() === $user->getId())) { throw new \App\Exception\ResourceNotFound('Chat not found.'); }
         $chat = $this->chatRepository->getChatByAgreementId($agreementId);
         
         if($chat == null){
@@ -83,6 +85,9 @@ class ChatManager
            throw new ChatNotFoundException();
         }
 
+        if (!array_any($chat->getChatParticipants()->toArray(), fn ($p) => $p->getUser()->getId() === $user->getId())) { throw new \App\Exception\ResourceNotFound('Chat not found.'); }
+        $agreement = $this->agreementManager->lockedAgreement($chat->getAgreementId(), $user);
+        if (!$agreement || $agreement->getAgreementStatus() !== \App\Enum\AgreementStatus::ACCEPTED) { throw new \DomainException('Only accepted agreements allow messages.'); }
         $chatMessage = new ChatMessage($chat, $user, $message);
         $errors = $this->validator->validate($chatMessage);
         

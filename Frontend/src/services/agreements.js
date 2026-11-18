@@ -31,19 +31,12 @@
  * invalid clock expires nothing (it fails toward "in progress").
  */
 
-/** The four sections, always present, always arrays. */
+
 function emptyBuckets() {
   return { toAnswer: [], sent: [], inProgress: [], concluded: [] };
 }
 
-/**
- * Statuses that belong to the closed history, never dropped.
- *
- * `CONTESTED` is the staff-side dispute a member opens on a delivery.
- * `CANCELLED` and `COMPLETED` are the backend's current spellings for the two
- * ways an exchange ends: the first replaced `VOID`, which legacy rows keep, and
- * the second is written by the backend's end-date scheduler.
- */
+
 const STATI_CONCLUSI = new Set(['REFUSED', 'VOID', 'CANCELLED', 'COMPLETED', 'CONTESTED']);
 
 /** The viewer's own proposal of an agreement, `null` when it does not exist. */
@@ -58,30 +51,7 @@ function myProposal(agreement, myUsername) {
   );
 }
 
-/**
- * Milliseconds of the **latest** end date among the agreement's sheet rows,
- * `NaN` when none is usable.
- *
- * An accepted agreement carries one row per participant and each side fills its
- * own dates, so reading `scheda` (the first row) would let the other person's
- * period decide when *this* viewer's exchange is over. The exchange is over when
- * no sheet still has an end date in the future, i.e. the latest one has passed.
- */
-function endTime(agreement) {
-  const righe = Array.isArray(agreement?.schede) ? agreement.schede : [agreement?.scheda];
-  let ultima = NaN;
-  for (const riga of righe) {
-    const fine = typeof riga?.fine === 'string' ? riga.fine : '';
-    if (fine === '') {
-      continue;
-    }
-    const tempo = new Date(fine).getTime();
-    if (Number.isFinite(tempo) && (!Number.isFinite(ultima) || tempo > ultima)) {
-      ultima = tempo;
-    }
-  }
-  return ultima;
-}
+
 
 /**
  * The section of one agreement, or `null` when it cannot be classified
@@ -89,7 +59,7 @@ function endTime(agreement) {
  * `PENDING` with my answer `false`, which the backend cannot produce because
  * one answer is final and changes the status).
  */
-function sectionOf(agreement, myUsername, referenceTime) {
+function sectionOf(agreement, myUsername) {
   if (!agreement || typeof agreement !== 'object') {
     return null;
   }
@@ -107,10 +77,7 @@ function sectionOf(agreement, myUsername, referenceTime) {
   }
 
   if (stato === 'ACCEPTED') {
-    const fineTime = endTime(agreement);
-    const scaduta =
-      Number.isFinite(fineTime) && Number.isFinite(referenceTime) && fineTime <= referenceTime;
-    return scaduta ? 'concluded' : 'inProgress';
+    return 'inProgress';
   }
 
   if (STATI_CONCLUSI.has(stato)) {
@@ -125,14 +92,13 @@ function sectionOf(agreement, myUsername, referenceTime) {
  * Rows that do not fit a rule are dropped, never guessed into a section;
  * a non-array input yields four empty arrays.
  */
-export function classifyAgreements(agreements, myUsername, now = new Date()) {
+export function classifyAgreements(agreements, myUsername) {
   const buckets = emptyBuckets();
   if (!Array.isArray(agreements)) {
     return buckets;
   }
-  const referenceTime = (now instanceof Date ? now : new Date(now)).getTime();
   for (const agreement of agreements) {
-    const section = sectionOf(agreement, myUsername, referenceTime);
+    const section = sectionOf(agreement, myUsername);
     if (section !== null) {
       buckets[section].push(agreement);
     }

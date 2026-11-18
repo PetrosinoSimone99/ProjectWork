@@ -249,3 +249,28 @@ php bin/phpunit
 | Web works, phone does not | phone on another Wi-Fi, or hotspot isolating clients | same network, or set `EXPO_PUBLIC_API_URL` with the PC address |
 | `400` on every call with port 8000 set | `EXPO_PUBLIC_API_PORT` overwritten by 8081 (shell beats `.env.local`) | fix the value, `npx expo start -c` |
 | JWT errors after key regeneration | stale token in secure storage | log out and in again |
+
+
+## Workflow upgrade (2026-11-18)
+
+The backend startup runs `php tools/upgrade-workflows.php`, applying only
+`Version20261118000100` to the selected reference schema. Do not replay older
+historical migrations against the already-current dump. The upgrade refuses
+multiple non-deleted services per owner/type or multiple active queues per owner;
+it reports affected accounts and never deletes their records. Resolve those
+records deliberately before retrying. MySQL DDL is not transactional: back up
+existing databases before upgrading; a partial migration requires repair.
+
+Run `docker compose up -d --build backend worker scheduler` from Backend.
+The workers wait for backend health and restart automatically. Never reset a
+populated volume just to apply this migration. The demo generator uses the
+maintained `docker/seed-demo.sql`, accepts the Docker database host, refuses
+populated databases/existing outputs, and exports to `Backend/var/demo-export.sql`
+(or an explicit first argument). Generated columns are excluded from INSERTs.
+
+Workflow MySQL tests use only `workflow_*_test` databases and refuse to reset
+any other MySQL schema. With `DATABASE_URL` pointing at a base name such as
+`workflow_checks`, test configuration appends `_test`. Run
+`php bin/phpunit --filter WorkflowControllerTest`. They import the reference
+schema, apply the new migration and test the same lifecycle as SQLite, plus
+concurrent queue creation and matching. The development database is not reset.

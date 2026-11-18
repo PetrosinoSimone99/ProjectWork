@@ -261,6 +261,7 @@ export default function ProfileScreen() {
             endpoint dà; la bio assente si dichiara, non si nasconde. */}
         <Banda>
           <AppText variant="heading">Il tuo profilo</AppText>
+          {profilo?.crediti !== undefined ? <AppText>{`Crediti disponibili: ${profilo.crediti}`}</AppText> : null}
           <View style={{ gap: space.sm }}>
             {email ? (
               <RigaProfilo icona="mail-outline" etichetta="Email" valore={email} />

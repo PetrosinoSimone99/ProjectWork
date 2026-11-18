@@ -36,6 +36,7 @@ final class ServiceRestorer
             }
             // Repeated calls succeed without creating duplicate history entries.
             if (!$service->isDeleted()) { return $service; }
+            $this->services->assertSlotAvailable($service->getUser(), $service->getType(), $id);
             $before = ['deletedAt' => $service->getDeletedAt()->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM)];
             $service->restore();
             $this->em->flush();

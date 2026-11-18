@@ -71,21 +71,14 @@ export default function HomeScreen() {
     }
   }, [propostaInviataA]);
 
-  /**
-   * The send action of the detail panel (brief, decision 3):
-   * `POST /create-exchange-agreement` takes the **person** (`offerente.id`),
-   * never a service — the agreement is born with that person and the service
-   * is named later in the sheet. Duplicates with the same person are possible
-   * while the backend takes only a user id (G4): documented, not masked.
-   * The panel owns the in-flight and error states; this function only calls.
-   */
+
   async function inviaProposta(servizio) {
     const autore = servizio?.offerente ?? {};
     if (!Number.isInteger(autore.id)) {
       // ApiError so the panel shows this line instead of its generic fallback.
       throw new ApiError(0, 'Non trovo questa persona: ricarica il catalogo e riprova.');
     }
-    await sendExchangeProposal(token, autore.id);
+    await sendExchangeProposal(token, autore.id, servizio.id);
   }
 
   /**

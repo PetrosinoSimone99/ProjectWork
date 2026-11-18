@@ -1,89 +1,53 @@
 <?php
-
+declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\User;
-use App\DTO\ServiceQueueDTO;
-use App\Message\QueueId;
-
-use App\Manager\UserManager;
 use App\Manager\ServiceQueueManager;
-
-use App\Exception\NotEnoughCreditsException;
+use App\Exception\{ResourceNotFound, NotEnoughCreditsException};
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\{Request, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\HttpFoundation\Request;
 
 #[Route('/api')]
 final class QueueController extends AbstractController
 {
-    private ServiceQueueManager $serviceQueueManager;
-    private UserManager $userManager;
-    public function __construct(ServiceQueueManager $serviceQueueManager, UserManager $userManager)
-    {
-        $this->serviceQueueManager = $serviceQueueManager;
-        $this->userManager = $userManager;
-    }
+    public function __construct(private ServiceQueueManager $queues, private LoggerInterface $logger) {}
 
     #[Route('/create-service-queue', name: 'create_queue', methods: ['POST'])]
     public function createQueue(Request $request): JsonResponse
     {
-        $user = $this->getUser();
-        if (!$user instanceof User){
-            return $this->json(['error' => 'User not authenticated'], 401);
-        }
-        
-        try{
-            $data = json_decode($request->getContent(), true);
-            if(!is_array($data)) {
-                return $this->json(['error' => 'Request data must be a JSON object'], 400);
-            }
-            if(!isset($data['queueType'])){
-                return $this->json(['error' => 'Missing parameter: queueType'], 400);
-            }
-            $this->serviceQueueManager->createServiceQueue($user, $data['queueType']);
+        return $this->respond(function (User $user) use ($request): JsonResponse {
+            $data = $request->toArray();
+            if (!is_string($data['queueType'] ?? null)) { throw new \InvalidArgumentException('queueType is required.'); }
+            $this->queues->createServiceQueue($user, $data['queueType']);
             return $this->json(['message' => 'Service queue created successfully'], 201);
-
-        }catch(NotEnoughCreditsException){
-            return $this->json(['error' => 'Not enough credits'], 400);
-        }
-        catch(Exception $e){
-            return $this->json(['error' => 'Internal server error'], 500);
-        }
+        });
     }
-
     #[Route('/cancel-queue/{queueId}', name: 'cancel_queue', methods: ['POST'])]
     public function cancelQueue(int $queueId): JsonResponse
     {
-        $user = $this->getUser();
-        if (!$user instanceof User){
-            return $this->json(['error' => 'User not authenticated'], 401);
-        }
-        try{
-            $this->serviceQueueManager->cancelServiceQueue($user,$queueId);
-            
-        }catch(Exception $e){
-            return $this->json(['error' => 'Internal server error'], 500);
-        }
-        return $this->json(['message' => 'Service queue cancelled successfully'], 200);
+        return $this->respond(function (User $user) use ($queueId): JsonResponse {
+            $this->queues->cancelServiceQueue($user, $queueId);
+            return $this->json(['message' => 'Service queue cancelled successfully']);
+        });
     }
-
     #[Route('/get-queues', name: 'get_queues', methods: ['GET'])]
     public function getQueues(): JsonResponse
     {
+        return $this->respond(fn (User $user) => $this->json(['queues' => $this->queues->getServiceQueuesByUser($user)]));
+    }
+    private function respond(callable $work): JsonResponse
+    {
         $user = $this->getUser();
-        if (!$user instanceof User){
-            return $this->json(['error' => 'User not authenticated'], 401);
-        }
-        try{
-            $queuesDTO = $this->serviceQueueManager->getServiceQueuesByUser($user);
-            if (!$queuesDTO) {
-                return $this->json(['error' => 'Service queues not found'], 404);
-            }
-            return $this->json(['queues' => $queuesDTO], 200);
-        }catch(Exception $e){
-            return $this->json(['error' => 'Internal server error'], 500);
-        }
+        if (!$user instanceof User) { return $this->json(['error' => 'Authentication required.'], 401); }
+        if (!$user->isActive()) { return $this->json(['error' => 'Account is inactive.'], 403); }
+        try { return $work($user); }
+        catch (ResourceNotFound) { return $this->json(['error' => 'Queue not found.'], 404); }
+        catch (\InvalidArgumentException|\Symfony\Component\HttpKernel\Exception\BadRequestHttpException|\JsonException $e) { return $this->json(['error' => 'Invalid queue request.'], 400); }
+        catch (NotEnoughCreditsException) { return $this->json(['error' => 'Not enough credits.'], 400); }
+        catch (\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException|\Doctrine\DBAL\Exception\RetryableException $e) { return $this->json(['error' => 'Queue conflicts with current account or service state.'], 409); }
+        catch (\Throwable $e) { $this->logger->error('Queue request failed', ['exception' => $e]); return $this->json(['error' => 'Internal server error'], 500); }
     }
 }

@@ -36,7 +36,7 @@ final class RequestController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_requests_update', requirements: ['id' => '\\d+'], methods: ['PATCH'])]
-    public function update(int $id, Request $request, EntityManagerInterface $entityManager, ServiceRepository $services): JsonResponse
+    public function update(int $id, Request $request, EntityManagerInterface $entityManager, ServiceRepository $services, \Symfony\Component\Messenger\MessageBusInterface $bus): JsonResponse
     {
         $user = $this->activeUser();
         if ($user instanceof JsonResponse) {
@@ -108,14 +108,14 @@ final class RequestController extends AbstractController
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services): void {
+            $entityManager->getConnection()->transactional(function () use ($id, $serviceRequest, $description, $categories, $isRemote, $isSuspended, $hasLocation, $location, $entityManager, $services, $data, $bus): void {
                 // Serialize edits and deletion of the same service.
                 $services->lockForUpdate($id);
                 // Another request may have deleted this row while we waited for the lock.
                 if (!$services->existsNotDeleted($id)) {
                     throw new ServiceNotFoundException('The request does not exist.');
                 }
-                if ($services->isInUse($id)) {
+                if (array_diff(array_keys($data), ['isSuspended']) !== [] && $services->isInUse($id)) {
                     throw new RequestInUseException();
                 }
                 // Reload after the lock so concurrent changes are reflected in this partial update.
@@ -139,6 +139,11 @@ final class RequestController extends AbstractController
                     }
                 }
                 $entityManager->flush();
+                if ($isSuspended === false) {
+                    foreach ($entityManager->getConnection()->fetchFirstColumn("SELECT id FROM service_queues WHERE service_id = ? AND status = 'OPEN'", [$id]) as $queueId) {
+                        $bus->dispatch(new \App\Message\QueueId((int) $queueId));
+                    }
+                }
             });
         } catch (ServiceNotFoundException $error) {
             return $this->error($error->getMessage(), 404);

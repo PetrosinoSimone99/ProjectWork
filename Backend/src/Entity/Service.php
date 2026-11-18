@@ -83,7 +83,7 @@ class Service
     public function getLocation(): ?string { return $this->location; }
     public function setLocation(?string $location): void
     {
-        $location = $location === null ? null : trim($location);
+        $location = \App\Service\LocationNormalizer::normalize($location);
         $this->location = $location === '' ? null : $location;
     }
     public function isRemote(): bool { return $this->isRemote; }

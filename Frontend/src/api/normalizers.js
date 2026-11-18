@@ -94,6 +94,7 @@ export function normalizeProfile(response) {
     return null;
   }
   return {
+    ...('credits' in profile ? { crediti: toIntegerOrNull(profile.credits), puoAccodareRicerca: profile.canRequestQueue === true } : {}),
     id: toIntegerOrNull(profile.id),
     nome: toTextOrNull(profile.name),
     cognome: toTextOrNull(profile.surname),
@@ -492,6 +493,7 @@ function normalizeAgreementProposal(row) {
     return null;
   }
   return {
+    ...('userId' in row ? { idUtente: toIntegerOrNull(row.userId), idServizio: toIntegerOrNull(row.serviceId), descrizioneServizio: toTextOrNull(row.serviceDescription) } : {}),
     username,
     ruolo: toTextOrNull(row.role),
     risposta: typeof row.response === 'boolean' ? row.response : null,
@@ -521,6 +523,7 @@ function normalizeAgreementSheet(row) {
     return null;
   }
   return {
+    ...('serviceId' in row ? { idServizio: toIntegerOrNull(row.serviceId), idFornitore: toIntegerOrNull(row.providerId), idBeneficiario: toIntegerOrNull(row.beneficiaryId) } : {}),
     username: toTextOrNull(row.providerUsername),
     descrizione,
     beneficiario: toTextOrNull(row.beneficiaryUsername),
@@ -567,6 +570,7 @@ export function normalizeAgreement(row) {
       typeof row.agreementStatus === 'string'
         ? row.agreementStatus.trim().toUpperCase()
         : null,
+    ...('direction' in row ? { direzione: toTextOrNull(row.direction) } : {}),
     creazione: toTextOrNull(row.creationDate),
     proposte: proposte.map(normalizeAgreementProposal).filter(Boolean),
     scheda: schede.length > 0 ? schede[0] : null,
@@ -687,6 +691,7 @@ export function normalizeQueue(row) {
     id,
     tipo: tipo === null ? null : tipo.toUpperCase(),
     stato: stato === null ? null : stato.toUpperCase(),
+    ...('createdAt' in row ? { creataIl: toTextOrNull(row.createdAt) } : {}),
     localita: toTextOrNull(row.location),
     descrizione: toTextOrNull(row.serviceDescription),
     categoria: toTextOrNull(row.serviceCategory),

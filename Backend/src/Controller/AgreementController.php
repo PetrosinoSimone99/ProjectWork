@@ -16,10 +16,12 @@ final class AgreementController extends AbstractController
 {
     private AgreementManager $agreementManager;
     private UserManager $userManager;
+    private \Psr\Log\LoggerInterface $logger;
 
-    public function __construct(AgreementManager $agreementManager, UserManager $userManager){
+    public function __construct(AgreementManager $agreementManager, UserManager $userManager, \Psr\Log\LoggerInterface $logger){
         $this->agreementManager = $agreementManager;
         $this->userManager = $userManager;
+        $this->logger = $logger;
     }
     #[Route('/get-agreements', name: 'get-agreements', methods: ['GET'])]
     public function getAgreements(): JsonResponse
@@ -41,7 +43,11 @@ final class AgreementController extends AbstractController
                     'agreements' => $agreementsDTO
                 ],
             ], 200);
-        }catch(\Exception $e){
+        }catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+            return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
+        }
+        catch(\Exception $e){
+            $this->logger->error('Agreement request failed', ['exception' => $e]);
             return $this->json(['error' => [
                 'code' => 500,
                 'message' => 'Internal Server Error'
@@ -76,7 +82,9 @@ final class AgreementController extends AbstractController
                 ]], 400);
             }
 
-            $this->agreementManager->createExchangeAgreement($user, (int)$otherParticipant);
+            $serviceId = $data['serviceId'] ?? null;
+            if (!is_int($serviceId) || $serviceId < 1) { return $this->json(['error' => 'serviceId must be a positive integer.'], 400); }
+            $this->agreementManager->createExchangeAgreement($user, (int)$otherParticipant, $serviceId);
             return $this->json([
                 'success' => [
                     'code' => 201,
@@ -102,7 +110,11 @@ final class AgreementController extends AbstractController
                 'message' => 'Resource not found'
             ]], 404);
         }
-        catch(\Exception){
+        catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+            return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
+        }
+        catch(\Exception $e){
+            $this->logger?->error('Agreement request failed', ['exception' => $e]);
                 return $this->json(['error' => [
                     'code' => 500,
                     'message' => 'Internal Server Error'
@@ -160,7 +172,11 @@ final class AgreementController extends AbstractController
                 'message' => 'Conflict'
             ]], 409);
         }
-         catch(\Exception $e){
+         catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+            return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
+        }
+        catch(\Exception $e){
+            $this->logger?->error('Agreement request failed', ['exception' => $e]);
             return $this->json(['error' => [
                 'code' => 500,
                 'message' => 'Internal Server Error'
@@ -217,7 +233,11 @@ final class AgreementController extends AbstractController
                 'message' => 'Resource not found'
             ]], 404);
         }
+        catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+            return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
+        }
         catch(\Exception $e){
+            $this->logger?->error('Agreement request failed', ['exception' => $e]);
             return $this->json(['error' => [
                 'code' => 500,
                 'message' => 'Internal Server Error'
@@ -249,10 +269,14 @@ final class AgreementController extends AbstractController
                 'message' => 'Resource not found'
             ]], 404);
         }
+        catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+            return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
+        }
         catch(\Exception $e){
+            $this->logger?->error('Agreement request failed', ['exception' => $e]);
             return $this->json(['error' => [
                 'code' => 500,
-                'message' => 'Internal Server Error' . $e->getMessage()
+                'message' => 'Internal Server Error'
             ]], 500);
         }
     }
@@ -281,10 +305,14 @@ final class AgreementController extends AbstractController
                 'message' => 'Resource not found'
             ]], 404);
         }
+        catch(\DomainException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e){
+            return $this->json(['error' => 'The operation conflicts with the current state.'], 409);
+        }
         catch(\Exception $e){
+            $this->logger?->error('Agreement request failed', ['exception' => $e]);
             return $this->json(['error' => [
                 'code' => 500,
-                'message' => 'Internal Server Error' . $e->getMessage()
+                'message' => 'Internal Server Error'
             ]], 500);
         }
     }

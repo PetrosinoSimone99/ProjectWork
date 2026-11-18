@@ -29,7 +29,7 @@ final class StaffController extends AbstractController
     #[Route('/users', name: 'api_staff_users_list', methods: ['GET'])]
     public function users(Request $request, UserRepository $users): JsonResponse
     {
-        $filters = $this->filters($request, ['page', 'limit', 'q', 'accountStatus']);
+        $filters = $this->filters($request, ['page', 'limit', 'q', 'accountStatus', 'role']);
         if ($filters instanceof JsonResponse) { return $filters; }
         if (isset($filters['q']) && (!is_string($filters['q']) || mb_strlen($filters['q']) > 255)) {
             return $this->error('Search text must contain at most 255 characters.', 400);
@@ -37,7 +37,8 @@ final class StaffController extends AbstractController
         if (isset($filters['accountStatus']) && !in_array($filters['accountStatus'], [User::STATUS_ACTIVE, User::STATUS_INACTIVE], true)) {
             return $this->error('Account status must be ACTIVE or INACTIVE.', 400);
         }
-        $items = $users->paginateForStaff($filters['page'], $filters['limit'], isset($filters['q']) ? trim($filters['q']) : null, $filters['accountStatus'] ?? null);
+        if (isset($filters['role']) && !in_array($filters['role'], ['USER', 'STAFF'], true)) { return $this->error('Role must be USER or STAFF.', 400); }
+        $items = $users->paginateForStaff($filters['page'], $filters['limit'], isset($filters['q']) ? trim($filters['q']) : null, $filters['accountStatus'] ?? null, $filters['role'] ?? null);
         return $this->pageResponse('users', $items, $filters, static fn (User $user) => $user->toApiArray());
     }
 

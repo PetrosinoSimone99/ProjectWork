@@ -159,7 +159,7 @@ export function ServiceDetailModal({
         // resta appiccicata a lui invece di finire tre blocchi sopra (F70).
         <View style={{ gap: space.sm }}>
           <AppText variant="small" tone="secondary" style={{ textAlign: 'center' }}>
-            La proposta è alla cieca, non vincolante: la decide l'altra persona.
+            Proponi uno scambio tra questo servizio e la tua offerta. L’altra persona può accettare o rifiutare.
           </AppText>
           <AppButton
             label={invio ? 'Invio…' : 'Invia proposta'}

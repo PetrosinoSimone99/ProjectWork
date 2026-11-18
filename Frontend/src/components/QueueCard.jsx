@@ -121,6 +121,7 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
         </AppText>
       </Chip>
 
+      {coda.creataIl ? <AppText variant="small" tone="secondary">{'Creata il ' + new Date(coda.creataIl).toLocaleString('it-IT')}</AppText> : null}
       {coda.descrizione ? (
         <AppText numberOfLines={2}>{coda.descrizione}</AppText>
       ) : null}

@@ -43,6 +43,11 @@ class Agreement
         $this->agreementDetails = new ArrayCollection();
     }
 
+    #[ORM\Column(name: 'pending_pair_key', length: 80, nullable: true, unique: true)]
+    private ?string $pendingPairKey = null;
+
+    public function setPendingPairKey(?string $key): void { $this->pendingPairKey = $key; }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -54,6 +59,7 @@ class Agreement
 
     public function setAgreementStatus(AgreementStatus $agreementStatus){
         $this->agreementStatus = $agreementStatus;
+        if ($agreementStatus !== AgreementStatus::PENDING) { $this->pendingPairKey = null; }
 
         return $this;
     }

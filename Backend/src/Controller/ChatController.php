@@ -17,10 +17,14 @@ class ChatController extends AbstractController
 {
     private ChatManager $chatManager;
     private UserManager $userManager;
-    public function __construct(ChatManager $chatManager, UserManager $userManager)
+    private \Psr\Log\LoggerInterface $logger;
+    private \App\Service\WorkflowTransaction $transaction;
+    public function __construct(ChatManager $chatManager, UserManager $userManager, \Psr\Log\LoggerInterface $logger, \App\Service\WorkflowTransaction $transaction)
     {
         $this->chatManager = $chatManager;
         $this->userManager = $userManager;
+        $this->logger = $logger;
+        $this->transaction = $transaction;
     }
 
     #[Route('/chats/agreement/{agreementId}', name: 'get_chat_by_agreement_id', methods: ['GET'])]
@@ -32,16 +36,22 @@ class ChatController extends AbstractController
         }
 
         try{
-            $chat = $this->chatManager->getOrCreateChat($agreementId);
+            $chat = $this->transaction->run(function () use ($agreementId, $user) {
+                $this->transaction->lock('agreements', [$agreementId]);
+                return $this->chatManager->getOrCreateChat($agreementId, $user);
+            });
             $chatMessageDTOs = $this->chatManager->getChatHistory($chat);
             
             return $this->json(['chatId' => $chat->getId(),'messages' => $chatMessageDTOs]);
 
         }catch (\InvalidArgumentException) {
-            return $this->json(['error' => 'Invalid chat'], 400);
+            return $this->json(['error' => 'Chat not found.'], 404);
         }
-        catch(\Exception $e){
-            return $this->json(['error' => 'Internal server error '. $e->getMessage()], 500);
+        catch (\App\Exception\ResourceNotFound) { return $this->json(['error' => 'Chat not found.'], 404); }
+        catch (\DomainException) { return $this->json(['error' => 'Agreement is not accepted.'], 409); }
+        catch (\Throwable $e) {
+            $this->logger->error('Chat request failed', ['exception' => $e]);
+            return $this->json(['error' => 'Internal server error'], 500);
         }
         
     }
@@ -65,7 +75,9 @@ class ChatController extends AbstractController
                 return $this->json(['error' => 'Message must be a string'], 400);
             }
 
-            $this->chatManager->sendMessage($chatId, $user, $message);
+            $this->transaction->run(function () use ($chatId, $user, $message): void {
+                $this->chatManager->sendMessage($chatId, $user, $message);
+            });
             return $this->json(['success' => ['code' => 200, 'message' => 'Message sent successfully']], 200);
         }
         catch (JsonException) {
@@ -77,8 +89,11 @@ class ChatController extends AbstractController
         catch (\InvalidArgumentException) {
             return $this->json(['error' => 'Invalid message'], 400);
         }
-        catch (\Exception $e) {
-            return $this->json(['error' => 'An unexpected error occurred '. $e->getMessage()], 500);
+        catch (\App\Exception\ResourceNotFound) { return $this->json(['error' => 'Chat not found.'], 404); }
+        catch (\DomainException) { return $this->json(['error' => 'Agreement is not accepted.'], 409); }
+        catch (\Throwable $e) {
+            $this->logger->error('Chat request failed', ['exception' => $e]);
+            return $this->json(['error' => 'Internal server error'], 500);
         }
         
     }
@@ -118,8 +133,11 @@ class ChatController extends AbstractController
 
             return $this->json($chatMessageDTOS);
 
-        }catch(\Exception $e){
-            return $this->json(['error' => 'An unexpected error occurred: ' . $e->getMessage()], 500);
+        }catch (\App\Exception\ResourceNotFound) { return $this->json(['error' => 'Chat not found.'], 404); }
+        catch (\DomainException) { return $this->json(['error' => 'Agreement is not accepted.'], 409); }
+        catch (\Throwable $e) {
+            $this->logger->error('Chat request failed', ['exception' => $e]);
+            return $this->json(['error' => 'Internal server error'], 500);
         }
     }
 }

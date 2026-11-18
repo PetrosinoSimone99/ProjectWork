@@ -91,7 +91,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     public function setRoles(array $roles): void { $this->roles = $roles; }
-    public function setLocation(?string $location): void { $this->location = $location; }
+    public function setLocation(?string $location): void { $this->location = \App\Service\LocationNormalizer::normalize($location); }
     public function setName(string $name): void { $this->name = $name; }
     public function setSurname(string $surname): void { $this->surname = $surname; }
     public function setBio(?string $bio): void { $this->bio = $bio; }

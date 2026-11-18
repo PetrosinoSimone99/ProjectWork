@@ -1,7 +1,7 @@
 import { act, create } from 'react-test-renderer';
 
 import MatchScreen from '../match';
-import { cancelQueue, createQueue, listMyServices, listQueues } from '@/api';
+import { cancelQueue, createQueue, listMyServices, listQueues, getProfile } from '@/api';
 
 jest.mock('expo-router', () => ({
   // `useFocusEffect` needs a navigator; in this test the screen is always the
@@ -17,6 +17,7 @@ jest.mock('@/auth/auth-context', () => ({
 // The barrel is mocked whole: every symbol `match.jsx` imports from it is
 // declared here, or the screen would receive `undefined` instead of a mock.
 jest.mock('@/api', () => ({
+  getProfile: jest.fn(),
   listQueues: jest.fn(),
   listMyServices: jest.fn(),
   createQueue: jest.fn(),
@@ -69,7 +70,8 @@ async function flush() {
 }
 
 /** Renders the screen the match tab mounts, once both loads have answered. */
-async function renderMatch({ queues = [], services = [] } = {}) {
+async function renderMatch({ queues = [], services = [], profile = { crediti: 1, puoAccodareRicerca: true } } = {}) {
+  getProfile.mockResolvedValue(profile);
   listQueues.mockResolvedValue(queues);
   listMyServices.mockResolvedValue(services);
   let renderer;
@@ -215,5 +217,19 @@ describe('match — the create-queue gate', () => {
     await press(renderer, BUTTON_REQUEST);
 
     expect(createQueue).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('request eligibility', () => {
+  it('requires a completed offered service even when a credit exists', async () => {
+    const renderer = await renderMatch({ services: [OFFER_SERVICE, REQUEST_SERVICE], profile: { crediti: 1, puoAccodareRicerca: false } });
+    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(false);
+    expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
+    expect(visibleText(renderer)).toContain('Completa prima una prestazione tramite coda di offerta.');
+  });
+  it('does not enqueue suspended offers', async () => {
+    const renderer = await renderMatch({ services: [{ ...OFFER_SERVICE, stato: 'SOSPESA' }] });
+    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
   });
 });

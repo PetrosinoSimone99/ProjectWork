@@ -129,7 +129,12 @@ class MarketplaceControllerTest extends WebTestCase
                 $service = $this->data()['service'];
                 $expected = isset($fields['location']) ? trim($fields['location']) : null;
                 self::assertSame($expected === '' ? null : $expected, $service['location']);
+                $this->client->request('DELETE', '/api/'.$resource.'/'.$service['id']);
+                self::assertResponseStatusCodeSame(204);
             }
+            $this->client->jsonRequest('POST', '/api/services', ['type' => $type, 'description' => 'Location edits.', 'categoryIds' => [$category->getId()]]);
+            self::assertResponseStatusCodeSame(201);
+            $service = $this->data()['service'];
             $path = '/api/'.$resource.'/'.$service['id'];
             $key = $type === 'OFFER' ? 'offer' : 'request';
             $this->client->jsonRequest('PATCH', $path, ['location' => '  Milan  ']);
@@ -217,6 +222,8 @@ class MarketplaceControllerTest extends WebTestCase
                 self::assertFalse($this->data()[$key][$field]);
                 $this->entityManager->clear();
                 self::assertFalse($this->entityManager->find(Service::class, $service['id'])->$field());
+                $this->client->request('DELETE', $path);
+                self::assertResponseStatusCodeSame(204);
             }
             $before = $this->entityManager->getRepository(Service::class)->count([]);
             foreach ([null, 'false', 0, 1, [], new \stdClass()] as $invalid) {

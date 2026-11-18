@@ -30,7 +30,7 @@ class ServiceQueue
     #[ORM\Column(name: 'location', type: 'string', nullable: true)]
     private ?string $location = null;
 
-    #[ORM\OneToOne(targetEntity: Agreement::class)]
+    #[ORM\ManyToOne(targetEntity: Agreement::class)]
     #[ORM\JoinColumn(name: 'agreement_created', referencedColumnName: 'id', nullable: true)]
     private ?Agreement $agreement = null;
 
@@ -45,7 +45,13 @@ class ServiceQueue
         $this->location = $location;
         $this->queueStatus = $queueStatus;
         $this->agreement = null;
+        $this->createdAt = new \DateTimeImmutable();
     }
+
+    #[ORM\Column(name: 'created_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    public function getCreatedAt(): ?\DateTimeImmutable { return $this->createdAt; }
 
     public function getId(): ?int
     {

@@ -28,7 +28,7 @@ class AgreementProposal
     #[ORM\Column(name: 'response')]
     private ?bool $response = null;
 
-    #[ORM\Column(name: 'response_date')]
+    #[ORM\Column(name: 'response_date', nullable: true)]
     private ?DateTimeImmutable $responseDate = null;
 
     public function __construct(Agreement $agreement, User $user, AgreementParticipantRole $role, ?bool $response, ?DateTimeImmutable $responseDate){
@@ -38,6 +38,13 @@ class AgreementProposal
         $this->response = $response;
         $this->responseDate = $responseDate;
     }
+
+    #[ORM\ManyToOne(targetEntity: Service::class)]
+    #[ORM\JoinColumn(name: 'service_id', nullable: true)]
+    private ?Service $service = null;
+
+    public function getService(): ?Service { return $this->service; }
+    public function setService(Service $service): void { $this->service = $service; }
 
     public function getAgreement(): ?Agreement
     {

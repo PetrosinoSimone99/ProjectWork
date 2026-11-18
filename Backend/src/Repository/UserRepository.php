@@ -35,7 +35,7 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
-    public function paginateForStaff(int $page, int $limit, ?string $search, ?string $status): Paginator
+    public function paginateForStaff(int $page, int $limit, ?string $search, ?string $status, ?string $role = null): Paginator
     {
         $query = $this->createQueryBuilder('user')->orderBy('user.id', 'ASC');
         if ($search !== null && $search !== '') {
@@ -44,6 +44,9 @@ class UserRepository extends ServiceEntityRepository
         }
         if ($status !== null) {
             $query->andWhere('user.accountStatus = :status')->setParameter('status', $status);
+        }
+        if ($role !== null) {
+            $query->andWhere($role === 'STAFF' ? 'user.roles LIKE :staffRole' : 'user.roles NOT LIKE :staffRole')->setParameter('staffRole', '%"ROLE_STAFF"%');
         }
         $query->setFirstResult(($page - 1) * $limit)->setMaxResults($limit);
         return new Paginator($query, false);

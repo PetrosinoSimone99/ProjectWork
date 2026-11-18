@@ -66,6 +66,7 @@ const MESSAGES = {
    * is the sentence for a chat that no longer exists.
    */
   send: {
+    409: 'Questo accordo è concluso o annullato: puoi leggere la chat, ma non inviare messaggi.',
     400: 'Non posso inviare questo testo: controlla il messaggio.',
     404: 'Non trovo più questa chat: ricarica e riprova.',
     500: "Il server non ha accettato il messaggio: riprova, e se l'errore resta segnalalo.",

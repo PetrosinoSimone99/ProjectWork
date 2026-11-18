@@ -128,13 +128,13 @@ describe('classifyAgreements', () => {
     expect(result.concluded).toEqual([]);
   });
 
-  it('moves an accepted agreement whose end date has passed to concluded', () => {
+  it('keeps an accepted agreement in progress until the backend completes it', () => {
     const input = [acceptedAgreement(PAST_END)];
 
     const result = classifyAgreements(input, ME, NOW);
 
-    expect(result.concluded).toEqual(input);
-    expect(result.inProgress).toEqual([]);
+    expect(result.concluded).toEqual([]);
+    expect(result.inProgress).toEqual(input);
   });
 
   it('moves a refused agreement to concluded', () => {
@@ -180,14 +180,15 @@ describe('classifyAgreements', () => {
     expect(result.inProgress).toEqual([]);
   });
 
-  it('honours the injected clock instead of the wall clock', () => {
+  it('does not infer completion from the client clock', () => {
     const input = [acceptedAgreement(FUTURE_END)];
 
     const beforeEnd = classifyAgreements(input, ME, new Date('2026-06-01T00:00:00.000Z'));
     const afterEnd = classifyAgreements(input, ME, new Date('2027-01-01T00:00:00.000Z'));
 
     expect(beforeEnd.inProgress).toEqual(input);
-    expect(afterEnd.concluded).toEqual(input);
+    expect(afterEnd.inProgress).toEqual(input);
+    expect(afterEnd.concluded).toEqual([]);
   });
 
   it('drops rows it cannot classify, including non-objects and unknown statuses', () => {
@@ -271,11 +272,11 @@ describe('classifyAgreements with two sheet rows', () => {
     expect(classificati.concluded).toHaveLength(0);
   });
 
-  it('lands in the concluded history only when both periods are over', () => {
+  it('keeps expired sheets in progress until the scheduler confirms completion', () => {
     const classificati = acceptedWithTwoPeriods(PAST_END, PAST_END);
 
-    expect(classificati.concluded).toHaveLength(1);
-    expect(classificati.inProgress).toHaveLength(0);
+    expect(classificati.concluded).toHaveLength(0);
+    expect(classificati.inProgress).toHaveLength(1);
   });
 });
 

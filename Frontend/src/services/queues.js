@@ -70,7 +70,7 @@ export function servicesOfQueueType(servizi, tipoCoda) {
   if (tipoServizio === undefined || !Array.isArray(servizi)) {
     return [];
   }
-  return servizi.filter((voce) => voce?.tipo === tipoServizio);
+  return servizi.filter((voce) => voce?.tipo === tipoServizio && voce?.stato !== 'SOSPESA');
 }
 
 /**

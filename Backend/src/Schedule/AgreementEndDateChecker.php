@@ -1,73 +1,47 @@
 <?php
-
-
+declare(strict_types=1);
 namespace App\Schedule;
 
 use App\Entity\Agreement;
-use App\Entity\AgreementDetails;
-use App\Entity\Service;
-use App\Manager\UserManager;
-use App\Manager\UseCase\CloseQueueUseCase;
-use App\Service\NotificationService;
+use App\Enum\{AgreementStatus, AgreementDetailsStatus, AgreementParticipantRole};
 use App\Repository\AgreementRepository;
-use App\Enum\AgreementStatus;
+use App\Manager\AgreementManager;
+use App\Service\{WorkflowTransaction, NotificationService, Clock};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Scheduler\Attribute\AsPeriodicTask;
 
 #[AsPeriodicTask(frequency: '30 minutes')]
-class AgreementEndDateChecker
+final class AgreementEndDateChecker
 {
-    private NotificationService $notificationService;
-    private AgreementRepository $agreementRepository;
-    private CloseQueueUseCase $closeQueueUseCase;
-    private EntityManagerInterface $entityManager;
-    private UserManager $userManager;
-
-    public function __construct(AgreementRepository $agreementRepository, CloseQueueUseCase $closeQueueUseCase, NotificationService $notificationService,
-    EntityManagerInterface $entityManager, UserManager $userManager)
-    {
-        $this->agreementRepository = $agreementRepository;
-        $this->closeQueueUseCase = $closeQueueUseCase;
-        $this->notificationService = $notificationService;
-        $this->entityManager = $entityManager;
-        $this->userManager = $userManager;
-    }
+    public function __construct(private AgreementRepository $agreements, private AgreementManager $manager,
+        private WorkflowTransaction $transaction, private NotificationService $notifications,
+        private EntityManagerInterface $em, private Clock $clock) {}
 
     public function __invoke(): void
     {
-        $agreements = $this->agreementRepository->findAllAgreements();
-
-        foreach ($agreements as $agreement) {
-            $completedAgreement = 0;
-            $agreementDetails = $agreement->getAgreementDetails();
-            foreach($agreementDetails as $details){
-                if($details->getEndDate() !== null && $details->getEndDate() < new \DateTimeImmutable()){
-                    if($details->getIsCompleted() === false){
-                        $details->setIsCompleted(true);
-                        $this->entityManager->persist($details);
-                        $this->notificationService->notify($details->getBeneficiary(), 'agreement_completed', 'Il servizio di ' . $details->getUser()->getUsername() . ' è stato completato.',
-                        ['agreementId' => $agreement->getId(),
-                        'username' => $details->getUser()->getUsername(),
-                        'serviceDescription' => $details->getService()->getDescription(),
-                        'startDate' => $details->getStartDate()->format('Y-m-d H:i:s'),
-                        'endDate' => $details->getEndDate()->format('Y-m-d H:i:s')
-                        ]);
-                    }
-                    $completedAgreement++;
+        foreach ($this->agreements->findAllAgreements() as $agreement) {
+            $this->transaction->run(function () use ($agreement): void {
+                $this->transaction->lock('agreements', [$agreement->getId()]); $this->em->refresh($agreement);
+                if ($agreement->getAgreementStatus() !== AgreementStatus::ACCEPTED) { return; }
+                $details = $agreement->getAgreementDetails();
+                if (count($details) !== ($agreement->getFromQueue() ? 1 : 2)) { return; }
+                foreach ($details as $detail) {
+                    $this->em->refresh($detail);
+                    if ($detail->getStatus() !== AgreementDetailsStatus::COMPILED || !$detail->getBeneficiaryAccepted()
+                        || $detail->getStartDate() === null || $detail->getEndDate() === null || $detail->getEndDate() > $this->clock->now()) { return; }
                 }
-
-                if($completedAgreement === count($agreementDetails) && $agreement->getAgreementStatus() === AgreementStatus::ACCEPTED){
-                    $agreement->setAgreementStatus(AgreementStatus::COMPLETED);
-                    $this->entityManager->persist($agreement);
-
-                    if($agreement->getFromQueue()){
-                        $user = $details->getUser();
-                        $this->userManager->IncreaseOrRefundCredit($user);
-                        $this->closeQueueUseCase->execute($agreement);
-                    }
+                $agreement->setAgreementStatus(AgreementStatus::COMPLETED);
+                if ($agreement->getFromQueue()) {
+                    $provider = $details->first()->getUser();
+                    $this->transaction->lock('users', [$provider->getId()]); $this->em->refresh($provider);
+                    $provider->setCredits($provider->getCredits() + 1);
+                    $this->manager->closeQueues($agreement);
                 }
-            }
-            $this->entityManager->flush();
+                foreach ($details as $detail) {
+                    $detail->setIsCompleted(true);
+                    $this->notifications->notify($detail->getBeneficiary(), 'AGREEMENT_COMPLETED', 'Il servizio di '.$detail->getUser()->getUsername().' è stato completato.', ['agreementId' => $agreement->getId(), 'serviceDescription' => $detail->getService()->getDescription()]);
+                }
+            });
         }
     }
 }
