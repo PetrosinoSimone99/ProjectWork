@@ -58,9 +58,11 @@ Frontend/              Expo app
 | `src/theme/**` | Colour and spacing tokens, light/dark preference | Screens read tokens, never hard-code colours |
 
 The route paths are English (`/`, `/match`, `/offer-and-request`, `/agreements`,
-`/profile`, `/edit-profile`, `/notifications`, `/report`, `/staff`, `/staff-users`,
+`/profile`, `/edit-profile`, `/report`, `/staff`, `/staff-users`,
 `/login`, `/register`, and the dynamic `/chat/[agreementId]` and `/user/[id]`);
-tab titles are Italian because the user reads them.
+tab titles are Italian because the user reads them. The notification inbox has
+no path of its own: it is a panel opened from `/profile`
+(`src/components/NotificationsSheet.jsx`), so a URL cannot land on it.
 
 ## Data flow
 

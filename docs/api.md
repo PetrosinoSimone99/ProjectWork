@@ -264,17 +264,28 @@ message, match created, staff actions). There is **no push channel**: no
 Mercure, no SSE, no email. A client learns about a new row by asking again.
 Two readers ask, both with the token:
 
-- the inbox (`useNotifications`) reads page 1 on focus and on pull-to-refresh;
+- the inbox (`useNotifications`) reads page 1 when the panel opens;
 - the profile row (`useUnreadCount`) reads `limit: 1` on focus, on
   pull-to-refresh and **every 30 s while the screen is in the foreground**
   (`UNREAD_POLL_MS`). It sends no request while the app is backgrounded
   (`AppState`) and reads once more when the app comes back, so the badge moves
   without a second, parallel counter.
 
+Reading is not a command. `PATCH /notifications/{id}/read` has no bulk form, so
+opening the panel sends **one `PATCH` per unread row of the page it shows**
+(`NotificationsSheet` → `useNotifications.segnaVisibiliLette`); a `PATCH` that
+fails leaves that row unread, which is what the row then says. The unread badge
+re-reads the count when the panel closes, so it does not sit on the old number
+for a full poll interval. Page 1 is a deliberate scope, not a limit: `totalItems`
+is the real total (`backend-gaps.md` G16, retracted) and page 2 is reachable, but
+the inbox only ever shows the first page — so on an account with more than 20
+unread rows the badge can stay above zero after an opening, because those rows
+were never on screen.
+
 | Call | Notes |
 | --- | --- |
 | `GET /notifications?page=&limit=&unreadOnly=` | One page plus the count. `page` >= 1 (default 1), `limit` 1..50 (default 20), `unreadOnly` `true`/`false` (default `false`). **Any other query parameter is a `400`** |
-| `PATCH /notifications/{id}/read` | Marks one as read and returns `{notification: {...}}`. `404` for an unknown or foreign id |
+| `PATCH /notifications/{id}/read` | Marks one as read and returns `{notification: {...}}`. `404` for an unknown or foreign id. There is no bulk variant |
 | `DELETE /notifications/{id}` | `204`, no body. `404` likewise |
 
 ```json

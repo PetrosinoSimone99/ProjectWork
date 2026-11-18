@@ -6,6 +6,57 @@ documents/code touched.
 
 ---
 
+## 2026-11-18 — The notifications inbox is a panel, and reading is automatic
+
+The inbox stops being a screen. The band in the profile opens a centered panel
+over the profile itself, on web and on mobile, and the rows it shows mark
+themselves read: the «Segna come letta» button is gone.
+
+### What changed
+
+- **`/notifications` is gone.** `src/app/notifications.jsx` deleted, its
+  `Stack.Screen` removed from `src/app/_layout.jsx`, its title removed from
+  `src/navigation/screen-titles.js`. Nothing pushes it any more; an old direct
+  link falls on the 404, which is the honest answer for a screen that no longer
+  exists.
+- **`NotificationsSheet`** (new, `src/components/NotificationsSheet.jsx`) is a
+  `ModalShell`: centered, closed by the X, by Escape and by a tap outside, with
+  the focus moved inside — behaviour inherited, not rewritten. Four explicit
+  states: loading row, error banner with its own «Riprova» above the rows that
+  are already on screen, empty sentence, rows.
+- **Auto-read.** Opening the panel marks the unread rows of the page read, one
+  `PATCH /notifications/{id}/read` per row, because the backend has no bulk
+  read. A failed `PATCH` leaves the row unread (the row says so) and warns in
+  development only. `useNotifications` loses `segnaLetta` and gains
+  `segnaVisibiliLette`; `NotificationRow` loses `onLetta` and its button.
+- **Badge.** The profile band still reads `useUnreadCount`, and closing the
+  panel re-reads it, so the number does not wait for the 30 s poll.
+
+### Why
+
+Two ways to read the same rows were one too many: a screen with its own
+back-stack entry beside a bell that already opens a panel of its own in the
+agreements tab. And marking a notification read by hand is a chore the user
+should not have to perform — opening the inbox is the act that reads it.
+
+### Touched
+
+`Frontend/src/components/NotificationsSheet.jsx` (new),
+`Frontend/src/components/NotificationRow.jsx`,
+`Frontend/src/hooks/useNotifications.js`,
+`Frontend/src/app/(tabs)/profile.jsx`, `Frontend/src/app/_layout.jsx`,
+`Frontend/src/app/notifications.jsx` (deleted),
+`Frontend/src/navigation/screen-titles.js`, `docs/architecture.md`,
+`docs/overview.md`, `docs/api.md`, this changelog.
+
+### Known limit
+
+Page 1 only, by choice: on an account with more than 20 unread rows the badge
+can stay above zero after an opening, because those rows were never displayed.
+Reading page 2 is a separate block, not a counter kept in the app.
+
+---
+
 ## 2026-11-18 — Backend review of the gap list: G16 retracted, G27 rewritten, G5 reclassified
 
 The backend maintainer read `docs/backend-gaps.md` against `main` (`089cc78`) and

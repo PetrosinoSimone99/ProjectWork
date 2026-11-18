@@ -27,8 +27,9 @@ just independent agreements that happen to line up.
 | 4 | **Accordi** | Three sections (sent, in progress, concluded) plus a bell with the proposals waiting for an answer | Working: proposals, answers, cancellation, both sheet routes (each side fills its own row and confirms the other's) and the chat. What remains of `backend-gaps.md` G6 is the missing `serviceId` and the counterpart id |
 | 5 | **Profilo** | Name, surname, location, bio, profile photo URL, theme, logout, staff entry when the role allows it | Working |
 
-Outside the tab bar: the notifications inbox, the report screen and the staff
-area (reports list, user list), all reachable from the profile.
+Outside the tab bar: the report screen and the staff area (reports list, user
+list), all reachable from the profile, plus the notifications inbox, which is a
+panel opened from the same profile and not a route of its own.
 
 ## The lifecycle: proposal, agreement, chat
 
@@ -38,9 +39,9 @@ area (reports list, user list), all reachable from the profile.
    and looks for.
 2. **Notification.** Two things tell the user something arrived: the bell in the
    agreements tab, which counts the proposals waiting for **their** answer, and
-   the notifications inbox in the profile, which lists every backend event
-   (proposal, answer, sheet, match, chat message, staff decision). The inbox is
-   polled: the backend has no push channel.
+   the notifications panel in the profile, which lists every backend event
+   (proposal, answer, sheet, match, chat message, staff decision) and marks the
+   rows it shows as read. The inbox is polled: the backend has no push channel.
 3. **Agreement.** Both sides accepting creates the agreement, and only then can
    the chat be opened: it is the only way to reach a chat with someone.
 4. **Details inside the chat.** Either participant fills the agreement sheet
