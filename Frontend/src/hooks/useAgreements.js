@@ -2,8 +2,10 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { cancelAgreement, listAgreements, respondToAgreement } from '@/api';
+import { affectsAgreements } from '@/api/stream';
 import { classifyAgreements } from '@/services/agreements';
 import { useRefresh } from '@/hooks/useRefresh';
+import { useStreamEvent } from '@/hooks/useEventStream';
 
 /** Copy when an action starts without the session or a valid id. */
 const ACTION_UNAVAILABLE = 'Operazione non disponibile: ricarica la schermata e riprova.';
@@ -30,9 +32,11 @@ const ESITI = {
  * 1. **Out-of-order responses never overwrite newer ones** (`requestSeqRef`):
  *    a list response applies only if no newer request has started, and
  *    leaving the tab invalidates the response in flight.
- * 2. **The tab reloads when it returns to the foreground**; a failed reload
- *    keeps the agreements already on screen — the Banner says why instead of
- *    blanking a screen that had data a second ago.
+ * 2. **The tab reloads when it returns to the foreground and when a stream
+ *    frame says the agreements changed** — the frame is «rileggi», never a
+ *    payload to draw. A failed reload keeps the agreements already on screen:
+ *    the Banner says why instead of blanking a screen that had data a second
+ *    ago.
  * 3. **Actions run one call and then reload the list** (`rispondi`,
  *    `annulla`), so every section shows the new state without a manual
  *    refresh. A failure lands in `actionError`, never in silence.
@@ -94,6 +98,21 @@ export function useAgreements({ token, myUsername }) {
         setCaricamento(false);
       };
     }, [esegui]),
+  );
+
+  // A proposal, an answer, a cancellation or a completion lands as a frame that
+  // only names the event: the row the screen shows comes from the list, so the
+  // list is re-read. Without a token `esegui` returns at once and nothing opens.
+  useStreamEvent(
+    useCallback(
+      (notifica) => {
+        if (!affectsAgreements(notifica)) {
+          return;
+        }
+        void esegui();
+      },
+      [esegui],
+    ),
   );
 
   /** One action: single busy slot, own error, then a reload of the list. */

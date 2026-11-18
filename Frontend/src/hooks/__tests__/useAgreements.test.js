@@ -26,6 +26,16 @@ jest.mock('@/api', () => ({
   cancelAgreement: jest.fn(),
 }));
 
+// The provider needs a navigator and a network: here the hook only records the
+// handler it subscribed with, so a test can hand it one frame inside `act()`.
+let mockStreamHandler = null;
+jest.mock('@/hooks/useEventStream', () => ({
+  useStreamEvent: (handler) => {
+    mockStreamHandler = handler;
+  },
+  useStreamState: () => ({ connected: true, unreadCount: 0, lastId: 1 }),
+}));
+
 const TOKEN = 'jwt';
 const MY_USERNAME = 'andrea';
 
@@ -59,6 +69,9 @@ const DA_RISPONDERE = accordo(11, 'PENDING', [proposta(MY_USERNAME, null)]);
 const INVIATO = accordo(12, 'PENDING', [proposta(MY_USERNAME, true)]);
 /** `ACCEPTED` with no sheet yet: an exchange in progress, not a closed one. */
 const IN_CORSO = accordo(13, 'ACCEPTED', [proposta(MY_USERNAME, true)]);
+
+/** One notification row as the stream hands it over: the type, the data. */
+const notifica = (tipo, dati = {}) => ({ tipo, dati });
 
 /** A promise the test resolves when it decides a request answered. */
 function deferred() {
@@ -98,6 +111,7 @@ beforeEach(() => {
   // A mount of a previous test leaves a dead callback behind; the blur test
   // reads the last one, so the list must start empty.
   focusi.length = 0;
+  mockStreamHandler = null;
   listAgreements.mockResolvedValue([DA_RISPONDERE, INVIATO, IN_CORSO]);
   respondToAgreement.mockResolvedValue(undefined);
   cancelAgreement.mockResolvedValue(undefined);
@@ -204,6 +218,54 @@ describe('useAgreements — the list request', () => {
     await act(async () => {
       reading.riprova();
     });
+
+    expect(listAgreements).toHaveBeenCalledTimes(2);
+    expect(listAgreements).toHaveBeenNthCalledWith(2, TOKEN);
+  });
+});
+
+describe('useAgreements — the stream', () => {
+  it('reloads the list when a proposal lands', async () => {
+    const reading = {};
+    mount(reading);
+    await settle();
+    expect(listAgreements).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      mockStreamHandler(notifica('AGREEMENT_PROPOSAL', { agreementId: 11 }));
+    });
+    await settle();
+
+    expect(listAgreements).toHaveBeenCalledTimes(2);
+    expect(listAgreements).toHaveBeenNthCalledWith(2, TOKEN);
+    // The frame carried no row: what the screen draws is the list it re-read.
+    expect(reading.accordi).toEqual([DA_RISPONDERE, INVIATO, IN_CORSO]);
+  });
+
+  it('ignores a frame that does not belong to the agreements tab', async () => {
+    const reading = {};
+    mount(reading);
+    await settle();
+
+    await act(async () => {
+      mockStreamHandler(notifica('CHAT_MESSAGE', { chatId: 7 }));
+    });
+    await settle();
+
+    expect(listAgreements).toHaveBeenCalledTimes(1);
+  });
+
+  it('reloads the list when an agreement completes', async () => {
+    const reading = {};
+    mount(reading);
+    await settle();
+
+    // The backend writes `agreement_completed`; the normaliser hands it over
+    // upper-cased, which is the spelling the predicate matches.
+    await act(async () => {
+      mockStreamHandler(notifica('AGREEMENT_COMPLETED', { agreementId: 13 }));
+    });
+    await settle();
 
     expect(listAgreements).toHaveBeenCalledTimes(2);
     expect(listAgreements).toHaveBeenNthCalledWith(2, TOKEN);

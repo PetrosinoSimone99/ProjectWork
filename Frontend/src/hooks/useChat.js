@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { affectsChat } from '@/api/stream';
+import { useStreamEvent } from '@/hooks/useEventStream';
 import {
   getAgreementChat,
   getMostRecentMessageId,
@@ -10,8 +12,12 @@ import {
   sendChatMessage,
 } from '@/api/areas/chat';
 
-/** How often the open chat asks the backend whether something arrived. */
-export const CHAT_POLL_MS = 15000;
+/**
+ * How often the open chat asks the backend whether something arrived **when the
+ * stream is not delivering**. The frame is the live path; this is the fallback
+ * for a dropped connection, so it costs a request a minute, not four.
+ */
+export const CHAT_POLL_MS = 60000;
 
 /** Consecutive failed polls before the screen is told something is wrong. */
 const GUASTI_PRIMA_DEL_BANNER = 2;
@@ -41,8 +47,13 @@ function logInSviluppo(messaggio, dettaglio) {
  *    already shows — asking `most-recent-message` on every tick would hand the
  *    route the very id that makes its answer empty. That call is used **once**,
  *    to seed an empty chat, where there is no displayed id to start from.
- * 3. **The timer lives inside `useFocusEffect`.** Leaving the screen clears it;
- *    no polling without a `chatId`, none without a token.
+ * 3. **The frame is the live path; the timer is the fallback.** A
+ *    `CHAT_MESSAGE` notification for this chat runs the very `sonda` the timer
+ *    runs, so the message lands on the next frame instead of on the next tick.
+ *    The timer only covers a stream that is down (`php -S` dropping it, the
+ *    incremental XHR read on native), and it lives inside `useFocusEffect`:
+ *    leaving the screen clears it, and there is no poll without a `chatId` or
+ *    without a token.
  * 4. **A single failed poll is noise, not an error**: it warns in development
  *    and keeps the messages on screen. Two in a row reach `errore`, because a
  *    chat that quietly stops updating is worse than one that says so
@@ -147,6 +158,23 @@ export function useChat({ token, agreementId }) {
       }
     }
   }, [token, chatId, carica]);
+
+  // The guard is inside the handler, not around the subscription: `chatId` is
+  // `null` until the first read answers, and the hook cannot be called
+  // conditionally. Same `sonda` as the timer: the cursor stays the one source.
+  useStreamEvent(
+    useCallback(
+      (notifica) => {
+        if (!token || chatId === null) {
+          return;
+        }
+        if (affectsChat(notifica, chatId)) {
+          void sonda();
+        }
+      },
+      [token, chatId, sonda],
+    ),
+  );
 
   useFocusEffect(
     useCallback(() => {
