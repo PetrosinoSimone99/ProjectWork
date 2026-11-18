@@ -61,6 +61,10 @@ export default function HomeScreen() {
   // the proposal went. Opening another service (or sending another one)
   // resets it, so the line never lingers as if it were about the open panel.
   const [propostaInviataA, setPropostaInviataA] = useState(null);
+  // A proposal to someone who already proposed to us is accepted outright by
+  // the backend: the banner must say "accepted", not "sent".
+  const [propostaAutoAccettata, setPropostaAutoAccettata] = useState(false);
+  const autoAccettataRef = useRef(false);
 
   // Il ref della `FlatList` (F11): quando la proposta parte la lista torna a
   // offset 0, così testata e conferma si vedono senza scorrere.
@@ -78,7 +82,7 @@ export default function HomeScreen() {
       // ApiError so the panel shows this line instead of its generic fallback.
       throw new ApiError(0, 'Non trovo questa persona: ricarica il catalogo e riprova.');
     }
-    await sendExchangeProposal(token, autore.id, servizio.id);
+    autoAccettataRef.current = await sendExchangeProposal(token, autore.id, servizio.id);
   }
 
   /**
@@ -89,6 +93,8 @@ export default function HomeScreen() {
   function propostaInviata(servizioInviato, username) {
     setDettaglio((corrente) => (corrente === servizioInviato ? null : corrente));
     setPropostaInviataA(username ?? '');
+    setPropostaAutoAccettata(autoAccettataRef.current === true);
+    autoAccettataRef.current = false;
   }
 
   /**
@@ -326,9 +332,13 @@ export default function HomeScreen() {
           <Banner
             kind="success"
             message={
-              propostaInviataA
-                ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
-                : 'Proposta inviata. La trovi in Accordi.'
+              propostaAutoAccettata
+                ? propostaInviataA
+                  ? `Proposta accettata: lo scambio con @${propostaInviataA} è già in corso. La trovi in Accordi.`
+                  : 'Proposta accettata: lo scambio è già in corso. Lo trovi in Accordi.'
+                : propostaInviataA
+                  ? `Proposta inviata a @${propostaInviataA}. La trovi in Accordi.`
+                  : 'Proposta inviata. La trovi in Accordi.'
             }
             // Un messaggio di successo che resta fino alla prossima scrittura non è
             // più una notizia: si chiude come gli altri (audit F46).

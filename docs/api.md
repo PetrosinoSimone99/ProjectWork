@@ -123,8 +123,8 @@ staff-only route and is unaffected.
 The app shows only the edit action: suspend, delete and restore are gone from
 "Offro e cerco" (`decisions.md` D028).
 
-Suspending is the `isSuspended` flag through `PATCH`: a suspended service stays
-in the owner's list but disappears from the home.
+Suspension is no longer a writable state from the app: `PATCH` with `isSuspended`
+answers `409`, and historical suspended rows render as such in the owner's list.
 
 **The content edit form carries `location`,** and `null` there clears the column
 (`OfferController:71-73`). The edit form composes the value from the province and

@@ -20,19 +20,19 @@ corrections.
 | G5 | Product decision: reciprocal direct exchange. Sender consents when proposing; recipient answers once. Responses remain per participant; one refusal terminates the exchange. No extra confirmation round. |
 | G7 | Only compiled sheets of accepted agreements can be confirmed. Repeated confirmation and edits to confirmed sheets return 409. |
 | G8, G24 | Chat history/creation and sends verify participation. Foreign IDs return 404; history remains readable, sending requires ACCEPTED. |
-| G9 | Registration accepts empty/missing service lists and at most one item per type. The frontend permits browsing before publishing. |
+| G9 (superseded 2026-11-19) | Registration used to accept empty lists; it now requires one offer and one request (`decisions.md` D028). |
 | G10 | Matching locks/rechecks both queues, creates one agreement and one sheet, commits notifications and queue changes together, and ignores redelivery. |
 | G11 | Queue locations are 255 characters. Known locations normalize through the shared municipality catalog; matching compares normalized values. Unknown/ambiguous values are preserved. |
 | G12 | Compose runs async and scheduler consumers. Completion requires all expected sheets compiled, confirmed and expired. Notifications use AGREEMENT_COMPLETED. Provider credit and queue closure are atomic and occur once. |
 | G13 | Queue errors are mapped explicitly; missing service/category becomes a controlled conflict instead of a dereference error. |
 | G14 | Generator imports the maintained seed into an empty current schema, accepts the Docker host and exports without generated columns. Populated databases and existing output files are still refused. |
-| G15 | GET /profile returns credits and canRequestQueue. The latter requires an earlier completed queue-born offered delivery. |
+| G15 (superseded 2026-11-19) | `GET /profile` returns credits only; the eligibility flag is gone with the rule behind it. |
 | G17 | Empty queues return 200 with an empty list. |
 | G18, G19 | Acceptance uses persisted service references; writes are transactional. Queue validation precedes debit, and account locking plus unique constraints prevent duplicate active slots. |
 | G20 | Migration removes automatic updates from start_date and response_date; dates are nullable domain datetimes. MySQL tests verify that confirmation preserves start_date. Explicitly assigning start_date was never inherently unsupported by MySQL. |
 | G21 | Foreign/missing queues return 404; cancelling an already closed own queue is idempotent and never refunds twice. |
 | G22 | New queues include createdAt; unknown historical dates stay null. |
-| G23 | Product decision: one OPEN/IN_PROGRESS queue total per account, not one per type. Conflicts return 409. Request additionally requires a completed offered delivery and positive balance. |
+| G23 (superseded 2026-11-19) | One OPEN/IN_PROGRESS queue total per account still holds, with a 409 on conflict. A request queue now requires one credit only. |
 | G25 | Unexpected errors return fixed messages; exception context stays in server logs. |
 | G26 | Shared database throttle: five failed username/IP attempts and fifty IP attempts per fifteen minutes; 429 includes Retry-After. |
 | G27 | Chat payload already contained data.message. Frontend now renders its first 60 characters as a single-line text preview. |

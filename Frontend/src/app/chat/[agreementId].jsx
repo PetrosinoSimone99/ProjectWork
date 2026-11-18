@@ -34,20 +34,28 @@ const SCHEDA_IN_LETTURA = 'Carico la scheda dell’accordo…';
 const SCHEDA_NON_TROVATA =
   'Non trovo questo scambio fra i tuoi accordi: la scheda non è disponibile da qui.';
 const SCHEDA_NON_IN_CORSO = 'Lo scambio non è in corso: la scheda non si può più inviare.';
+const SCHEDA_IN_ATTESA =
+  'La scheda la scrive chi ha proposto lo scambio: la vedi qui appena arriva, e allora tocca a te confermarla.';
 
 /**
  * The line under the header when there is no sheet button to draw, or `null`
- * when the button is the whole answer. Loading, not-found and closed exchange
- * are three different facts and none of them is silence.
+ * when the button is the whole answer. Loading, not-found, closed exchange and
+ * "the sheet is not mine to write" are four different facts and none of them is
+ * silence.
  */
-function rigaScheda({ accordo, letto, caricamento, errore }) {
+function rigaScheda({ accordo, letto, caricamento, errore, stato }) {
   if (errore) {
     return null; // the Banner above says it, with its own retry
   }
   if (accordo === null) {
     return !letto || caricamento ? SCHEDA_IN_LETTURA : SCHEDA_NON_TROVATA;
   }
-  return accordo.stato === 'ACCEPTED' ? null : SCHEDA_NON_IN_CORSO;
+  if (accordo.stato !== 'ACCEPTED') {
+    return SCHEDA_NON_IN_CORSO;
+  }
+  // `null` means this viewer has no row to write: a queue-born agreement gives
+  // the sheet to the provider alone.
+  return stato === null ? SCHEDA_IN_ATTESA : null;
 }
 
 /**
@@ -192,7 +200,13 @@ export default function ChatScreen() {
       : controparte === null
         ? "La scheda dell'altra persona"
         : `La scheda di @${controparte}`;
-  const riga = rigaScheda({ accordo, letto, caricamento: caricamentoAccordo, errore: erroreAccordo });
+  const riga = rigaScheda({
+    accordo,
+    letto,
+    caricamento: caricamentoAccordo,
+    errore: erroreAccordo,
+    stato: statoDellaScheda,
+  });
 
   return (
     <Screen scroll={false} bottomSpacing={space.sm}>
@@ -218,7 +232,7 @@ export default function ChatScreen() {
         </AppText>
       ) : null}
 
-      {accordo !== null && statoDellaScheda !== null ? (
+      {accordo !== null && accordo.stato === 'ACCEPTED' && statoDellaScheda !== null ? (
         <AppButton
           label={statoDellaScheda === 'daCompilare' ? 'Crea accordo' : 'Accordo'}
           icon="document-text-outline"

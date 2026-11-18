@@ -69,7 +69,7 @@ const SECTIONS = [
     icon: 'time-outline',
     emptyTitle: 'Nessuno scambio in corso',
     emptyDescription:
-      'Quando una proposta viene accettata, lo scambio compare qui con la scheda dell’accordo e i suoi dettagli.',
+      'Quando una proposta viene accettata, lo scambio compare qui: da qui apri la chat, e la scheda dell’accordo si scrive dentro la chat.',
   },
   {
     key: 'concluded',

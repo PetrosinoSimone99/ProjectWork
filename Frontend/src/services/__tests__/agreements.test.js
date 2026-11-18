@@ -330,8 +330,21 @@ describe('statoScheda', () => {
     expect(statoScheda(accordo, ME)).toBe('daCompilare');
   });
 
-  it('asks the viewer to write the sheet when the agreement carries no rows at all', () => {
-    expect(statoScheda(agreement({ stato: 'ACCEPTED', schede: [] }), ME)).toBe('daCompilare');
+  it('offers no sheet when the agreement carries no rows at all', () => {
+    // Without a row there is nothing to write: the backend would answer 404.
+    expect(statoScheda(agreement({ stato: 'ACCEPTED', schede: [] }), ME)).toBe(null);
+  });
+
+  it('offers no sheet to the beneficiary of a queue-born agreement', () => {
+    // A queue delivery creates one row, owned by the provider: the beneficiary
+    // has no row of their own and waits for the sheet instead of writing one.
+    const accordo = agreement({
+      stato: 'ACCEPTED',
+      schede: [sheet({ username: OTHER, beneficiario: ME })],
+    });
+
+    expect(statoScheda(accordo, ME)).toBe(null);
+    expect(statoScheda(accordo, OTHER)).toBe('daCompilare');
   });
 
   it('waits once the viewer has sent their own row', () => {
@@ -384,14 +397,15 @@ describe('statoScheda', () => {
     expect(JSON.stringify(accordo)).toBe(prima);
   });
 
-  it('falls back to daCompilare without a viewer username', () => {
+  it('offers no sheet when the viewer cannot be identified', () => {
     const accordo = accepted(
       sheet({ username: ME, beneficiario: OTHER }),
       sheet({ username: OTHER, beneficiario: ME, stato: 'COMPILED' }),
     );
 
-    expect(statoScheda(accordo, null)).toBe('daCompilare');
-    expect(statoScheda(null, ME)).toBe('daCompilare');
+    // Without a username no row is mine: a guessed "write it" would be a lie.
+    expect(statoScheda(accordo, null)).toBe(null);
+    expect(statoScheda(null, ME)).toBe(null);
   });
 });
 

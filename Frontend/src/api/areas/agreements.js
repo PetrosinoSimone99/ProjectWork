@@ -62,13 +62,15 @@ export async function listAgreements(token) {
 
 /**
  * POST /create-exchange-agreement — proposes an exchange to a person.
- * The `201` body is `{success: {code, message}}` with no agreement in it, so
- * this returns nothing: the caller finds the new agreement in
- * `GET /get-agreements`. Failures become Italian messages (400 yourself,
- * 404 unknown person).
+ * The `201` body is `{success: {code, message, autoAccepted?}}`: when the other
+ * person had already proposed the same exchange, the backend accepts **that**
+ * agreement instead of creating a second one and answers `autoAccepted: true`.
+ * This returns that flag so the screen can say "accepted" instead of "sent";
+ * the agreement itself is read from `GET /get-agreements`. Failures become
+ * Italian messages (400 yourself, 404 unknown person).
  */
 export async function sendExchangeProposal(token, otherParticipantId, serviceId) {
-  await withMessage(
+  const body = await withMessage(
     apiFetch('create-exchange-agreement', {
       method: 'POST',
       token,
@@ -76,6 +78,7 @@ export async function sendExchangeProposal(token, otherParticipantId, serviceId)
     }),
     MESSAGES.create,
   );
+  return body?.success?.autoAccepted === true;
 }
 
 /**

@@ -188,7 +188,11 @@ export function statoScheda(accordo, myUsername) {
   if (isSheetCompiled(altra)) {
     return 'daConfermare';
   }
-  return 'daCompilare';
+  // A direct exchange creates one row per participant, so both sides always
+  // have something to do. A queue-born agreement creates **one** row and it
+  // belongs to the provider: the beneficiary has no row of their own
+  // (`mia === null`), and offering them the form would earn a `404`.
+  return mia !== null ? 'daCompilare' : null;
 }
 
 /**
