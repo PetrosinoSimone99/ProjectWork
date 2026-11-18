@@ -18,15 +18,6 @@ import {
  * with Italian copy instead of the backend's English text.
  */
 
-/** The statuses the review endpoint accepts (`UserReport::STATUS_*`). */
-export const REVIEW_OUTCOMES = ['CONFIRMED', 'REJECTED'];
-
-/** The statuses a report can have (`UserReport::STATUS_*`). */
-export const REPORT_STATUSES = ['PENDING', 'IN_REVIEW', 'CONFIRMED', 'REJECTED'];
-
-/** The account statuses the endpoint accepts (`User::STATUS_*`). */
-export const USER_STATUSES = ['ACTIVE', 'INACTIVE'];
-
 const ACTION_MESSAGES = {
   400: 'Controlla i dati inseriti: manca qualcosa o non è valido.',
   403: 'Questa azione non è permessa con il tuo ruolo.',
@@ -71,14 +62,6 @@ export async function listStaffUsers(token, filters = {}) {
   return normalizeStaffUsers(
     await apiFetch(`staff/users?${buildQuery(filters)}`, { token }),
   );
-}
-
-/** GET /staff/users/{id} -> the user, normalised like a list row. */
-export async function getStaffUser(token, id) {
-  const response = await withActionMessage(
-    apiFetch(`staff/users/${Number(id)}`, { token }),
-  );
-  return normalizeStaffUser(response?.user ?? response);
 }
 
 /** POST /staff/users/{id}/promote — adds ROLE_STAFF, no body and no role choice. */

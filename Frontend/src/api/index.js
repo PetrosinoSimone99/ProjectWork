@@ -47,7 +47,6 @@ export {
   claimStaffReport,
   getStaffOperation,
   getStaffReport,
-  getStaffUser,
   listStaffDeletedServices,
   listStaffOperations,
   listStaffReports,

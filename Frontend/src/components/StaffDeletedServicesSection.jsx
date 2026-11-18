@@ -6,7 +6,7 @@ import { Card, Chip } from './Card';
 import { EmptyState } from './EmptyState';
 import { formatIsoDate } from '@/services/dates';
 import { localitaPerDisplay } from '@/services/italian-locations';
-import { TIPI_VOCE, STATI_PUBBLICAZIONE, nomeCategoria, nomePersona } from '@/services/offer-request';
+import { TIPI_VOCE, STATI_PUBBLICAZIONE, nomePersona } from '@/services/offer-request';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -26,7 +26,6 @@ import { space, useTokens } from '@/theme/tokens';
  */
 export function StaffDeletedServicesSection({
   services,
-  categories = [],
   loading = false,
   error = null,
   busyId = null,
@@ -84,8 +83,7 @@ export function StaffDeletedServicesSection({
 
       {rows.map((service) => {
         const isOffer = service.tipo === TIPI_VOCE.OFFERTA;
-        const category =
-          service.categoriaNome ?? nomeCategoria(categories, service.idCategoria);
+        const category = service.categoriaNome ?? null;
         const owner = nomePersona(service.proprietario);
         const deletedAt = formatIsoDate(service.eliminataIl);
         const mansione = service.mansione?.trim() || 'Mansione non indicata';

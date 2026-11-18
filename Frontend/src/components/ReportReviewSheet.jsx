@@ -2,7 +2,6 @@ import { View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppText } from './AppText';
 import { AppInput } from './AppInput';
-import { Banner } from './Banner';
 import { PillBar } from './PillBar';
 import { REVIEW_LABELS, REVIEW_NOTE_MAX, REVIEW_OUTCOMES } from '@/services/staff';
 import { space } from '@/theme/tokens';
@@ -67,8 +66,6 @@ export function ReportReviewSheet({
         error={errors.note ?? null}
         editable={!busy}
       />
-
-      {errors.form ? <Banner kind="error" message={errors.form} /> : null}
 
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         {/* Senza un esito scelto il pulsante non parte e non dichiara un'azione

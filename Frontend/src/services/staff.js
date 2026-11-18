@@ -50,8 +50,10 @@ export function isClosed(report) {
 }
 
 /**
- * Chi può aprire l'area staff: i due ruoli che il backend riconosce
- * (`ROLE_STAFF` e `ROLE_ADMIN`, normalizzati in `utente.ruolo`).
+ * Chi può aprire l'area staff: solo `ROLE_STAFF`, l'unico ruolo che il backend
+ * conosce per la staff (`roleFromRoles` in `api/normalizers.js` lo normalizza in
+ * `utente.ruolo`; un ruolo che il normaliser non sa leggere arriva qui come
+ * `null` e resta fuori: fail closed).
  *
  * La regola stava scritta a mano dentro `profile.jsx` e non esisteva altrove,
  * quindi le due rotte dell'area (`/staff`, `/staff-users`) non avevano nessun
@@ -62,7 +64,7 @@ export function isClosed(report) {
 export function puoEntrareNellAreaStaff(utente) {
   const ruolo =
     typeof utente?.ruolo === 'string' ? utente.ruolo.trim().toUpperCase() : null;
-  return ruolo === 'STAFF' || ruolo === 'ADMIN';
+  return ruolo === 'STAFF';
 }
 
 /** A review in progress: no outcome, empty note, ready for the sheet. */

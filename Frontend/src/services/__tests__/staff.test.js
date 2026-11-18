@@ -93,13 +93,20 @@ describe('operationTargetLabel', () => {
  * no role and a screenful of `403`s (audit UX F13).
  */
 describe('puoEntrareNellAreaStaff', () => {
-  it.each(['STAFF', 'ADMIN'])('opens the area to the %s role', (ruolo) => {
-    expect(puoEntrareNellAreaStaff({ ruolo })).toBe(true);
+  it('opens the area to the STAFF role', () => {
+    expect(puoEntrareNellAreaStaff({ ruolo: 'STAFF' })).toBe(true);
   });
 
   it('is not fooled by the case and the padding the wire word may carry', () => {
     expect(puoEntrareNellAreaStaff({ ruolo: ' staff ' })).toBe(true);
-    expect(puoEntrareNellAreaStaff({ ruolo: 'Admin' })).toBe(true);
+  });
+
+  // `ROLE_ADMIN` exists neither in `Backend/` nor in the dump, and
+  // `roleFromRoles` (`api/normalizers.js`) maps only `ROLE_STAFF`/`ROLE_USER`:
+  // a role the backend does not know stays out instead of being guessed
+  // (audit D8, decision 4 of the plan brief).
+  it('keeps out a role the backend does not know, even spelled Admin', () => {
+    expect(puoEntrareNellAreaStaff({ ruolo: 'Admin' })).toBe(false);
   });
 
   it('keeps a plain user out', () => {

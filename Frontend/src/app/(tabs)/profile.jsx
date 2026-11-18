@@ -131,7 +131,6 @@ export default function ProfileScreen() {
   // La UI nasconde, il backend protegge — e la schermata gestisce il 403.
   // La regola sta in `services/staff.js`: la stessa che apre (o chiude) le due
   // rotte dell'area, così profilo e rotte non possono dire cose diverse (F13).
-  const ruolo = typeof utente.ruolo === 'string' ? utente.ruolo.trim().toUpperCase() : null;
   const isStaff = puoEntrareNellAreaStaff(utente);
 
   // I campi nuovi, se il profilo è arrivato: prima del primo esito le righe
@@ -238,7 +237,7 @@ export default function ProfileScreen() {
                   invece ha bisogno di sapere di esserlo. */}
               {isStaff ? (
                 <AppText variant="small" tone="secondary">
-                  {ruolo === 'ADMIN' ? 'Amministrazione' : 'Staff'}
+                  Staff
                 </AppText>
               ) : null}
             </View>
