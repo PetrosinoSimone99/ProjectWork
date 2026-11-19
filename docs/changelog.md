@@ -26,6 +26,15 @@ against the mode cell's **179.5** at 375 (12 px clear, was 36 px of overlap) and
 `scrollWidth === clientWidth` at 375/412/768/1024. Five structural assertions
 added in `ServiceCard.test.js`.
 
+**One credit mark, not two.** `CreditMark` moved out of `match.jsx` into
+`components/CreditMark.jsx` and `/profile` now draws it in the `I tuoi dati`
+band, where the balance was still a bare sentence. The F1 assertion the previous
+session left unwritten is in `match.test.js`: the value is the balance, the
+confirm names the same figure, at zero the value is painted `danger` like the
+sentence and not like the label, and no mark is drawn while the balance is
+unknown. Measured on both screens (33→182.1 on the profile band, 16→165.1 on
+`/match`, 44 high, `surface` + `border`, radius 12, no overflow at 375/412).
+
 ## 2026-11-19 — Frontend residuals: the measurements that were missing, one fix, one new finding
 
 A second session on the same cycle, in the order `residuals.md` fixes (measure

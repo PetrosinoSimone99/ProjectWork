@@ -18,6 +18,7 @@ import { AppIcon } from '@/components/AppIcon';
 import { Avatar } from '@/components/Avatar';
 import { Banner } from '@/components/Banner';
 import { Card, Chip } from '@/components/Card';
+import { CreditMark } from '@/components/CreditMark';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { NotificationsSheet } from '@/components/NotificationsSheet';
 import { PageHeader } from '@/components/PageHeader';
@@ -268,7 +269,14 @@ export default function ProfileScreen() {
             endpoint dà; la bio assente si dichiara, non si nasconde. */}
         <Banda>
           <AppText variant="heading">I tuoi dati</AppText>
-          {profilo?.crediti !== undefined ? <AppText>{`Crediti disponibili: ${profilo.crediti}`}</AppText> : null}
+          {/* Lo stesso marchio di `/match`, non una frase: il saldo è un dato che
+              si legge. La `Banda` è una sezione separata da un bordo, quindi
+              appoggia su `t.background` come la pagina di `/match`, e la coppia
+              `t.surface` + `t.border` del marchio si legge allo stesso modo
+              (docs/DESIGN.md, «Marchio di dato»). */}
+          {profilo?.crediti !== undefined ? (
+            <CreditMark saldo={profilo.crediti ?? 0} />
+          ) : null}
           <View style={{ gap: space.sm }}>
             {email ? (
               <RigaProfilo icona="mail-outline" etichetta="Email" valore={email} />

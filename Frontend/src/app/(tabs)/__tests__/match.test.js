@@ -1,3 +1,4 @@
+import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import MatchScreen from '../match';
@@ -146,6 +147,54 @@ async function press(renderer, accessibilityLabel) {
   });
 }
 
+/**
+ * The credit mark as the screen draws it: the row that carries the label and the
+ * value, plus the colour each of them is painted with.
+ *
+ * The row is found by its label and then walked up to the first ancestor holding
+ * more than one text — the icon's glyph, the label and the value. The value is
+ * the last of them, the label is the one that says so: one number alone is not a
+ * mark, so the assertions need both.
+ */
+function marchioCrediti(renderer) {
+  const etichetta = renderer.root
+    .findAllByType(Text)
+    .find((node) => node.props.children === 'Crediti disponibili');
+  expect(etichetta).toBeDefined();
+
+  let riga = etichetta.parent;
+  while (riga !== null && riga.findAllByType(Text).length < 2) {
+    riga = riga.parent;
+  }
+  expect(riga).not.toBeNull();
+
+  const testi = riga.findAllByType(Text);
+  const testoValore = testi[testi.length - 1];
+  return {
+    etichetta,
+    valore: testoValore,
+    coloreEtichetta: coloreDi(etichetta),
+    coloreValore: coloreDi(testoValore),
+  };
+}
+
+/** The colour a text node is finally painted with. */
+function coloreDi(node) {
+  return StyleSheet.flatten(node.props.style ?? {}).color;
+}
+
+/** The screen's own sentence for a balance at zero, as it is rendered. */
+function fraseDelSaldoZero(renderer) {
+  const frase = renderer.root
+    .findAllByType(Text)
+    .find((node) =>
+      typeof node.props.children === 'string' &&
+      node.props.children.startsWith('Senza crediti la ricerca resta spenta'),
+    );
+  expect(frase).toBeDefined();
+  return frase;
+}
+
 /** Every word the screen renders, in order, for the copy assertions. */
 function visibleText(renderer) {
   const collect = (node) => {
@@ -271,5 +320,42 @@ describe('match — the two create actions', () => {
 
     expect(pressables(renderer, BUTTON_OFFER)).toHaveLength(0);
     expect(pressables(renderer, BUTTON_REQUEST)).toHaveLength(0);
+  });
+
+  it('draws no credit mark while the balance is unknown', async () => {
+    const renderer = await renderMatch({ profile: null });
+
+    expect(
+      renderer.root
+        .findAllByType(Text)
+        .some((node) => node.props.children === 'Crediti disponibili'),
+    ).toBe(false);
+  });
+});
+
+describe('match — the credit mark', () => {
+  it('shows the balance the request confirm names, and one number only', async () => {
+    const renderer = await renderMatch({ profile: { crediti: 1 } });
+    const marchio = marchioCrediti(renderer);
+
+    expect(marchio.etichetta.props.children).toBe('Crediti disponibili');
+    expect(marchio.valore.props.children).toBe('1');
+
+    // The confirm reads the same source (`balance`): two figures on one screen
+    // would be two truths.
+    await press(renderer, BUTTON_REQUEST);
+    expect(visibleText(renderer)).toContain('Crediti disponibili: 1.');
+  });
+
+  it('paints a zero balance in danger and says how to get a credit back', async () => {
+    const renderer = await renderMatch({ profile: { crediti: 0 } });
+    const marchio = marchioCrediti(renderer);
+
+    expect(marchio.valore.props.children).toBe('0');
+    const frase = fraseDelSaldoZero(renderer);
+    // `t.danger` is the token `tone="danger"` resolves to: the value and the
+    // sentence share it, and the label does not.
+    expect(marchio.coloreValore).toBe(coloreDi(frase));
+    expect(marchio.coloreValore).not.toBe(marchio.coloreEtichetta);
   });
 });
