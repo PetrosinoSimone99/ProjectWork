@@ -6,6 +6,18 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — The root AGENTS.md points at the ledger, not at the old gaps file
+
+Docs audit for the concluded project: the file map, the changelog coverage and
+the declared open verifications were checked and hold. One live link was dead —
+root `AGENTS.md` still named `docs/backend-gaps.md`, renamed to
+`docs/backend-ledger.md` on 2026-11-21. Fixed to name the ledger. Historical
+links inside `changelog.md` entries stay as written: the log is history.
+
+Docs touched: root `AGENTS.md` (link), this entry. No code changed.
+
+---
+
 ## 2026-11-21 — `npx jest` enters the pre-push gate, PHPUnit stays out
 
 The gate was `expo lint` + `tsc --noEmit`, and `tsc` here reads `.js` as syntax

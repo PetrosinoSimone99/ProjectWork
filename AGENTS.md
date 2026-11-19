@@ -10,8 +10,8 @@ proposal both sides accept becomes an agreement. Exchanges are **pairwise and
 directional** — there is no closed loop to complete and no minimum group size.
 React Native/Expo frontend, Symfony 7.4 backend, MySQL 8.0 database. Full
 context: [`docs/`](docs/README.md) — read [`docs/overview.md`](docs/overview.md)
-first; what the backend does not expose yet is in
-[`docs/backend-gaps.md`](docs/backend-gaps.md).
+first; the ledger of the backend gap ids, all closed, is in
+[`docs/backend-ledger.md`](docs/backend-ledger.md).
 
 ## Your role
 
