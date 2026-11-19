@@ -6,6 +6,50 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — La chat mobile si riprende lo schermo, e le righe smettono di tagliare i testi
+
+Due foti da iPhone (390x844 pt) hanno mostrato due difetti indipendenti. Il
+primo: nella chat la cornice fissa occupava 400 pt su 727 — testata 110, battute
+da 32 in due punti, composer 178 — e ai messaggi restavano 325 pt, il 45% dello
+schermo. Il secondo: nel pannello «Dettaglio dell'operazione» il valore di
+`reviewNote` si fermava a «…i dati personali sor» e le ultime righe di `Dopo` non
+si raggiungevano.
+
+**Perché succedeva.** `staff.jsx` avvolgeva i figli di tre `ModalShell` in tre
+`ScrollView` con `maxHeight: '85%'` — una percentuale di un padre senza altezza
+definita, dentro il `ScrollView` di corpo che `ModalShell` ha già: due scroller
+annidati, e il pannello tagliava invece di scorrere. `ChangeBlock` metteva chiave
+e valore su una riga con due `AppText` e nessun lato flessibile, quindi un valore
+lungo usciva dal pannello. La stessa riga, senza `flexShrink`, stava nella scheda
+di consegna (riga del servizio e `RigaFatto`), nella card della coda (categoria e
+luogo) e nella card dell'accordo (controparte).
+
+**Cosa è cambiato.** I tre `ScrollView` sono spariti: scorre il corpo di
+`ModalShell`, come il suo contratto dichiara. La coppia chiave/valore ha la
+chiave su una colonna da 88 e il valore `flex: 1, minWidth: 0`, quindi va a capo.
+Nella chat i blocchi sono una colonna sola a `space.md` (la battuta da 32 separa
+sezioni che non si appartengono) e il composer è una riga: campo a due righe
+(`AppInput` guadagna la prop `altezzaMinima`, default 96, invariato per gli altri
+cinque campi multilinea) e `Invia` accanto, allineato in basso — 82 pt invece di
+178. La frase della testata resta intera, senza `numberOfLines`: cambia solo la
+giunzione, che leggeva «…anche la sera. per Revisione…» e ora legge «…in cambio
+di…».
+
+**Cosa non è stato misurato.** Le quote sono calcolate sulla scena 390x844 e
+verificate su testi e stili, non su dispositivo fisico. Il guadagno di altezza
+reale dipende dal testo della testata, che è la descrizione del servizio e può
+andare su più righe di quattro.
+
+**Docs e codice toccati:** `docs/briefs/mobile-chat-space/plan.md` (nuovo),
+`docs/DESIGN.md` (la riga di scrittura e la riga con un lato flessibile, fra le
+regole di composizione), `Frontend/src/app/chat/[agreementId].jsx`,
+`Frontend/src/app/staff.jsx`, `Frontend/src/components/AppInput.jsx`,
+`MessageComposer.jsx`, `StaffDetailPanels.jsx`, `AgreementSheet.jsx`,
+`QueueCard.jsx`, `AgreementCard.jsx`, più quattro suite di test (una nuova:
+`StaffDetailPanels.test.js`).
+
+---
+
 ## 2026-11-19 — The root AGENTS.md points at the ledger, not at the old gaps file
 
 Docs audit for the concluded project: the file map, the changelog coverage and

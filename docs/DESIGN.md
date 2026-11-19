@@ -234,6 +234,19 @@ and the page starts at the window's top edge at every wide width.
 - **One empty state.** Icon when there is one, title, one sentence that says
   what would fill the space, and a button **only when a real action exists**. No
   invented actions, no invented glyphs.
+- **One writing row.** An input and the action that submits it are one row, the
+  field taking the width that is left (`flex: 1, minWidth: 0`) and the button
+  resting on its bottom edge. This is not an exception to the trailing-action
+  column below: that rule is about a card's actions, while here the action
+  belongs to the field. A screen that stacks a submit button under a text field
+  pays for it in the content the field's screen is for — in the chat, 96 pt of
+  messages (`MessageComposer`).
+- **A row that holds text has a flexible side.** In a `flexDirection: 'row'`
+  with text in it, the text side carries `flexShrink: 1` and `minWidth: 0` (and
+  the icon `flexShrink: 0`). Without one, a long value does not wrap: it leaves
+  the card or the panel, which is what happened to the operation detail's
+  `reviewNote` and to the sheet's service line. `numberOfLines` is not the fix —
+  a value that matters is read whole.
 - **Trailing actions form a column.** That row may carry more than one action
   when all of them are reversible and none is destructive; a destructive one
   keeps a row of its own by rule. So: one row, not one action. Labels never wrap
