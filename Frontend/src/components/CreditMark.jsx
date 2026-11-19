@@ -23,7 +23,7 @@ const ZERO_CREDIT_NEXT_STEP =
  * che stanno dentro le card — una riga sola, icona + etichetta + valore — e
  * un'altezza da controllo, perché il saldo si legge a colpo d'occhio accanto ai
  * pulsanti che lo spendono. È lo stesso oggetto su `/match` e su `/profile`:
- * `CreditMark` non si duplica, e `docs/DESIGN.md` (sezione «Marchio di dato»)
+ * `CreditMark` non si duplica, e `docs/DESIGN.md` (sezione «Data mark»)
  * è la pagina che ne fissa anatomia, altezza e regola della superficie.
  *
  * **Nessun accento**: il credito non è l'azione primaria e la regola dell'accento

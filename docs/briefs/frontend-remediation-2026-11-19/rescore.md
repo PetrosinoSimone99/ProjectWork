@@ -26,8 +26,12 @@ Console: 0 errors across the four routes. The export compiled all 17 routes.
   borders 3.3-3.8:1), and the panel's error state is a `Banner` with `Riprova`
   above the rows — forced `500` on
   `GET /api/notifications?page=1&limit=20&unreadOnly=false`, body
-  `{"error":"forced"}`. The panel's **loading** and **empty** states are still
-  unmeasured: this session forced the failure, not the slow answer.
+  `{"error":"forced"}`. The panel's **loading** and **empty** states are the
+  last two, measured in the closing session (`residuals.md` step 3): a delayed
+  answer shows one labelled row, «Carico le notifiche…», inside a polite live
+  region and nothing else; a 200 with zero rows shows the sentence that says what
+  will arrive, with no spinner and no list left over. The three states never
+  replace each other.
 - Any native surface: no emulator or device on this machine. Every native
   change (size classes, live region on validation, 48 dp floor, native driver,
   `expo-image`) is a source claim. Re-stated, not lifted, on 2026-11-19
@@ -62,9 +66,11 @@ because it only appears on the narrow widths this document did not measure:
   `Cura delle piante`) and at 412 (17 px, 8 px). The chip keeps the width of its
   own text (175 px) in both classes, so it is not the column that clips it. Filed
   as `docs/audits/frontend-2026-11-19-catalog-chip-overlap.md`, block 16 of the
-  plan, **not fixed** in the measuring session. The three-meta-row shape this
-  document called fixed was re-measured and holds on 11 of 11 cards at 375, 412,
-  768 and 1024.
+  plan, and **fixed on 2026-11-19**: the chip now shrinks inside its half-row
+  (12 px of clearance at 375 and 412, 0 overlaps on every card) and truncates with
+  an ellipsis instead of dropping the label. The three-meta-row shape this
+  document called fixed was re-measured and holds on every card at 375, 412, 768
+  and 1024.
 
 ## What the residuals session added to the score
 
@@ -72,4 +78,12 @@ because it only appears on the narrow widths this document did not measure:
   mark (icon + label + tabular value) on the card surface, at the control floor
   height, with the zero case in `t.danger` plus a sentence naming the way back.
   Measured at 375 and 412, light and dark, with no overflow and with the
-  confirmation still naming the same number.
+  confirmation still naming the same number. The same mark now also stands in the
+  `I tuoi dati` band on `/profile` (measured 33→182.1, 44 high, no overflow), and
+  the design system documents the object in `docs/DESIGN.md` («Data mark»):
+  anatomy, height, and the surface rule that makes `t.surface` a decision instead
+  of an exception.
+- The notifications panel's last two states are measured: a delayed answer is one
+  labelled row inside a polite live region, a zero-row answer is the sentence
+  that says what will arrive. Neither replaces the other, and neither is a blank
+  panel.

@@ -81,6 +81,27 @@ it: a link that lives inside a sentence is still a control, so it carries the
 floor even when its text is 13 px (`components/TextLink.jsx`). The same is true
 of the two controls inside the web chrome bar.
 
+## Data mark
+
+A **data mark** is one value that decides something, drawn as an object instead
+of as a sentence: one row carrying a decorative icon, a label and the value, and
+nothing else. `CreditMark` (`components/CreditMark.jsx`) is the reference shape;
+the status and category chips inside a card are the same idea at caption scale.
+
+| Part | Rule |
+| --- | --- |
+| anatomy | one row: a 16 px decorative icon, the label in `small` on `textSecondary`, the value in `label` 600 with `tabular-nums` — two different values have to take the same width, or the mark jumps between one reading and the next |
+| height | `target.min`, with `space.sm` horizontal padding and `radius.input`: a mark is read at the distance of a control and stands next to controls, so it takes the control's box, not the card's |
+| surface | `surface` fill plus a `border` edge **only on the page**, whose own background *is* `background`. On a surface that is already a card the mark drops the fill and keeps the type roles: a second surface on a surface is a nested card, which the composition rules forbid |
+| accent | never. The accent is the screen's one action. A value that has gone wrong is `danger` **text** plus one sentence naming the way back — never a red fill, which would say «error» where there is only a value |
+
+So the `t.surface` + `t.border` pair in `CreditMark` is this rule applied to the
+one place such a mark exists today, not an exception: both callers — `/match`,
+and the `I tuoi dati` band on `/profile`, which is a border-separated section and
+not a card — sit on the page's `background`. Measured 2026-11-19: 44 px high on
+both screens, `surface` fill with a 1 px `border`, radius 12, the value in
+`danger` at zero, no horizontal overflow at 375 or 412.
+
 ## Browser surfaces
 
 The scrollbar, the text caret, the native dropdowns and the form controls the
@@ -252,6 +273,7 @@ theme to pick a literal.
 | the two directions of a trade (card, sheet, chat) | `components/BarterPair.jsx` |
 | a profile image, its cache and its initials fallback | `components/Avatar.jsx` |
 | a loading placeholder | `components/Skeleton.jsx` |
+| a data mark (the credit balance today) | `components/CreditMark.jsx` |
 | the settings row on a phone screen | `app/(tabs)/profile.jsx` (`Banda`, still local) |
 | a link inside a sentence | `components/TextLink.jsx` |
 | what a route with no role may see | `components/StaffAreaGate.jsx` |

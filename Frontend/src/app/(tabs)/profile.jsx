@@ -273,7 +273,7 @@ export default function ProfileScreen() {
               si legge. La `Banda` è una sezione separata da un bordo, quindi
               appoggia su `t.background` come la pagina di `/match`, e la coppia
               `t.surface` + `t.border` del marchio si legge allo stesso modo
-              (docs/DESIGN.md, «Marchio di dato»). */}
+              (docs/DESIGN.md, «Data mark»). */}
           {profilo?.crediti !== undefined ? (
             <CreditMark saldo={profilo.crediti ?? 0} />
           ) : null}

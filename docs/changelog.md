@@ -35,6 +35,17 @@ sentence and not like the label, and no mark is drawn while the balance is
 unknown. Measured on both screens (33→182.1 on the profile band, 16→165.1 on
 `/match`, 44 high, `surface` + `border`, radius 12, no overflow at 375/412).
 
+**The panel's last two quiet states.** A delayed `GET /api/notifications` is one
+labelled row — «Carico le notifiche…» — inside an `aria-live="polite"` region,
+with no list and no banner; a `200` with zero rows is the sentence that says what
+will arrive, with no spinner and no leftover row. The two never mix. Recorded in
+`residuals.md` and lifted out of «not measured» in `rescore.md`.
+
+**The design system learns the object.** `docs/DESIGN.md` gains a «Data mark»
+section — anatomy, height, the surface rule (fill only on the page, never on a
+card) and the no-accent rule — so the `t.surface` choice in `CreditMark` is a rule
+and not an exception living in a comment.
+
 ## 2026-11-19 — Frontend residuals: the measurements that were missing, one fix, one new finding
 
 A second session on the same cycle, in the order `residuals.md` fixes (measure
