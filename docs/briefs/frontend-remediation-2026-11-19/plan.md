@@ -18,11 +18,10 @@
   (c) `AppText` spreads `{...props}` after `aria-level`, which is exactly how the 11 orphans
   are produced. (d) Playwright: two contexts maximum, one route per run, wait past Metro's
   first-visit compile. (e) Never pass `concurrency`; never one subagent call per lane.
-- Residui mai misurati (tema scuro su chat/edit-profile/user, pannello notifiche in errore, ogni
-  superficie nativa): il come sta in `measure-residuals.md`, accanto a questo file. Si esegue
-  da una sessione nuova con una riga: "Esegui: measure-residuals.md".
-- Lavori aperti nati dalla demo (F1: `Crediti disponibili` è testo nudo su `/match`):
-  `follow-ups.md`, accanto a questo file. "Esegui: follow-ups.md".
+- Il resto del lavoro sta in **un file solo**, in ordine numerato: `residuals.md` accanto a
+  questo (passi 0-5: ambiente, misure mai fatte, F1 `Crediti disponibili`, riverifica, nativo
+  dichiarato, registrazione). Si esegue da una sessione nuova con una riga:
+  "Esegui: `docs/briefs/frontend-remediation-2026-11-19/residuals.md`".
 - First block after this one: step 1 (harden A) — nothing else unblocks while a screen can
   still eat a 2000-character note.
 
