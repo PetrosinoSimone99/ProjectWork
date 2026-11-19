@@ -110,9 +110,9 @@ export function AgreementSheet({
         <RigaFatto etichetta="Fine" valore={formatIsoDateTimeNumeric(scheda.fine) ?? NON_ANCORA} />
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-        <AppIcon name="grid-outline" size={14} color={t.textSecondary} />
-        <AppText variant="small">
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
+        <AppIcon name="grid-outline" size={14} color={t.textSecondary} style={{ flexShrink: 0 }} />
+        <AppText variant="small" style={{ flexShrink: 1, minWidth: 0 }}>
           {tipo === null ? scheda.descrizione : `${tipo}: ${scheda.descrizione}`}
         </AppText>
       </View>
@@ -216,7 +216,9 @@ function RigaFatto({ etichetta, valore }) {
       <AppText variant="small" tone="secondary">
         {`${etichetta}:`}
       </AppText>
-      <AppText variant="small">{valore}</AppText>
+      <AppText variant="small" style={{ flexShrink: 1, minWidth: 0 }}>
+        {valore}
+      </AppText>
     </View>
   );
 }

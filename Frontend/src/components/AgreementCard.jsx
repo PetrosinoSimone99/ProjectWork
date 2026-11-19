@@ -95,7 +95,12 @@ export function AgreementCard({
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="person-outline" size={16} color={t.textSecondary} />
-        <AppText onPress={other?.idUtente ? () => router.push('/user/' + other.idUtente) : undefined}>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
+        <AppText
+          onPress={other?.idUtente ? () => router.push('/user/' + other.idUtente) : undefined}
+          style={{ flexShrink: 1, minWidth: 0 }}
+        >
+          {controparte ? `@${controparte}` : 'Controparte non disponibile'}
+        </AppText>
       </View>
 
       {/* Le due direzioni dello scambio, non due righe uguali: chi dà cosa a chi

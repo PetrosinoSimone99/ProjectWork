@@ -1,4 +1,4 @@
-import { TextInput } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { ApiError } from '@/api/client';
@@ -80,6 +80,18 @@ function conQuelNome(renderer, accessibilityLabel) {
       node.props?.accessibilityLabel === accessibilityLabel &&
       typeof node.props.onPress === 'function',
   );
+}
+
+/** The style a node resolves to: the same rules that reach the screen. */
+function stile(nodo) {
+  return StyleSheet.flatten(nodo.props.style ?? {}) ?? {};
+}
+
+/** The drawn text whose content is exactly this string. */
+function testoCon(renderer, contenuto) {
+  const nodo = renderer.root.findAllByType(Text).find((candidato) => candidato.props.children === contenuto);
+  expect(nodo).toBeDefined();
+  return nodo;
 }
 
 describe('AgreementSheet — the read-only sheet', () => {
@@ -164,6 +176,35 @@ describe('AgreementSheet — the read-only sheet', () => {
     const renderer = render({ scheda: null });
 
     expect(renderer.toJSON()).toBeNull();
+  });
+
+  it('wraps a long description inside the card, and the fact rows shrink', () => {
+    const descrizione =
+      'Riparazione di biciclette da città e da corsa, con sostituzione di camere d\'aria, freni, cambio e raggi, a domicilio in tutta la zona';
+    const renderer = render({ scheda: { ...SCHEDA, descrizione } });
+
+    // The whole sentence is on screen: wrapping, never a truncation.
+    const riga = testoCon(renderer, `Offerta: ${descrizione}`);
+    expect(riga.props.numberOfLines).toBeUndefined();
+    expect(stile(riga)).toMatchObject({ flexShrink: 1, minWidth: 0 });
+
+    // The row that carries it aligns the icon to the first line and keeps it
+    // fixed, so the text is the only thing that gives way.
+    const contenitore = renderer.root
+      .findAllByType(View)
+      .map(stile)
+      .find((risolto) => risolto.flexDirection === 'row' && risolto.alignItems === 'flex-start');
+    expect(contenitore).toBeDefined();
+
+    // `RigaFatto`: the label keeps its width, the value is the one that wraps.
+    for (const valore of [
+      formatIsoDateTimeNumeric(SCHEDA.inizio),
+      formatIsoDateTimeNumeric(SCHEDA.fine),
+    ]) {
+      const nodo = testoCon(renderer, valore);
+      expect(nodo.props.numberOfLines).toBeUndefined();
+      expect(stile(nodo)).toMatchObject({ flexShrink: 1, minWidth: 0 });
+    }
   });
 });
 

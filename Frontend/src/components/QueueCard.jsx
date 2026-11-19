@@ -128,14 +128,14 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="pricetag-outline" size={14} color={t.textSecondary} />
-        <AppText variant="small" tone="secondary">
+        <AppText variant="small" tone="secondary" style={{ flexShrink: 1, minWidth: 0 }}>
           {coda.categoria ?? 'Categoria non indicata'}
         </AppText>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <AppIcon name="location-outline" size={14} color={t.textSecondary} />
-        <AppText variant="small" tone="secondary">
+        <AppText variant="small" tone="secondary" style={{ flexShrink: 1, minWidth: 0 }}>
           {place}
         </AppText>
       </View>
