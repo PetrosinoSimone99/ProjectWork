@@ -6,7 +6,7 @@ import { statusLabel, statusTone } from '@/services/reports';
 import { nomePersona } from '@/services/offer-request';
 import { formatIsoDate } from '@/services/dates';
 import { operationActionLabel, operationTargetLabel } from '@/services/staff';
-import { space } from '@/theme/tokens';
+import { layout, space } from '@/theme/tokens';
 
 /**
  * I due pannelli di sola lettura dell'area staff: la segnalazione intera e una
@@ -129,13 +129,16 @@ function operationValue(value, key) {
  *
  * Il valore restringe (`flex: 1`, `minWidth: 0`) e va a capo: un campo lungo
  * come `reviewNote` esce dal pannello se nessuno dei due lati può restringere.
- * `numberOfLines` qui non c'è apposta — il motivo si legge intero. Il `minWidth`
- * della chiave è un minimo, non una misura: con il testo ingrandito la colonna
- * si allarga invece di tagliare il nome del campo. `alignItems: 'flex-start'`
- * tiene la chiave in cima quando il valore occupa più righe.
+ * `numberOfLines` qui non c'è apposta — il motivo si legge intero. La chiave ha
+ * una **larghezza** (`layout.colonnaEtichetta`), non un minimo: con un minimo,
+ * una chiave più lunga allargherebbe solo la propria riga e i valori dello
+ * stesso blocco partirebbero da x diverse; così una chiave lunga va a capo
+ * dentro la colonna e l'allineamento tiene anche a testo ingrandito.
+ * `alignItems: 'flex-start'` tiene la chiave in cima quando il valore occupa più
+ * righe.
  */
 const changeRowStyle = { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm };
-const changeKeyStyle = { flexShrink: 0, minWidth: 88 };
+const changeKeyStyle = { flexShrink: 0, width: layout.colonnaEtichetta };
 const changeValueStyle = { flex: 1, minWidth: 0 };
 
 /** `before`/`after` come coppie chiave→valore; le chiavi restano del backend. */

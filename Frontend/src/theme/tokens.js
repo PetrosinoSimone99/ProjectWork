@@ -189,6 +189,17 @@ export const layout = {
   maxCatalogo: 720,
   sogliaLarga: sizeClassThresholds.expanded,
   sizeClasses: sizeClassThresholds,
+  /**
+   * La colonna dell'etichetta in una riga etichetta→valore, in px: la chiave di
+   * un dato sta a sinistra su una base comune, il valore a destra e va a capo.
+   *
+   * È una **larghezza**, non un minimo: con `minWidth` una chiave più lunga
+   * allarga solo la propria riga, e i valori dello stesso blocco partono da x
+   * diverse — che è precisamente ciò che la colonna deve evitare. Una chiave che
+   * non ci sta va a capo dentro la colonna. 88 è la misura che tiene le chiavi
+   * del registro staff (`assignedToId`, `reviewedById`) su una riga sola.
+   */
+  colonnaEtichetta: 88,
 };
 
 /**

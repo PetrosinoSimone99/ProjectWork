@@ -2,6 +2,7 @@ import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { StaffOperationDetail } from '../StaffDetailPanels';
+import { layout } from '@/theme/tokens';
 
 /**
  * Una voce di `GET /staff/operations/{id}` come la produce
@@ -68,11 +69,15 @@ describe('StaffOperationDetail — la nota lunga', () => {
     expect(valore.props.numberOfLines).toBeUndefined();
   });
 
-  it('tiene la chiave su una colonna da 88 che non si stringe', () => {
+  it('tiene la chiave su una colonna che non si stringe e non si allarga', () => {
     const renderer = renderPanel({ ...OPERAZIONE, prima: { reviewNote: NOTA_LUNGA } });
 
+    // Una larghezza, non un minimo: con `minWidth` una chiave lunga allargherebbe
+    // solo la propria riga, e i valori dello stesso blocco partirebbero da x
+    // diverse (review 2026-11-19, P1).
     const regole = stileDelTesto(renderer, 'reviewNote');
-    expect(regole.minWidth).toBe(88);
+    expect(regole.width).toBe(layout.colonnaEtichetta);
+    expect(regole.minWidth).toBeUndefined();
     expect(regole.flexShrink).toBe(0);
   });
 });
