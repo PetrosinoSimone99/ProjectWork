@@ -189,7 +189,13 @@ export default function ProfileScreen() {
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
-      <PageHeader titolo="Profilo" />
+      {/* La riga di dati (dottrina di `PageHeader`, audit P3) dice cosa il
+          foglio tiene — chi sei e i recapiti che gli altri vedono — e cosa se ne
+          fa: si rileggono e si passa alla modifica, che è una banda qui sotto. */}
+      <PageHeader
+        titolo="Profilo"
+        frase="Chi sei e i recapiti che gli altri vedono: da qui li rileggi e passi alla modifica."
+      />
       {salvato ? (
         <Banner
           kind="success"

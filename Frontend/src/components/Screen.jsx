@@ -5,7 +5,6 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -17,6 +16,7 @@ import {
   space,
   useTokens,
 } from '@/theme/tokens';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { annunciaChromeWeb } from '@/hooks/web-chrome';
 
 /** Il pull-to-refresh è un gesto nativo: sul web la ScrollView lo ignorerebbe. */
@@ -75,7 +75,10 @@ export function Screen({
 }) {
   const t = useTokens();
   const insets = useSafeAreaInsets();
-  const { width: larghezzaFinestra } = useWindowDimensions();
+  // La classe di dimensione viene da una sorgente sola, su ogni piattaforma:
+  // qui serve alla sola fascia del menu web, ma la pagina non legge più la
+  // larghezza per conto suo (audit P2 nativo, adattività 2/4).
+  const { classe } = useBreakpoint();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const aggiornamentoAttivo = SUPPORTA_AGGIORNAMENTO && typeof onRefresh === 'function';
   // Regola web: controllo esplicito sopra il contenuto, da nativo il gesto.
@@ -89,13 +92,17 @@ export function Screen({
   // La colonna è centrata: il suo bordo destro entra nella fascia della barra
   // del menu quando la finestra è più stretta del tetto di colonna aumentato
   // della fascia su entrambi i lati. Allora il contenuto scende sotto la fascia.
-  // La fascia si riserva sotto la soglia della banda. Sopra, la testata è la
-  // banda di pagina (`PageHeader`) e la barra sta sopra la banda, mai sopra il
-  // titolo: la larghezza della barra non entra più in questa regola, perché a
-  // quelle misure tutte le colonne sono più strette della finestra meno la
-  // banda. `larghezzaBarraMenuWeb` resta la misura che usa l'avviso in cima a
+  // La fascia si riserva sotto la classe `expanded`: la soglia arriva dalla
+  // classe di dimensione (`hooks/useBreakpoint`), non da un confronto di
+  // larghezza scritto qui. Sopra, la testata è la banda di pagina
+  // (`PageHeader`) e la barra sta sopra la banda, mai sopra il titolo: la
+  // larghezza della barra non entra più in questa regola, perché a quelle
+  // misure tutte le colonne sono più strette della finestra meno la banda.
+  // `larghezzaBarraMenuWeb` resta la misura che usa l'avviso in cima a
   // `app/_layout.jsx`.
-  const riservaMenuWeb = Platform.OS === 'web' && larghezzaFinestra < layout.sogliaLarga;
+  // Il `Platform` che resta non è una decisione di larghezza: la barra del menu
+  // è chrome del web e da nativo non esiste, quindi non c'è niente da riservare.
+  const riservaMenuWeb = Platform.OS === 'web' && classe !== 'expanded';
 
   // Il chrome del web (la barra del menu) disegna il refresh accanto al menu:
   // la schermata in focus dice cosa offrire. `useFocusEffect` e non `useEffect`:

@@ -1,8 +1,9 @@
+import { TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { ApiError } from '@/api/client';
 import { AgreementSheet } from '../AgreementSheet';
-import { DateField } from '../DateField';
+import { AppInput } from '../AppInput';
 import { formatIsoDateTimeNumeric } from '@/services/dates';
 
 /**
@@ -134,10 +135,14 @@ describe('AgreementSheet — the read-only sheet', () => {
     expect(testoVisibile(renderer, 'Richiesta: Lezioni di chitarra')).toBe(false);
   });
 
-  it('draws no field of its own: no date picker, no form button', () => {
+  it('draws no field of its own: no text input at all, no form button', () => {
     const renderer = render();
 
-    expect(renderer.root.findAllByType(DateField)).toHaveLength(0);
+    // The delivery sheet has no form field by design: both timestamps are
+    // written by the backend, the description by the sender. Nothing in the
+    // tree — the confirmation panel included — may ask for typing.
+    expect(renderer.root.findAllByType(AppInput)).toHaveLength(0);
+    expect(renderer.root.findAllByType(TextInput)).toHaveLength(0);
     expect(conQuelNome(renderer, 'Invia la scheda')).toHaveLength(0);
     expect(testoVisibile(renderer, 'Si svolge da remoto')).toBe(false);
   });

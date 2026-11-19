@@ -165,6 +165,23 @@ convert to PDF, only then publish.
 | Links | The link text names the destination, never a raw URL, never "clicca qui", never an image used as a link |
 | Verification | Check online with MAUVE, or locally with PAVE / PAC 2024 / Acrobat Pro |
 
+## Rules this app learned the hard way
+
+- **`aria-level` follows the rendered role, not the variant.** A `heading`
+  variant whose caller overrides the role to `text` must not emit `aria-level`:
+  react-native-web renders `role="text"` and the attribute is then orphaned
+  (ignored at best, invalid ARIA at worst). The audit of 2026-11-18 counted 11
+  such nodes; `AppText` now decides on the final role.
+- **A validation error is announced, not only coloured.** Web: `aria-invalid`
+  plus `aria-describedby`. Native: a polite live region on the sentence and the
+  same sentence as the field's `accessibilityHint`, because RN exposes no
+  `invalid` accessibility state; the field also forwards a ref so a screen can
+  move focus to the first invalid one.
+- **A `404` is terminal.** A retry that can only fail again is a bug shaped like
+  a button: the screen shows the empty state with a way out.
+- **An irreversible action names its cost before it runs**, and its failure is
+  shown where the action was taken, not only in the body of the screen.
+
 ## Checklist
 
 Run with the [`ux.md`](ux.md) checklist before a UI change is called done.

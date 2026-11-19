@@ -59,7 +59,7 @@ Every screen that loads data shows exactly one of:
 
 | State | Rule |
 | --- | --- |
-| Loading | `LoadingScreen` for the first load, inline indicator for a refresh |
+| Loading | `LoadingScreen` for the first load; `Skeleton`/`SkeletonLista` where the shape of what is arriving is known; the previous rows stay on screen during a background refresh |
 | Empty | `EmptyState` with icon, title, one sentence and an action only when the user can do something |
 | Error | `Banner` with the message and a "Riprova" button that repeats the failed request as it was |
 | Not available | "coming soon" copy when the endpoint does not exist; never invented data, never a dead button that pretends to work |
@@ -72,6 +72,14 @@ empty state, never fake content.
 
 - Screens never call `fetch`; they call a hook.
 - A hook owns one concern: filters, pagination, retry, focus refresh.
+- A focus refresh is a **fallback**, not the only path: the stream (D029) is
+  what keeps a list current. A focus read is skipped inside
+  `FINESTRA_FRESCHEZZA_MS` (30 s) when a stream frame has already been handled,
+  and it never blanks the list — the previous rows stay while `aggiornamento`
+  is true. Manual paths (retry, pull-to-refresh, a filter change, a reload after
+  an action) ignore the window and always read.
+- A paginated list keeps its glued pages across a focus refresh: refreshing
+  page 1 does not throw away pages 2..n the user loaded.
 - Out-of-order responses never overwrite newer ones: each request carries a
   sequence number and only the latest applies.
 - "Load more" appends a copy (`[...current, ...page]`); nothing is mutated.

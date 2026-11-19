@@ -178,14 +178,12 @@ export function NotificationRow({
     <Card
       style={{
         gap: space.sm,
-        // The card keeps the surface in both themes: the unread state is the
-        // accent border plus the leading dot and the words "Non letta" in the
-        // header row — never the colour alone (WCAG 1.4.1) — because `serviceBg`
-        // is reserved to data marks (docs/DESIGN.md).
-        backgroundColor: t.surface,
-        borderWidth: 1,
+        // La superficie è di `Card` — fondo, spessore e raggio 16 — e qui si
+        // sovrascrive una cosa sola: il colore del bordo. Lo stato non letto è
+        // l'accento più il pallino e le parole «Non letta» nella riga di testata,
+        // mai il colore da solo (WCAG 1.4.1), e `serviceBg` resta riservato ai
+        // dati (docs/DESIGN.md). Il fondo non cambia fra i temi: lo dà `Card`.
         borderColor: notifica.letta ? t.border : t.primary,
-        borderRadius: radius.input,
       }}
     >
       {apribile ? (

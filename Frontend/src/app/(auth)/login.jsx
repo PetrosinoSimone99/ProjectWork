@@ -77,7 +77,15 @@ export default function LoginScreen() {
 
   return (
     <AuthShell centrata>
-      <PageHeader titolo="Accedi" banda={false} />
+      {/* La riga di dati dice cosa la schermata contiene e cosa ci si fa, senza
+          ripetere il titolo né spiegare i due campi che sono già lì sotto
+          (dottrina di `PageHeader`, audit P3): le credenziali per rientrare e,
+          accanto, la via per un account nuovo. */}
+      <PageHeader
+        titolo="Accedi"
+        frase="Il tuo account: username e password per rientrare, oppure un account da creare."
+        banda={false}
+      />
       <View style={{ gap: space.md }}>
         {motivoUscita ? (
           <Banner

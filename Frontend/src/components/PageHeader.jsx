@@ -1,6 +1,7 @@
-import { Platform, useWindowDimensions, View } from 'react-native';
+import { View } from 'react-native';
 import { AppText } from './AppText';
 import { layout, space, target, useTokens } from '@/theme/tokens';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 /**
  * L'unico blocco di titolo dell'app (audit UX F89, direzione «A»).
@@ -49,9 +50,13 @@ import { layout, space, target, useTokens } from '@/theme/tokens';
  * al centro della finestra: una testata appoggiata al telaio sarebbe una
  * seconda composizione dentro la stessa pagina.
  *
- * Solo **web**: la banda è una decisione presa sulle misure del browser, e un
- * tablet a ≥ 1024 la guadagnerebbe senza che nessuno l'abbia guardato. Quando
- * ci sarà una revisione su dispositivo, la riga da togliere è `Platform.OS`.
+ * **Una sola sorgente di soglia** (audit P2 nativo, adattività 2/4). La classe
+ * di dimensione arriva da `hooks/useBreakpoint`, su ogni piattaforma e non più
+ * dietro `Platform.OS === 'web'`: `expanded` è la banda, ed è la stessa
+ * finestra sia in un browser a 1024 sia su un tablet in orizzontale. Sotto
+ * `expanded` la testata non cambia e la colonna resta la pagina. La banda da
+ * nativo è verificata nel sorgente e non su dispositivo: nessun tablet è stato
+ * misurato.
  */
 export function PageHeader({
   titolo = null,
@@ -63,7 +68,7 @@ export function PageHeader({
   style,
 }) {
   const t = useTokens();
-  const { width: larghezzaFinestra } = useWindowDimensions();
+  const { classe, larghezza } = useBreakpoint();
 
   if (variante === 'sezione') {
     return (
@@ -95,11 +100,11 @@ export function PageHeader({
   // Quanto la riga può rientrare, cioè quanto gutter la finestra lascia fuori
   // dalla colonna: zero sotto la misura di lettura, al massimo una freccia più
   // il `gap` della riga.
-  const gutter = Math.max(0, (larghezzaFinestra - misura) / 2);
-  // Da `sogliaLarga` in su la testata è la banda della pagina e non rientra di
+  const gutter = Math.max(0, (larghezza - misura) / 2);
+  // Nella classe `expanded` (la soglia di `sogliaLarga`, letta dalla classe e
+  // non da un numero qui) la testata è la banda della pagina e non rientra di
   // una freccia: è già al telaio.
-  const conBanda =
-    banda && Platform.OS === 'web' && larghezzaFinestra >= layout.sogliaLarga;
+  const conBanda = banda && classe === 'expanded';
   const rientroIndietro =
     indietro && !conBanda ? Math.min(target.min + space.md, gutter) : 0;
 

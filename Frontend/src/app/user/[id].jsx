@@ -57,7 +57,14 @@ export default function PublicProfileScreen() {
 
   return (
     <Screen scroll withBottomInset={false}>
-      <PageHeader titolo="Profilo" indietro={<BackButton />} />
+      {/* La riga dice di chi sono i servizi e come nasce lo scambio: qui le
+          righe sono testo e non pulsanti, quindi la frase non chiede nessuna
+          azione (audit 2026-11-18, P3). */}
+      <PageHeader
+        titolo="Profilo"
+        frase="Le offerte e le ricerche di questa persona: lo scambio nasce da una proposta."
+        indietro={<BackButton />}
+      />
 
       {/* First read. An id the endpoint cannot be asked about is not a read to
           wait for: it is a link the app cannot resolve, so it gets the same

@@ -140,12 +140,30 @@ export const fasciaPallinoMenuWeb = 48 + space.lg;
 export const larghezzaBarraMenuWeb = 320;
 
 /**
- * Larghezze massime del layout su schermi larghi. Solo web le applica:
- * `Screen` centra il contenuto su 560; il catalogo della home sale a 720, che è
- * una misura di lettura (una riga di 19 px sta in ~60 caratteri) e non una
- * scelta di larghezza. Le card riempiono la colonna, quindi il bordo destro di
- * una card e quello della colonna sono lo stesso bordo (audit UX F80).
- * Su mobile la larghezza non supera mai il tetto, quindi il layout non cambia.
+ * Soglie delle classi di dimensione, in px: il limite **inferiore** di ciascuna
+ * classe, quindi la classe di una larghezza è l'ultima la cui soglia non la
+ * supera (600 è già `medium`, 599 è ancora `compact`). Stanno fuori da
+ * `layout` solo perché `sogliaLarga` deve poter essere un alias di una di
+ * queste: un numero solo, scritto una volta.
+ *
+ * Tre classi, le stesse che nominano le due piattaforme:
+ * - `compact` (< 600) è il telefono verticale: la classe `compact` di Android,
+ *   la *compact width* di iOS. La finestra è più stretta di una colonna da 560
+ *   più i suoi gutter, quindi la colonna è la pagina.
+ * - `medium` (600-1023) è il tablet verticale (iPad 768, Android `medium`): la
+ *   finestra regge `maxCatalogo` con i gutter, non ancora la banda di pagina.
+ * - `expanded` (≥ 1024) è il tablet orizzontale e la finestra desktop (iPad
+ *   1024, Android `expanded`): la larghezza della banda di pagina.
+ */
+const sizeClassThresholds = { compact: 0, medium: 600, expanded: 1024 };
+
+/**
+ * Larghezze massime del layout su schermi larghi. `Screen` centra il contenuto
+ * su 560; il catalogo della home sale a 720, che è una misura di lettura (una
+ * riga di 19 px sta in ~60 caratteri) e non una scelta di larghezza. Le card
+ * riempiono la colonna, quindi il bordo destro di una card e quello della
+ * colonna sono lo stesso bordo (audit UX F80). Su un telefono la larghezza non
+ * supera mai il tetto, quindi il layout non cambia.
  *
  * Il valore del catalogo era 1024: a quella larghezza la card si fermava a 712
  * e lasciava 260 px di colonna vuota, cioè tre bordi destri diversi in una
@@ -156,9 +174,22 @@ export const larghezzaBarraMenuWeb = 320;
  * mentre il corpo resta sulla misura (direzione UX «A», audit UX F14). È la
  * larghezza a cui una finestra ha davvero gutter da rivendicare: sotto, la
  * colonna è la pagina e non c'è niente da spostare. Non è un secondo layout: è
- * la stessa testata con un margine che esiste solo quando c'è spazio.
+ * la stessa testata con un margine che esiste solo quando c'è spazio. È un
+ * **alias** della soglia `expanded` e non un secondo numero: chi lo legge non
+ * cambia, e non può divergere dalle classi.
+ *
+ * `sizeClasses` sono le classi di dimensione che `hooks/useBreakpoint` legge —
+ * una sorgente sola, su ogni piattaforma, non solo sul web: la soglia dice che
+ * tipo di finestra si sta disegnando, la misura da usare la decide chi legge.
+ * Le soglie sono quelle già in uso nel progetto (600 è il confine di classe
+ * delle due piattaforme, 1024 era già `sogliaLarga`), non una scala nuova.
  */
-export const layout = { maxContent: 560, maxCatalogo: 720, sogliaLarga: 1024 };
+export const layout = {
+  maxContent: 560,
+  maxCatalogo: 720,
+  sogliaLarga: sizeClassThresholds.expanded,
+  sizeClasses: sizeClassThresholds,
+};
 
 /**
  * La colonna di contenuto: una misura, centrata, senza una larghezza propria.

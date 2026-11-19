@@ -69,9 +69,13 @@ export function tokenExpiresAt(token) {
  * La scadenza come ora leggibile ("17:20"), da una scadenza in **millisecondi**
  * (la stessa unita' di `scadenzaMs` nel layer API). Sta qui perche' e' l'unico
  * posto in cui si legge `exp`: due copie della stessa formattazione divergono.
+ *
+ * Il locale e' esplicito (`it-IT`) come in `services/dates.js`: la stringa vive
+ * dentro una frase italiana, quindi non deve cambiare lingua col dispositivo
+ * (un telefono in inglese leggeva "5:20 PM" in mezzo al testo italiano).
  */
 export function formatOrarioScadenza(scadenzaMs) {
-  return new Date(scadenzaMs).toLocaleTimeString([], {
+  return new Date(scadenzaMs).toLocaleTimeString('it-IT', {
     hour: '2-digit',
     minute: '2-digit',
   });

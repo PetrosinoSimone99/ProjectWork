@@ -10,6 +10,7 @@ import { ToneChip } from './ToneChip';
 import {
   contaFiltri,
   etichettaValoreModalita,
+  LIMITE_MANSIONE,
   SCELTE_FILTRO_MODALITA,
   valoreDaEtichettaModalita,
 } from '@/services/offer-request';
@@ -366,6 +367,10 @@ export function FilterBar({
  * «Cerca» (applica) stanno tutti dentro la stessa pillola, così il controllo
  * che parte è nel campo che governa (F84) e, mentre `filtrando` è vero, è
  * disabilitato davvero invece di fingere uno stato.
+ *
+ * Il testo si ferma a `LIMITE_MANSIONE` (150), lo stesso tetto della
+ * descrizione di una voce (`EntryEditor`): un testo incollato non arriva
+ * intero al server.
  */
 function SearchField({
   testo,
@@ -402,6 +407,7 @@ function SearchField({
         returnKeyType="search"
         autoCapitalize="none"
         accessibilityLabel="Cerca nei servizi offerti"
+        maxLength={LIMITE_MANSIONE}
       />
       {testoAttivo ? (
         // La X azzera **solo** il testo e riapplica gli altri filtri:

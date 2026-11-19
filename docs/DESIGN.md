@@ -37,6 +37,22 @@ Two rules that no file may break on its own:
    a status chip). Chrome gives it up: the web navigation is a neutral surface
    bar, not a coloured disc. A screen with no primary action has no filled
    accent, and that is the rule working, not a gap.
+
+   The rule has a **closed list**, because "one filled element" alone cannot
+   judge the accent as text, as an edge or as a tint. `primary` may be spent as:
+
+   | Use | Where | Why it is allowed |
+   | --- | --- | --- |
+   | the filled primary control | `AppButton` `primary`, and nothing else filled | it is the screen's one action |
+   | a selection edge (1 px) | `PillBar`, `ThemeSelector`, `AppCheckbox` | a data mark that classifies, not an action |
+   | a filled checkbox | `AppCheckbox` checked state | the mark itself is the state |
+   | a link inside a sentence | `TextLink`, `FilterBar` | the accent marks the only thing that can be done in that sentence |
+   | a card's unread edge | `NotificationRow` | a data mark |
+   | the native tab tint and the web menu's active icon | `(tabs)/_layout`, `WebNavMenu` | orientation, one active destination |
+   | an accent title | `app/(tabs)/profile` (the identity block) | one per screen, and it names the screen's subject |
+
+   Anything not in that table is a new decision: it goes in this list and in
+   the code's comment in the same commit.
 2. **A border either separates or identifies.** If it identifies a control it
    is `borderInput`; if it only separates two surfaces it is `border`. Using
    the decorative one on a control is a WCAG contrast defect, not a taste
@@ -187,16 +203,20 @@ and the page starts at the window's top edge at every wide width.
   window the header is the page's band and the back control travels with it.
 - **One card anatomy.** A headline (the person's own words, allowed a real
   measure of lines), one meta line carrying the data marks inline, and at most
-  one trailing action. An identity block or a settings row is not a card.
+  one trailing action **row**. An identity block or a settings row is not a card.
+  The surface itself is `Card`'s: a component that needs the same surface uses
+  it, and a genuinely nested surface says so in one line and uses the same radius
+  vocabulary (`NotificationRow`, `UserServicesMiniCard`).
 - **One choice device.** Mutually exclusive choices are `radiogroup`/`radio` on
   a pill track, on one row that scrolls rather than wraps. A preference picker
   is a form control and may look like one; it still declares radio semantics.
 - **One empty state.** Icon when there is one, title, one sentence that says
   what would fill the space, and a button **only when a real action exists**. No
   invented actions, no invented glyphs.
-- **Trailing actions form a column.** Reversible actions may share a row; a
-  destructive one keeps a row of its own by rule. Labels never wrap inside a
-  pill, and two confirm commands stack before they would be truncated.
+- **Trailing actions form a column.** That row may carry more than one action
+  when all of them are reversible and none is destructive; a destructive one
+  keeps a row of its own by rule. So: one row, not one action. Labels never wrap
+  inside a pill, and two confirm commands stack before they would be truncated.
 - **Every state is explicit**: loading, empty, error, loaded. A loading surface
   announces itself through a polite live region; an error carries its own retry
   inside the message that failed.
@@ -216,13 +236,28 @@ theme to pick a literal.
 | a type role or its job | `components/AppText.jsx` |
 | the card surface | `components/Card.jsx` |
 | the screen frame, its measures and its rhythm | `components/Screen.jsx` |
-| the web refresh control, and where it sits | `components/Screen.jsx` |
+| **where** the refresh control sits, and how the bar looks | `components/WebNavMenu.jsx` |
+| **that** a screen publishes a refresh at all | `components/Screen.jsx` (it publishes; the bar draws) |
 | the title block | `components/PageHeader.jsx` |
 | the panel shell | `components/ModalShell.jsx` |
+| the button variants, the disabled opacity, the control height | `components/AppButton.jsx` |
+| the single error surface | `components/Banner.jsx` |
+| the empty state | `components/EmptyState.jsx` |
+| a radio track (pills, categories, theme) | `components/PillBar.jsx`, `components/CategorySelector.jsx`, `components/ThemeSelector.jsx` |
+| a text field and its validation message | `components/AppInput.jsx` |
+| a checkbox | `components/AppCheckbox.jsx` |
+| a dropdown / a selector with a list | `components/ListSelector.jsx` |
+| the focus ring | `components/FocusRing.jsx` |
+| the bar's own menu, its two levels and its animation | `components/WebNavMenu.jsx` |
+| the two directions of a trade (card, sheet, chat) | `components/BarterPair.jsx` |
+| a profile image, its cache and its initials fallback | `components/Avatar.jsx` |
+| a loading placeholder | `components/Skeleton.jsx` |
+| the settings row on a phone screen | `app/(tabs)/profile.jsx` (`Banda`, still local) |
 | a link inside a sentence | `components/TextLink.jsx` |
 | what a route with no role may see | `components/StaffAreaGate.jsx` |
 | the browser tab's name, per route | `navigation/screen-titles.js` |
 | the colours the browser paints itself | `hooks/useWebColorScheme.js` |
+| the size classes and who reads them | `theme/tokens.js` (`layout`) and `hooks/useBreakpoint.js` |
 
 If a screen needs a new value that is not in this table, the answer is a token
 role in `tokens.js` and a line here — never a literal in the screen.

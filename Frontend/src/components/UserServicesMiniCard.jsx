@@ -1,8 +1,8 @@
-import { View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { useUserServices } from '@/hooks/useUserServices';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
+import { Card } from '@/components/Card';
 import { ServiceGroup } from '@/components/ServiceGroup';
 import { radius, space, useTokens } from '@/theme/tokens';
 
@@ -78,13 +78,14 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEsclud
     dati !== null && pubblicazioni.offerte.length === 0 && pubblicazioni.richieste.length === 0;
 
   return (
-    <View
+    // La superficie è di `Card`, bordo e spessore compresi; qui restano solo le
+    // differenze di questo blocco annidato: il fondo arretrato (`background`,
+    // non `surface`) e il ritmo più stretto del pannello che lo ospita.
+    <Card
       style={{
         gap: space.xs,
         padding: space.md,
         borderRadius: radius.input,
-        borderWidth: 1,
-        borderColor: t.border,
         backgroundColor: t.background,
       }}
     >
@@ -136,6 +137,6 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEsclud
           limite={RIGHE_VISIBILI}
         />
       ))}
-    </View>
+    </Card>
   );
 }
