@@ -62,12 +62,19 @@ const LIVELLO_PREDEFINITO = { title: 1, heading: 2 };
  * — e vale solo sulle varianti che sono un titolo. Chi ha bisogno di una
  * profondità diversa dalla sua (il titolo di un pannello è la radice del suo
  * dialogo) la dichiara.
+ *
+ * `aria-level` segue il ruolo che finisce davvero nel DOM, non la variante: se
+ * il chiamante ha sovrascritto `accessibilityRole` (`text` sulle card del
+ * catalogo, sulle iniziali dell'avatar) la profondità non viaggia, perché un
+ * livello senza ruolo è ARIA non valido e nessuno screen reader lo legge
+ * (audit 2026-11-18 §3.2).
  */
-export function AppText({ variant = 'body', tone = 'default', level, style, ...props }) {
+export function AppText({ variant = 'body', tone = 'default', level, style, accessibilityRole, ...props }) {
   const t = useTokens();
   const ruolo = VARIANTS[variant] ? variant : 'body';
   const eTitolo = HEADING_VARIANTS.has(ruolo);
   const livello = level ?? LIVELLO_PREDEFINITO[ruolo] ?? 2;
+  const ruoloRenderizzato = accessibilityRole ?? (eTitolo ? 'header' : undefined);
   const colors = {
     default: t.text,
     secondary: t.textSecondary,
@@ -78,8 +85,8 @@ export function AppText({ variant = 'body', tone = 'default', level, style, ...p
   };
   return (
     <Text
-      accessibilityRole={eTitolo ? 'header' : undefined}
-      aria-level={eTitolo ? livello : undefined}
+      accessibilityRole={ruoloRenderizzato}
+      aria-level={ruoloRenderizzato === 'header' ? livello : undefined}
       style={[VARIANTS[ruolo], { color: colors[tone] }, style]}
       {...props}
     />

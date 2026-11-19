@@ -43,7 +43,10 @@ import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
  * Each section draws its own loading, empty and error state, so a section never
  * shows silence where a state belongs. Errors of the list and errors of an
  * action are separate Banners: one says the data did not arrive, the other that
- * the tap did not go through.
+ * the tap did not go through. Both reach the bell panel, because the accept and
+ * the refuse are decided there: the action error is pinned above the rows so a
+ * failure is read where the tap was made, not behind the screen that opened the
+ * panel.
  *
  * The delivery sheet is not part of this screen any more: it is written and
  * confirmed inside the chat of the agreement, so the card keeps only the phone
@@ -297,6 +300,7 @@ export default function AgreementsScreen() {
         classificati={classificati}
         myUsername={myUsername}
         errore={errore}
+        actionError={actionError}
         occupato={occupato}
         azioneInCorso={azioneInCorso}
         onRispondi={rispondi}
@@ -472,6 +476,11 @@ function BellButton({ conteggio, aperto, onPress }) {
  * branch carries its own «Riprova»: asking the user to close the panel and find
  * the button somewhere else cost three steps (F12).
  *
+ * The two error Banners sit above the scrolling rows, not inside them: the tap
+ * that fails (`Accetta`/`Rifiuta`) is taken in this panel and the panel stays
+ * open, so the failure has to be visible without scrolling back over the rows
+ * (audit P1-2). The list error comes second and keeps its own «Riprova».
+ *
  * Accepting and refusing open the `ConfirmModal` first: the copy names the other
  * person and what the choice does, because neither action can be undone from
  * here (F01).
@@ -483,6 +492,7 @@ function BellPanel({
   classificati,
   myUsername,
   errore,
+  actionError,
   occupato,
   azioneInCorso,
   onRispondi,
@@ -504,16 +514,9 @@ function BellPanel({
       </AppText>
     );
   } else if (classificati === null) {
-    contenuto = errore ? (
-      <Banner
-        kind="error"
-        message={errore}
-        etichettaAzione="Riprova"
-        onAzione={onRiprova}
-      />
-    ) : (
-      <RigaCaricamento testo="Carico le proposte…" />
-    );
+    // L'errore della lista ha il suo Banner fuori dallo ScrollView, insieme a
+    // quello di un'azione fallita: qui resta il solo caricamento.
+    contenuto = errore ? null : <RigaCaricamento testo="Carico le proposte…" />;
   } else if (classificati.toAnswer.length === 0) {
     // The subtitle already says there is nothing to answer: the body explains
     // where a proposal will appear instead of repeating the same sentence.
@@ -591,9 +594,18 @@ function BellPanel({
         }}
         pannelloStyle={{ maxHeight: altezzaFinestra * BELL_PANEL_HEIGHT_RATIO }}
       >
-        <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: space.sm }}>
-          {contenuto}
-        </ScrollView>
+        {/* Fuori dallo ScrollView: un'azione fallita deve restare leggibile
+            dove il tap è stato fatto (audit P1-2). L'errore della lista viene
+            dopo, con il suo «Riprova». */}
+        <View style={{ flexShrink: 1, gap: space.sm }}>
+          {actionError ? <Banner kind="error" message={actionError} /> : null}
+          {errore ? (
+            <Banner kind="error" message={errore} etichettaAzione="Riprova" onAzione={onRiprova} />
+          ) : null}
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: space.sm }}>
+            {contenuto}
+          </ScrollView>
+        </View>
       </ModalShell>
 
       {/* La conferma vive accanto al pannello, non dentro: è un secondo dialogo

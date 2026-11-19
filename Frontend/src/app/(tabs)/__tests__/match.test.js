@@ -54,6 +54,9 @@ const TOKEN = 'jwt';
 const BUTTON_OFFER = 'Crea una coda per la tua offerta';
 const BUTTON_REQUEST = 'Crea una coda per la tua ricerca';
 
+/** The button that confirms the request queue: the one inside the `ConfirmModal`. */
+const BUTTON_CONFIRM_REQUEST = 'Crea la coda di ricerca';
+
 /** One active row of `GET /get-queues`, as the card below the buttons reads it. */
 const ACTIVE_QUEUE = {
   id: 42,
@@ -204,7 +207,28 @@ describe('match — the two create actions', () => {
     await press(renderer, BUTTON_OFFER);
     expect(createQueue).toHaveBeenCalledWith(TOKEN, 'OFFER');
 
+    // The request queue spends a credit, so it starts from the confirmation:
+    // the button opens the panel and only the panel creates the queue.
     await press(renderer, BUTTON_REQUEST);
+    await press(renderer, BUTTON_CONFIRM_REQUEST);
+    expect(createQueue).toHaveBeenCalledWith(TOKEN, 'REQUEST');
+  });
+
+  it('asks before the request queue spends a credit, and spends nothing meanwhile', async () => {
+    const renderer = await renderMatch();
+
+    await press(renderer, BUTTON_REQUEST);
+
+    expect(createQueue).not.toHaveBeenCalled();
+  });
+
+  it('creates the request queue once when the confirmation is accepted', async () => {
+    const renderer = await renderMatch();
+
+    await press(renderer, BUTTON_REQUEST);
+    await press(renderer, BUTTON_CONFIRM_REQUEST);
+
+    expect(createQueue).toHaveBeenCalledTimes(1);
     expect(createQueue).toHaveBeenCalledWith(TOKEN, 'REQUEST');
   });
 

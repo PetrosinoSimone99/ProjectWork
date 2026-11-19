@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { radius, space, target, useTokens } from '@/theme/tokens';
@@ -22,6 +22,11 @@ export function AppInput({
   returnKeyType,
   onSubmitEditing,
   accessibilityLabel = null,
+  // Il `ref` arriva come prop (React 19): React Native non passa ancora il ref
+  // ai componenti funzione. Serve a chi deve portare il focus sul primo campo
+  // non valido dopo un invio fallito (audit 2026-11-18, P2) senza cercare il
+  // nodo nel DOM.
+  ref = null,
 }) {
   const t = useTokens();
   const [focused, setFocused] = useState(false);
@@ -36,6 +41,13 @@ export function AppInput({
   // (la «Mansione» dell'offerta e quella della richiesta, audit UX F18) e in tal
   // caso chi ascolta deve poterli distinguere. La parola sullo schermo resta
   // quella, perché è il vocabolario del prodotto.
+  // Su native `aria-invalid` resta un attributo del DOM e `accessibilityState`
+  // non conosce un valore `invalid` (le chiavi sono disabled/selected/checked/
+  // busy/expanded): l'errore non arrivava a VoiceOver e TalkBack. Viaggia
+  // invece nell'hint del campo, che è il canale che il nativo pronuncia insieme
+  // al nome quando il campo prende il focus, e resta un dato onesto: la frase è
+  // quella che l'occhio legge sotto il campo.
+  const suNativo = Platform.OS !== 'web';
   const idCampo = `campo-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const idErrore = `${idCampo}-errore`;
 
@@ -62,8 +74,10 @@ export function AppInput({
         ]}
       >
         <TextInput
+          ref={ref}
           style={[styles.input, { color: t.text }, multiline && styles.multiline]}
           accessibilityLabel={accessibilityLabel ?? label}
+          accessibilityHint={suNativo && error ? error : undefined}
           nativeID={idCampo}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? idErrore : undefined}
@@ -106,7 +120,17 @@ export function AppInput({
         ) : null}
       </View>
       {error ? (
-        <AppText variant="small" tone="danger" nativeID={idErrore}>
+        // Regione viva (audit 2026-11-18, P2): quando la frase compare, dopo un
+        // invio fallito, il nativo la annuncia. Vale solo su native — sul web
+        // `accessibilityLiveRegion` diventa un `aria-live` e il comportamento
+        // della pagina (errore letto via `aria-describedby`) resta quello di
+        // prima.
+        <AppText
+          variant="small"
+          tone="danger"
+          nativeID={idErrore}
+          accessibilityLiveRegion={suNativo ? 'polite' : undefined}
+        >
           {error}
         </AppText>
       ) : null}

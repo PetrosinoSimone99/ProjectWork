@@ -8,6 +8,7 @@ import { cancelQueue, createQueue, listQueues, getProfile } from '@/api';
 import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHeader } from '@/components/PageHeader';
@@ -23,6 +24,15 @@ const REQUEST_COST_COPY = 'Una coda di ricerca costa un credito.';
 
 /** Why the request action is off while the balance is at zero. */
 const NO_CREDIT_REASON = 'Non hai crediti disponibili.';
+
+/** Il titolo della conferma che precede la spesa del credito. */
+const REQUEST_CONFIRM_TITLE = 'Creare una coda di ricerca?';
+
+/**
+ * L'atto che il pulsante di conferma compie, nominato: chi ascolta «Conferma»
+ * non sa che cosa accetta, e la ricerca è l'unica azione che costa un credito.
+ */
+const REQUEST_CONFIRM_ACTION = 'Crea la coda di ricerca';
 
 
 const ACTIVE_QUEUE_REASON =
@@ -63,6 +73,8 @@ export default function MatchScreen() {
   // One action at a time: `create:OFFER`, `create:REQUEST`, `cancel:{id}` or
   // `null`, so two taps cannot clobber each other's busy state.
   const [actionInFlight, setActionInFlight] = useState(null);
+  // La ricerca spende un credito: prima di crearla la schermata chiede conferma.
+  const [requestConfirmOpen, setRequestConfirmOpen] = useState(false);
 
   const requestSeqRef = useRef(0);
 
@@ -183,6 +195,19 @@ export default function MatchScreen() {
   // types together and answers a `500` to the second call (G23).
   const activeQueue = hasActiveQueue(queues);
   const busy = actionInFlight !== null;
+  // Lo stesso saldo che l'intestazione mostra: due numeri diversi nella stessa
+  // schermata sarebbero due verità.
+  const balance = profile?.crediti ?? 0;
+
+  // La conferma si apre solo quando l'azione può davvero partire: con il saldo a
+  // zero, una coda attiva o un'azione in corso la domanda non avrebbe risposta
+  // utile, e il pulsante che la apre è già spento.
+  const askRequestConfirm = () => {
+    if (!token || busy || activeQueue || balance <= 0) {
+      return;
+    }
+    setRequestConfirmOpen(true);
+  };
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
@@ -217,12 +242,31 @@ export default function MatchScreen() {
           activeQueue={activeQueue}
           busy={busy}
           actionInFlight={actionInFlight}
-          onCreate={(tipo) => void create(tipo)}
+          onCreate={(tipo) => (tipo === 'REQUEST' ? askRequestConfirm() : void create(tipo))}
         />
       ) : null}
 
       {outcome ? <Banner kind="success" message={outcome} /> : null}
       {actionError ? <Banner kind="error" message={actionError} /> : null}
+
+      {/* La conferma vive accanto all'azione che la apre, come l'annullamento
+          degli accordi: la creazione che parte dopo è quella di sempre, cambia
+          solo chi la decide, dopo aver letto costo e saldo. */}
+      <ConfirmModal
+        visible={requestConfirmOpen}
+        titolo={REQUEST_CONFIRM_TITLE}
+        messaggio={`${REQUEST_COST_COPY} Crediti disponibili: ${balance}.`}
+        etichettaConferma={REQUEST_CONFIRM_ACTION}
+        // Il credito torna se la coda si annulla, quindi l'atto non è
+        // distruttivo: il pulsante porta l'accento, non il rosso.
+        varianteConferma="primary"
+        loading={actionInFlight === 'create:REQUEST'}
+        onConferma={() => {
+          setRequestConfirmOpen(false);
+          void create('REQUEST');
+        }}
+        onAnnulla={() => setRequestConfirmOpen(false)}
+      />
 
       {firstLoadDone && queues.length > 0 ? (
         <View style={{ gap: space.sm }}>

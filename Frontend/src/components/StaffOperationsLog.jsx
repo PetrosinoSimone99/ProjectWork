@@ -5,7 +5,7 @@ import { AppText } from './AppText';
 import { EmptyState } from './EmptyState';
 import { formatIsoDate } from '@/services/dates';
 import { operationActionLabel, operationTargetLabel } from '@/services/staff';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { radius, space, target as touchTarget, useTokens } from '@/theme/tokens';
 
 /**
  * Il registro delle operazioni: sola lettura, con il suo esito e la sua
@@ -124,6 +124,18 @@ export function StaffOperationsLog({
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: space.sm,
+                // L'altezza della riga è il bersaglio: senza questa soglia una
+                // riga di testo faceva ~26 pt, sotto il minimo della
+                // piattaforma (audit P1-9). `minHeight` e non `height`, perché
+                // il testo è uno solo e va a capo: due righe da 18 più il
+                // padding verticale fanno 44, quindi su iOS la soglia è anche
+                // l'altezza del contenuto e su Android la riga cresce di 4
+                // invece di tagliare. `alignItems: 'center'` centra le due righe
+                // nello spazio che avanza.
+                // Il token si importa come `touchTarget`: qui dentro `target` è
+                // già l'etichetta del bersaglio dell'operazione, e omonimia
+                // vorrebbe dire `undefined`.
+                minHeight: touchTarget.min,
                 paddingVertical: space.xs,
                 paddingHorizontal: space.sm,
                 borderRadius: radius.card,

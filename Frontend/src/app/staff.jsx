@@ -226,6 +226,11 @@ export default function StaffScreen() {
       setMessage('Segnalazione chiusa.');
       setConfirm(null);
     } catch (err) {
+      // La chiusura non è passata (409, 403 o rete): la bozza vive in `confirm`,
+      // quindi si rimette in scena prima di dire cosa è andato storto. Chiudere
+      // la scheda qui distruggerebbe fino a 2000 caratteri di nota (audit P1-7),
+      // la stessa lezione F44 del «No, torna indietro» più sotto.
+      setReview(confirm);
       setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
       setConfirm(null);
     } finally {

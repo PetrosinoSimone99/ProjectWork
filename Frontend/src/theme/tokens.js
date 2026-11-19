@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { useThemeScheme } from './theme-context';
 
 /**
@@ -91,8 +92,15 @@ export const opacity = { disabled: 0.7 };
 /**
  * Bersaglio di tocco minimo, in pt: la regola di accessibilità CT06 dice che
  * ogni controllo premibile è alto e largo almeno `target.min`.
+ *
+ * La soglia è quella della piattaforma: 44 su iOS e sul web, 48 su Android, che
+ * è il minimo Material per un bersaglio di tocco. Un solo 44 per tutti teneva le
+ * righe Android sotto il minimo della loro piattaforma. La costante resta una e
+ * della stessa forma: chi legge `target.min` non cambia, e solo Android diventa
+ * più alto, quindi nessun consumatore si ritrova un secondo letterale da
+ * inseguire.
  */
-export const target = { min: 44 };
+export const target = { min: Platform.select({ android: 48, default: 44 }) };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
