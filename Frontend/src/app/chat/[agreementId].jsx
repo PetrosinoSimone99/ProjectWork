@@ -356,47 +356,54 @@ export default function ChatScreen() {
           ) : null}
         </View>
 
-        {/* Spinner e stato vuoto si centrano da soli e restano figli diretti
-            della colonna, dove il `flex: 1` di `LoadingScreen` trova l'altezza. */}
-        {/* `messaggi === null` is the state before the first answer lands, which
-            is also the first frame, before the focus effect has asked anything:
-            the spinner is owed there too, not only while a request flies. */}
-        {primaLettura && errore === null ? <LoadingScreen /> : null}
-
-        {vuota && !errore ? (
-          <EmptyState
-            icon="chatbubbles-outline"
-            title="Nessun messaggio"
-            // A concluded exchange is read-only: inviting the first message there
-            // would ask for something the screen cannot send.
-            description={
-              concluso
-                ? 'Questo scambio non ha messaggi.'
-                : "Scrivete il primo per mettervi d'accordo sui dettagli dello scambio."
-            }
-          />
-        ) : null}
-
+        {/* Spinner, stato vuoto e lista sono **lo stesso posto**: l'area dei
+            messaggi è un riquadro solo che cresce, e il composer resta sotto di
+            lui. Prima erano tre fratelli della colonna: con lo spinner (che ha
+            `flex: 1`) lo spazio si divideva a metà con il composer, e con lo
+            stato vuoto (che non ha `flex`) il composer saliva a metà schermo
+            lasciando un vuoto sotto — cioè esattamente ciò che questa
+            schermata doveva smettere di fare (review 2026-11-19, P1). */}
         <View style={{ flex: 1, gap: space.md }}>
-          {messaggi !== null && messaggi.length > 0 ? (
-            <FlatList
-              ref={listaRef}
-              style={{ flex: 1 }}
-              data={messaggi}
-              keyExtractor={(messaggio) => String(messaggio.id)}
-              renderItem={({ item }) => <MessageBubble messaggio={item} myUsername={myUsername} />}
-              // Il nodo che scorre è la lista, larga quanto la finestra: la misura
-              // sta sul suo contenuto, così la barra di scorrimento è sul bordo
-              // della finestra e la rotella sopra i gutter scorre i messaggi
-              // (P1-11).
-              contentContainerStyle={{
-                ...stileColonna,
-                gap: space.sm,
-                paddingVertical: space.sm,
-              }}
-              onContentSizeChange={() => listaRef.current?.scrollToEnd({ animated: false })}
-            />
-          ) : null}
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            {/* `messaggi === null` is the state before the first answer lands, which
+                is also the first frame, before the focus effect has asked anything:
+                the spinner is owed there too, not only while a request flies. */}
+            {primaLettura && errore === null ? <LoadingScreen /> : null}
+
+            {vuota && !errore ? (
+              <EmptyState
+                icon="chatbubbles-outline"
+                title="Nessun messaggio"
+                // A concluded exchange is read-only: inviting the first message there
+                // would ask for something the screen cannot send.
+                description={
+                  concluso
+                    ? 'Questo scambio non ha messaggi.'
+                    : "Scrivete il primo per mettervi d'accordo sui dettagli dello scambio."
+                }
+              />
+            ) : null}
+
+            {messaggi !== null && messaggi.length > 0 ? (
+              <FlatList
+                ref={listaRef}
+                style={{ flex: 1 }}
+                data={messaggi}
+                keyExtractor={(messaggio) => String(messaggio.id)}
+                renderItem={({ item }) => <MessageBubble messaggio={item} myUsername={myUsername} />}
+                // Il nodo che scorre è la lista, larga quanto la finestra: la misura
+                // sta sul suo contenuto, così la barra di scorrimento è sul bordo
+                // della finestra e la rotella sopra i gutter scorre i messaggi
+                // (P1-11).
+                contentContainerStyle={{
+                  ...stileColonna,
+                  gap: space.sm,
+                  paddingVertical: space.sm,
+                }}
+                onContentSizeChange={() => listaRef.current?.scrollToEnd({ animated: false })}
+              />
+            ) : null}
+          </View>
 
           {/* Il composer è ancorato in fondo, quindi non scorre: la colonna se la
               porta lui, altrimenti a 1280 la casella di scrittura va da bordo a

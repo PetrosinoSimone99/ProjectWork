@@ -7,6 +7,17 @@ import { consumaBozza, salvaBozza } from '@/auth/auth-context';
 import { space } from '@/theme/tokens';
 
 /**
+ * L'altezza del campo di scrittura della chat: due righe di corpo.
+ *
+ * Non è il default di `AppInput` (96, quattro righe) perché qui il campo non è
+ * un modulo da compilare: è la riga di scrittura di una conversazione, e ogni
+ * punto che prende è un punto tolto ai messaggi (brief mobile-chat-space,
+ * decisione 1). Resta una costante con un nome e non un numero nella `View`:
+ * è una misura, e una misura si legge una volta sola.
+ */
+const ALTEZZA_CAMPO_CHAT = 56;
+
+/**
  * Chat composer: it owns the draft, the caller owns the send.
  *
  * The cap is ours, not the backend's: `Backend/src/Entity/ChatMessage.php` has
@@ -78,7 +89,7 @@ export function MessageComposer({
           // Due righe invece delle quattro del default: qui il campo è la riga
           // di scrittura di una conversazione, e ogni punto che prende è un
           // punto tolto ai messaggi (brief, decisione 1).
-          altezzaMinima={56}
+          altezzaMinima={ALTEZZA_CAMPO_CHAT}
           maxLength={MESSAGE_MAX_LENGTH}
           contatore={`${testo.length}/${MESSAGE_MAX_LENGTH}`}
           editable={!inviando && !disabilitato}
