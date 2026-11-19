@@ -6,6 +6,36 @@ documents/code touched.
 
 ---
 
+## 2026-11-21 — `npx jest` enters the pre-push gate, PHPUnit stays out
+
+The gate was `expo lint` + `tsc --noEmit`, and `tsc` here reads `.js` as syntax
+only. So no gate step could fail on a behaviour, and the 47 suites / 568 tests
+were run only by whoever remembered them.
+
+**What changed.** `AGENTS.md`'s pre-push gate gains a third line, `npx jest`:
+twenty seconds, no Docker, no fixture, and a red result names something
+ownable in `Frontend/`. The same section states why PHPUnit does not follow:
+three runs, about seven minutes, Docker up, and two MySQL test databases
+(`barattolo_test`, `workflow_checks_test`) absent on a fresh machine. A gate
+that fails on a prerequisite teaches `--no-verify`, and a real failure would
+sit in read-only `Backend/`.
+
+**Why now.** This session ran the whole backend suite for the first time on
+this machine. It needed `-e APP_ENV=test` (the container exports `APP_ENV=dev`,
+which Symfony reads before phpunit's `$_SERVER` override, so the kernel booted
+dev and `framework.test` was false: 110 errors), then the two test databases,
+and then it was green in three passes — 126 + 6 + 8 tests. The cost of that
+gate is a seven-minute dependency chain; the cost of `jest` is twenty seconds.
+
+**Measured.** `npx jest` 47 suites / 568 tests green in 20.1 s. Backend: SQLite
+126 tests / 1565 assertions, reports 6/6, workflow 8/8. The `act(...)` warnings
+and the `[api] risposta non ok` logs are output the tests provoke on purpose.
+
+Docs touched: `AGENTS.md` (gate), `docs/decisions.md` (D031), this entry. No
+code changed.
+
+---
+
 ## 2026-11-19 — Leftovers closed: the chip inside its column, one credit mark, the panel's quiet states, a clean database
 
 Closing session on `frontend-remediation-2026-11-19`, in the order of

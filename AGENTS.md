@@ -97,11 +97,21 @@ Before every push to any branch, these must pass on the frontend:
 cd Frontend
 npx expo lint
 npx tsc --noEmit
+npx jest
 ```
 
 `tsc --noEmit` here parses syntax and imports only: `Frontend/tsconfig.json` sets
 `allowJs` without `checkJs`, so the `.js`/`.jsx` files are not type-checked and
 the step cannot fail on a type error. Do not read a green gate as type safety.
+`npx jest` is the step that covers behaviour: 47 suites, 568 tests, about twenty
+seconds, no Docker and no fixture to prepare. It is the only gate step whose
+failure names something fixable in `Frontend/`.
+
+**PHPUnit stays outside the gate** (D031). The backend suite is three runs and
+about seven minutes, needs Docker up and two MySQL test databases
+(`barattolo_test`, `workflow_checks_test`), and a red result would sit in code
+this side may not edit. The three commands live in `docs/setup.md`; run them
+whenever a frontend change depends on a backend endpoint.
 
 Red gate → no push. Do not weaken assertions or skip checks to make it green.
 

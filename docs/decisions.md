@@ -417,3 +417,27 @@ a real history and a written sheet — reachable by URL alone.
 
 *Consequences:* `AgreementCard`'s gate and its test change; `backend-ledger.md` is
 untouched because no route changed.
+
+## D031 — 2026-11-21 — Jest joins the pre-push gate; PHPUnit stays out
+
+D019 put `jest` outside the gate when the suite covered two pure modules and
+was cheap to skip. The suite now holds 47 files and 568 tests over the API
+layer, the hooks and every component, so the gate was running two steps that
+cannot fail on behaviour: `tsc --noEmit` parses syntax and imports only
+(`allowJs` without `checkJs`).
+
+- **`npx jest` is a gate step.** Twenty seconds, no Docker, no fixture, and a
+  failing test names something this side owns.
+- **PHPUnit is not.** Three runs, about seven minutes, Docker up, and two MySQL
+  test databases that do not exist on a fresh machine (`barattolo_test`,
+  `workflow_checks_test`). A gate that goes red on a prerequisite would teach
+  `--no-verify`, and a failure would sit in `Backend/`, which the frontend side
+  may not edit. The three commands stay documented in `docs/setup.md` and are
+  run when a frontend change depends on a backend endpoint.
+
+*Context:* on 2026-11-21 the backend suite was executed for the first time on
+this machine and needed two missing databases created before it could answer.
+That is not a precondition a pre-push hook can carry.
+
+*Consequences:* the gate grows to three steps and roughly twenty extra seconds
+per push; D019 stays as written, as an appended log.
