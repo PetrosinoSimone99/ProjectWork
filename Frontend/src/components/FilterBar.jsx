@@ -58,6 +58,17 @@ const SOGLIA_LAYOUT_STRETTO = 480;
  * parla dei filtri **applicati**, cioè di quelli che hanno prodotto i risultati
  * a schermo, e digitare non lo muove. Il tasto di espansione è un bottone con
  * `expanded` esplicito.
+ *
+ * Il pannello aperto mostra **al massimo quattro scelte**: testo, categoria,
+ * provincia e modalità. Il **comune** è la quinta e sta dietro «Altri filtri»,
+ * un solo controllo con `expanded` esplicito nella stessa anatomia del
+ * riepilogo qui sopra — non un pannello nuovo (audit 2026-11-18, P2: cinque
+ * campi impilati a 375 px spingevano i risultati sotto la piega). È il secondo
+ * livello naturale dell'area: il comune dipende dalla provincia, ed è già
+ * disabilitato finché una provincia non è scelta. Un filtro attivo e nascosto
+ * non può restare invisibile: a secondo livello chiuso il controllo porta il
+ * valore del comune nel chip e nella propria etichetta accessibile, altrimenti
+ * si vedrebbero risultati ristretti senza motivo.
  */
 export function FilterBar({
   filtri,
@@ -79,6 +90,12 @@ export function FilterBar({
   const categoriePronte = statoCategorie === 'pronto';
   const layoutStretto = useWindowDimensions().width < SOGLIA_LAYOUT_STRETTO;
   const [pannelloAperto, setPannelloAperto] = useState(false);
+  // Il secondo livello delle scelte: spento di default, si apre da un controllo
+  // solo (vedi la nota in testa).
+  const [altriAperti, setAltriAperti] = useState(false);
+  // Il comune vive dietro «Altri filtri»: quando è attivo il controllo deve
+  // dirlo anche a secondo livello chiuso.
+  const comuneAttivo = typeof filtri.comune === 'string' && filtri.comune.trim() !== '';
   // La bozza del testo sta qui: ogni tasto ri-renderizza solo la barra,
   // non l'intero catalogo (F74).
   const [bozzaTesto, setBozzaTesto] = useState('');
@@ -89,6 +106,9 @@ export function FilterBar({
   // occupa tutto il primo schermo, quindi i risultati resterebbero sotto la
   // piega a ogni giro. Sopra la soglia resta aperto: lì costa una riga.
   const chiudiSeStretto = () => {
+    // Una scelta chiude anche il secondo livello: il ciclo — scegli, guarda,
+    // riscegli — riparte dal riepilogo, non da una fila di campi già aperta.
+    setAltriAperti(false);
     if (layoutStretto) {
       setPannelloAperto(false);
     }
@@ -230,19 +250,6 @@ export function FilterBar({
               style={{ flex: flessibile }}
             />
             <ListSelector
-              label="Comune"
-              placeholder={filtri.provincia === '' ? 'Scegli prima una provincia' : 'Tutti i comuni'}
-              opzioni={comuniPerProvincia(filtri.provincia)}
-              valore={filtri.comune}
-              etichettaAzzera="Tutti i comuni"
-              disabled={filtri.provincia === ''}
-              onChange={(valore) => {
-                onCambiaScelta('comune', valore);
-                chiudiSeStretto();
-              }}
-              style={{ flex: flessibile }}
-            />
-            <ListSelector
               label="Modalità"
               placeholder="Tutti"
               opzioni={SCELTE_FILTRO_MODALITA.map((scelta) => scelta.etichetta)}
@@ -253,6 +260,66 @@ export function FilterBar({
               }}
               style={{ flex: flessibile }}
             />
+          </View>
+
+          {/* Il secondo livello: il comune, l'unica scelta che non sta nei
+              quattro visibili. Il controllo è un bottone con `expanded`
+              esplicito, come il riepilogo della card; il valore attivo resta
+              scritto accanto al nome anche a livello chiuso. */}
+          <View style={{ gap: space.sm }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                comuneAttivo ? `Altri filtri, comune ${filtri.comune}` : 'Altri filtri'
+              }
+              accessibilityState={{ expanded: altriAperti }}
+              aria-expanded={altriAperti}
+              onPress={() => setAltriAperti((aperti) => !aperti)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: space.sm,
+                minHeight: target.min,
+              }}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: space.sm,
+                }}
+              >
+                <AppText variant="body" style={{ fontWeight: '700' }}>
+                  Altri filtri
+                </AppText>
+                {comuneAttivo ? <ToneChip tono="service">{filtri.comune}</ToneChip> : null}
+              </View>
+              <AppIcon
+                name={altriAperti ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={t.textSecondary}
+              />
+            </Pressable>
+
+            {altriAperti ? (
+              <ListSelector
+                label="Comune"
+                placeholder={
+                  filtri.provincia === '' ? 'Scegli prima una provincia' : 'Tutti i comuni'
+                }
+                opzioni={comuniPerProvincia(filtri.provincia)}
+                valore={filtri.comune}
+                etichettaAzzera="Tutti i comuni"
+                disabled={filtri.provincia === ''}
+                onChange={(valore) => {
+                  onCambiaScelta('comune', valore);
+                  chiudiSeStretto();
+                }}
+              />
+            ) : null}
           </View>
 
           {/* La nota spiega le etichette sopra: sta **dentro** il pannello,

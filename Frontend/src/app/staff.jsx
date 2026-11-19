@@ -17,7 +17,12 @@ import { AppButton } from '@/components/AppButton';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Card } from '@/components/Card';
-import { StaffStatusBar, emptyTextForFilter } from '@/components/StaffStatusBar';
+import { PillBar } from '@/components/PillBar';
+import {
+  REPORT_STATUS_FILTERS,
+  StaffStatusBar,
+  emptyTextForFilter,
+} from '@/components/StaffStatusBar';
 import { StaffReportCard } from '@/components/StaffReportCard';
 import { StaffDeletedServicesSection } from '@/components/StaffDeletedServicesSection';
 import { StaffOperationsLog } from '@/components/StaffOperationsLog';
@@ -49,6 +54,14 @@ import { space, useTokens } from '@/theme/tokens';
 const STAFF_PAGE_SIZE = 20;
 
 /**
+ * Quante opzioni di stato stanno in prima vista: «Tutte» e i due stati su cui lo
+ * staff lavora davvero. Gli altri due restano a un livello di distanza, perché
+ * cinque pillole in fila sono più opzioni di quante se ne leggano in un colpo
+ * (audit §3 P2 «Decision points above four options»).
+ */
+const REPORT_FILTERS_IN_VIEW = 3;
+
+/**
  * "Area staff": the reports to examine.
  *
  * Not a sixth tab: it is a secondary route opened from the Profile only when the
@@ -67,6 +80,9 @@ export default function StaffScreen() {
   const staffId = utente?.id ?? null;
 
   const [filter, setFilter] = useState(null);
+  // Il secondo livello del filtro per stato: aperto mostra tutte e cinque le
+  // pillole, chiuso lascia in vista le prime tre e un comando che le riapre.
+  const [filterMoreOpen, setFilterMoreOpen] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -360,6 +376,12 @@ export default function StaffScreen() {
 
   const list = reports.voci ?? [];
   const busyOn = (report) => busy !== null && Number(busy.id) === Number(report.id);
+  // Lo stato che vive dietro il secondo livello: se è quello attivo, il comando
+  // chiuso lo nomina, così la prima fila non resta senza nessuna pillola scelta.
+  const hiddenFilter =
+    REPORT_STATUS_FILTERS.slice(REPORT_FILTERS_IN_VIEW).find(
+      (scelta) => scelta.valore === filter,
+    ) ?? null;
 
   return (
     <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
@@ -400,7 +422,49 @@ export default function StaffScreen() {
         </AppText>
       ) : null}
 
-      <StaffStatusBar filter={filter} onChange={setFilter} disabled={reports.caricamento} />
+      {/* Cinque stati in fila sono più opzioni di quante se ne leggano in un
+          colpo (audit §3 P2): in prima vista restano «Tutte» e i due stati su cui
+          si lavora, gli altri due stanno dietro un comando che porta il nome
+          dello stato attivo quando è uno di loro. */}
+      <View style={{ gap: space.sm }}>
+        <AppText variant="small" style={{ fontWeight: '600' }}>
+          Stato delle segnalazioni
+        </AppText>
+        {filterMoreOpen ? (
+          <StaffStatusBar
+            filter={filter}
+            // Scegliere richiude il secondo livello: la decisione torna a quattro
+            // opzioni in vista e la scelta resta scritta sul comando che le apre.
+            onChange={(valore) => {
+              setFilter(valore);
+              setFilterMoreOpen(false);
+            }}
+            disabled={reports.caricamento}
+          />
+        ) : (
+          <PillBar
+            accessibilityLabel="Filtra le segnalazioni per stato"
+            scelte={REPORT_STATUS_FILTERS.slice(0, REPORT_FILTERS_IN_VIEW)}
+            valore={filter}
+            onChange={setFilter}
+            disabled={reports.caricamento}
+          />
+        )}
+        {filterMoreOpen ? null : (
+          <AppButton
+            label={hiddenFilter ? `Stato: ${hiddenFilter.etichetta}` : 'Altri stati'}
+            variant="secondary"
+            icon="chevron-down-outline"
+            onPress={() => setFilterMoreOpen(true)}
+            accessibilityLabel={
+              hiddenFilter
+                ? `Cambia il filtro per stato, ora: ${hiddenFilter.etichetta}`
+                : 'Mostra anche le segnalazioni confermate e respinte'
+            }
+            style={{ alignSelf: 'flex-start' }}
+          />
+        )}
+      </View>
 
       {reports.errore ? (
         <Banner

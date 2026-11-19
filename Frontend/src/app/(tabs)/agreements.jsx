@@ -405,7 +405,13 @@ function SectionTabs({ sections, activeKey, counts, onChange }) {
  * The bell as a floating round button in the bottom-right corner, with the
  * count of proposals to answer on the top-right of the circle. The badge pair is
  * `dangerBg`/`dangerText` — a colour combination the theme already validates —
- * with a `danger` border so it still reads against the primary circle.
+ * with a `danger` border so it still reads against the neutral surface.
+ *
+ * The disc is chrome, not the screen's action, so it does not spend the accent:
+ * it holds `surface` with the control border `borderInput` (the boundary that
+ * identifies a control needs 3:1, WCAG 1.4.11) and keeps its shadow so it still
+ * floats above the list. The accent stays on `Accetta`, the one primary action
+ * inside the panel (accent rule, audit P1-10).
  */
 function BellButton({ conteggio, aperto, onPress }) {
   const t = useTokens();
@@ -424,9 +430,11 @@ function BellButton({ conteggio, aperto, onPress }) {
         width: BELL_SIZE,
         height: BELL_SIZE,
         borderRadius: radius.pill,
+        borderWidth: 1,
+        borderColor: t.borderInput,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: pressed ? t.primaryPressed : t.primary,
+        backgroundColor: pressed ? t.border : t.surface,
         shadowColor: ombra,
         shadowOpacity: 0.28,
         shadowRadius: 12,
@@ -437,7 +445,7 @@ function BellButton({ conteggio, aperto, onPress }) {
       <AppIcon
         name={aperto ? 'notifications' : 'notifications-outline'}
         size={24}
-        color={t.onPrimary}
+        color={t.text}
       />
       {conteggio !== null && conteggio > 0 ? (
         <View

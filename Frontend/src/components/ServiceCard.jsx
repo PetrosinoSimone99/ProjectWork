@@ -9,22 +9,32 @@ import { space, useTokens } from '@/theme/tokens';
 
 /**
  * La card di un servizio del catalogo della home: la frase della persona,
- * la riga dei dati e la coda che apre il dettaglio.
+ * la griglia dei dati e la coda che apre il dettaglio.
  *
  * **Una sola anatomia** (direzione UX «A», audit UX F82, F93), tre parti:
  *
  * 1. il titolo — la frase di chi offre, 19/700, fino a tre righe. Prima era la
  *    categoria a stare in cima con il peso del titolo e la frase veniva tagliata
  *    a due righe: la card diceva la classe del servizio e non il servizio;
- * 2. una riga di dati, 13 e secondaria, con la pillola della categoria in linea
- *    accanto a modalità, luogo, data e autore. La categoria non torna sopra il
- *    titolo, e la pillola è una sola per card;
+ * 2. una griglia di dati, 13 e secondaria: due colonne uguali e tre righe
+ *    (categoria e modalità, luogo e data, autore a tutta larghezza). La
+ *    categoria non torna sopra il titolo, e la pillola è una sola per card;
  * 3. un'azione in coda: il chevron che dice «questa riga si apre». La card è
  *    tutta un bottone, quindi l'azione non è un secondo comando separato.
  *
  * La card riempie la colonna di `Screen` (`layout.maxCatalogo`): la misura di
  * lettura la decide il telaio, non la card, che prima si fermava a 712 px dentro
  * una colonna da 1024 e lasciava scoperti 260 px (audit UX F80).
+ *
+ * **Perché una griglia e non una riga che va a capo** (audit 2026-11-18 §P2):
+ * le cinque voci erano un `flexWrap` in fila, quindi a 412 px ogni card andava
+ * a capo in un punto diverso — quattro righe, poi due, poi tre — e il ritmo di
+ * lettura si perdeva proprio nell'unica schermata che si scorre a colpo
+ * d'occhio. Qui nessuna voce può andare a capo: ogni cella è una riga sola con
+ * ellissi, la riga è sempre la stessa, e la colonna di ogni token è la stessa
+ * in ogni card. La battuta fra le due colonne è il padding della cella di
+ * sinistra e non un `gap`: due metà più un `gap` superano la riga, e il testo
+ * andrebbe a capo di nuovo.
  *
  * Il modello è quello di `GET /api/services` (vedi `normalizzaOffertaCatalogo`):
  * la località è dell'**annuncio** (`servizio.localita`, dal 16/10/2026), con
@@ -39,6 +49,51 @@ import { space, useTokens } from '@/theme/tokens';
  *
  * Solo dati e callback: nessuno stato proprio, nessuna chiamata di rete.
  */
+
+/** Una riga della griglia dei dati: due colonne uguali, senza `gap`.
+ *
+ * La prima cella porta la battuta a destra nel proprio padding, così le due
+ * colonne misurano esattamente metà riga e il bordo di ogni colonna cade nello
+ * stesso punto in tutte le card.
+ */
+const stileRigaDati = { flexDirection: 'row', alignItems: 'center' };
+
+const stileCella = {
+  flex: 1,
+  // `minWidth: 0` è quello che permette al testo di accorciarsi invece di
+  // allargare la cella: senza, la riga cresce oltre la card (F80).
+  minWidth: 0,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: space.xs,
+};
+
+const stileCellaSinistra = { ...stileCella, paddingRight: space.md };
+
+/**
+ * Una cella della griglia dei dati: icona 14 e un valore su **una riga sola**,
+ * con ellissi quando il valore è lungo.
+ *
+ * L'icona è decorativa: il nome accessibile della card è uno solo e sta sul
+ * `Pressable`, quindi queste celle non sono fermate di focus separate.
+ */
+function CellaDato({ icon, children, style }) {
+  const t = useTokens();
+  return (
+    <View style={[stileCella, style]}>
+      <AppIcon name={icon} size={14} color={t.textSecondary} />
+      <AppText
+        variant="small"
+        tone="secondary"
+        numberOfLines={1}
+        style={{ flexShrink: 1 }}
+      >
+        {children}
+      </AppText>
+    </View>
+  );
+}
+
 export function ServiceCard({ servizio, onPress }) {
   const t = useTokens();
 
@@ -89,60 +144,68 @@ export function ServiceCard({ servizio, onPress }) {
               {servizio.descrizione}
             </AppText>
 
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: space.sm,
-              }}
-            >
-              <Chip background={t.serviceBg}>
-                <AppText variant="caption" style={{ color: t.serviceText }}>
-                  {etichettaCategoria}
-                </AppText>
-              </Chip>
+            <View style={{ gap: space.xs }}>
+              {/* Riga 1 — categoria e modalità. La modalità è sempre nota (il
+                  contratto la manda come booleano), quindi la voce compare
+                  sempre: l'icona distingue da remoto da in presenza, e la
+                  parola lo dice a chi non vede l'icona. */}
+              <View style={stileRigaDati}>
+                <View style={stileCellaSinistra}>
+                  {/* La pillola si accorcia dentro la sua colonna invece di
+                      allargarla: più categorie su una card non spostano
+                      niente, e l'elenco intero resta nel nome accessibile. */}
+                  <View style={{ maxWidth: '100%' }}>
+                    <Chip background={t.serviceBg}>
+                      <AppText
+                        variant="caption"
+                        numberOfLines={1}
+                        style={{ color: t.serviceText, flexShrink: 1 }}
+                      >
+                        {etichettaCategoria}
+                      </AppText>
+                    </Chip>
+                  </View>
+                </View>
 
-              {/* La modalità è sempre nota (il contratto la manda come booleano),
-                  quindi la voce compare sempre: l'icona distingue da remoto da
-                  in presenza, e la parola lo dice a chi non vede l'icona. */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <AppIcon
-                  name={servizio.daRemoto ? 'videocam-outline' : 'people-outline'}
-                  size={14}
-                  color={t.textSecondary}
-                />
-                <AppText variant="small" tone="secondary">
+                <CellaDato
+                  icon={servizio.daRemoto ? 'videocam-outline' : 'people-outline'}
+                >
                   {etichettaModalita(servizio.daRemoto)}
-                </AppText>
+                </CellaDato>
               </View>
 
-              {/* La località del servizio (ripiego: quella della persona) è
-                  facoltativa: se manca, la voce non compare (niente trattino,
-                  niente «N/D»). */}
-              {localita ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <AppIcon name="location-outline" size={14} color={t.textSecondary} />
-                  <AppText variant="small" tone="secondary">
+              {/* Riga 2 — luogo e data. La località (ripiego: quella della
+                  persona) è facoltativa: se manca resta la cella vuota, che
+                  tiene la colonna, e non compare nessun «N/D». */}
+              <View style={stileRigaDati}>
+                {localita ? (
+                  <CellaDato icon="location-outline" style={stileCellaSinistra}>
                     {localitaPerDisplay(localita)}
-                  </AppText>
-                </View>
-              ) : null}
+                  </CellaDato>
+                ) : (
+                  <View style={stileCellaSinistra} />
+                )}
 
-              {pubblicatoIl ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <AppIcon name="calendar-outline" size={14} color={t.textSecondary} />
-                  <AppText variant="small" tone="secondary">
-                    Pubblicato il {pubblicatoIl}
-                  </AppText>
-                </View>
-              ) : null}
+                {/* La data sta nella sua colonna solo nella forma breve:
+                    «Pubblicato il» accanto alla data non entra in mezza riga a
+                    412 px e la data si troncherebbe. La parola la dice il
+                    nome accessibile della card («pubblicato il …»), il
+                    calendario la dice a chi guarda. */}
+                {pubblicatoIl ? (
+                  <CellaDato icon="calendar-outline">{pubblicatoIl}</CellaDato>
+                ) : (
+                  <View style={stileCella} />
+                )}
+              </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                <AppIcon name="person-outline" size={14} color={t.textSecondary} />
-                <AppText variant="small" tone="secondary">
-                  {servizio.offerente?.username ? `${autore} @${servizio.offerente.username}` : autore}
-                </AppText>
+              {/* Riga 3 — l'autore, a tutta larghezza: è l'unico dato che in
+                  mezza riga perderebbe il nome utente. */}
+              <View style={stileRigaDati}>
+                <CellaDato icon="person-outline">
+                  {servizio.offerente?.username
+                    ? `${autore} @${servizio.offerente.username}`
+                    : autore}
+                </CellaDato>
               </View>
             </View>
           </View>

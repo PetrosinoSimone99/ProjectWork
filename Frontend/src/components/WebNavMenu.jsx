@@ -66,10 +66,30 @@ const OMBRA_PANNELLO = {
   elevation: 8,
 };
 
+// Il tetto delle voci di primo livello: quattro righe di destinazioni, il resto
+// sotto l'unica riga «Account». `TAB_ROUTES` tiene l'account in fondo — la coda
+// della lista è il secondo livello — e questo file non rinomina né riordina
+// niente: la fonte di nomi, indirizzi e icone resta una sola.
+const TETTO_VOCI_PRIMARIE = 4;
+const ROTTE_PRIMARIE = TAB_ROUTES.slice(0, TETTO_VOCI_PRIMARIE);
+const ROTTE_ACCOUNT = TAB_ROUTES.slice(TETTO_VOCI_PRIMARIE);
+// L'icona del gruppo non ripete quella della riga che contiene: il gruppo è
+// l'ingresso, la riga dentro è la destinazione.
+const ICONA_ACCOUNT = 'person-circle-outline';
+
 /**
  * Il menu di navigazione del **web**: una barra neutra fissa in alto a destra
- * — il nome dell'app e il controllo «Menu» — che apre una tendina con le 5
- * schermate.
+ * — il nome dell'app e il controllo «Menu» — che apre una tendina con le
+ * destinazioni dell'app, su **due livelli**.
+ *
+ * Il primo livello mostra **quattro** voci. `TAB_ROUTES` ne dichiara cinque, e
+ * cinque righe affiancate sono cinque decisioni nello stesso pannello (audit
+ * 2026-11-18, P2 «Decision points above four options»). La quinta riga non è
+ * una destinazione: è l'ingresso al secondo livello — «Account» — che tiene
+ * l'account e tutto ciò che sta oltre il tetto. Raggruppate, non nascoste:
+ * arrivarci costa un tocco in più, non una voce in meno. Il secondo livello si
+ * apre **dentro** il pannello, rientrato sotto la sua riga — nessuna seconda
+ * tendina, nessun cambio di pagina — e si richiude quando il menu si chiude.
  *
  * La barra è **neutra** di proposito (direzione UX «A», audit UX F88): l'accento
  * `primary` resta alla sola azione primaria della schermata e alle marche di
@@ -94,7 +114,8 @@ const OMBRA_PANNELLO = {
  * sezione si è senza dover leggere il titolo della schermata.
  *
  * Stati UI espliciti: `chiuso`, `inApertura`/`inChiusura` (la tendina resta
- * montata finché la chiusura non è finita), voce `hover`/`press`/`focus`/`attiva`.
+ * montata finché la chiusura non è finita), voce `hover`/`press`/`focus`/`attiva`,
+ * secondo livello `aperto`/`chiuso`.
  * **Loading, errore e disabilitato non si applicano**: la navigazione è statica,
  * non c'è nessun dato asincrono da attendere né da poter fallire.
  *
@@ -127,6 +148,10 @@ export function WebNavMenu() {
 
   const [aperto, setAperto] = useState(false);
   const [visibile, setVisibile] = useState(false);
+  // Il secondo livello parte chiuso e si richiude con la tendina che lo
+  // contiene: due aperture di fila mostrano sempre le stesse quattro righe più
+  // «Account».
+  const [accountAperto, setAccountAperto] = useState(false);
   const [controlloInHover, setControlloInHover] = useState(false);
   const [aggiornaInHover, setAggiornaInHover] = useState(false);
   const [voceInHover, setVoceInHover] = useState(null);
@@ -138,10 +163,13 @@ export function WebNavMenu() {
   const [progressoPannello] = useState(() => new Animated.Value(0));
   const [scalaControllo] = useState(() => new Animated.Value(1));
 
-  const numeroRotte = TAB_ROUTES.length;
+  // Una voce per riga di primo livello, «Account» compresa: la cascata è la
+  // stessa di prima, cambia solo quante righe sono. Il secondo livello non ha
+  // valori propri — compare al tocco che lo chiede.
+  const numeroRighe = ROTTE_PRIMARIE.length + (ROTTE_ACCOUNT.length > 0 ? 1 : 0);
   const valoriVoci = useMemo(
-    () => Array.from({ length: numeroRotte }, () => new Animated.Value(0)),
-    [numeroRotte],
+    () => Array.from({ length: numeroRighe }, () => new Animated.Value(0)),
+    [numeroRighe],
   );
 
   const riferimentoContenitore = useRef(null);
@@ -206,6 +234,7 @@ export function WebNavMenu() {
 
   const chiudi = useCallback(() => {
     setAperto(false);
+    setAccountAperto(false);
     fermaAnimazioni();
     Animated.timing(fadePannello, {
       toValue: 0,
@@ -310,6 +339,88 @@ export function WebNavMenu() {
   if (!isWeb) {
     return null;
   }
+
+  const coloreAccount = voceInHover === 'account' ? t.text : t.textSecondary;
+
+  // Una voce del menu: stessa rotta attiva, stesso hover, stesso tocco che
+  // chiude la tendina e naviga. Cambiano solo il rientro — le voci del secondo
+  // livello stanno sotto «Account» — e l'ingresso: le righe di primo livello
+  // entrano in cascata con il pannello (`valoreIngresso`), quelle del gruppo
+  // compaiono quando il tocco le ha chieste, senza un'animazione propria,
+  // perché il tocco è già l'inizio del movimento.
+  const disegnaVoce = (rotta, indiceVoce, valoreIngresso, rientrante) => {
+    const titolo = rotta.title;
+    const attiva = percorso === rotta.path;
+    const inHover = voceInHover === rotta.name;
+    const colore = attiva ? t.primary : inHover ? t.text : t.textSecondary;
+    const icona = (
+      <AppIcon name={rotta.icona} size={DIMENSIONE_ICONA_VOCE} color={colore} />
+    );
+
+    const voce = (
+      <Pressable
+        ref={(nodo) => {
+          riferimentiVoci.current[indiceVoce] = nodo;
+        }}
+        focusable
+        accessibilityRole="menuitem"
+        accessibilityLabel={titolo}
+        accessibilityState={{ selected: attiva }}
+        aria-selected={attiva}
+        onPress={() => {
+          chiudi();
+          if (!attiva) {
+            router.navigate(rotta.path);
+          }
+        }}
+        onHoverIn={() => setVoceInHover(rotta.name)}
+        onHoverOut={() =>
+          setVoceInHover((corrente) => (corrente === rotta.name ? null : corrente))
+        }
+        style={({ pressed }) => [
+          styles.voce,
+          rientrante ? styles.voceRientrante : null,
+          {
+            backgroundColor: attiva || inHover ? t.serviceBg : 'transparent',
+            transform: [{ scale: pressed && !movimentoRidotto ? SCALA_VOCE_PREMUTA : 1 }],
+          },
+        ]}
+      >
+        {({ pressed }) => (
+          <View style={[styles.voceContenuto, { opacity: pressed ? OPACITA_VOCE_PREMUTA : 1 }]}>
+            {icona}
+            <AppText
+              variant="body"
+              style={{ color: colore, fontWeight: attiva ? '700' : '500', flex: 1 }}
+            >
+              {titolo}
+            </AppText>
+          </View>
+        )}
+      </Pressable>
+    );
+
+    return valoreIngresso ? (
+      <Animated.View
+        key={rotta.name}
+        style={{
+          opacity: valoreIngresso,
+          transform: [
+            {
+              translateY: valoreIngresso.interpolate({
+                inputRange: [0, 1],
+                outputRange: [SPOSTAMENTO_VOCE, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        {voce}
+      </Animated.View>
+    ) : (
+      <View key={rotta.name}>{voce}</View>
+    );
+  };
 
   return (
     <View
@@ -449,80 +560,88 @@ export function WebNavMenu() {
             {rottaAttiva ? `Sezione attuale: ${rottaAttiva.title}` : 'Nessuna sezione attiva'}
           </AppText>
           <View accessibilityRole="menu" accessibilityLabel="Menu di navigazione">
-            {TAB_ROUTES.map((rotta, indice) => {
-              const titolo = rotta.title;
-              const attiva = percorso === rotta.path;
-              const inHover = voceInHover === rotta.name;
-              const colore = attiva ? t.primary : inHover ? t.text : t.textSecondary;
-              const valoreVoce = valoriVoci[indice];
-              const icona = (
-                <AppIcon name={rotta.icona} size={DIMENSIONE_ICONA_VOCE} color={colore} />
-              );
+            {ROTTE_PRIMARIE.map((rotta, indice) =>
+              disegnaVoce(rotta, indice, valoriVoci[indice], false),
+            )}
 
-              return (
-                <Animated.View
-                  key={rotta.name}
-                  style={{
-                    opacity: valoreVoce,
-                    transform: [
-                      {
-                        translateY: valoreVoce.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [SPOSTAMENTO_VOCE, 0],
-                        }),
-                      },
-                    ],
+            {/* L'ingresso al secondo livello: non naviga, apre e chiude il
+                gruppo. È una riga come le altre — stesso bersaglio, stesso
+                anello di focus, stesso ↑/↓ — e il chevron dice lo stato come
+                `aria-expanded`. */}
+            {ROTTE_ACCOUNT.length > 0 ? (
+              <Animated.View
+                style={{
+                  opacity: valoriVoci[ROTTE_PRIMARIE.length],
+                  transform: [
+                    {
+                      translateY: valoriVoci[ROTTE_PRIMARIE.length].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [SPOSTAMENTO_VOCE, 0],
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <Pressable
+                  ref={(nodo) => {
+                    riferimentiVoci.current[ROTTE_PRIMARIE.length] = nodo;
                   }}
+                  focusable
+                  accessibilityRole="menuitem"
+                  accessibilityLabel={
+                    accountAperto ? 'Account, chiudi le voci' : 'Account, apri le voci'
+                  }
+                  accessibilityState={{ expanded: accountAperto }}
+                  aria-expanded={accountAperto}
+                  onPress={() => setAccountAperto((corrente) => !corrente)}
+                  onHoverIn={() => setVoceInHover('account')}
+                  onHoverOut={() =>
+                    setVoceInHover((corrente) => (corrente === 'account' ? null : corrente))
+                  }
+                  style={({ pressed }) => [
+                    styles.voce,
+                    {
+                      backgroundColor: voceInHover === 'account' ? t.serviceBg : 'transparent',
+                      transform: [
+                        { scale: pressed && !movimentoRidotto ? SCALA_VOCE_PREMUTA : 1 },
+                      ],
+                    },
+                  ]}
                 >
-                  <Pressable
-                    ref={(nodo) => {
-                      riferimentiVoci.current[indice] = nodo;
-                    }}
-                    focusable
-                    accessibilityRole="menuitem"
-                    accessibilityLabel={titolo}
-                    accessibilityState={{ selected: attiva }}
-                    aria-selected={attiva}
-                    onPress={() => {
-                      chiudi();
-                      if (!attiva) {
-                        router.navigate(rotta.path);
-                      }
-                    }}
-                    onHoverIn={() => setVoceInHover(rotta.name)}
-                    onHoverOut={() =>
-                      setVoceInHover((corrente) => (corrente === rotta.name ? null : corrente))
-                    }
-                    style={({ pressed }) => [
-                      styles.voce,
-                      {
-                        backgroundColor: attiva || inHover ? t.serviceBg : 'transparent',
-                        transform: [
-                          { scale: pressed && !movimentoRidotto ? SCALA_VOCE_PREMUTA : 1 },
-                        ],
-                      },
-                    ]}
-                  >
-                    {({ pressed }) => (
-                      <View
-                        style={[
-                          styles.voceContenuto,
-                          { opacity: pressed ? OPACITA_VOCE_PREMUTA : 1 },
-                        ]}
+                  {({ pressed }) => (
+                    <View
+                      style={[
+                        styles.voceContenuto,
+                        { opacity: pressed ? OPACITA_VOCE_PREMUTA : 1 },
+                      ]}
+                    >
+                      <AppIcon
+                        name={ICONA_ACCOUNT}
+                        size={DIMENSIONE_ICONA_VOCE}
+                        color={coloreAccount}
+                      />
+                      <AppText
+                        variant="body"
+                        style={{ color: coloreAccount, fontWeight: '500', flex: 1 }}
                       >
-                        {icona}
-                        <AppText
-                          variant="body"
-                          style={{ color: colore, fontWeight: attiva ? '700' : '500', flex: 1 }}
-                        >
-                          {titolo}
-                        </AppText>
-                      </View>
-                    )}
-                  </Pressable>
-                </Animated.View>
-              );
-            })}
+                        Account
+                      </AppText>
+                      <AppIcon
+                        name={accountAperto ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={t.textSecondary}
+                      />
+                    </View>
+                  )}
+                </Pressable>
+              </Animated.View>
+            ) : null}
+
+            {accountAperto
+              ? ROTTE_ACCOUNT.map((rotta, indice) =>
+                  disegnaVoce(rotta, ROTTE_PRIMARIE.length + 1 + indice, null, true),
+                )
+              : null}
           </View>
         </Animated.View>
       ) : null}
@@ -601,5 +720,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
+  },
+  // Il rientro dice la gerarchia: la voce sta **sotto** la riga che l'ha
+  // aperta, non accanto. Nessun colore nuovo: la gerarchia è il margine.
+  voceRientrante: {
+    paddingLeft: space.xxl,
   },
 });

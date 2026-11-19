@@ -66,6 +66,9 @@ export default function StaffUsersScreen() {
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
+  // Il secondo livello del filtro per stato: chiuso, la scheda mostra quattro
+  // comandi invece di sei, che è il tetto dell'audit (§3 P2).
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false);
 
   const actionRef = useRef(false);
   const primoCaricamento = useRef(true);
@@ -133,6 +136,11 @@ export default function StaffUsersScreen() {
     () => users ?? [],
     [users],
   );
+  // Lo stato non sparisce quando il secondo livello è chiuso: il comando che lo
+  // apre porta scritto lo stato in vigore, anche quando è uno dei due che
+  // restano nascosti. Un filtro attivo non può essere invisibile.
+  const activeStatusFilterLabel =
+    statusFilter === null ? 'Tutti' : accountStatusLabel(statusFilter);
   const filtersActive = query.trim() !== '' || roleFilter !== null || statusFilter !== null;
   // I due filtri che il backend applica davvero: l'elenco vuoto li distingue dal
   // ruolo, che invece guarda solo le righe arrivate.
@@ -265,12 +273,28 @@ export default function StaffUsersScreen() {
           <AppText variant="small" style={{ fontWeight: '600' }}>
             Stato
           </AppText>
-          <PillBar
-            accessibilityLabel="Filtra gli utenti per stato"
-            scelte={STATUS_FILTERS}
-            valore={statusFilter}
-            onChange={setStatusFilter}
-          />
+          {statusFilterOpen ? (
+            <PillBar
+              accessibilityLabel="Filtra gli utenti per stato"
+              scelte={STATUS_FILTERS}
+              valore={statusFilter}
+              // Scegliere chiude il secondo livello: la scheda torna a quattro
+              // comandi e la scelta resta scritta su quello che li riapre.
+              onChange={(valore) => {
+                setStatusFilter(valore);
+                setStatusFilterOpen(false);
+              }}
+            />
+          ) : (
+            <AppButton
+              label={`Stato: ${activeStatusFilterLabel}`}
+              variant="secondary"
+              icon="chevron-down-outline"
+              onPress={() => setStatusFilterOpen(true)}
+              accessibilityLabel={`Cambia il filtro per stato, ora: ${activeStatusFilterLabel}`}
+              style={{ alignSelf: 'flex-start' }}
+            />
+          )}
         </View>
         {filtersActive ? (
           <AppButton

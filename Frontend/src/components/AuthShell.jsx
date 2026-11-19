@@ -19,6 +19,11 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * a metà. La registrazione è lunga e scorre dall'alto, quindi non lo passa.
  *
  * Il guscio non conosce né sessione né errori: il contenuto è dei chiamanti.
+ *
+ * Il disco del marchio non porta l'accento: è cornice, non azione, e su login e
+ * registrazione l'unico accento della schermata è il pulsante che invia il
+ * modulo (regola dell'accento, audit P1-10). Resta lo stesso disco da 64 pt,
+ * su superficie neutra con bordo decorativo, e l'icona sul colore del testo.
  */
 export function AuthShell({ children, scroll = true, centrata = false }) {
   const t = useTokens();
@@ -31,12 +36,16 @@ export function AuthShell({ children, scroll = true, centrata = false }) {
             width: 64,
             height: 64,
             borderRadius: radius.pill,
-            backgroundColor: t.primary,
+            // Superficie neutra e bordo decorativo (`border`, non `borderInput`):
+            // il disco non è un controllo, nessuno lo preme.
+            backgroundColor: t.surface,
+            borderWidth: 1,
+            borderColor: t.border,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <AppIcon name="swap-horizontal" size={30} color={t.onPrimary} />
+          <AppIcon name="swap-horizontal" size={30} color={t.text} />
         </View>
         <AppText variant="title" accessibilityRole="text">
           Baratto-lo

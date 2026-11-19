@@ -25,10 +25,20 @@ import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
 import { sheetsFor, statoScheda, direzioniScambio } from '@/services/agreements';
 import { formatIsoDateTimeNumeric } from '@/services/dates';
-import { space } from '@/theme/tokens';
+import { colonna, layout, space } from '@/theme/tokens';
 
 /** The header's line when the other person has not written yet. */
 const FRASE_GENERICA = 'Messaggi dello scambio: accordatevi qui sui dettagli.';
+
+/**
+ * La colonna di lettura della chat: la stessa misura che `Screen` portava sulla
+ * cornice finché era la cornice l'antenato che scorre. Ora scorre la lista, e i
+ * blocchi che non scorrono — testata, scheda, composer — la portano da qui. La
+ * misura sta sul nodo che scorre, non sopra: altrimenti la barra di scorrimento
+ * si disegna sul bordo della colonna e la rotella sopra i gutter non fa niente
+ * (audit 2026-11-18, P1-11).
+ */
+const stileColonna = { ...colonna(layout.maxContent), paddingHorizontal: space.lg };
 
 /**
  * La testata nomina lo scambio, non solo la persona: con entrambi i servizi noti
@@ -275,56 +285,71 @@ export default function ChatScreen() {
   const conclusoIl = formatIsoDateTimeNumeric(altra?.fine ?? mia?.fine);
 
   return (
-    <Screen scroll={false} bottomSpacing={space.sm}>
-      <PageHeader
-        titolo="Chat"
-        frase={controparte === null ? FRASE_GENERICA : fraseDelloScambio(controparte, direzioni)}
-        indietro={<BackButton />}
-      />
-
-      {erroreAccordo ? (
-        <Banner
-          kind="error"
-          message={erroreAccordo}
-          etichettaAzione="Riprova"
-          onAzione={() => void caricaAccordo()}
-          caricamentoAzione={caricamentoAccordo}
+    // La misura la porta il figlio che scorre (`misuraAlFiglio`, P1-11): la
+    // cornice rinuncia al tetto e ai gutter orizzontali, se li riprendono i
+    // blocchi fermi qui sotto e il contenuto della `FlatList`. Così la barra di
+    // scorrimento sta sul bordo della finestra e la rotella sopra i gutter
+    // scorre i messaggi invece di cadere su un antenato fermo.
+    <Screen scroll={false} misuraAlFiglio bottomSpacing={space.sm}>
+      {/* La testata resta larga quanto la colonna: `PageHeader` ricava il
+          rientro della freccia dal gutter della finestra, e in un contenitore
+          largo quanto la finestra lo manderebbe fuori dallo schermo. */}
+      <View style={{ ...stileColonna, gap: space.xxl }}>
+        <PageHeader
+          titolo="Chat"
+          frase={controparte === null ? FRASE_GENERICA : fraseDelloScambio(controparte, direzioni)}
+          indietro={<BackButton />}
         />
-      ) : null}
 
-      {riga !== null ? (
-        <AppText variant="small" tone="secondary">
-          {riga}
-        </AppText>
-      ) : null}
+        {erroreAccordo ? (
+          <Banner
+            kind="error"
+            message={erroreAccordo}
+            etichettaAzione="Riprova"
+            onAzione={() => void caricaAccordo()}
+            caricamentoAzione={caricamentoAccordo}
+          />
+        ) : null}
 
-      {accordo !== null && accordo.stato === 'ACCEPTED' && statoDellaScheda !== null ? (
-        <AppButton
-          // L'etichetta cambia su un confine solo, `daCompilare` (contratto di
-          // copy del 2026-11-19): «Invia la scheda» mentre nessuno l'ha scritta,
-          // «Conferma la scheda» quando la scheda c'è già. La riga che si apre
-          // dice chi deve confermare, e il verbo resta quello della scheda.
-          label={statoDellaScheda === 'daCompilare' ? 'Invia la scheda' : 'Conferma la scheda'}
-          icon="document-text-outline"
-          variant="secondary"
-          onPress={() => setSchedaAperta(true)}
-        />
-      ) : null}
+        {riga !== null ? (
+          <AppText variant="small" tone="secondary">
+            {riga}
+          </AppText>
+        ) : null}
 
+        {accordo !== null && accordo.stato === 'ACCEPTED' && statoDellaScheda !== null ? (
+          <AppButton
+            // L'etichetta cambia su un confine solo, `daCompilare` (contratto di
+            // copy del 2026-11-19): «Invia la scheda» mentre nessuno l'ha scritta,
+            // «Conferma la scheda» quando la scheda c'è già. La riga che si apre
+            // dice chi deve confermare, e il verbo resta quello della scheda.
+            label={statoDellaScheda === 'daCompilare' ? 'Invia la scheda' : 'Conferma la scheda'}
+            icon="document-text-outline"
+            variant="secondary"
+            onPress={() => setSchedaAperta(true)}
+          />
+        ) : null}
+
+        {/* L'errore di lettura della chat sta qui e non fra i due blocchi:
+            quando c'è, lo spinner della prima lettura non c'è (`errore === null`),
+            quindi l'ordine fra i due non si vede mai. */}
+        {errore ? (
+          <Banner
+            kind="error"
+            message={errore}
+            etichettaAzione="Riprova"
+            onAzione={() => void ricarica()}
+            caricamentoAzione={caricamento}
+          />
+        ) : null}
+      </View>
+
+      {/* Spinner e stato vuoto si centrano da soli e restano figli diretti della
+          cornice, dove il `flex: 1` di `LoadingScreen` trova l'altezza. */}
       {/* `messaggi === null` is the state before the first answer lands, which
           is also the first frame, before the focus effect has asked anything:
           the spinner is owed there too, not only while a request flies. */}
       {primaLettura && errore === null ? <LoadingScreen /> : null}
-
-      {errore ? (
-        <Banner
-          kind="error"
-          message={errore}
-          etichettaAzione="Riprova"
-          onAzione={() => void ricarica()}
-          caricamentoAzione={caricamento}
-        />
-      ) : null}
 
       {vuota && !errore ? (
         <EmptyState
@@ -348,36 +373,49 @@ export default function ChatScreen() {
             data={messaggi}
             keyExtractor={(messaggio) => String(messaggio.id)}
             renderItem={({ item }) => <MessageBubble messaggio={item} myUsername={myUsername} />}
-            contentContainerStyle={{ gap: space.sm, paddingVertical: space.sm }}
+            // Il nodo che scorre è la lista, larga quanto la finestra: la misura
+            // sta sul suo contenuto, così la barra di scorrimento è sul bordo
+            // della finestra e la rotella sopra i gutter scorre i messaggi
+            // (P1-11).
+            contentContainerStyle={{
+              ...stileColonna,
+              gap: space.sm,
+              paddingVertical: space.sm,
+            }}
             onContentSizeChange={() => listaRef.current?.scrollToEnd({ animated: false })}
           />
         ) : null}
 
-        {erroreInvio ? <Banner kind="error" message={erroreInvio} /> : null}
+        {/* Il composer è ancorato in fondo, quindi non scorre: la colonna se la
+            porta lui, altrimenti a 1280 la casella di scrittura va da bordo a
+            bordo. */}
+        <View style={stileColonna}>
+          {erroreInvio ? <Banner kind="error" message={erroreInvio} /> : null}
 
-        {concluso ? (
-          // A closed exchange keeps its history readable but refuses new messages
-          // (`409`): showing the composer would invite a send that cannot work.
-          <View style={{ gap: space.sm }}>
-            <AppText variant="small" tone="secondary">
-              {conclusoIl
-                ? `Scambio concluso il ${conclusoIl}. La chat resta in sola lettura.`
-                : 'Questo scambio è chiuso. La chat resta in sola lettura.'}
-            </AppText>
-            <AppButton
-              label="Torna agli accordi"
-              icon="arrow-back-outline"
-              onPress={() => router.replace('/agreements')}
+          {concluso ? (
+            // A closed exchange keeps its history readable but refuses new messages
+            // (`409`): showing the composer would invite a send that cannot work.
+            <View style={{ gap: space.sm }}>
+              <AppText variant="small" tone="secondary">
+                {conclusoIl
+                  ? `Scambio concluso il ${conclusoIl}. La chat resta in sola lettura.`
+                  : 'Questo scambio è chiuso. La chat resta in sola lettura.'}
+              </AppText>
+              <AppButton
+                label="Torna agli accordi"
+                icon="arrow-back-outline"
+                onPress={() => router.replace('/agreements')}
+              />
+            </View>
+          ) : (
+            <MessageComposer
+              onInvia={invia}
+              inviando={inviando}
+              disabilitato={chatId === null}
+              chiaveBozza={'/chat/' + agreementId}
             />
-          </View>
-        ) : (
-          <MessageComposer
-            onInvia={invia}
-            inviando={inviando}
-            disabilitato={chatId === null}
-            chiaveBozza={'/chat/' + agreementId}
-          />
-        )}
+          )}
+        </View>
       </View>
 
       {accordo !== null && statoDellaScheda === 'daCompilare' ? (

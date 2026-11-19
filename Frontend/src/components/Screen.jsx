@@ -52,6 +52,12 @@ const KEYBOARD_HIDE_EVENT = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboa
  * le schermate con una barra ancorata in fondo (chat) lo riducono, altrimenti
  * sopra l'home indicator resta un vuoto troppo alto.
  *
+ * `misuraAlFiglio` (chat) dice che a scorrere è un figlio — la `FlatList` dei
+ * messaggi — e che la misura è sua: la cornice rinuncia al tetto e ai gutter
+ * orizzontali, e il figlio porta `colonna(larghezzaMassima)` sul proprio
+ * contenuto. È la stessa regola di `larga` (il catalogo) applicata alla misura
+ * di lettura: `maxContent`, non `maxCatalogo`.
+ *
  * Sul web, quando la finestra è così stretta che la barra di `WebNavMenu`
  * entrerebbe nella colonna del contenuto, quella fascia viene riservata con un
  * padding in più: il titolo non finisce sotto la barra. Da nativo non cambia
@@ -65,6 +71,7 @@ export function Screen({
   refreshing = false,
   onRefresh = null,
   larga = false,
+  misuraAlFiglio = false,
 }) {
   const t = useTokens();
   const insets = useSafeAreaInsets();
@@ -126,12 +133,13 @@ export function Screen({
   // proprietà di flessibilità: la ScrollView riempie con `flexGrow`, la View
   // fissa con `flex: 1`. Il `gap` è la battuta fra sezioni di primo livello (32):
   // è la sola misura che separa due blocchi che non si appartengono.
-  // La misura sta sul frame — cioè sull'antenato che scorre — tranne una volta:
-  // quando la schermata delega lo scorrimento a un figlio (il catalogo). Lì il
-  // nodo che scorre deve essere la finestra, e la misura la porta il contenuto
-  // del nodo con `colonna()`, altrimenti la barra di scorrimento si disegna sul
-  // bordo della colonna e la rotella sopra i gutter non fa niente (F14).
-  const misuraSulFrame = !larga;
+  // La misura sta sul frame — cioè sull'antenato che scorre — tranne quando la
+  // schermata delega lo scorrimento a un figlio: il catalogo (`larga`) e la chat
+  // (`misuraAlFiglio`). Lì il nodo che scorre deve essere la finestra, e la
+  // misura la porta il contenuto del nodo con `colonna()`, altrimenti la barra
+  // di scorrimento si disegna sul bordo della colonna e la rotella sopra i
+  // gutter non fa niente (F14, P1-11).
+  const misuraSulFrame = !larga && !misuraAlFiglio;
   const riempimento = {
     paddingHorizontal: misuraSulFrame ? space.lg : 0,
     paddingTop: space.lg,
@@ -142,13 +150,13 @@ export function Screen({
     alignSelf: 'center',
   };
 
-  // Se una schermata `larga` scorresse da sé (`scroll`), la misura starebbe sul
-  // contenuto del nodo che scorre, come nella `FlatList` di `ServicesSection`:
-  // il frame non la porta mai. Oggi nessuna schermata fa questa combinazione, e
-  // così non può farla nemmeno domani senza portarsi la misura dietro.
-  const riempimentoContenuto = larga
-    ? { ...riempimento, ...colonna(larghezzaMassima), paddingHorizontal: space.lg }
-    : riempimento;
+  // Con la misura fuori dal frame, se la schermata scorresse da sé (`scroll`) la
+  // porterebbe il contenuto del nodo che scorre, come nella `FlatList` di
+  // `ServicesSection`. Oggi nessuna schermata fa questa combinazione, e così non
+  // può farla nemmeno domani senza portarsi la misura dietro.
+  const riempimentoContenuto = misuraSulFrame
+    ? riempimento
+    : { ...riempimento, ...colonna(larghezzaMassima), paddingHorizontal: space.lg };
 
   const content = scroll ? (
     <ScrollView
