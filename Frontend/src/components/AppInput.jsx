@@ -4,6 +4,19 @@ import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { radius, space, target, useTokens } from '@/theme/tokens';
 
+/**
+ * Altezza minima del campo multilinea quando nessuno la dichiara: 96 pt, quattro
+ * righe di corpo. È il valore che il campo ha sempre avuto e resta il default
+ * perché sei campi lo usano così (i due form, il profilo, la segnalazione, la
+ * revisione staff, l'editor delle voci): un modulo si compila, e lo spazio per
+ * una frase intera è la sua misura.
+ *
+ * Il composer della chat la abbassa (`altezzaMinima`): lì il campo è la riga di
+ * scrittura di una conversazione, non un modulo, e ogni punto che prende è un
+ * punto tolto ai messaggi.
+ */
+const ALTEZZA_MINIMA_MULTILINEA = 96;
+
 /** Campo con etichetta SOPRA, errore SOTTO, focus visibile e toggle password. */
 export function AppInput({
   label,
@@ -22,6 +35,8 @@ export function AppInput({
   returnKeyType,
   onSubmitEditing,
   accessibilityLabel = null,
+  // Vale solo con `multiline`: senza, il campo resta una riga sola.
+  altezzaMinima = ALTEZZA_MINIMA_MULTILINEA,
   // Il `ref` arriva come prop (React 19): React Native non passa ancora il ref
   // ai componenti funzione. Serve a chi deve portare il focus sul primo campo
   // non valido dopo un invio fallito (audit 2026-11-18, P2) senza cercare il
@@ -75,7 +90,12 @@ export function AppInput({
       >
         <TextInput
           ref={ref}
-          style={[styles.input, { color: t.text }, multiline && styles.multiline]}
+          style={[
+            styles.input,
+            { color: t.text },
+            multiline && styles.multiline,
+            multiline && { minHeight: altezzaMinima },
+          ]}
           accessibilityLabel={accessibilityLabel ?? label}
           accessibilityHint={suNativo && error ? error : undefined}
           nativeID={idCampo}
@@ -156,5 +176,7 @@ const styles = StyleSheet.create({
   // width wins over its container and at 320 px the input crossed the viewport
   // (mobile audit F1). Zero is already what native does by default.
   input: { flex: 1, minWidth: 0, minHeight: 48, fontSize: 15, paddingVertical: space.sm },
-  multiline: { minHeight: 96, textAlignVertical: 'top' },
+  // L'altezza minima arriva dalla prop (`ALTEZZA_MINIMA_MULTILINEA` di default):
+  // qui resta solo ciò che è del campo e non dipende da chi lo usa.
+  multiline: { textAlignVertical: 'top' },
 });
