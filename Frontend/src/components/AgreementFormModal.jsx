@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { ApiError } from '@/api/client';
+import { consumaBozza, leggiBozza, salvaBozza } from '@/auth/auth-context';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppInput } from './AppInput';
@@ -21,6 +22,14 @@ const ERRORE_GENERICO = 'Non è stato possibile inviare la scheda. Riprova.';
 
 /** Il tipo di servizio della riga, con le parole del prodotto. */
 const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Richiesta' };
+
+/**
+ * La chiave della bozza: una per accordo, perché due scambi aperti insieme non
+ * devono scambiarsi il testo.
+ */
+export function chiaveBozzaAccordo(agreementId) {
+  return `accordo:${agreementId}`;
+}
 
 /**
  * The panel where a participant writes the delivery sheet of their accepted
@@ -45,6 +54,12 @@ const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Richiesta' };
  * resolves, so a rejected send leaves the typed description in place.
  *
  * Data and callbacks only: no network, no router, no mutation of the input.
+ *
+ * Il testo scritto qui non muore con la sessione (audit 2026-11-18, P1-1): ogni
+ * cambio lo salva nella bozza della rotta e al montaggio la descrizione riparte
+ * da lì. Una `401` a metà lavoro rimanda al login e riporta sulla chat, dove il
+ * pannello si riapre con quello che la persona aveva scritto. La bozza si
+ * consuma solo quando la scheda parte davvero.
  */
 export function AgreementFormModal({
   visible,
@@ -54,7 +69,8 @@ export function AgreementFormModal({
   onInvia,
 }) {
   const t = useTokens();
-  const [note, setNote] = useState('');
+  const chiaveBozza = chiaveBozzaAccordo(accordo?.id);
+  const [note, setNote] = useState(() => leggiBozza(chiaveBozza) ?? '');
   const [errore, setErrore] = useState(null);
   const [inVolo, setInVolo] = useState(false);
 
@@ -82,6 +98,7 @@ export function AgreementFormModal({
     setInVolo(true);
     try {
       await onInvia({ agreementId: accordo.id, notes: testo });
+      consumaBozza(chiaveBozza);
       setNote('');
       onClose();
     } catch (err) {
@@ -138,7 +155,10 @@ export function AgreementFormModal({
       <AppInput
         label="Descrizione"
         value={note}
-        onChangeText={setNote}
+        onChangeText={(testo) => {
+          setNote(testo);
+          salvaBozza(chiaveBozza, testo);
+        }}
         multiline
         maxLength={NOTE_MAX_LENGTH}
         contatore={`${note.length}/${NOTE_MAX_LENGTH}`}

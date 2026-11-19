@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import {
   acceptAgreementSheet,
@@ -91,6 +91,16 @@ function rigaScheda({ accordo, letto, caricamento, errore, stato }) {
  * keeping the messages already on screen), failed send (`Banner` above the
  * composer, with the draft kept: the composer clears only on `true`), and the
  * sheet's own state under the header.
+ *
+ * Un `404` **non** è uno di quegli stati: `GET /chats/agreement/<id>` risponde
+ * «Chat not found» quando lo scambio non esiste o non è nostro, e riprovare
+ * otterrebbe la stessa risposta per sempre. `nonTrovata` è quindi terminale —
+ * `EmptyState` con una sola via d'uscita verso gli accordi e nessun `Riprova`
+ * (audit 2026-11-18, P1-6) — mentre il `Riprova` resta per il guasto vero, che
+ * una seconda richiesta può ancora risolvere.
+ *
+ * La bozza non si perde: il composer la conserva per rotta (`chiaveBozza`), così
+ * una scadenza di sessione a metà frase riporta qui il testo scritto.
  */
 export default function ChatScreen() {
   const { token, utente } = useAuth();
@@ -104,9 +114,8 @@ export default function ChatScreen() {
   const agreementId = Number.isInteger(numero) && numero > 0 ? numero : null;
   const myUsername = utente?.username ?? null;
 
-  const { chatId, messaggi, caricamento, errore, inviando, erroreInvio, invia, ricarica } = useChat(
-    { token, agreementId },
-  );
+  const { chatId, messaggi, caricamento, errore, inviando, erroreInvio, nonTrovata, invia, ricarica } =
+    useChat({ token, agreementId });
 
   const [accordo, setAccordo] = useState(null);
   const [letto, setLetto] = useState(false);
@@ -183,6 +192,29 @@ export default function ChatScreen() {
           icon="chatbubbles-outline"
           title="Scambio non riconosciuto"
           description="Il collegamento non porta a uno scambio: torna agli accordi e apri la chat da lì."
+        />
+      </Screen>
+    );
+  }
+
+  // La rotta vive fuori dal gruppo delle tab, quindi il `Redirect` di
+  // `(tabs)/_layout.jsx` non la copre: senza sessione si torna al login portandosi
+  // dietro la rotta che si stava guardando, così una scadenza a metà
+  // conversazione non fa ripartire dalla home (audit 2026-11-18, P1-1).
+  if (!utente) {
+    return <Redirect href={{ pathname: '/login', params: { ritorno: '/chat/' + agreementId } }} />;
+  }
+
+  if (nonTrovata) {
+    return (
+      <Screen scroll withBottomInset={false}>
+        <PageHeader titolo="Chat" indietro={<BackButton />} />
+        <EmptyState
+          icon="chatbubbles-outline"
+          title="Scambio non disponibile"
+          description="Questo scambio non ha una chat da aprire: torna agli accordi e riapri la conversazione da lì."
+          etichettaAzione="Torna agli accordi"
+          onAzione={() => router.replace('/agreements')}
         />
       </Screen>
     );
@@ -317,7 +349,12 @@ export default function ChatScreen() {
             />
           </View>
         ) : (
-          <MessageComposer onInvia={invia} inviando={inviando} disabilitato={chatId === null} />
+          <MessageComposer
+            onInvia={invia}
+            inviando={inviando}
+            disabilitato={chatId === null}
+            chiaveBozza={'/chat/' + agreementId}
+          />
         )}
       </View>
 

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAuth } from '@/auth/auth-context';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { consumaBozza, leggiBozza, salvaBozza, useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { AppIcon } from '@/components/AppIcon';
 import { createUserReport } from '@/api';
@@ -34,9 +34,15 @@ import { space, useTokens } from '@/theme/tokens';
  * The send goes through the `ConfirmModal`: a report cannot be withdrawn, and
  * that was only said *after* it had been sent (audit UX F02). The confirmation
  * repeats the reason and states the consequence before the POST.
+ *
+ * Il testo non muore con la sessione (audit 2026-11-18, P1-1): ogni cambio
+ * salva la bozza della rotta e al montaggio la ragione riparte da lì. Questa
+ * rotta vive fuori dal gruppo `(tabs)`, quindi porta la sua guardia: senza
+ * utente si torna al login con `ritorno`, che riapre proprio questa
+ * segnalazione invece della home.
  */
 export default function ReportScreen() {
-  const { token } = useAuth();
+  const { token, utente } = useAuth();
   const router = useRouter();
   const t = useTokens();
   const params = useLocalSearchParams();
@@ -49,13 +55,33 @@ export default function ReportScreen() {
     username: params.username,
   });
 
-  const [reason, setReason] = useState('');
+  // La rotta di questa segnalazione, parametri compresi: è la chiave della
+  // bozza e la destinazione di `ritorno`. Un `/report` nudo riaprirebbe la
+  // schermata senza la persona da segnalare.
+  const percorso = useMemo(() => {
+    const query = [
+      ['reportedUserId', params.reportedUserId],
+      ['nome', params.nome],
+      ['cognome', params.cognome],
+      ['username', params.username],
+    ]
+      .filter(([, valore]) => typeof valore === 'string' && valore !== '')
+      .map(([chiave, valore]) => `${chiave}=${encodeURIComponent(valore)}`)
+      .join('&');
+    return query === '' ? '/report' : `/report?${query}`;
+  }, [params.reportedUserId, params.nome, params.cognome, params.username]);
+
+  const [reason, setReason] = useState(() => leggiBozza(percorso) ?? '');
   const [error, setError] = useState(null);
   const [fieldError, setFieldError] = useState(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [confermaAperta, setConfermaAperta] = useState(false);
   const canReport = validId !== null;
+
+  if (!utente) {
+    return <Redirect href={{ pathname: '/login', params: { ritorno: percorso } }} />;
+  }
 
   async function submit() {
     if (sending || !canReport) {
@@ -70,6 +96,7 @@ export default function ReportScreen() {
     setError(null);
     try {
       await createUserReport(token, { reportedUserId: validId, reason });
+      consumaBozza(percorso);
       setSent(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
@@ -133,6 +160,7 @@ export default function ReportScreen() {
               onChangeText={(text) => {
                 setReason(text);
                 setFieldError(null);
+                salvaBozza(percorso, text);
               }}
               placeholder="Racconta il fatto: cosa era stato concordato e cosa non è stato fatto."
               multiline

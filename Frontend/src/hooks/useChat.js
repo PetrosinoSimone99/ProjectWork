@@ -60,12 +60,27 @@ function logInSviluppo(messaggio, dettaglio) {
  *    (`AGENTS.md`: never silently swallow an error).
  * 5. **Reading and writing fail apart** (`errore` and `erroreInvio`): a
  *    rejected message must not wipe a conversation.
+ * 6. **A `404` on the history is terminal, not an error to retry.**
+ *    `GET /chats/agreement/999999` answers `404 {"error":"Chat not found."}`
+ *    and no number of taps changes that: the hook hands the screen
+ *    `nonTrovata` with `errore` left `null`, so the screen shows the terminal
+ *    empty state instead of a `Riprova` that can never succeed. Rete assente e
+ *    timeout (`0`) e `5xx` restano `errore`, perché lì il tentativo dopo può
+ *    riuscire.
+ * 7. **`inviando` alone does not stop two taps in the same frame**: both read
+ *    the state of the previous render, so a ref closes the window and the POST
+ *    leaves once (`invia`).
  */
 export function useChat({ token, agreementId }) {
   const [chatId, setChatId] = useState(null);
   const [messaggi, setMessaggi] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState(null);
+  // L'accordo che il backend ha dichiarato inesistente (`404`). È l'id e non
+  // un booleano: così `nonTrovata` è vero solo per quell'accordo, e cambiare
+  // accordo lo spegne senza scrivere stato dentro un effetto.
+  const [missingAgreementId, setMissingAgreementId] = useState(null);
+  const nonTrovata = missingAgreementId !== null && missingAgreementId === agreementId;
   const [inviando, setInviando] = useState(false);
   const [erroreInvio, setErroreInvio] = useState(null);
 
@@ -78,6 +93,9 @@ export function useChat({ token, agreementId }) {
   // One probe at a time: the stream writes a frame per message and the timer
   // can land on top of it.
   const inVoloRef = useRef(false);
+  // The same guard for the send, in a ref: two calls in one frame both read
+  // `inviando === false` from the render that precedes them.
+  const inviandoRef = useRef(false);
 
   // Another agreement means another conversation: the cursor starts over.
   useEffect(() => {
@@ -97,6 +115,7 @@ export function useChat({ token, agreementId }) {
       if (seq !== requestSeqRef.current) {
         return; // superseded: the screen keeps what it already shows.
       }
+      setMissingAgreementId(null);
       setChatId(storico.chatId);
       setMessaggi(storico.messaggi);
       guastiRef.current = 0;
@@ -114,7 +133,12 @@ export function useChat({ token, agreementId }) {
       if (seq !== requestSeqRef.current) {
         return;
       }
-      setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      // Un `404` non è un guasto da riprovare: l'accordo non c'è più.
+      if (err instanceof ApiError && err.status === 404) {
+        setMissingAgreementId(agreementId);
+      } else {
+        setErrore(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      }
     } finally {
       if (seq === requestSeqRef.current) {
         setCaricamento(false);
@@ -212,6 +236,12 @@ export function useChat({ token, agreementId }) {
         setErroreInvio(MESSAGE_TOO_LONG);
         return false;
       }
+      // Il guard sta fuori dallo `try` ma dopo le validazioni: un rifiuto
+      // locale non deve lasciare il ref alto.
+      if (inviandoRef.current) {
+        return false;
+      }
+      inviandoRef.current = true;
       setInviando(true);
       setErroreInvio(null);
       try {
@@ -222,11 +252,24 @@ export function useChat({ token, agreementId }) {
         setErroreInvio(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
         return false;
       } finally {
+        // Rilascio nel `finally`: il messaggio successivo, dopo che il primo è
+        // arrivato, deve poter partire.
+        inviandoRef.current = false;
         setInviando(false);
       }
     },
     [token, chatId, carica],
   );
 
-  return { chatId, messaggi, caricamento, errore, inviando, erroreInvio, invia, ricarica: carica };
+  return {
+    chatId,
+    messaggi,
+    caricamento,
+    errore,
+    nonTrovata,
+    inviando,
+    erroreInvio,
+    invia,
+    ricarica: carica,
+  };
 }

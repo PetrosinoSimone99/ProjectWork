@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppInput } from './AppInput';
 import { MESSAGE_MAX_LENGTH } from '@/api/areas/chat';
+import { consumaBozza, salvaBozza } from '@/auth/auth-context';
 import { space } from '@/theme/tokens';
 
 /**
@@ -14,10 +15,28 @@ import { space } from '@/theme/tokens';
  * counter saying where the end is); the refusal sentence lives next to that
  * constant and is enforced again by `useChat.invia` before the POST, because
  * this field is one caller and not the boundary.
+ *
+ * Quando il chiamante conosce la rotta della chat passa `chiaveBozza`: ogni
+ * cambio finisce in `salvaBozza` e la bozza rimasta è ripresa al montaggio,
+ * così un `401` a metà scrittura non porta via il messaggio (audit 2026-11-18,
+ * P1-1). Senza la chiave il compositore è quello di prima.
  */
 
-export function MessageComposer({ onInvia, inviando = false, disabilitato = false }) {
-  const [testo, setTesto] = useState('');
+export function MessageComposer({
+  onInvia,
+  inviando = false,
+  disabilitato = false,
+  chiaveBozza,
+}) {
+  // `consumaBozza` si legge al montaggio: chi la legge se la prende una volta sola.
+  const [testo, setTesto] = useState(() =>
+    typeof chiaveBozza === 'string' ? (consumaBozza(chiaveBozza) ?? '') : '',
+  );
+  // La guardia vera del doppio invio (audit 2026-11-18, P1-8): due tap nello
+  // stesso frame leggono lo stesso render, dove `inviando` è ancora `false`,
+  // quindi solo un valore fuori dallo state ferma il secondo `onInvia`.
+  // Si azzera nel `finally`: il messaggio successivo deve poter partire.
+  const inFlight = useRef(false);
 
   const pulito = testo.trim();
   // Empty text locks the send only: the field must stay typeable, or a fresh
@@ -26,15 +45,25 @@ export function MessageComposer({ onInvia, inviando = false, disabilitato = fals
 
   const cambiaTesto = (nuovo) => {
     setTesto(nuovo);
+    // Il vuoto cancella la bozza: `salvaBozza` lo tratta come tale.
+    salvaBozza(chiaveBozza, nuovo);
   };
 
   const invia = async () => {
-    if (nonParte) return;
-    // The draft is cleared only when the send went through: a caller that
-    // answers `false` (a failed POST) keeps the text the person typed.
-    const esito = await onInvia(pulito);
-    if (esito !== false) {
-      setTesto('');
+    if (nonParte || inFlight.current) return;
+    // Preso prima dell'`await`: il secondo tap arriva prima che `inviando`
+    // possa diventare `true`.
+    inFlight.current = true;
+    try {
+      // The draft is cleared only when the send went through: a caller that
+      // answers `false` (a failed POST) keeps the text the person typed.
+      const esito = await onInvia(pulito);
+      if (esito !== false) {
+        setTesto('');
+        salvaBozza(chiaveBozza, '');
+      }
+    } finally {
+      inFlight.current = false;
     }
   };
 

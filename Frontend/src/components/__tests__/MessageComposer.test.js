@@ -26,11 +26,10 @@ function scrivi(renderer, testo) {
 }
 
 /**
- * The send control with this accessible name, pressed the way a tap would:
- * the handler runs directly, so the assertions below test the component's own
- * guard — the announced `disabled` state covers the platform refusing the tap.
+ * The send control with this accessible name, looked up right now: after a
+ * re-render the node carries the fresh handler with the fresh draft.
  */
-async function premiInvia(renderer) {
+function pulsanteInvia(renderer) {
   const pulsante = renderer.root
     .findAll(
       (node) =>
@@ -40,6 +39,16 @@ async function premiInvia(renderer) {
     )
     .at(0);
   expect(pulsante).toBeDefined();
+  return pulsante;
+}
+
+/**
+ * The send control, pressed the way a tap would:
+ * the handler runs directly, so the assertions below test the component's own
+ * guard — the announced `disabled` state covers the platform refusing the tap.
+ */
+async function premiInvia(renderer) {
+  const pulsante = pulsanteInvia(renderer);
   // `onPress` is `async` since the draft survives a failed send: awaiting it
   // inside `act` lets the clear (or the keep) land before the assertions.
   await act(async () => {
@@ -146,5 +155,71 @@ describe('MessageComposer — the draft field', () => {
     expect(onInvia).toHaveBeenCalledWith('Ciao baratto');
     // Nothing typed is lost: a rejected POST is not a reason to empty the field.
     expect(campo(renderer).props.value).toBe('Ciao baratto');
+  });
+});
+
+describe('MessageComposer — the send guard', () => {
+  it('sends once when two taps land in the same frame', async () => {
+    let risolvi;
+    const onInvia = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          risolvi = resolve;
+        }),
+    );
+    const renderer = render(onInvia);
+    scrivi(renderer, 'Ciao baratto');
+
+    // Un solo render per entrambi i tap: `inviando` è ancora `false` in tutti
+    // e due, come sul dispositivo, quindi solo il ref può fermare il secondo.
+    const premi = pulsanteInvia(renderer).props.onPress;
+    await act(async () => {
+      premi();
+      premi();
+    });
+
+    expect(onInvia).toHaveBeenCalledTimes(1);
+    expect(onInvia).toHaveBeenCalledWith('Ciao baratto');
+
+    // Il ref si azzera nel `finally`: la bozza sparisce quando l'invio si chiude.
+    await act(async () => {
+      risolvi(true);
+    });
+    expect(campo(renderer).props.value).toBe('');
+  });
+
+  it('sends the next message after the first one resolves', async () => {
+    const attese = [];
+    const onInvia = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          attese.push(resolve);
+        }),
+    );
+    const renderer = render(onInvia);
+
+    scrivi(renderer, 'Primo');
+    // Non si attende `onPress` qui: la `onInvia` finta resta appesa apposta.
+    await act(async () => {
+      pulsanteInvia(renderer).props.onPress();
+    });
+    expect(onInvia).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      attese[0](true);
+    });
+    expect(campo(renderer).props.value).toBe('');
+
+    // Il `finally` ha azzerato il ref: il secondo messaggio deve partire.
+    scrivi(renderer, 'Secondo');
+    await act(async () => {
+      pulsanteInvia(renderer).props.onPress();
+    });
+    expect(onInvia).toHaveBeenCalledTimes(2);
+    expect(onInvia).toHaveBeenLastCalledWith('Secondo');
+
+    await act(async () => {
+      attese[1](true);
+    });
   });
 });

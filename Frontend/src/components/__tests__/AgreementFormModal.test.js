@@ -2,7 +2,8 @@ import { act, create } from 'react-test-renderer';
 import { TextInput } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { AgreementFormModal, NOTE_MAX_LENGTH } from '../AgreementFormModal';
+import { consumaBozza, salvaBozza } from '@/auth/auth-context';
+import { AgreementFormModal, chiaveBozzaAccordo, NOTE_MAX_LENGTH } from '../AgreementFormModal';
 import { formatIsoDateTimeNumeric } from '@/services/dates';
 
 /**
@@ -189,5 +190,26 @@ describe('AgreementFormModal — sending the sheet', () => {
     });
 
     expect(testoVisibile(renderer, 'Non è stato possibile inviare la scheda. Riprova.')).toBe(true);
+  });
+
+  // Audit 2026-11-18, P1-1: una sessione scaduta a metà testo riporta qui, e la
+  // descrizione riparte dalla bozza dell'accordo. Niente lo annuncia: il testo
+  // è semplicemente già nel campo.
+  it('riapre con il testo scritto prima che la sessione scadesse', () => {
+    const chiave = chiaveBozzaAccordo(ACCORDO.id);
+    salvaBozza(chiave, 'Ci vediamo in piazza alle 10.');
+
+    const renderer = render();
+
+    expect(campoDescrizione(renderer).props.value).toBe('Ci vediamo in piazza alle 10.');
+    expect(
+      renderer.root.findAll(
+        (node) => typeof node.props?.children === 'string' && /bozza/i.test(node.props.children),
+      ),
+    ).toHaveLength(0);
+
+    // Il pannello si smonta come quando la rotta se ne va: nessun timer resta in volo.
+    act(() => renderer.unmount());
+    consumaBozza(chiave);
   });
 });

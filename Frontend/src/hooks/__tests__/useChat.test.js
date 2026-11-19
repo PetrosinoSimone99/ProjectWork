@@ -3,7 +3,9 @@ import {
   getAgreementChat,
   getMostRecentMessageId,
   getNewChatMessages,
+  sendChatMessage,
 } from '@/api/areas/chat';
+import { ApiError } from '@/api/client';
 import { CHAT_POLL_MS, useChat } from '../useChat';
 
 jest.mock('expo-router', () => ({
@@ -63,6 +65,15 @@ async function unGiro() {
   await act(async () => {
     jest.advanceTimersByTime(CHAT_POLL_MS);
     for (let i = 0; i < 6; i += 1) {
+      await Promise.resolve();
+    }
+  });
+}
+
+/** Lets the first read and every promise it starts settle. */
+async function unCarica() {
+  await act(async () => {
+    for (let i = 0; i < 8; i += 1) {
       await Promise.resolve();
     }
   });
@@ -166,6 +177,136 @@ describe('useChat — the polling cursor', () => {
     jest.advanceTimersByTime(CHAT_POLL_MS * 4);
 
     expect(getNewChatMessages).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('useChat — an agreement that no longer exists', () => {
+  it('maps a 404 to `nonTrovata`, leaves `errore` null and does not retry', async () => {
+    getAgreementChat.mockRejectedValue(
+      new ApiError(404, 'Non trovo più questo accordo: potrebbe essere stato cancellato.'),
+    );
+    const lettura = {};
+    monta(lettura);
+    await unCarica();
+
+    // Terminale: nessuna frase d'errore da riprovare, uno stato da cui uscire.
+    expect(lettura.nonTrovata).toBe(true);
+    expect(lettura.errore).toBeNull();
+    expect(lettura.caricamento).toBe(false);
+
+    // Nessun ritentativo da solo: senza `chatId` il poll non parte, e la
+    // lettura resta una sola.
+    await unGiro();
+
+    expect(getAgreementChat).toHaveBeenCalledTimes(1);
+    expect(getNewChatMessages).not.toHaveBeenCalled();
+    expect(lettura.errore).toBeNull();
+  });
+
+  it('turns `nonTrovata` back off when a read succeeds', async () => {
+    getAgreementChat.mockRejectedValueOnce(new ApiError(404, 'Non trovo più questo accordo.'));
+    const lettura = {};
+    monta(lettura);
+    await unCarica();
+    expect(lettura.nonTrovata).toBe(true);
+
+    await act(async () => {
+      await lettura.ricarica();
+    });
+
+    expect(lettura.nonTrovata).toBe(false);
+    expect(lettura.errore).toBeNull();
+    expect(lettura.chatId).toBe(CHAT_ID);
+  });
+
+  it('keeps `errore` and the retry path when the read fails with a 500', async () => {
+    const guasto = new ApiError(500, 'Il server non ha restituito la chat: riprova.');
+    getAgreementChat.mockRejectedValueOnce(guasto);
+    const lettura = {};
+    monta(lettura);
+    await unCarica();
+
+    expect(lettura.nonTrovata).toBe(false);
+    expect(lettura.errore).toBe(guasto.message);
+
+    // Il `Riprova` dello schermo passa da `ricarica`: la strada resta aperta.
+    await act(async () => {
+      await lettura.ricarica();
+    });
+
+    expect(getAgreementChat).toHaveBeenCalledTimes(2);
+    expect(lettura.errore).toBeNull();
+    expect(lettura.nonTrovata).toBe(false);
+    expect(lettura.chatId).toBe(CHAT_ID);
+  });
+
+  it('leaves a network failure on `errore`, not on `nonTrovata`', async () => {
+    getAgreementChat.mockRejectedValueOnce(new ApiError(0, 'Non riesco a raggiungere il servizio.'));
+    const lettura = {};
+    monta(lettura);
+    await unCarica();
+
+    expect(lettura.nonTrovata).toBe(false);
+    expect(lettura.errore).toBe('Non riesco a raggiungere il servizio.');
+  });
+});
+
+describe('useChat — the send guard', () => {
+  it('posts once for two calls in the same frame', async () => {
+    let concludi;
+    sendChatMessage.mockReturnValue(
+      new Promise((resolve) => {
+        concludi = resolve;
+      }),
+    );
+    const lettura = {};
+    monta(lettura);
+    await unCarica();
+
+    let primo;
+    let secondo;
+    act(() => {
+      primo = lettura.invia('ci vediamo domani');
+      secondo = lettura.invia('ci vediamo domani');
+    });
+
+    // Il ref, non lo stato: nel frame nessuno dei due ha ancora ri-renderizzato.
+    expect(sendChatMessage).toHaveBeenCalledTimes(1);
+    expect(sendChatMessage).toHaveBeenCalledWith(TOKEN, CHAT_ID, 'ci vediamo domani');
+
+    await act(async () => {
+      concludi(true);
+      for (let i = 0; i < 8; i += 1) {
+        await Promise.resolve();
+      }
+    });
+
+    await expect(primo).resolves.toBe(true);
+    await expect(secondo).resolves.toBe(false);
+    expect(lettura.inviando).toBe(false);
+  });
+
+  it('sends again once the first send has resolved', async () => {
+    sendChatMessage.mockResolvedValue(true);
+    const lettura = {};
+    monta(lettura);
+    await unCarica();
+
+    let primo;
+    await act(async () => {
+      primo = await lettura.invia('uno');
+    });
+    expect(primo).toBe(true);
+
+    let secondo;
+    await act(async () => {
+      secondo = await lettura.invia('due');
+    });
+
+    // Il ref si è riabbassato nel `finally`: il messaggio dopo non è bloccato.
+    expect(secondo).toBe(true);
+    expect(sendChatMessage).toHaveBeenCalledTimes(2);
+    expect(sendChatMessage).toHaveBeenNthCalledWith(2, TOKEN, CHAT_ID, 'due');
   });
 });
 
