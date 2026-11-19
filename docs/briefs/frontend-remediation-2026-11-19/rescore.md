@@ -19,15 +19,26 @@ Console: 0 errors across the four routes. The export compiled all 17 routes.
 
 ## What was NOT measured (and must not be claimed)
 
-- Dark theme on `/chat`, `/edit-profile`, `/user/<id>`; the notifications
-  panel's loading/error/empty states. Same reason as the audit: no re-run of the
-  failing notifications request in this session.
+- ~~Dark theme on `/chat`, `/edit-profile`, `/user/<id>`; the notifications
+  panel's loading/error/empty states.~~ **Measured 2026-11-19** (`residuals.md`
+  steps 1a and 1b): the three dark routes are contrast-clean (no text pair under
+  4.5:1; the lowest is the accent button's own label at 5.97:1, controls'
+  borders 3.3-3.8:1), and the panel's error state is a `Banner` with `Riprova`
+  above the rows — forced `500` on
+  `GET /api/notifications?page=1&limit=20&unreadOnly=false`, body
+  `{"error":"forced"}`. The panel's **loading** and **empty** states are still
+  unmeasured: this session forced the failure, not the slow answer.
 - Any native surface: no emulator or device on this machine. Every native
   change (size classes, live region on validation, 48 dp floor, native driver,
-  `expo-image`) is a source claim.
+  `expo-image`) is a source claim. Re-stated, not lifted, on 2026-11-19
 - Reduced-motion behaviour, Dynamic Type, keyboard insets.
 - The 412 and 768 widths after the catalog grid and the size classes: the grid
-  was measured at desktop width only.
+  was measured at desktop width only. **Measured 2026-11-19** (`residuals.md`
+  step 1c): no horizontal overflow at 375 / 412 / 768 / 1024 on `/`,
+  `/agreements`, `/profile`, and the catalog keeps three meta rows on 11 of 11
+  cards at every width. That run also found a defect this document could not
+  have seen: at 375 and 412 the category chip overflows its column and is painted
+  over the mode icon (§ Defects found by a later run).
 - Production performance (LCP, bundle size, FPS). The backend's 4 s median is
   unchanged and out of scope for the frontend; it is stated in the demo, not
   hidden.
@@ -40,3 +51,25 @@ Console: 0 errors across the four routes. The export compiled all 17 routes.
   sections and every sentence said `Scambi` — the exact one-word-per-object rule
   the clarify step had just installed, missed on the page header. Fixed in the
   same commit; the page title now comes from `TAB_ROUTES`.
+
+## Defects found by a later run
+
+`residuals.md` (2026-11-19) found one defect this re-score could not have seen,
+because it only appears on the narrow widths this document did not measure:
+
+- **The category chip leaves its column and is painted over the mode icon** at
+  375 (36 px on `Assistenza computer`, 26 px on `Cucina vegetariana`, 11 px on
+  `Cura delle piante`) and at 412 (17 px, 8 px). The chip keeps the width of its
+  own text (175 px) in both classes, so it is not the column that clips it. Filed
+  as `docs/audits/frontend-2026-11-19-catalog-chip-overlap.md`, block 16 of the
+  plan, **not fixed** in the measuring session. The three-meta-row shape this
+  document called fixed was re-measured and holds on 11 of 11 cards at 375, 412,
+  768 and 1024.
+
+## What the residuals session added to the score
+
+- `/match` no longer states the balance as bare small grey text: it is a data
+  mark (icon + label + tabular value) on the card surface, at the control floor
+  height, with the zero case in `t.danger` plus a sentence naming the way back.
+  Measured at 375 and 412, light and dark, with no overflow and with the
+  confirmation still naming the same number.

@@ -6,6 +6,54 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — Frontend residuals: the measurements that were missing, one fix, one new finding
+
+A second session on the same cycle, in the order `residuals.md` fixes (measure
+first, then touch, then re-measure only what was touched). All of it on the
+production web export served statically against the real Docker backend, one
+Playwright context, `demo.staff` plus two other seeded accounts where the state
+needed another balance.
+
+**Measured, previously unmeasured.** Dark theme on `/chat`, `/edit-profile` and
+`/user/<id>`: no text pair under 4.5:1 (the lowest is the accent button's own
+label at 5.97:1), control borders 3.3-3.8:1. The notifications panel's error
+state: a `Banner` carrying `Riprova`, above the rows, from a forced `500` on
+`GET /api/notifications?page=1&limit=20&unreadOnly=false` — the panel names the
+failure instead of showing a silent empty list. Widths 375 / 412 / 768 / 1024 on
+`/`, `/agreements`, `/profile`: no horizontal overflow anywhere, and the catalog
+keeps exactly three meta rows on 11 of 11 cards at every width.
+
+**Fixed.** `Crediti disponibili` on `/match` was bare small grey text, the only
+data on the screen without a surface: it is now a data mark (icon + label +
+tabular value) on the card surface at the control-floor height, left-aligned,
+with no accent, and at zero the value is `t.danger` plus a sentence naming the
+way back. One file (`match.jsx`), no change to `askRequestConfirm`, `hasCredit`
+or `CreateQueueActions`, and the number is still `balance` — the confirm names
+the same figure.
+
+**Found (not fixed here).** At 375 and 412 the category chip in the catalog card
+exceeds its half-row and is painted over the mode icon (36 px / 17 px on
+`Assistenza computer`); the chip keeps its text width in both classes, so it does
+not shrink with the column. Filed as
+`docs/audits/frontend-2026-11-19-catalog-chip-overlap.md` with the verification
+criterion, opening block 16 of the plan. The `residuals.md` rule is explicit:
+a measurement files findings, it does not repair them.
+
+**Declared.** No native measurement was taken because no emulator or device
+exists on this machine. Size classes, the validation live region, the 44/48 dp
+floor, the native animation driver and `expo-image` remain source claims, and the
+(a)-(f) device checklist is written down for whoever holds the phone.
+
+### Touched
+
+`Frontend/src/app/(tabs)/match.jsx`, `docs/briefs/frontend-remediation-2026-11-19/`
+(`residuals.md` with the measurement table, `plan.md` blocks 16-17, `rescore.md`),
+`docs/audits/frontend-2026-11-19-catalog-chip-overlap.md`,
+`docs/audits/evidence/frontend-2026-11-19/` (17 screenshots), `docs/changelog.md`.
+No `Backend/` file, no schema change, no new dependency.
+
+---
+
 ## 2026-11-19 — Frontend remediation: the audit's P1s closed in the prescribed order
 
 The 2026-11-18 audit was executed in its own order — harden, clarify, shape,

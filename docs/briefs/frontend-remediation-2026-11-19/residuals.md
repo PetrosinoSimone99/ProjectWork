@@ -206,7 +206,56 @@ commit: `rescore.md` aggiornato (cosa non è più "non misurato"), una riga in
 
 | Data | Passo | Rotta / larghezza | Esito | Cosa è stato scritto |
 | --- | --- | --- | --- | --- |
-| — | *(vuoto: la sessione nuova parte da qui)* | | | |
+| 2026-11-19 | 1a | `/chat/1` tema scuro | **PASS** | 0 testi sotto soglia su 14 misurati (`0/1000` 7,09 / timestamp 6,29 / bolla 13,97); il valore più basso è il testo del bottone d'accento `Invia` a **5,97** su `rgb(78,169,127)`. Bordi dei controlli ≥ 3: `Invia la scheda` 3,77, textarea 3,30. Screenshot `residual-1a-chat-dark.png`. |
+| 2026-11-19 | 1a | `/edit-profile` tema scuro | **PASS** | 0 testi sotto soglia; placeholder 6,29 (`Racconta le competenze…`, `https://esempio.it/foto.jpg`); nessun bordo di controllo sotto 3. Screenshot `residual-1a-edit-profile-dark.png`. |
+| 2026-11-19 | 1a | `/user/2` tema scuro | **PASS** | 0 testi sotto soglia (`@marco.ricci`, località, `Offre`/`Cerca` e i due servizi tutti sopra 4,5); nessun controllo con bordo. Screenshot `residual-1a-user-dark.png`. |
+| 2026-11-19 | 1c | 412 — `/`, `/agreements`, `/profile` | **PASS** (criterio) + **finding nuovo** | `scrollWidth === clientWidth === 412` su tutte e tre. Catalogo: 11/11 card con **3 righe di meta** (categoria│modalità, luogo│data, autore), altezze 137/162/187 px = 1/2/3 righe di titolo. **Ma** a 412 il chip di categoria esce dalla sua colonna e si dipinge sopra l'icona della modalità: `Assistenza computer` **17 px** (3 card), `Cucina vegetariana` 8 px. Screenshot `residual-1c-412-catalogo.png`, `residual-1c-412-card-chip.png`, `residual-1c-412-agreements.png`, `residual-1c-412-profile.png`. Vedi finding `docs/audits/frontend-2026-11-19-catalog-chip-overlap.md`. |
+| 2026-11-19 | 1c | 768 — `/`, `/agreements`, `/profile` | **PASS** | `scrollWidth === clientWidth === 768` su tutte e tre; catalogo 11/11 card con 3 righe di meta; nessun chip sopra l'icona (distanza minima −144 px, cioè 144 px di aria). |
+| 2026-11-19 | 1c | 1024 — `/`, `/agreements`, `/profile` | **PASS** | `scrollWidth === clientWidth === 1024` su tutte e tre; catalogo 11/11 card con 3 righe di meta; nessun chip sopra l'icona (−144 px). A 1024 `/agreements` centra la colonna `maxContent` (560): è la misura di lettura prevista da `Screen`, non un difetto (il tetto largo 720 è del solo catalogo). Screenshot `residual-1c-1024-agreements.png`. |
+| 2026-11-19 | 3 | `/match` 375 tema chiaro | **PASS** | Marchio: box `16→165`, alto **44** (`minHeight` 44), sfondo `rgb(253,253,251)`, bordo 0,8 px `rgb(225,229,221)`, raggio 12; allineato al bordo del testo (16, come la frase sotto il titolo). Etichetta `Crediti disponibili` 13/400 `rgb(93,102,95)`, valore `1` 12/600 `rgb(28,33,29)` tabular: **una riga sola** (etichetta 18 px, valore 16 px, stessa fascia verticale), nessun a capo dentro una parola. `scrollWidth === clientWidth === 375`. Screenshot `residual-3-match-375-chiaro.png`. |
+| 2026-11-19 | 3 | `/match` 412 tema chiaro | **PASS** | Stessa forma del 375 (marchio 16→165, alto 44): non si allarga con la colonna e non va a capo. `scrollWidth === clientWidth === 412`. Screenshot `residual-3-match-412-chiaro.png`. |
+| 2026-11-19 | 3 | `/match` 412 e 375 tema scuro | **PASS** | Marchio `rgb(27,34,29)` con bordo `rgb(44,53,46)`; etichetta `rgb(153,164,155)` **6,29:1**, valore `rgb(235,239,234)` **13,97:1** sul marchio. A 412 nessun overflow. Screenshot `residual-3-match-412-scuro.png`, `residual-3-match-375-scuro.png`. |
+| 2026-11-19 | 3 | `/match` saldo `0` (giulia.bianchi), chiaro e scuro | **PASS** | `0` in `t.danger` (`rgb(224,113,106)`, **5,21:1** sul marchio) e la frase «Senza crediti la ricerca resta spenta: un credito torna se annulli una coda di ricerca.» in `t.danger` (**6,74:1** sul fondo pagina). Nessun riempimento rosso. `Ricerca` resta spenta come oggi. Nessun overflow a 375. Screenshot `residual-3-match-zero-chiaro.png`, `residual-3-match-zero-scuro.png`. |
+| 2026-11-19 | 3 | `/match` saldo `> 0` (sara.mancini, 1 credito) | **PASS** | Il marchio mostra `1` e la conferma di `Richiedi` dice ancora lo stesso numero: «Una coda di ricerca costa un credito. Crediti disponibili: 1.» — una sola sorgente (`balance`), nessun secondo numero. Conferma chiusa con `No, torna indietro`: nessuna coda creata. Screenshot `residual-3-match-conferma.png`. |
+| 2026-11-19 | 2 | gate prima del commit di F1 | **PASS** | `npx expo lint` pulito, `npx tsc --noEmit` exit 0, `npx jest src/app --bail` 10/10. Le misure del passo 3 sono state fatte su un `npx expo export --platform web` rifatto **dopo** la fix (browser ricaricato con `/?v=` perché `index.html` era in cache). |
+
+| 2026-11-19 | 4 | nativo | **dichiarato** | Nessun emulatore né dispositivo: nessuna misura, e nessuna affermazione di misura. Checklist (a)-(f) consegnata a chi ha il telefono (vedi sotto). |
+
+### Dove stanno le prove
+
+Tutti gli screenshot citati nella tabella sono in
+`docs/audits/evidence/frontend-2026-11-19/`. Il finding nuovo è
+`docs/audits/frontend-2026-11-19-catalog-chip-overlap.md`, e apre il **passo 16**
+del `plan.md` (`Stato: TODO`): non è stato corretto qui, come vuole la regola di
+questo file.
+
+### Passo 2 — due scostamenti dal brief, dichiarati
+
+1. **La superficie del marchio è `t.surface`, non `t.background`.** Il brief
+   chiedeva `t.background`, ma il fondo della pagina di `/match` **è**
+   `t.background`: un marchio dello stesso colore del foglio non avrebbe avuto né
+   forma né bordo, e avrebbe contraddetto il criterio del passo 3 («si legge a
+   colpo d'occhio»). Il marchio usa quindi la superficie delle card più il bordo
+   sottile dei controlli (`t.border`), che è la coppia che rende la forma
+   leggibile in entrambi i temi senza aggiungere un colore alla tavolozza.
+2. **Nessun test nuovo.** Il brief fissa il perimetro a «un solo file:
+   `match.jsx`», quindi il gate è stato fatto passare sui test esistenti (10/10 su
+   `src/app`) e la verifica del marchio è la misura del passo 3, non un'asserzione
+   nuova. Se si vuole l'asserzione (marchio presente, valore uguale a `balance`,
+   valore in `t.danger` a saldo zero), è il primo figlio naturale del passo 16.
+
+### Passo 4 — esito: **dichiarato**, non misurato
+
+Nessuna misura nativa è stata fatta e nessuna è stata inventata: su questa
+macchina non esistono emulatore né dispositivo, quindi restano **affermazioni di
+sorgente** le classi di dimensione, la live region sulla validazione, il
+pavimento 44/48 dp, il driver nativo delle animazioni e `expo-image`. La
+checklist (a)-(f) del passo resta da passare a chi ha il telefono: (a) barra in
+basso con le quattro destinazioni, nessuna etichetta tagliata; (b) tema scuro da
+Profilo, poi riapri l'app e la scelta resta; (c) testo di sistema al 200% senza
+tagli; (d) tastiera aperta nella chat, il campo non finisce sotto la tastiera;
+(e) swipe dal bordo sinistro, si torna indietro; (f) campanella: badge leggibile
+e pannello sopra il contenuto. Ogni «no» va riportato con la rotta.
 
 ## Se una misura fallisce
 
