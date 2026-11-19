@@ -25,14 +25,14 @@ const accordo = (extra = {}) => ({
   stato: 'ACCEPTED',
   creazione: '2026-11-15T10:00:00+00:00',
   proposte: [
-    { username: 'andrea', ruolo: 'PROPONENTE', risposta: 'ACCETTATA' },
-    { username: 'giulia', ruolo: 'BENEFICIARIO', risposta: 'ACCETTATA', descrizioneServizio: 'Lezione di chitarra' },
+    { username: 'andrea', ruolo: 'Provider', risposta: 'ACCETTATA', descrizioneServizio: 'Riparazione biciclette' },
+    { username: 'giulia', ruolo: 'Beneficiary', risposta: 'ACCETTATA', descrizioneServizio: 'Lezione di chitarra' },
   ],
   schede: [
     {
       username: 'andrea',
       beneficiario: 'giulia',
-      descrizione: 'Riparazione biciclette',
+      descrizione: 'Solo della scheda',
       tipoServizio: 'OFFER',
       inizio: '2026-11-15T10:00:00+00:00',
       fine: null,
@@ -143,13 +143,17 @@ describe('AgreementCard — the chat entry point', () => {
   });
 });
 
-describe('AgreementCard — what it no longer draws', () => {
-  it('keeps the services of the two proposals, without the delivery sheet', () => {
+describe('AgreementCard — what it draws', () => {
+  it('draws both directions of the trade, and not the delivery sheet', () => {
     const renderer = render({ onApriChat: jest.fn() });
 
-    expect(testoVisibile(renderer, '@giulia: Lezione di chitarra')).toBe(true);
-    // The sheet rows of the fixture are not part of the card any more.
-    expect(testoVisibile(renderer, 'Riparazione biciclette')).toBe(false);
+    // Le due direzioni si leggono come tali: chi offre e chi riceve (P1-4).
+    expect(testoVisibile(renderer, 'Offre')).toBe(true);
+    expect(testoVisibile(renderer, 'Riceve')).toBe(true);
+    expect(testoVisibile(renderer, 'Riparazione biciclette')).toBe(true);
+    expect(testoVisibile(renderer, 'Lezione di chitarra')).toBe(true);
+    // La scheda resta nella chat: la sua descrizione non compare sulla card.
+    expect(testoVisibile(renderer, 'Solo della scheda')).toBe(false);
     expect(testoVisibile(renderer, 'Scheda non compilata')).toBe(false);
     expect(
       renderer.root.findAll(

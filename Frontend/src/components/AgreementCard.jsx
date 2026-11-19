@@ -4,10 +4,11 @@ import { View } from 'react-native';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
+import { BarterPair } from './BarterPair';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
 import { formatIsoDate } from '@/services/dates';
-import { counterpartOf, apreLaChat } from '@/services/agreements';
+import { counterpartOf, apreLaChat, direzioniScambio } from '@/services/agreements';
 import { space, useTokens } from '@/theme/tokens';
 
 /**
@@ -97,9 +98,10 @@ export function AgreementCard({
         <AppText onPress={other?.idUtente ? () => router.push('/user/' + other.idUtente) : undefined}>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
       </View>
 
-      {accordo.proposte?.filter((proposal) => proposal.descrizioneServizio).map((proposal) => (
-        <AppText key={proposal.username} variant="small">{'@' + proposal.username + ': ' + proposal.descrizioneServizio}</AppText>
-      ))}
+      {/* Le due direzioni dello scambio, non due righe uguali: chi dà cosa a chi
+          è l'oggetto del prodotto, e senza l'etichetta la card sembrava una chat
+          (audit 2026-11-18, composizione). */}
+      <BarterPair direzioni={direzioniScambio(accordo)} compatta />
 
       {puoAprireChat ? (
         <AppButton

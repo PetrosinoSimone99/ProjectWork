@@ -4,8 +4,9 @@
  *
  * The same file also holds the delivery-sheet helpers (`sheetsFor`,
  * `isSheetCompiled`, `statoScheda`) that pick the sheet rows belonging to the
- * viewer and say which move is theirs; both halves are pure and read only what
- * the agreement already carries.
+ * viewer and say which move is theirs, and `direzioniScambio`, which reads who
+ * gives what to whom straight from the proposals. Every half is pure and reads
+ * only what the agreement already carries.
  *
  * The real lifecycle (`AgreementManager::createExchangeAgreement` and
  * `sendResponse`) decides the rules:
@@ -136,6 +137,47 @@ export function counterpartOf(agreement, myUsername) {
       proposta.username !== myUsername,
   );
   return other ? other.username : null;
+}
+
+/**
+ * `true` when the proposal row carries `ruolo`, whatever case arrives: the
+ * backend's `AgreementParticipantRole` spells it `Provider`/`Beneficiary`
+ * (`Backend/src/Manager/AgreementManager.php:30-35`) and the normaliser keeps
+ * the raw wire word.
+ */
+function roleIs(proposta, ruolo) {
+  return typeof proposta?.ruolo === 'string' && proposta.ruolo.trim().toUpperCase() === ruolo;
+}
+
+/** One direction of the trade — `{chi, cosa}` — or `null` when no row carries it. */
+function directionOf(proposte, ruolo) {
+  const proposta = proposte.find((riga) => roleIs(riga, ruolo));
+  if (!proposta || typeof proposta.username !== 'string' || proposta.username === '') {
+    return null;
+  }
+  const cosa = typeof proposta.descrizioneServizio === 'string' ? proposta.descrizioneServizio.trim() : '';
+  return { chi: proposta.username, cosa: cosa === '' ? null : cosa };
+}
+
+/**
+ * The two directions of the trade as the agreement itself carries them:
+ * `{offre: {chi, cosa} | null, riceve: {chi, cosa} | null}`.
+ *
+ * `offre` is the proposal whose `ruolo` is the provider — the participant who
+ * gives the service — with `chi` its `username` and `cosa` its
+ * `descrizioneServizio`; `riceve` is the same for the beneficiary. It is read
+ * from the proposal rows and never from the viewer, so both participants read
+ * the same two directions and a screen can name who gives what to whom before
+ * the decisive tap.
+ *
+ * Nothing is invented: without `proposte`, without a `username`, or with no row
+ * in that role, the side stays `null`; `cosa` is `null` when the description is
+ * missing or blank. Two rows with the same role keep the first — the backend
+ * writes one per participant, so a duplicate is not a third direction.
+ */
+export function direzioniScambio(accordo) {
+  const proposte = Array.isArray(accordo?.proposte) ? accordo.proposte : [];
+  return { offre: directionOf(proposte, 'PROVIDER'), riceve: directionOf(proposte, 'BENEFICIARY') };
 }
 
 /**

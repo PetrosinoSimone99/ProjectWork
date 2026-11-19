@@ -23,12 +23,27 @@ import { MessageComposer } from '@/components/MessageComposer';
 import { ModalShell } from '@/components/ModalShell';
 import { PageHeader } from '@/components/PageHeader';
 import { Screen } from '@/components/Screen';
-import { sheetsFor, statoScheda } from '@/services/agreements';
+import { sheetsFor, statoScheda, direzioniScambio } from '@/services/agreements';
 import { formatIsoDateTimeNumeric } from '@/services/dates';
 import { space } from '@/theme/tokens';
 
 /** The header's line when the other person has not written yet. */
 const FRASE_GENERICA = 'Messaggi dello scambio: accordatevi qui sui dettagli.';
+
+/**
+ * La testata nomina lo scambio, non solo la persona: con entrambi i servizi noti
+ * dice chi dà cosa e cosa riceve, e la chat smette di essere una conversazione
+ * senza oggetto (audit 2026-11-18, composizione). Un lato mancante non si inventa.
+ */
+function fraseDelloScambio(controparte, direzioni) {
+  const base = `Scambio con @${controparte}`;
+  const offre = direzioni?.offre ?? null;
+  const riceve = direzioni?.riceve ?? null;
+  if (offre?.cosa && riceve?.cosa) {
+    return `${base}: ${offre.cosa} per ${riceve.cosa}`;
+  }
+  return base;
+}
 
 /** Copy of the line under the header, per state of the sheet read. */
 const SCHEDA_IN_LETTURA = 'Carico la scheda di consegna…';
@@ -228,6 +243,9 @@ export default function ChatScreen() {
   const vuota = messaggi !== null && messaggi.length === 0;
 
   const statoDellaScheda = accordo === null ? null : statoScheda(accordo, myUsername);
+  // Le due direzioni del baratto: le legge il pannello della scheda, la testata
+  // della chat e — dentro la scheda — la conferma (audit P1-4).
+  const direzioni = accordo === null ? null : direzioniScambio(accordo);
   const { mia, altra } = accordo === null ? { mia: null, altra: null } : sheetsFor(accordo, myUsername);
   // Whatever the state, the sheet on screen is the one the viewer has to read:
   // their own while they wait for a confirmation, the other side's when the
@@ -260,7 +278,7 @@ export default function ChatScreen() {
     <Screen scroll={false} bottomSpacing={space.sm}>
       <PageHeader
         titolo="Chat"
-        frase={controparte === null ? FRASE_GENERICA : `Scambio con @${controparte}`}
+        frase={controparte === null ? FRASE_GENERICA : fraseDelloScambio(controparte, direzioni)}
         indietro={<BackButton />}
       />
 
@@ -383,6 +401,7 @@ export default function ChatScreen() {
           <AgreementSheet
             titolo={titoloScheda}
             scheda={schedaMostrata}
+            direzioni={direzioni}
             azione={statoDellaScheda === 'daConfermare' ? 'conferma' : null}
             onConferma={confermaScheda}
             onRifiuta={statoDellaScheda === 'daConfermare' ? rifiutaScheda : null}

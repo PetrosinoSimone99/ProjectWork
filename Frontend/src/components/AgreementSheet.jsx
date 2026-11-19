@@ -4,6 +4,7 @@ import { ApiError } from '@/api/client';
 import { AppButton } from './AppButton';
 import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
+import { BarterPair } from './BarterPair';
 import { ConfirmModal } from './ConfirmModal';
 import { formatIsoDateTimeNumeric } from '@/services/dates';
 import { isSheetCompiled } from '@/services/agreements';
@@ -47,6 +48,7 @@ const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Ricerca' };
 export function AgreementSheet({
   titolo,
   scheda,
+  direzioni = null,
   azione = null,
   onConferma = null,
   onRifiuta = null,
@@ -97,6 +99,11 @@ export function AgreementSheet({
           {titolo}
         </AppText>
       ) : null}
+
+      {/* Il baratto prima dei fatti: la decisione che il pannello chiede è
+          «confermo questo scambio», quindi lo scambio deve essere sullo schermo
+          (audit 2026-11-18, P1-4). Senza i due lati non si disegna nulla. */}
+      <BarterPair direzioni={direzioni} />
 
       <View style={{ gap: space.xs }}>
         <RigaFatto etichetta="Inizio" valore={formatIsoDateTimeNumeric(scheda.inizio) ?? NON_ANCORA} />
@@ -163,7 +170,7 @@ export function AgreementSheet({
       <ConfirmModal
         visible={confermaAperta}
         titolo="Confermare questa scheda?"
-        messaggio="La conferma è definitiva: non si può ritirare."
+        messaggio={messaggioConferma(direzioni)}
         // Lo stesso verbo del bottone che ha aperto il pannello: la conferma
         // dice l'atto, non «Conferma» (WCAG 3.2.4).
         etichettaConferma="Conferma la scheda"
@@ -186,6 +193,20 @@ export function AgreementSheet({
       ) : null}
     </View>
   );
+}
+
+/**
+ * La conferma nomina lo scambio, non solo le persone: quando i due lati sono
+ * noti dice chi dà cosa a chi, then that it is final. A missing side falls back
+ * to the plain sentence — the confirm never invents a service (audit P1-4).
+ */
+function messaggioConferma(direzioni) {
+  const offre = direzioni?.offre ?? null;
+  const riceve = direzioni?.riceve ?? null;
+  if (offre?.cosa && riceve?.cosa) {
+    return `Confermando, ${offre.chi} dà «${offre.cosa}» e ${riceve.chi} dà «${riceve.cosa}». La conferma è definitiva.`;
+  }
+  return 'La conferma è definitiva: non si può ritirare.';
 }
 
 /** One read-only fact of the sheet: the label, then the value beside it. */

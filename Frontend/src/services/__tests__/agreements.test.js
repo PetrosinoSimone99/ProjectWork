@@ -2,6 +2,7 @@ import {
   apreLaChat,
   classifyAgreements,
   counterpartOf,
+  direzioniScambio,
   isSheetCompiled,
   sheetsFor,
   statoScheda,
@@ -240,6 +241,72 @@ describe('counterpartOf', () => {
     expect(counterpartOf(null, ME)).toBeNull();
     expect(counterpartOf(agreement(), null)).toBeNull();
     expect(counterpartOf(agreement(), '')).toBeNull();
+  });
+});
+
+describe('direzioniScambio', () => {
+  /** A proposal row carrying the service text the wire sends for it. */
+  function row(overrides = {}) {
+    return proposal({ descrizioneServizio: 'Ripetizioni di matematica', ...overrides });
+  }
+
+  it('names who gives what and who receives what', () => {
+    const accordo = agreement({
+      proposte: [
+        row({ username: OTHER, ruolo: 'Provider', descrizioneServizio: 'Lezione di italiano' }),
+        row({ username: ME, ruolo: 'Beneficiary', descrizioneServizio: 'Riparazione bicicletta' }),
+      ],
+    });
+
+    expect(direzioniScambio(accordo)).toEqual({
+      offre: { chi: OTHER, cosa: 'Lezione di italiano' },
+      riceve: { chi: ME, cosa: 'Riparazione bicicletta' },
+    });
+  });
+
+  it('keeps the offering side null when only the beneficiary proposed', () => {
+    const accordo = agreement({ proposte: [row({ username: ME, ruolo: 'Beneficiary' })] });
+
+    expect(direzioniScambio(accordo)).toEqual({
+      offre: null,
+      riceve: { chi: ME, cosa: 'Ripetizioni di matematica' },
+    });
+  });
+
+  it('reads a row without a service description as cosa null', () => {
+    const blank = agreement({
+      proposte: [row({ username: OTHER, ruolo: 'Provider', descrizioneServizio: '   ' })],
+    });
+    const absent = agreement({ proposte: [proposal()] });
+
+    expect(direzioniScambio(blank).offre).toEqual({ chi: OTHER, cosa: null });
+    expect(direzioniScambio(absent).offre).toEqual({ chi: OTHER, cosa: null });
+  });
+
+  it('reads an agreement with no proposal as two empty directions', () => {
+    expect(direzioniScambio(agreement({ proposte: [] }))).toEqual({ offre: null, riceve: null });
+    expect(direzioniScambio({})).toEqual({ offre: null, riceve: null });
+    expect(direzioniScambio(null)).toEqual({ offre: null, riceve: null });
+    // A row without a username names nobody: the side stays null.
+    expect(direzioniScambio(agreement({ proposte: [proposal({ username: undefined })] }))).toEqual({
+      offre: null,
+      riceve: null,
+    });
+  });
+
+  it('matches the role case-insensitively and keeps the first row of a role', () => {
+    const accordo = agreement({
+      proposte: [
+        row({ username: OTHER, ruolo: 'PROVIDER', descrizioneServizio: 'Lezione di italiano' }),
+        row({ username: 'anna', ruolo: 'provider', descrizioneServizio: 'Riparazione bicicletta' }),
+        row({ username: ME, ruolo: 'beneficiary', descrizioneServizio: 'Giardinaggio' }),
+      ],
+    });
+
+    expect(direzioniScambio(accordo)).toEqual({
+      offre: { chi: OTHER, cosa: 'Lezione di italiano' },
+      riceve: { chi: ME, cosa: 'Giardinaggio' },
+    });
   });
 });
 

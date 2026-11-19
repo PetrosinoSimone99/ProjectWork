@@ -105,6 +105,26 @@ describe('AgreementSheet — the read-only sheet', () => {
     expect(testoVisibile(renderer, SCHEDA.note)).toBe(true);
   });
 
+  it('names both directions of the trade, and the confirm repeats the trade', () => {
+    const direzioni = {
+      offre: { chi: 'mario.rossi', cosa: 'Riparazione biciclette' },
+      riceve: { chi: 'luca.ferrari', cosa: 'Lezioni di chitarra' },
+    };
+    const renderer = render({ direzioni, azione: 'conferma', onConferma: jest.fn() });
+
+    expect(testoVisibile(renderer, 'Offre')).toBe(true);
+    expect(testoVisibile(renderer, 'Riceve')).toBe(true);
+
+    premi(renderer, 'Conferma la scheda');
+
+    expect(
+      testoVisibile(
+        renderer,
+        'Confermando, mario.rossi dà «Riparazione biciclette» e luca.ferrari dà «Lezioni di chitarra». La conferma è definitiva.',
+      ),
+    ).toBe(true);
+  });
+
   it('calls the second type of service «Ricerca», never «Richiesta»', () => {
     const renderer = render({
       scheda: { ...SCHEDA, tipoServizio: 'REQUEST', descrizione: 'Lezioni di chitarra' },
