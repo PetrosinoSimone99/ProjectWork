@@ -61,7 +61,9 @@ export function EntryCard({
   const disabilitaModifica = modificaDisabilitata || azioniDisabilitate || !idValido;
 
   const nomeCategoriaVoce = nomeCategoria(categorie, voce.idCategoria);
-  const testoVoce = voce.mansione.trim() || 'Mansione non indicata';
+  // La descrizione è il testo libero del servizio: `voce.mansione` è il nome del
+  // campo nel contratto, non la parola che si legge.
+  const testoVoce = voce.mansione.trim() || 'Descrizione non indicata';
   const articolo = ARTICOLI[voce.tipo] ?? 'la voce';
 
   // Pubblicata -> verde tenue (service); sospesa o stato sconosciuto -> neutro.

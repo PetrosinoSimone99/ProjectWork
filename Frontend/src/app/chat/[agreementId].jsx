@@ -31,11 +31,11 @@ import { space } from '@/theme/tokens';
 const FRASE_GENERICA = 'Messaggi dello scambio: accordatevi qui sui dettagli.';
 
 /** Copy of the line under the header, per state of the sheet read. */
-const SCHEDA_IN_LETTURA = 'Carico la scheda dell’accordo…';
+const SCHEDA_IN_LETTURA = 'Carico la scheda di consegna…';
 const SCHEDA_NON_TROVATA =
-  'Non trovo questo scambio fra i tuoi accordi: la scheda non è disponibile da qui.';
+  'Non trovo questo scambio: la scheda di consegna non è disponibile da qui.';
 const SCHEDA_IN_ATTESA =
-  'La scheda la scrive chi ha proposto lo scambio: la vedi qui appena arriva, e allora tocca a te confermarla.';
+  'La scheda la scrive chi ha proposto lo scambio: quando arriva, tocca a te confermarla.';
 
 /**
  * The line under the header when there is no sheet button to draw, or `null`
@@ -68,12 +68,12 @@ function rigaScheda({ accordo, letto, caricamento, errore, stato }) {
  * (brief, decision 1). The entry point is the "Apri chat" action of an
  * `ACCEPTED` row; the route only exists with a session (`app/_layout.jsx`).
  *
- * The delivery sheet lives here too, because it is a step of the conversation
- * and not a datum of the list: one button opens it — "Crea accordo" while
- * nobody has sent it, "Accordo" once it exists — and what it opens depends on
- * `statoScheda` of `services/agreements.js`. The first participant who sends
- * the sheet locks the round: the other one reads it and can only confirm or
- * refuse it.
+ * The delivery sheet — the «scheda di consegna» — lives here too, because it is
+ * a step of the conversation and not a datum of the list, and one button opens
+ * it: «Invia la scheda» while nobody has written it, «Conferma la scheda» in
+ * the other states `statoScheda` of `services/agreements.js` returns for an
+ * accepted exchange. The first participant who sends the sheet locks the
+ * round: the other one reads it and can only confirm or refuse it.
  *
  * The agreement itself is read with `listAgreements` (no new endpoint) and
  * looked up by the id of this route, on every focus: accepting or confirming a
@@ -282,7 +282,11 @@ export default function ChatScreen() {
 
       {accordo !== null && accordo.stato === 'ACCEPTED' && statoDellaScheda !== null ? (
         <AppButton
-          label={statoDellaScheda === 'daCompilare' ? 'Crea accordo' : 'Accordo'}
+          // L'etichetta cambia su un confine solo, `daCompilare` (contratto di
+          // copy del 2026-11-19): «Invia la scheda» mentre nessuno l'ha scritta,
+          // «Conferma la scheda» quando la scheda c'è già. La riga che si apre
+          // dice chi deve confermare, e il verbo resta quello della scheda.
+          label={statoDellaScheda === 'daCompilare' ? 'Invia la scheda' : 'Conferma la scheda'}
           icon="document-text-outline"
           variant="secondary"
           onPress={() => setSchedaAperta(true)}
@@ -339,7 +343,7 @@ export default function ChatScreen() {
           <View style={{ gap: space.sm }}>
             <AppText variant="small" tone="secondary">
               {conclusoIl
-                ? `Accordo concluso il ${conclusoIl}. La chat resta in sola lettura.`
+                ? `Scambio concluso il ${conclusoIl}. La chat resta in sola lettura.`
                 : 'Questo scambio è chiuso. La chat resta in sola lettura.'}
             </AppText>
             <AppButton
@@ -372,9 +376,9 @@ export default function ChatScreen() {
         <ModalShell
           visible={schedaAperta}
           onClose={() => setSchedaAperta(false)}
-          titolo="L’accordo"
-          descrizione="Le date e il servizio li ha scritti il sistema: qui restano da leggere, e da confermare se tocca a te."
-          etichettaChiudi="Chiudi la scheda dell’accordo"
+          titolo="Scheda di consegna"
+          descrizione="Le date e il servizio li ha scritti Baratto-lo; la descrizione è scritta da chi ha inviato la scheda."
+          etichettaChiudi="Chiudi la scheda di consegna"
         >
           <AgreementSheet
             titolo={titoloScheda}

@@ -32,7 +32,7 @@ import { PROVINCE, comuniPerProvincia, formattaLocalita } from '@/services/itali
 import { space } from '@/theme/tokens';
 
 /**
- * Crea il profilo: dati anagrafici, cosa si offre e cosa si cerca.
+ * Registrati: dati anagrafici, cosa si offre e cosa si cerca.
  *
  * Le voci di offerta e ricerca sono la versione strutturata del vecchio «servizio
  * che offri»: categoria (da una lista che arriva dal backend), mansione in testo
@@ -321,8 +321,8 @@ export default function RegisterScreen() {
   return (
     <AuthShell>
       <PageHeader
-        titolo="Crea il tuo profilo"
-        frase="Bastano pochi dati per iniziare a scambiare servizi."
+        titolo="Registrati"
+        frase="I tuoi dati, la tua offerta e la tua ricerca: con queste entri nel match."
         // Le schermate di accesso sono centrate nella finestra: una testata al
         // telaio sarebbe una seconda composizione nella stessa pagina (F14).
         banda={false}
@@ -404,7 +404,7 @@ export default function RegisterScreen() {
           errore={fieldErrors.comune ?? null}
         />
         <AppText variant="small" tone="secondary">
-          La vedono le persone che ti contattano.
+          La località la vedono le persone che ti contattano.
         </AppText>
       </Card>
 
@@ -437,7 +437,7 @@ export default function RegisterScreen() {
 
       <View style={{ gap: space.md }}>
         <AppButton
-          label="Crea account"
+          label="Registrati"
           onPress={handleSubmit}
           loading={submitting}
           disabled={!puoInviare}

@@ -25,7 +25,7 @@ const NOME_APP = 'Baratto-lo';
 /** Le rotte che non sono tab, con il titolo della loro intestazione. */
 const TITOLI_SECONDARI = {
   '/login': 'Accedi',
-  '/register': 'Crea il tuo profilo',
+  '/register': 'Registrati',
   '/edit-profile': 'Modifica profilo',
   '/report': 'Segnala alla staff',
   '/staff': 'Area staff',

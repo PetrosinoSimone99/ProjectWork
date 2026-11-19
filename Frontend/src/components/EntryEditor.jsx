@@ -6,7 +6,7 @@ import { LIMITE_MANSIONE, TIPI_VOCE } from '@/services/offer-request';
 import { radius, space, useTokens } from '@/theme/tokens';
 
 /**
- * Una voce di «cosa offro» o «cosa cerco»: categoria + mansione. La casella
+ * Una voce di «cosa offro» o «cosa cerco»: categoria + descrizione. La casella
  * «da remoto» è attiva e il valore (`voce.daRemoto`) viaggia come `isRemote` nel
  * contratto (il backend lo modella dalla PR #34). Dalla registrazione si manda
  * solo `isRemote` (`api/index.js` → `aCorpoVoci`), mai `isSuspended`: una
@@ -41,7 +41,7 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * un campo distratto per lasciare passare una seconda scrittura. Per questo non
  * c'è nessuno `useState` del blocco: c'è solo l'inoltro ai tre controlli che
  * compongono la voce, con le prop che ognuno ha già (`disabled` sulla categoria e
- * sulla casella «da remoto», `editable` sulla mansione). Con la prop assente la
+ * sulla casella «da remoto», `editable` sulla descrizione). Con la prop assente la
  * registrazione si comporta come prima: `EntriesSection` non la passa.
  */
 
@@ -92,11 +92,11 @@ export function EntryEditor({
       />
 
       <AppInput
-        label="Mansione"
+        label="Descrizione"
         // Il nome accessibile porta la sezione: le due voci di una schermata
-        // hanno lo stesso campo visibile «Mansione», e senza questa distinzione
+        // hanno lo stesso campo visibile «Descrizione», e senza questa distinzione
         // uno screen reader ne annunciava due identici (audit UX F18).
-        accessibilityLabel={`Mansione — ${testi.titolo.toLowerCase()}`}
+        accessibilityLabel={`Descrizione — ${testi.titolo.toLowerCase()}`}
         value={voce.mansione}
         onChangeText={(mansione) => onCambia('mansione', mansione)}
         placeholder={testi.segnaposto}

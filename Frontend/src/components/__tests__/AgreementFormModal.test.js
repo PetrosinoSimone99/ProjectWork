@@ -113,7 +113,7 @@ describe('AgreementFormModal — what the person reads', () => {
 
     expect(testoVisibile(renderer, 'Offerta: Riparazione biciclette')).toBe(true);
     // The other side's row is not this panel's business.
-    expect(testoVisibile(renderer, 'Richiesta: Lezione di chitarra')).toBe(false);
+    expect(testoVisibile(renderer, 'Ricerca: Lezione di chitarra')).toBe(false);
   });
 
   it('offers one field only: the description, capped at the backend limit', () => {
@@ -122,6 +122,31 @@ describe('AgreementFormModal — what the person reads', () => {
     expect(campoDescrizione(renderer).props.multiline).toBe(true);
     expect(campoDescrizione(renderer).props.maxLength).toBe(NOTE_MAX_LENGTH);
     expect(NOTE_MAX_LENGTH).toBe(500);
+  });
+});
+
+describe('AgreementFormModal — un nome per una cosa', () => {
+  it('chiama scheda di consegna ciò che si scrive, e il comando che chiude lo dice', () => {
+    const renderer = render();
+
+    expect(testoVisibile(renderer, 'Scheda di consegna')).toBe(true);
+    expect(
+      renderer.root.findAll(
+        (node) => node.props?.accessibilityLabel === 'Chiudi la scheda di consegna',
+      ),
+    ).not.toHaveLength(0);
+  });
+
+  // Lo scambio si chiama «scambio»: nessun testo visibile del pannello nomina
+  // «accordo» ciò che la persona sta scrivendo (audit 2026-11-18, copy §3).
+  it('non nomina mai «accordo» ciò che si sta scrivendo', () => {
+    const renderer = render();
+    const testi = renderer.root
+      .findAll((node) => typeof node.props?.children === 'string')
+      .map((node) => node.props.children);
+
+    expect(testi.length).toBeGreaterThan(0);
+    expect(testi.filter((testo) => /accordo/i.test(testo))).toEqual([]);
   });
 });
 
@@ -134,9 +159,9 @@ describe('AgreementFormModal — sending the sheet', () => {
     premi(renderer, 'Invia la scheda');
 
     expect(onInvia).not.toHaveBeenCalled();
-    expect(testoVisibile(renderer, 'Scrivi la descrizione dell’accordo: è l’unica cosa che manca.')).toBe(
-      true,
-    );
+    expect(
+      testoVisibile(renderer, 'Scrivi la descrizione della scheda: da 1 a 500 caratteri.'),
+    ).toBe(true);
   });
 
   it('sends the agreement id and the trimmed note, then closes', async () => {

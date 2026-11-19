@@ -11,7 +11,7 @@ import { space } from '@/theme/tokens';
  * **Una voce, sempre, senza comandi intorno.** La regola di prodotto
  * (2026-11-11) è una voce per tipo, e qui la voce è obbligatoria: il backend
  * rifiuta `offers`/`requests` vuoti (`AuthController::validateServices`) e il
- * pulsante «Crea account» resta spento senza. Quindi la sezione non ha né
+ * pulsante che crea l'account resta spento senza. Quindi la sezione non ha né
  * «Aggiungi» (non c'è un secondo posto da raggiungere) né cestino (togliere
  * l'unica voce obbligatoria vorrebbe dire solo riscriverla da zero, perdendo
  * quello che c'era). L'unica via di modifica è `onCambia`.

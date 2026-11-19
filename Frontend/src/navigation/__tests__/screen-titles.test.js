@@ -15,7 +15,7 @@ describe('titoloDocumento', () => {
 
   it.each([
     ['/login', 'Accedi'],
-    ['/register', 'Crea il tuo profilo'],
+    ['/register', 'Registrati'],
     ['/edit-profile', 'Modifica profilo'],
     ['/report', 'Segnala alla staff'],
     ['/staff', 'Area staff'],

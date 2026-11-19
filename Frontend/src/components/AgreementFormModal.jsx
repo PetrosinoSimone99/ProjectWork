@@ -17,11 +17,11 @@ export const NOTE_MAX_LENGTH = 500;
 /** The line the sheet prints where a timestamp has not been written yet. */
 const NON_ANCORA = '—';
 
-const NOTE_OBBLIGATORIA = 'Scrivi la descrizione dell’accordo: è l’unica cosa che manca.';
+const NOTE_OBBLIGATORIA = 'Scrivi la descrizione della scheda: da 1 a 500 caratteri.';
 const ERRORE_GENERICO = 'Non è stato possibile inviare la scheda. Riprova.';
 
 /** Il tipo di servizio della riga, con le parole del prodotto. */
-const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Richiesta' };
+const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Ricerca' };
 
 /**
  * La chiave della bozza: una per accordo, perché due scambi aperti insieme non
@@ -33,7 +33,7 @@ export function chiaveBozzaAccordo(agreementId) {
 
 /**
  * The panel where a participant writes the delivery sheet of their accepted
- * exchange, opened from the chat ("Crea accordo").
+ * exchange, opened from the chat.
  *
  * It holds four things and nothing else, in this order: `inizio`, `fine`, the
  * service the sender already published, and the one field the person writes.
@@ -112,9 +112,9 @@ export function AgreementFormModal({
     <ModalShell
       visible={visible}
       onClose={onClose}
-      titolo="Crea accordo"
+      titolo="Scheda di consegna"
       descrizione="Le date e il servizio sono già scritti: aggiungi i dettagli pratici dello scambio."
-      etichettaChiudi="Chiudi la scheda dell’accordo"
+      etichettaChiudi="Chiudi la scheda di consegna"
       chiudibile={!inVolo}
       footer={
         <AppButton
@@ -148,7 +148,7 @@ export function AgreementFormModal({
         </View>
       ) : (
         <AppText variant="small" tone="secondary">
-          Servizio non disponibile: la scheda dirà comunque la descrizione che scrivi qui.
+          Il servizio non è disponibile: la scheda riporterà solo la descrizione che scrivi qui.
         </AppText>
       )}
 

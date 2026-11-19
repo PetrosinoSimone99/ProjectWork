@@ -82,6 +82,17 @@ describe('EntryCard — one action, not three', () => {
   });
 });
 
+describe('EntryCard — one word for the free text of a service', () => {
+  it('calls it a description, in the row and in its fallback', () => {
+    const conTesto = JSON.stringify(render().toJSON());
+    expect(conTesto).not.toContain('Mansione');
+
+    const senzaTesto = JSON.stringify(render({ voce: { ...VOCE, mansione: '   ' } }).toJSON());
+    expect(senzaTesto).toContain('Descrizione non indicata');
+    expect(senzaTesto).not.toContain('Mansione');
+  });
+});
+
 describe('EntryCard — what the two reasons switch off', () => {
   it('leaves «Modifica» enabled when no reason is given', () => {
     expect(pulsante(render(), 'Modifica').props.disabled).toBe(false);

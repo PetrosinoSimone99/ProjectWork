@@ -310,8 +310,9 @@ export default function OfferAndRequestScreen() {
           kind="success"
           message={esito}
           // Il successo si chiude: resta finché non arriva la prossima scrittura
-          // altrimenti è arredamento, non una notizia (audit F46).
-          etichettaAzione="Ho capito"
+          // altrimenti è arredamento, non una notizia (audit F46). Il pulsante
+          // non fa altro che chiudere, quindi si chiama «Chiudi».
+          etichettaAzione="Chiudi"
           iconaAzione="checkmark-outline"
           onAzione={() => setEsito(null)}
         />

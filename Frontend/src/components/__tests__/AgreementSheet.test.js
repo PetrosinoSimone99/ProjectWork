@@ -105,6 +105,15 @@ describe('AgreementSheet — the read-only sheet', () => {
     expect(testoVisibile(renderer, SCHEDA.note)).toBe(true);
   });
 
+  it('calls the second type of service «Ricerca», never «Richiesta»', () => {
+    const renderer = render({
+      scheda: { ...SCHEDA, tipoServizio: 'REQUEST', descrizione: 'Lezioni di chitarra' },
+    });
+
+    expect(testoVisibile(renderer, 'Ricerca: Lezioni di chitarra')).toBe(true);
+    expect(testoVisibile(renderer, 'Richiesta: Lezioni di chitarra')).toBe(false);
+  });
+
   it('draws no field of its own: no date picker, no form button', () => {
     const renderer = render();
 
@@ -116,13 +125,13 @@ describe('AgreementSheet — the read-only sheet', () => {
   it('says when the other person has not written the sheet yet', () => {
     const renderer = render({ scheda: { ...SCHEDA, stato: 'UNCOMPILED', inizio: null, fine: null, note: null } });
 
-    expect(testoVisibile(renderer, 'Scheda non ancora compilata.')).toBe(true);
+    expect(testoVisibile(renderer, 'Scheda di consegna non ancora compilata.')).toBe(true);
   });
 
   it('says when the sheet is already confirmed', () => {
     const renderer = render({ scheda: { ...SCHEDA, beneficiarioAccettato: true } });
 
-    expect(testoVisibile(renderer, 'Scheda confermata.')).toBe(true);
+    expect(testoVisibile(renderer, 'Scheda di consegna confermata.')).toBe(true);
     expect(conQuelNome(renderer, 'Conferma la scheda')).toHaveLength(0);
   });
 

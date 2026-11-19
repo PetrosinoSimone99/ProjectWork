@@ -83,7 +83,7 @@ export default function LoginScreen() {
           <Banner
             kind="info"
             message={motivoUscita}
-            etichettaAzione="Ho capito"
+            etichettaAzione="Chiudi"
             iconaAzione="checkmark-outline"
             onAzione={congedaMotivo}
           />

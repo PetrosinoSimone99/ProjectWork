@@ -210,7 +210,10 @@ export default function HomeScreen() {
         icon="pricetags-outline"
         title="Nessun servizio attivo"
         description="Quando qualcuno pubblica un servizio, lo troverai qui: per ora nessuno ne ha pubblicati."
-        etichettaAzione="Ricarica"
+        // Il gesto è lo stesso del Banner d'errore qui sopra: due verbi per una
+        // sola cosa («Ricarica» / «Riprova») facevano sembrare diverse due
+        // azioni identiche.
+        etichettaAzione="Riprova"
         onAzione={() => void riprova()}
       />
     );
@@ -341,8 +344,9 @@ export default function HomeScreen() {
                   : 'Proposta inviata. La trovi in Accordi.'
             }
             // Un messaggio di successo che resta fino alla prossima scrittura non è
-            // più una notizia: si chiude come gli altri (audit F46).
-            etichettaAzione="Ho capito"
+            // più una notizia: si chiude come gli altri (audit F46). Il pulsante
+            // fa esattamente questo, quindi lo dice: «Chiudi».
+            etichettaAzione="Chiudi"
             iconaAzione="checkmark-outline"
             onAzione={() => setPropostaInviataA(null)}
           />

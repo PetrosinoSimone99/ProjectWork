@@ -41,6 +41,24 @@ function controlli(renderer) {
   return { categoria, mansione, remoto };
 }
 
+describe('EntryEditor — one word for the description', () => {
+  it('labels the free text «Descrizione», never the job title', () => {
+    const { mansione } = controlli(render());
+
+    expect(mansione.props.label).toBe('Descrizione');
+    expect(mansione.props.label).not.toContain('Mansione');
+  });
+
+  // Two fields on one screen, one visible label: the accessible name is what
+  // keeps them apart, so it must stay, worded with the same word as the label.
+  it('keeps the offer and the request apart in the accessible name', () => {
+    expect(controlli(render()).mansione.props.accessibilityLabel).toBe('Descrizione — cosa offri');
+    expect(
+      controlli(render({ voce: { ...VOCE, tipo: 'RICERCA' } })).mansione.props.accessibilityLabel,
+    ).toBe('Descrizione — cosa cerchi');
+  });
+});
+
 describe('EntryEditor — the lock arriving from the screen', () => {
   it('locks the category field, the mansione and the remote checkbox', () => {
     const { categoria, mansione, remoto } = controlli(render({ bloccato: true }));

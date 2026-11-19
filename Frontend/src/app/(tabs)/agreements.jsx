@@ -67,22 +67,22 @@ const SECTIONS = [
   {
     key: 'inProgress',
     tab: 'In corso',
-    title: 'Accordi in corso',
+    title: 'Scambi in corso',
     description: 'Gli scambi accettati che non sono ancora finiti.',
     icon: 'time-outline',
     emptyTitle: 'Nessuno scambio in corso',
     emptyDescription:
-      'Quando una proposta viene accettata, lo scambio compare qui: da qui apri la chat, e la scheda dell’accordo si scrive dentro la chat.',
+      'Qui compaiono gli scambi accettati: chi, cosa, e la chat per accordarvi sui dettagli.',
   },
   {
     key: 'concluded',
     tab: 'Conclusi',
-    title: 'Conclusi',
-    description: 'Gli accordi rifiutati, annullati o già scaduti.',
+    title: 'Scambi conclusi',
+    description: 'Gli scambi rifiutati, annullati o già scaduti.',
     icon: 'archive-outline',
-    emptyTitle: 'Nessun accordo concluso',
+    emptyTitle: 'Nessuno scambio concluso',
     emptyDescription:
-      'Gli accordi rifiutati, annullati o scaduti restano qui; uno scambio accettato e già scaduto si può ancora annullare.',
+      'Restano qui gli scambi rifiutati, annullati o scaduti. Uno scambio scaduto ma non ancora chiuso si può annullare.',
   },
 ];
 
@@ -137,13 +137,13 @@ function tabLabel(sezione, conteggio) {
   if (conteggio === null) {
     return sezione.tab;
   }
-  return `${sezione.tab}: ${conteggio === 1 ? '1 accordo' : `${conteggio} accordi`}`;
+  return `${sezione.tab}: ${conteggio === 1 ? '1 scambio' : `${conteggio} scambi`}`;
 }
 
 /** The subtitle of the bell panel: the count when it exists, never a fake one. */
 function didascaliaPannello({ conteggio, myUsername, caricamento }) {
   if (myUsername === null) {
-    return 'Non riesco a leggere il tuo account: ricarica la sessione.';
+    return 'Non riesco a leggere il tuo account: riprova fra poco.';
   }
   if (conteggio === null) {
     if (caricamento) {
@@ -232,8 +232,10 @@ export default function AgreementsScreen() {
           <Banner
             kind="success"
             message={esito}
-            etichettaAzione="Ho capito"
-            iconaAzione="checkmark-outline"
+            // Il banner di esito si limita a sparire: l'etichetta dice l'atto
+            // (`Chiudi`), non un consenso che nessuno ha chiesto.
+            etichettaAzione="Chiudi"
+            iconaAzione="close-outline"
             onAzione={congedaEsito}
           />
         ) : null}
@@ -259,10 +261,10 @@ export default function AgreementsScreen() {
               <EmptyState
                 icon={sezione.icon}
                 title="Caricamento non riuscito"
-                description="Gli accordi di questa sezione non sono arrivati: usa «Riprova» in alto."
+                description="Gli scambi di questa sezione non sono arrivati: usa «Riprova» in alto."
               />
             ) : (
-              <RigaCaricamento testo="Carico gli accordi…" />
+              <RigaCaricamento testo="Carico gli scambi…" />
             )
           ) : bucket.length === 0 ? (
             <EmptyState
@@ -327,7 +329,7 @@ function SectionTabs({ sections, activeKey, counts, onChange }) {
   return (
     <View
       accessibilityRole="radiogroup"
-      accessibilityLabel="Sezioni degli accordi"
+      accessibilityLabel="Sezioni degli scambi"
       style={{
         flexDirection: 'row',
         gap: space.xs,
@@ -510,7 +512,7 @@ function BellPanel({
     // "nothing to answer" here would be a claim about data we cannot read.
     contenuto = (
       <AppText variant="small" tone="secondary">
-        Non riesco a leggere il tuo account: ricarica la sessione.
+        Non riesco a leggere il tuo account, quindi non so quali proposte sono tue.
       </AppText>
     );
   } else if (classificati === null) {
@@ -542,7 +544,7 @@ function BellPanel({
           }}
         >
           <View style={{ gap: space.xs }}>
-            <AppText>{controparte ? `@${controparte}` : 'Controparte non disponibile'}</AppText>
+            <AppText>{controparte ? `@${controparte}` : "L'altra persona non è disponibile"}</AppText>
             {propostaDel ? (
               <AppText variant="caption" tone="secondary">
                 {`Proposta del ${propostaDel}`}
@@ -617,7 +619,7 @@ function BellPanel({
         }
         messaggio={
           daConfermare?.accepted
-            ? `Accettando, lo scambio con ${daConfermare?.chi} diventa un accordo in corso: da qui non puoi più cambiare risposta.`
+            ? `Accettando, lo scambio con ${daConfermare?.chi} passa in «In corso»: la risposta non si può più cambiare.`
             : `Rifiutando, la proposta di ${daConfermare?.chi} si chiude: non puoi rispondere di nuovo.`
         }
         etichettaConferma={daConfermare?.accepted ? 'Accetta la proposta' : 'Rifiuta la proposta'}

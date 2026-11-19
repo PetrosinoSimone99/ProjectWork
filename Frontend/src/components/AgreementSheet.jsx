@@ -16,7 +16,7 @@ const ERRORE_CONFERMA = 'Non è stato possibile confermare la scheda. Riprova.';
 const ERRORE_RIFIUTO = 'Non è stato possibile rifiutare la scheda. Riprova.';
 
 /** Il tipo di servizio della riga, con le parole del prodotto. */
-const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Richiesta' };
+const TIPI_SERVIZIO = { OFFER: 'Offerta', REQUEST: 'Ricerca' };
 
 /**
  * The delivery sheet as the reader meets it once it has left the form: two
@@ -149,12 +149,12 @@ export function AgreementSheet({
         <View style={{ gap: space.xs }}>
           {compilata ? null : (
             <AppText variant="small" tone="secondary">
-              Scheda non ancora compilata.
+              Scheda di consegna non ancora compilata.
             </AppText>
           )}
           {scheda.beneficiarioAccettato === true ? (
             <AppText variant="small" tone="secondary">
-              Scheda confermata.
+              Scheda di consegna confermata.
             </AppText>
           ) : null}
         </View>
