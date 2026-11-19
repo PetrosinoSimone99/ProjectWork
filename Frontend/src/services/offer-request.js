@@ -164,14 +164,22 @@ export function limiteRaggiunto(voci) {
 }
 
 /**
- * Il conteggio accanto al titolo di una sezione: quante voci ci sono su quante
- * se ne possono aggiungere. Oltre il tetto il rapporto non esiste più («7 di
- * 5»), quindi si dice solo quante ce ne sono: un numero impossibile rende
- * inaffidabile ogni altro numero della schermata (audit UX F04).
+ * Il conteggio accanto al titolo di una sezione: quante voci ci sono, ma solo
+ * quando il numero aggiunge qualcosa a ciò che la sezione dice già.
+ *
+ * Con il tetto di una voce per tipo il rapporto «N di 1» è una costante: accanto
+ * a «Cosa offro» / «Cosa cerco» legge sempre «1 di 1», una proporzione senza
+ * unità che non informa nessuno (audit P2). Quindi il conteggio parla solo
+ * **oltre** il tetto, dove il numero è l'unica cosa che dice quanto è anomalo
+ * l'elenco («7 voci») e il rapporto non esiste più (audit UX F04). Sotto il
+ * tetto e al tetto la sezione ha già la sua frase: lo stato vuoto quando non c'è
+ * niente, `testoLimiteVoci` quando il tetto è raggiunto. Il valore di ritorno è
+ * '' in quei casi, e chi chiama non disegna la riga (una riga vuota è peggio di
+ * nessuna riga).
  */
 export function testoConteggioVoci(voci) {
   const quanti = voci.length;
-  return quanti > LIMITE_VOCI ? `${quanti} voci` : `${quanti} di ${LIMITE_VOCI}`;
+  return quanti > LIMITE_VOCI ? `${quanti} voci` : '';
 }
 
 /**

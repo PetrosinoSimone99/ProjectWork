@@ -17,20 +17,31 @@ function voci(n) {
  *
  * The screen used to show "7 di 5" for an account that already had seven offers:
  * a number that cannot exist makes every other number on the screen doubtful
- * (audit UX F04). Every assertion below is derived from `LIMITE_VOCI`, because
- * the cap is a product rule that moves (five per type, then one per type on
- * 2026-11-11) and a test that hardcodes it fails for the wrong reason.
+ * (audit UX F04). It then showed "1 di 1" beside "Cosa offro" / "Cosa cerco"
+ * for every account, because the cap is one entry per type: a ratio with no unit
+ * that is a constant and therefore informs nobody (audit P2). The counter now
+ * speaks only above the cap, where the number is the only thing that says how
+ * abnormal the list is; at and below the cap the section already has the empty
+ * state or the cap sentence, and the counter returns nothing so the caller can
+ * draw no line at all. Every assertion below is derived from `LIMITE_VOCI`,
+ * because the cap is a product rule that moves (five per type, then one per type
+ * on 2026-11-11) and a test that hardcodes it fails for the wrong reason.
  */
 describe('testoConteggioVoci', () => {
-  it('says how many of the cap there are while the cap is not reached', () => {
-    expect(testoConteggioVoci(voci(0))).toBe(`0 di ${LIMITE_VOCI}`);
+  it('draws nothing at the cap, where the ratio would always read "1 di 1"', () => {
+    expect(testoConteggioVoci(voci(LIMITE_VOCI))).toBe('');
   });
 
-  it('still reads as a ratio when the cap is reached', () => {
-    expect(testoConteggioVoci(voci(LIMITE_VOCI))).toBe(`${LIMITE_VOCI} di ${LIMITE_VOCI}`);
+  it('draws nothing below the cap, where the empty state already says there is nothing', () => {
+    expect(testoConteggioVoci(voci(0))).toBe('');
   });
 
-  it('drops the ratio when the list is already over the cap', () => {
+  it('never prints a ratio, at or below the cap', () => {
+    expect(testoConteggioVoci(voci(0))).not.toContain(' di ');
+    expect(testoConteggioVoci(voci(LIMITE_VOCI))).not.toContain(' di ');
+  });
+
+  it('says how many there are when the list is already over the cap', () => {
     expect(testoConteggioVoci(voci(LIMITE_VOCI + 2))).toBe(`${LIMITE_VOCI + 2} voci`);
   });
 

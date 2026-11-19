@@ -26,14 +26,27 @@ import { radius, space, useTokens } from '@/theme/tokens';
  * keep the generic label and the bell icon, so a backend that adds an event
  * tomorrow shows up as a readable row instead of a blank one.
  *
+ * La scheda si chiama «scheda di consegna» anche in quest'etichetta: è lo
+ * stesso nome che usano il pannello e la chat (`AgreementFormModal`,
+ * `chat/[agreementId]`), e un secondo nome per lo stesso oggetto qui si
+ * leggerebbe come un secondo oggetto.
+ *
+ * Il testo del messaggio (`notifica.messaggio`) è dato del servizio, non copy:
+ * la riga lo mostra come arriva e non lo traduce. Le parole scritte da questo
+ * client stanno tutte in italiano, e il compito di scriverle in italiano è del
+ * backend.
+ *
  * The informational block (header row plus message) is a button only when the
  * notification carries an integer `agreementId`.
  */
 const TIPI = {
   AGREEMENT_PROPOSAL: { etichetta: 'Proposta', icona: 'swap-horizontal-outline' },
   AGREEMENT_RESPONSE: { etichetta: 'Risposta', icona: 'swap-horizontal-outline' },
-  AGREEMENT_DETAILS: { etichetta: 'Scheda', icona: 'document-text-outline' },
-  AGREEMENT_DETAILS_ACCEPTED: { etichetta: 'Scheda confermata', icona: 'checkmark-circle-outline' },
+  AGREEMENT_DETAILS: { etichetta: 'Scheda di consegna', icona: 'document-text-outline' },
+  AGREEMENT_DETAILS_ACCEPTED: {
+    etichetta: 'Scheda di consegna confermata',
+    icona: 'checkmark-circle-outline',
+  },
   AGREEMENT_CANCELLED: { etichetta: 'Annullamento', icona: 'close-circle-outline' },
   AGREEMENT_COMPLETED: { etichetta: 'Completato', icona: 'checkmark-done-outline' },
   CHAT_MESSAGE: { etichetta: 'Messaggio', icona: 'chatbubble-outline' },

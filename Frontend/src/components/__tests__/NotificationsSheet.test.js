@@ -254,3 +254,32 @@ describe('NotificationsSheet — the banner does not replace the list', () => {
     smonta(renderer);
   });
 });
+
+/**
+ * Le parole del pannello: quelle che questo client scrive sono italiane, e la
+ * scheda ha un nome solo.
+ */
+const PAROLE_INGLESI = /\b(the|your|has|been|and|are|was|were|will|you|with|from)\b/i;
+
+describe('NotificationsSheet — la voce del pannello', () => {
+  it('chiama «scheda di consegna» ciò che arriva, anche nello stato vuoto', () => {
+    const { renderer } = render({ elementi: [] });
+
+    const parole = testi(renderer).join(' ');
+    expect(parole).toContain('schede di consegna');
+    // Nessuna «scheda» lasciata senza il suo nome per esteso: una parola per
+    // un oggetto, o il lettore crede che siano due.
+    expect(parole).not.toMatch(/\bsched[ae]\b(?! di consegna)/);
+    smonta(renderer);
+  });
+
+  it('scrive solo frasi italiane, con le righe e senza', () => {
+    const conRighe = render({ elementi: [NOTIFICA] });
+    expect(testi(conRighe.renderer).join(' ')).not.toMatch(PAROLE_INGLESI);
+    smonta(conRighe.renderer);
+
+    const vuoto = render({ elementi: [] });
+    expect(testi(vuoto.renderer).join(' ')).not.toMatch(PAROLE_INGLESI);
+    smonta(vuoto.renderer);
+  });
+});

@@ -82,6 +82,11 @@ export function PublicationsSection({
   onModifica,
 }) {
   const pieno = limiteRaggiunto(voci);
+  // Il conteggio restituisce '' quando il numero non dice niente (sotto il tetto
+  // e al tetto, dove parlano lo stato vuoto e la frase del limite): qui non si
+  // disegna nessuna riga, perché una riga vuota accanto al titolo è peggio di
+  // nessuna riga.
+  const conteggio = testoConteggioVoci(voci);
   const formQui = form !== null && form.tipo === sezione.tipo;
   // La voce in modifica è nascosta dall'elenco: non si vede due volte.
   const vociDaElencare = voci.filter(
@@ -105,7 +110,9 @@ export function PublicationsSection({
           }}
         >
           <AppText variant="heading">{sezione.titolo}</AppText>
-          <AppText variant="small" tone="secondary">{testoConteggioVoci(voci)}</AppText>
+          {conteggio ? (
+            <AppText variant="small" tone="secondary">{conteggio}</AppText>
+          ) : null}
         </View>
         <AppText variant="small" tone="secondary">
           {sezione.spiegazione}

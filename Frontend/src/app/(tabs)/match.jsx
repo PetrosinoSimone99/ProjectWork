@@ -55,7 +55,7 @@ function refundsCredit(queue) {
 /** The empty list says what to do next, without pretending the tab is broken. */
 const EMPTY_TITLE = 'Nessuna coda attiva';
 const EMPTY_DESCRIPTION =
-  'Una coda è un servizio che metti in attesa: il match automatico confronterà le tue code con quelle della tua località. Creane una con i due pulsanti qui sotto.';
+  'Una coda mette in attesa un tuo servizio: il match la confronta con le code della tua località.';
 
 
 export default function MatchScreen() {
@@ -151,7 +151,11 @@ export default function MatchScreen() {
       setOutcome(null);
       try {
         await createQueue(token, tipo);
-        setOutcome(tipo === 'OFFER' ? 'Coda di offerta creata.' : 'Coda di ricerca creata.');
+        setOutcome(
+          tipo === 'OFFER'
+            ? 'Coda di offerta creata.'
+            : 'Coda di ricerca creata: un credito è stato speso.',
+        );
         await load();
       } catch (err) {
         setActionError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
@@ -303,7 +307,7 @@ function CreateQueueActions({ profile, activeQueue, busy, actionInFlight, onCrea
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <View style={{ flex: 1, gap: space.xs }}>
           <AppButton
-            label="Offerta"
+            label="Pubblica offerta"
             variant="secondary"
             onPress={() => onCreate('OFFER')}
             disabled={offerDisabled || busy}
@@ -313,7 +317,7 @@ function CreateQueueActions({ profile, activeQueue, busy, actionInFlight, onCrea
         </View>
         <View style={{ flex: 1, gap: space.xs }}>
           <AppButton
-            label="Ricerca"
+            label="Richiedi"
             variant="secondary"
             onPress={() => onCreate('REQUEST')}
             disabled={requestDisabled || busy}

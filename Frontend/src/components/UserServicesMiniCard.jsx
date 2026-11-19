@@ -53,9 +53,9 @@ const GRUPPI = [
  * first load (one secondary line), nothing published (one secondary line), the
  * person is gone (one secondary line, no button — a retry cannot bring an
  * account back), the viewer is refused (`403`, one secondary line naming the
- * right cause: *their own* inactive account), and a real failure (a banner with
- * retry). The distinction between "gone" and "refused" is not pedantry: they are
- * two different sentences about two different people.
+ * cause — *their own* inactive account — and the way out), and a real failure (a
+ * banner with retry). The distinction between "gone" and "refused" is not
+ * pedantry: they are two different sentences about two different people.
  */
 export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEscludere = null }) {
   const t = useTokens();
@@ -106,8 +106,8 @@ export function UserServicesMiniCard({ ownerId, ownerNome = null, apertoDaEsclud
 
       {vietato ? (
         <AppText variant="small" tone="secondary">
-          Il tuo account non è attivo: questa persona ha pubblicato qualcosa, ma il server non lo
-          mostra a un account inattivo.
+          Il tuo account non è attivo: le pubblicazioni di questa persona si vedono solo da un
+          account attivo. Chiedi allo staff di attivare il tuo account e riapri la scheda.
         </AppText>
       ) : null}
 

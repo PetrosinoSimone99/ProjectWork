@@ -32,7 +32,11 @@ export const SESSION_EXPIRED_MESSAGE = 'La sessione è scaduta: accedi di nuovo.
 const STATUS_MESSAGES = {
   400: 'La richiesta non è valida: controlla i dati e riprova.',
   401: SESSION_EXPIRED_MESSAGE,
-  403: 'Non hai i permessi per questa operazione.',
+  // Un `403` non dice da solo quale regola lo ha prodotto, e questa tabella
+  // serve ogni endpoint: nel prodotto può essere l'account inattivo oppure una
+  // funzione riservata ad altri account. La frase nomina le due cause invece di
+  // indovinarne una sola, e dice a chi chiedere.
+  403: 'Non puoi fare questa operazione: il tuo account non è attivo, oppure questa funzione è riservata ad altri account. Chiedi allo staff di verificare il tuo account, poi riprova.',
   404: 'Questo contenuto non esiste più.',
   409: 'L’operazione è in conflitto con lo stato attuale: aggiorna e riprova.',
   422: 'Alcuni dati non sono validi: controlla i campi e riprova.',

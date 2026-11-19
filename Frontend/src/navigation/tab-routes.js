@@ -19,6 +19,6 @@ export const TAB_ROUTES = [
     title: 'Offro e cerco',
     icona: 'add-circle-outline',
   },
-  { name: 'agreements', path: '/agreements', title: 'Accordi', icona: 'swap-horizontal-outline' },
+  { name: 'agreements', path: '/agreements', title: 'Scambi', icona: 'swap-horizontal-outline' },
   { name: 'profile', path: '/profile', title: 'Profilo', icona: 'person-outline' },
 ];

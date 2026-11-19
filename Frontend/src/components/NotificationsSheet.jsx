@@ -10,7 +10,7 @@ import { space, useTokens } from '@/theme/tokens';
 
 /** The sentence shown when the inbox has been read and holds no row. */
 const INBOX_VUOTA =
-  "Qui arrivano le proposte di scambio, le risposte, le schede e le decisioni della staff. Per ora non c'è niente da leggere.";
+  "Qui arrivano le proposte di scambio, le risposte, le schede di consegna e le decisioni della staff. Per ora non c'è niente da leggere.";
 
 /**
  * The notifications inbox as a centered panel over the profile, on web and on
@@ -70,7 +70,7 @@ export function NotificationsSheet({ visible, onClose, onLette = null }) {
       visible={visible}
       onClose={chiudi}
       titolo="Notifiche"
-      descrizione="Proposte, risposte, schede e decisioni della staff."
+      descrizione="Proposte, risposte, schede di consegna e decisioni della staff."
       etichettaChiudi="Chiudi le notifiche"
     >
       {/* The four states are rendered independently, not as an if/else chain:

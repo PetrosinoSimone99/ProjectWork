@@ -418,7 +418,7 @@ export default function StaffScreen() {
           message={message}
           // Chiudibile: un esito che resta a schermo fino alla scrittura
           // successiva non si legge più (audit F46).
-          etichettaAzione="Ho capito"
+          etichettaAzione="Chiudi"
           iconaAzione="checkmark-outline"
           onAzione={() => setMessage(null)}
         />
@@ -430,7 +430,7 @@ export default function StaffScreen() {
           icon="shield-checkmark-outline"
           title="Niente da esaminare"
           description={emptyTextForFilter(filter)}
-          etichettaAzione="Ricarica"
+          etichettaAzione="Riprova"
           onAzione={() => void ricaricaSegnalazioni()}
         />
       ) : null}
@@ -464,12 +464,12 @@ export default function StaffScreen() {
 
       {reports.haAltre ? (
         <AppButton
-          label={reports.caricamentoAltri ? 'Carico altri…' : 'Carica altri 20'}
+          label={reports.caricamentoAltri ? 'Carico altri…' : 'Carica altri'}
           variant="secondary"
           icon="chevron-down-outline"
           loading={reports.caricamentoAltri}
           onPress={() => void reports.caricaAltri()}
-          accessibilityLabel="Carica altre venti segnalazioni"
+          accessibilityLabel="Carica altri risultati"
           style={{ alignSelf: 'center' }}
         />
       ) : null}
@@ -533,7 +533,7 @@ export default function StaffScreen() {
           confirm
             ? `${REVIEW_LABELS[confirm.outcome] ?? 'Chiudi la segnalazione'} su ${nomePersona(
                 confirm.report.segnalato,
-              )}.\n\nEsito: ${statusLabel(confirm.outcome) ?? confirm.outcome}\nNota: ${confirm.note.trim()}\n\nDopo la chiusura la pratica non si riapre.`
+              )}.\n\nEsito: ${statusLabel(confirm.outcome) ?? confirm.outcome}\nNota: ${confirm.note.trim()}\n\nDopo la chiusura la segnalazione non si riapre.`
             : ''
         }
         etichettaConferma={confirm ? `Chiudi come «${statusLabel(confirm.outcome) ?? confirm.outcome}»` : 'Chiudi la segnalazione'}

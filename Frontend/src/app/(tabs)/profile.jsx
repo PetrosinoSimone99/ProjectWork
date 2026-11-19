@@ -42,12 +42,12 @@ import { radius, space, target, useTokens } from '@/theme/tokens';
  * - **primo caricamento**: `LoadingScreen`;
  * - **refresh**: indicatore piccolo del pull-to-refresh, i dati restano;
  * - **errore**: `Banner` + «Riprova» funzionante e disabilitato in volo;
- * - **bio assente**: «Nessuna bio.», non il campo che sparisce;
+ * - **bio assente**: «Non hai ancora scritto una presentazione.», non il campo che sparisce;
  * - un 401 non si gestisce qui: il meccanismo di `client.js` manda al login.
  */
 export default function ProfileScreen() {
   const { utente, token, signOut, ricaricaSessione } = useAuth();  const router = useRouter();
-  // «Modifiche salvate»: il salvataggio del profilo porta qui il suo esito
+  // «Profilo aggiornato.»: il salvataggio del profilo porta qui il suo esito
   // (audit UX F35), e l'utente lo chiude quando l'ha letto.
   const { salvato } = useLocalSearchParams();
   const t = useTokens();
@@ -193,9 +193,9 @@ export default function ProfileScreen() {
       {salvato ? (
         <Banner
           kind="success"
-          message="Modifiche salvate."
-          etichettaAzione="Ho capito"
-          iconaAzione="checkmark-outline"
+          message="Profilo aggiornato."
+          etichettaAzione="Chiudi"
+          iconaAzione="close-outline"
           onAzione={() => router.setParams({ salvato: undefined })}
         />
       ) : null}
@@ -279,7 +279,7 @@ export default function ProfileScreen() {
         {/* Anagrafica dal server: l'email è l'unico dato che solo questo
             endpoint dà; la bio assente si dichiara, non si nasconde. */}
         <Banda>
-          <AppText variant="heading">Il tuo profilo</AppText>
+          <AppText variant="heading">I tuoi dati</AppText>
           {profilo?.crediti !== undefined ? <AppText>{`Crediti disponibili: ${profilo.crediti}`}</AppText> : null}
           <View style={{ gap: space.sm }}>
             {email ? (
@@ -295,7 +295,7 @@ export default function ProfileScreen() {
             <RigaProfilo
               icona="document-text-outline"
               etichetta="Bio"
-              valore={bio ?? 'Nessuna bio.'}
+              valore={bio ?? 'Non hai ancora scritto una presentazione.'}
             />
           </View>
         </Banda>
@@ -339,7 +339,7 @@ export default function ProfileScreen() {
         {/* La modifica ha una schermata a sé: la banda si limita ad aprirla. */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Apri la schermata Modifica profilo"
+          accessibilityLabel="Apri Modifica profilo"
           onPress={() => router.push('/edit-profile')}
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
@@ -464,7 +464,7 @@ function Banda({ children, ultima = false, riga = false }) {
   );
 }
 
-/** Una riga della banda «Il tuo profilo»: icona, etichetta, valore. */
+/** Una riga della banda «I tuoi dati»: icona, etichetta, valore. */
 function RigaProfilo({ icona, etichetta, valore }) {
   const t = useTokens();
   return (

@@ -20,6 +20,20 @@ describe('messageForStatus', () => {
     expect(messageForStatus(401)).toBe(SESSION_EXPIRED_MESSAGE);
   });
 
+  it('names both causes a refused call can have instead of guessing one', () => {
+    const message = messageForStatus(403);
+
+    // A 403 does not carry its own reason, and this table serves every endpoint:
+    // in this product it is an inactive account or a function reserved to other
+    // accounts, so the sentence says both and points at who can unblock it.
+    expect(message).toContain('non è attivo');
+    expect(message).toContain('riservata ad altri account');
+    expect(message).toContain('staff');
+    expect(message).toMatch(/riprova/i);
+    // The old sentence explained it as a generic permission problem.
+    expect(message).not.toMatch(/permess/i);
+  });
+
   it('separates a connection failure from a timeout', () => {
     expect(messageForStatus(0)).toBe(NETWORK_ERROR_MESSAGE);
     expect(messageForStatus(0)).not.toBe(TIMEOUT_ERROR_MESSAGE);

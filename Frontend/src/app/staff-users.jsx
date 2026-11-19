@@ -24,7 +24,6 @@ import {
   accountStatusLabel,
   describeEmptyUserList,
   describePromotion,
-  describeRoleFilterScope,
   describeStatusChange,
   nextAccountStatus,
   roleLabel,
@@ -239,7 +238,7 @@ export default function StaffUsersScreen() {
         label="Segnalazioni"
         variant="ghost"
         icon="shield-checkmark-outline"
-        accessibilityLabel="Apri le segnalazioni dell'area staff"
+        accessibilityLabel="Apri l'elenco delle segnalazioni"
         onPress={() => router.push('/staff')}
         style={{ alignSelf: 'flex-start' }}
       />
@@ -261,9 +260,6 @@ export default function StaffUsersScreen() {
             valore={roleFilter}
             onChange={setRoleFilter}
           />
-          <AppText variant="small" tone="secondary">
-            {describeRoleFilterScope(loaded)}
-          </AppText>
         </View>
         <View style={{ gap: space.sm }}>
           <AppText variant="small" style={{ fontWeight: '600' }}>
@@ -328,9 +324,10 @@ export default function StaffUsersScreen() {
           kind="success"
           message={message}
           // Chiudibile: un esito che resta fino alla scrittura successiva non si
-          // legge più (audit F46).
-          etichettaAzione="Ho capito"
-          iconaAzione="checkmark-outline"
+          // legge più (audit F46). Il comando chiude e basta: «Chiudi» dice cosa
+          // fa, e l'icona non promette un'azione che non c'è.
+          etichettaAzione="Chiudi"
+          iconaAzione="close-outline"
           onAzione={() => setMessage(null)}
         />
       ) : null}
@@ -368,12 +365,12 @@ export default function StaffUsersScreen() {
           il suo errore ha il proprio «Riprova» invece di sparire. */}
       {hasMore && !errorMore ? (
         <AppButton
-          label={loadingMore ? 'Carico altri…' : 'Carica altri 20'}
+          label={loadingMore ? 'Carico altri…' : 'Carica altri'}
           variant="secondary"
           icon="chevron-down-outline"
           loading={loadingMore}
           onPress={() => void loadMore()}
-          accessibilityLabel="Carica altri venti utenti"
+          accessibilityLabel="Carica altri risultati"
           style={{ alignSelf: 'center' }}
         />
       ) : null}

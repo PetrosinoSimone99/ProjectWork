@@ -72,6 +72,15 @@ describe('quandoNotifica', () => {
     expect(quandoNotifica('')).toBeNull();
     expect(quandoNotifica('non-una-data')).toBeNull();
   });
+
+  it('legge l’orologio in it-IT: la riga non mostra mai AM o PM', () => {
+    const quando = quandoNotifica('2026-11-15T10:00:00+00:00');
+
+    // «01:11 AM» dentro una data italiana mescola due lingue: l'ora segue la
+    // stessa lingua del giorno, non quella del dispositivo.
+    expect(quando).not.toMatch(/\b(AM|PM)\b/);
+    expect(quando).toMatch(/\d{1,2}[:.]\d{2}$/);
+  });
 });
 
 /**
@@ -284,4 +293,57 @@ describe('NotificationRow opening', () => {
 it('shows a single-line preview from the chat notification payload', () => {
   const renderer = renderRiga({ ...NOTIFICA, tipo: 'CHAT_MESSAGE', dati: { message: 'Ciao\n  a tutti' } });
   expect(renderer.root.findAll((node) => node.props?.children === 'Ciao a tutti').length).toBeGreaterThan(0);
+});
+
+/**
+ * La voce della riga: le frasi che questo client scrive sono italiane.
+ *
+ * L'unica frase inglese che una notifica può mostrare è quella del servizio
+ * (`StaffController.php`, `REPORT_REVIEWED` → «Your report has been reviewed
+ * and confirmed.»): è un dato, arriva in `notifica.messaggio`, e il client non
+ * lo traduce — la sua traduzione tocca al backend. Questo test tiene fermo il
+ * confine: il messaggio del servizio è escluso dal controllo, tutto il resto
+ * deve essere italiano, così una frase inglese scritta qui fa fallire la prova.
+ */
+const MESSAGGIO_DEL_SERVIZIO = 'Your report has been reviewed and confirmed.';
+const PAROLE_INGLESI = /\b(the|your|has|been|and|are|was|were|will|you|with|from)\b/i;
+
+/** Ogni stringa che la riga scrive o annuncia, meno il testo che arriva dal servizio. */
+function paroleDellaRiga(renderer) {
+  return renderer.root
+    .findAll(
+      (node) =>
+        typeof node.props?.children === 'string' ||
+        typeof node.props?.accessibilityLabel === 'string',
+    )
+    .flatMap((node) => [node.props.children, node.props.accessibilityLabel])
+    .filter((testo) => typeof testo === 'string')
+    .map((testo) => testo.split(MESSAGGIO_DEL_SERVIZIO).join(' '))
+    .filter((testo) => testo.trim() !== '');
+}
+
+describe('NotificationRow — la voce è italiana', () => {
+  it('non scrive una sola frase inglese: l’unica inglese è quella del servizio', () => {
+    const renderer = renderRiga({
+      ...NOTIFICA,
+      tipo: 'REPORT_REVIEWED',
+      messaggio: MESSAGGIO_DEL_SERVIZIO,
+      dati: { agreementId: 12 },
+    });
+
+    expect(paroleDellaRiga(renderer).join(' ')).not.toMatch(PAROLE_INGLESI);
+  });
+
+  it('dice la sua frase italiana quando il servizio non manda testo', () => {
+    const renderer = renderRiga({ ...NOTIFICA, tipo: 'REPORT_REVIEWED', messaggio: null });
+
+    const scritte = paroleDellaRiga(renderer);
+    expect(scritte).toContain('Notifica senza testo.');
+    expect(scritte.join(' ')).not.toMatch(PAROLE_INGLESI);
+  });
+
+  it('chiama «scheda di consegna» la scheda, in ogni suo stato', () => {
+    expect(etichettaTipo('AGREEMENT_DETAILS')).toBe('Scheda di consegna');
+    expect(etichettaTipo('AGREEMENT_DETAILS_ACCEPTED')).toBe('Scheda di consegna confermata');
+  });
 });
