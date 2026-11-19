@@ -35,10 +35,21 @@ cinque campi multilinea) e `Invia` accanto, allineato in basso — 82 pt invece 
 giunzione, che leggeva «…anche la sera. per Revisione…» e ora legge «…in cambio
 di…».
 
-**Cosa non è stato misurato.** Le quote sono calcolate sulla scena 390x844 e
-verificate su testi e stili, non su dispositivo fisico. Il guadagno di altezza
-reale dipende dal testo della testata, che è la descrizione del servizio e può
-andare su più righe di quattro.
+**Misurato, non stimato.** Su `expo start --web` con `demo.staff`, finestra 390x844 e
+412x844: la lista dei messaggi passa a 480 pt su 844 (57%; prima 325 su 727, il 45%) e il
+composer a 83 pt (prima 178). Il pannello dell'operazione si legge intero: `reviewNote` su
+tre righe a 375, tutte e sei le righe di `Dopo` raggiungibili, `scrollWidth === clientWidth`
+sul corpo (310/310 a 375, 346/346 a 412) e nessuno scorrimento del documento. La scheda di
+consegna in chat avvolge la riga del servizio su due righe (266/266).
+
+**Cosa non è stato misurato.** Il dispositivo fisico: le quote vengono da un browser alla
+stessa misura logica, non da un iPhone. E l'altezza guadagnata dipende dal testo della
+testata, che è la descrizione del servizio e può andare su più righe.
+
+**Review.** Tre angoli a contesto fresco, nessun P0, tre P1 applicati: spinner e stato vuoto
+non condividevano più il riquadro della lista (il composer sarebbe rimasto a metà schermo
+proprio negli stati vuoti), la colonna da 88 era un `minWidth` e non una larghezza, e il
+criterio `scrollWidth` era dichiarato invece che misurato.
 
 **Docs e codice toccati:** `docs/briefs/mobile-chat-space/plan.md` (nuovo),
 `docs/DESIGN.md` (la riga di scrittura e la riga con un lato flessibile, fra le

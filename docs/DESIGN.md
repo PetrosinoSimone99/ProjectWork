@@ -266,6 +266,7 @@ theme to pick a literal.
 | Change | File |
 | --- | --- |
 | a colour, radius, spacing step, touch floor, measure | `theme/tokens.js` |
+| the label column of a label→value row (`layout.colonnaEtichetta`) | `theme/tokens.js` |
 | the opacity of a control that is not available | `theme/tokens.js` (`opacity.disabled`) |
 | a type role or its job | `components/AppText.jsx` |
 | the card surface | `components/Card.jsx` |
@@ -279,6 +280,7 @@ theme to pick a literal.
 | the empty state | `components/EmptyState.jsx` |
 | a radio track (pills, categories, theme) | `components/PillBar.jsx`, `components/CategorySelector.jsx`, `components/ThemeSelector.jsx` |
 | a text field and its validation message | `components/AppInput.jsx` |
+| the chat's writing row: one row, the field two lines, the send beside it | `components/MessageComposer.jsx` |
 | a checkbox | `components/AppCheckbox.jsx` |
 | a dropdown / a selector with a list | `components/ListSelector.jsx` |
 | the focus ring | `components/FocusRing.jsx` |
