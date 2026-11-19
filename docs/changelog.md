@@ -6,6 +6,34 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — Il materiale di lavoro dell'agente esce dal repository
+
+`AGENTS.md`, `docs/audits/` (226 file) e `docs/briefs/` (51 file) non sono più
+tracciati: 278 file in meno nell'albero, tutti ancora sul disco e coperti da
+`.gitignore`. Sono le regole di lavoro degli agenti, gli audit datati e i piani
+per feature — materiale del titolare del frontend, non prodotto. Su `main` non
+ci devono stare.
+
+**Perché così e non con una riscrittura.** I file entravano in 170 dei 462
+commit già presenti su `main`; toglierli dalla storia avrebbe richiesto
+`git-filter-repo` e un force-push del ramo pubblicato, per un guadagno nullo —
+erano già su `origin/andrea-frontend`. La rimozione dall'albero vale dal commit
+in poi; le voci di changelog più vecchie continuano a nominare quei percorsi,
+perché sono storia, non link.
+
+**Cosa è cambiato nei documenti**, per non lasciare rimandi morti:
+`docs/README.md` perde le due righe della mappa file e dice dove vivono le
+regole di lavoro; `docs/architecture.md` toglie `AGENTS.md` dall'albero;
+`docs/ux.md` e `docs/accessibility.md` citano gli audit come nomi di file invece
+che come link, e dichiarano che sono fuori dal repository (gli id F14, F32, …
+restano il riferimento usato nel testo); `docs/setup.md` perde il rimando a
+`docs/audits/native-parity-2026-11-15.md`; `.gitignore` aggiunge le tre regole e
+corregge il commento che dava `docs/audits/evidence/` per dimora dell'evidenza.
+
+Codice non toccato: nessun test nuovo, gate verde sulle 48 suite già presenti.
+
+---
+
 ## 2026-11-19 — Il budget di una chiamata passa a 25 s, e un timeout smette di accusare la connessione
 
 Sintomo riportato dall'app: tre WARN identici in un colpo solo —

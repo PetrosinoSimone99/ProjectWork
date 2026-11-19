@@ -174,8 +174,7 @@ four endpoints at once and the first request of each new php worker pays that
 cold start (`docs/changelog.md`, 2026-11-19). Then the screen shows «Il servizio
 sta impiegando troppo tempo»: wait a moment and retry. This is the environment,
 not the app, and it is why the Playwright pass of this cycle waits for the loaded
-state instead of the frame
-(`docs/audits/native-parity-2026-11-15.md`).
+state instead of the frame.
 
 The backend routes `App\Message\QueueId` to the `async` transport
 (`doctrine://default`, i.e. the `messenger_messages` table) and schedules

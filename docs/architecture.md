@@ -22,7 +22,6 @@ MySQL 8.0 ("barattolo", the 15 tables of `barattolo_15112026.sql`)
 ## Repository tree
 
 ```text
-AGENTS.md              workflow rules for humans and agents
 docs/                  this documentation set
 Backend/               Symfony API (read-only reference; Docker files editable)
   src/Controller/      one controller per area, attributes-based routes

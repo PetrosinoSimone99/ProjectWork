@@ -56,5 +56,11 @@ auth.json
 # Browser verification logs (browser MCP), never committed
 /.playwright-mcp/
 
-# Impeccable tool state and raw captures: the readable evidence lives in docs/audits/evidence/
+# Impeccable tool state and raw captures, never committed
 /.impeccable/
+
+# Local working material of the frontend owner: agent workflow rules, dated
+# audits, per-feature briefs. Not part of the product, never committed.
+/AGENTS.md
+/docs/audits/
+/docs/briefs/

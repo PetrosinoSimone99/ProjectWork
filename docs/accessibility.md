@@ -6,7 +6,7 @@ covers the part the law and the standards fix.
 
 ## Status and authority
 
-Normative, same weight as `AGENTS.md` and [`ux.md`](ux.md). It MUST be read
+Normative, same weight as [`ux.md`](ux.md). It MUST be read
 before writing or changing any interactive UI, before a UX review, and before
 shipping a document (PDF, report, slide deck) that the team delivers.
 
@@ -207,15 +207,18 @@ dev server on port 8081, API on 8000, viewports 390×844 and 1440×900, light an
 dark, keyboard walk, 200% reflow, 401 forced with `page.route`) and by reading
 `Frontend/src`; then **re-measured the same day after the remediation**. Every
 status below is counted in
-[`audits/ux-audit-2026-11-10.md`](audits/ux-audit-2026-11-10.md) (the baseline,
+`audits/ux-audit-2026-11-10.md` (the baseline,
 2.8/10 for this dimension) and in
-[`audits/ux-remediation-2026-11-10.md`](audits/ux-remediation-2026-11-10.md)
+`audits/ux-remediation-2026-11-10.md`
 (the second reading: no accessibility finding survives a code read). This is
 **not** a conformance claim: the re-measurement is a code reading with the gate
 green, and VoiceOver, TalkBack, native dynamic type and the exported web build
 were not exercised. A third reading on **2026-11-17** closed the seven defects of
-[`audits/check-2026-11-17.md`](audits/check-2026-11-17.md) by reading the code and
-running the gate; §Status of the remediation lists what would verify them.
+`audits/check-2026-11-17.md` by reading the code and
+running the gate; §Status of the remediation lists what would verify them. The
+three audit files are working material of the frontend owner, kept outside this
+repository; the finding ids they are cited by (F14, F19, F22, …) are used
+throughout this file.
 
 | Criterion | Status |
 | --- | --- |

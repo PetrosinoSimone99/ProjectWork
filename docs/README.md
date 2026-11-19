@@ -24,8 +24,6 @@ created and a chat opens to settle the details.
 | [`DESIGN.md`](DESIGN.md) | Design system: colour roles, shape, touch floor, measures, type, screen composition |
 | [`decisions.md`](decisions.md) | Decision log (ADR-light) |
 | [`changelog.md`](changelog.md) | Session-by-session history, newest first |
-| [`audits/`](audits/) | Dated audit artifacts (UX, accessibility, API authorisation, gap analysis) with their captures. Evidence, never normative |
-| [`briefs/`](briefs/) | One directory per feature: plan, contract, usability reports. Deliverable of `/plan`, not a rule |
 
 ## Reading order
 
@@ -56,7 +54,9 @@ it describes the current product.
 
 `docs/` is maintained by the frontend side (Andrea Cestelli and the AI agents
 he works with) but must be written with the precision of someone who also owns
-the backend topics. The workflow rules binding humans and agents are in the
-root [`AGENTS.md`](../AGENTS.md). Every session that changes code or
+the backend topics. The workflow rules binding humans and agents — the root
+`AGENTS.md`, the dated audits and the per-feature briefs — are working material
+of the frontend owner and stay outside this repository. Every session that
+changes code or
 configuration updates the affected documents and prepends a `changelog.md`
 entry, in the same commit as the change.

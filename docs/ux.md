@@ -192,10 +192,12 @@ commit which lines were checked, and lists the ones that fail as known gaps.
 Audited on **2026-11-10** against the running app (browser walk on web, both
 viewports and both themes) and by reading `Frontend/src`, then **re-measured on
 the same day after the remediation**: every claim below is counted in
-[`audits/ux-audit-2026-11-10.md`](audits/ux-audit-2026-11-10.md) (the baseline,
+`audits/ux-audit-2026-11-10.md` (the baseline,
 3.6/10) and in
-[`audits/ux-remediation-2026-11-10.md`](audits/ux-remediation-2026-11-10.md)
-(the second reading, 9.9/10), where the finding ids are the evidence. The
+`audits/ux-remediation-2026-11-10.md`
+(the second reading, 9.9/10), where the finding ids are the evidence. Those two
+files are working material of the frontend owner, kept outside this repository:
+the ids (F14, F32, …) are what this file cites. The
 re-measurement is a code reading with the gate green and, for anything that needs
 a running screen, it says so instead of claiming it.
 
