@@ -18,6 +18,9 @@
   (c) `AppText` spreads `{...props}` after `aria-level`, which is exactly how the 11 orphans
   are produced. (d) Playwright: two contexts maximum, one route per run, wait past Metro's
   first-visit compile. (e) Never pass `concurrency`; never one subagent call per lane.
+- Residui mai misurati (tema scuro su chat/edit-profile/user, pannello notifiche in errore, ogni
+  superficie nativa): il come sta in `measure-residuals.md`, accanto a questo file. Si esegue
+  da una sessione nuova con una riga: "Esegui: measure-residuals.md".
 - First block after this one: step 1 (harden A) — nothing else unblocks while a screen can
   still eat a 2000-character note.
 
