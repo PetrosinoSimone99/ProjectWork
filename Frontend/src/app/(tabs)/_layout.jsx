@@ -1,4 +1,4 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, usePathname } from 'expo-router';
 import { AppIcon } from '@/components/AppIcon';
 import { Platform } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
@@ -8,10 +8,13 @@ import { useTokens } from '@/theme/tokens';
 export default function TabsLayout() {
   const t = useTokens();
   const { utente } = useAuth();
+  const percorso = usePathname();
 
   // Sull web gli URL sono navigabili direttamente: senza token si torna al login.
+  // `ritorno` porta con sé la rotta che si stava guardando, così una scadenza a
+  // metà lavoro non fa ripartire dalla home (audit 2026-11-18, P1-1).
   if (!utente) {
-    return <Redirect href="/login" />;
+    return <Redirect href={{ pathname: '/login', params: { ritorno: percorso } }} />;
   }
 
   return (

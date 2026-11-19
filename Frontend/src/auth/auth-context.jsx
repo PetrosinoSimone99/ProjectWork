@@ -13,6 +13,49 @@ import { clearSession, isTokenValid, loadSession, saveSession } from './token-st
 const AuthContext = createContext(null);
 
 /**
+ * La bozza di un form sopravvive a un `401` (audit 2026-11-18, P1-1).
+ *
+ * Il `401` di una richiesta autenticata azzera la sessione e la navigazione
+ * riporta al login: la schermata che conteneva il testo viene smontata e lo
+ * state del form sparisce con lei. Queste funzioni tengono il testo fuori dal
+ * componente, in memoria di processo e con il percorso come chiave: dopo il
+ * nuovo accesso `ritorno` riporta l'utente sulla stessa rotta, e il form
+ * riparte da quello che aveva scritto.
+ *
+ * In memoria e non su disco: il `401` non ricarica la pagina, quindi il
+ * processo è lo stesso. Una bozza che sopravvive al riavvio dell'app sarebbe
+ * un'altra funzionalità, non questa.
+ *
+ * La scrittura avviene sul cambio del testo (`onChangeText`), non al `401`:
+ * quando il `401` arriva il componente sta già sparendo.
+ */
+const bozze = new Map();
+
+/** Salva (o cancella, con testo vuoto) la bozza di una rotta. */
+export function salvaBozza(percorso, testo) {
+  if (typeof percorso !== 'string' || percorso === '') {
+    return;
+  }
+  if (typeof testo !== 'string' || testo.trim() === '') {
+    bozze.delete(percorso);
+    return;
+  }
+  bozze.set(percorso, testo);
+}
+
+/** La bozza di una rotta, senza consumarla (la schermata la mostra al montaggio). */
+export function leggiBozza(percorso) {
+  return bozze.get(percorso) ?? null;
+}
+
+/** La bozza di una rotta, consumata: chi la legge se la prende una volta sola. */
+export function consumaBozza(percorso) {
+  const testo = bozze.get(percorso) ?? null;
+  bozze.delete(percorso);
+  return testo;
+}
+
+/**
  * L'utente della sessione a partire dalla risposta di accesso.
  *
  * `api/index.js` restituisce già la forma interna (`{token, utente}`, con
