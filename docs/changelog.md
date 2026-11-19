@@ -6,8 +6,6 @@ documents/code touched.
 
 ---
 
----
-
 ## 2026-11-19 — Leftovers closed: the chip inside its column, one credit mark, the panel's quiet states, a clean database
 
 Closing session on `frontend-remediation-2026-11-19`, in the order of
@@ -45,6 +43,25 @@ will arrive, with no spinner and no leftover row. The two never mix. Recorded in
 section — anatomy, height, the surface rule (fill only on the page, never on a
 card) and the no-accent rule — so the `t.surface` choice in `CreditMark` is a rule
 and not an exception living in a comment.
+
+**The demo database is clean again — Docker runtime work, no source change.**
+The seeded volume had drifted (13 users, 26 services, 6 queues, 12 agreements,
+`demo.staff` at 0 credits: test debris from earlier sessions). `cd Backend &&
+docker compose down -v && docker compose up -d` re-imported
+`Context_and_DB_V2/barattolo_15112026.sql` plus `Backend/docker/seed-demo.sql` on
+an empty data volume, exactly as `docs/setup.md` §1 documents; no SQL file was
+edited and nothing under `Backend/**` changed. Verified table by table against
+«What a fresh database contains»: 50 categories, 7 users, 14 services, 14
+service_categories, 2 queues (both `OPEN`: `giulia.bianchi`'s request and
+`demo.staff`'s offer), 7 agreements (2 `PENDING`, 2 `ACCEPTED`, 1 `CANCELLED`,
+1 `COMPLETED`, 1 `REFUSED`), 14 proposals, 8 delivery sheets, 3 chats with 6
+participants and 10 messages, 11 notifications (8 in `demo.staff`'s inbox, 4
+unread), 2 reports, 2 staff log rows, 0 messenger rows. `giulia.bianchi` is back
+at 0 credits and the other six at 1, `demo.staff` included. Re-measured after
+the rebuild on the same export: the catalog serves the 6 offers the seed leaves
+visible (the seventh is `demo.staff`'s own), the chip still clears the mode cell
+by 12 px at 375 and 412 with no overlap, and `/profile` shows the mark at `1` in
+the default text colour.
 
 ## 2026-11-19 — Frontend residuals: the measurements that were missing, one fix, one new finding
 
