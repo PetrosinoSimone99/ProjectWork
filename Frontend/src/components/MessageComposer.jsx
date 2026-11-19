@@ -68,22 +68,34 @@ export function MessageComposer({
   };
 
   return (
-    <View style={styles.composer}>
-      <AppInput
-        label="Messaggio"
-        value={testo}
-        onChangeText={cambiaTesto}
-        multiline
-        maxLength={MESSAGE_MAX_LENGTH}
-        contatore={`${testo.length}/${MESSAGE_MAX_LENGTH}`}
-        editable={!inviando && !disabilitato}
-        accessibilityLabel="Scrivi un messaggio"
-      />
+    <View style={styles.riga}>
+      <View style={styles.campo}>
+        <AppInput
+          label="Messaggio"
+          value={testo}
+          onChangeText={cambiaTesto}
+          multiline
+          // Due righe invece delle quattro del default: qui il campo è la riga
+          // di scrittura di una conversazione, e ogni punto che prende è un
+          // punto tolto ai messaggi (brief, decisione 1).
+          altezzaMinima={56}
+          maxLength={MESSAGE_MAX_LENGTH}
+          contatore={`${testo.length}/${MESSAGE_MAX_LENGTH}`}
+          editable={!inviando && !disabilitato}
+          accessibilityLabel="Scrivi un messaggio"
+        />
+      </View>
       <AppButton label="Invia" onPress={invia} loading={inviando} disabled={nonParte} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  composer: { gap: space.sm },
+  // Campo e invio sono una riga sola: l'azione è dell'input, non una scheda in
+  // coda, quindi non contraddice la regola della colonna delle azioni. Il
+  // bottone resta appoggiato in basso, all'altezza del bordo del campo.
+  riga: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
+  // Il campo prende la larghezza che avanza: senza `minWidth: 0` sul web un
+  // flex item tiene la larghezza intrinseca e spinge il bottone fuori.
+  campo: { flex: 1, minWidth: 0 },
 });

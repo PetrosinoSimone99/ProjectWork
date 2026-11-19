@@ -1,5 +1,7 @@
+import { StyleSheet, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
+import { AppButton } from '../AppButton';
 import { AppInput } from '../AppInput';
 import { MessageComposer } from '../MessageComposer';
 
@@ -221,5 +223,51 @@ describe('MessageComposer — the send guard', () => {
     await act(async () => {
       attese[1](true);
     });
+  });
+});
+
+/** Lo stile risolto di un nodo: le stesse regole che finiscono sul DOM. */
+function stile(nodo) {
+  return StyleSheet.flatten(nodo.props.style ?? {}) ?? {};
+}
+
+/**
+ * La riga del composer: l'unica `View` che dispone in orizzontale e che ha per
+ * figli sia il campo sia l'invio.
+ */
+function rigaDelComposer(renderer) {
+  const righe = renderer.root.findAll(
+    (nodo) =>
+      nodo.type === View &&
+      stile(nodo).flexDirection === 'row' &&
+      nodo.findAllByType(AppInput).length === 1 &&
+      nodo.findAllByType(AppButton).length > 0,
+  );
+  expect(righe).toHaveLength(1);
+  return righe[0];
+}
+
+describe('MessageComposer — la riga di scrittura', () => {
+  it('tiene campo e invio sulla stessa riga, col campo a due righe', () => {
+    const renderer = render(jest.fn());
+    const riga = rigaDelComposer(renderer);
+
+    // Un blocco solo invece di due impilati: il bottone si appoggia in basso,
+    // accanto al campo e non sotto.
+    expect(riga.findAllByType(AppInput)).toHaveLength(1);
+    expect(riga.findAllByType(AppButton).length).toBeGreaterThan(0);
+    expect(stile(riga).alignItems).toBe('flex-end');
+
+    // Il campo riceve l'altezza minima del composer: con le quattro righe del
+    // default l'altezza a riposo non starebbe sotto i 90 pt (brief, passo 5).
+    expect(campo(renderer).props.altezzaMinima).toBe(56);
+
+    // Il campo sta in una scatola che cede la larghezza al bottone: senza
+    // `minWidth: 0` sul web la larghezza intrinseca lo spinge fuori.
+    const scatole = riga.findAll((nodo) => {
+      const regole = stile(nodo);
+      return nodo.type === View && regole.flex === 1 && regole.minWidth === 0;
+    });
+    expect(scatole).toHaveLength(1);
   });
 });
