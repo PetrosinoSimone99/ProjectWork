@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
@@ -574,20 +574,18 @@ export default function StaffScreen() {
         etichettaChiudi="Chiudi la scheda di revisione"
         chiudibile={busy === null}
       >
-        <ScrollView style={{ maxHeight: '85%' }}>
-          {review ? (
-            <ReportReviewSheet
-              outcome={review.outcome}
-              note={review.note}
-              errors={reviewErrors}
-              busy={busy !== null}
-              onChangeOutcome={(outcome) => setReview({ ...review, outcome })}
-              onChangeNote={(note) => setReview({ ...review, note })}
-              onSubmit={askConfirmation}
-              onCancel={() => setReview(null)}
-            />
-          ) : null}
-        </ScrollView>
+        {review ? (
+          <ReportReviewSheet
+            outcome={review.outcome}
+            note={review.note}
+            errors={reviewErrors}
+            busy={busy !== null}
+            onChangeOutcome={(outcome) => setReview({ ...review, outcome })}
+            onChangeNote={(note) => setReview({ ...review, note })}
+            onSubmit={askConfirmation}
+            onCancel={() => setReview(null)}
+          />
+        ) : null}
       </ModalShell>
 
       <ConfirmModal
@@ -637,11 +635,9 @@ export default function StaffScreen() {
         titolo="Dettaglio della segnalazione"
         etichettaChiudi="Chiudi il dettaglio della segnalazione"
       >
-        <ScrollView style={{ maxHeight: '85%' }}>
-          {detail ? (
-            <StaffReportDetail detail={detail} onRetry={() => void openDetail(detail.report)} />
-          ) : null}
-        </ScrollView>
+        {detail ? (
+          <StaffReportDetail detail={detail} onRetry={() => void openDetail(detail.report)} />
+        ) : null}
       </ModalShell>
 
       <ModalShell
@@ -650,14 +646,12 @@ export default function StaffScreen() {
         titolo="Dettaglio dell'operazione"
         etichettaChiudi="Chiudi il dettaglio dell'operazione"
       >
-        <ScrollView style={{ maxHeight: '85%' }}>
-          {operationDetail ? (
-            <StaffOperationDetail
-              detail={operationDetail}
-              onRetry={() => void openOperationDetail(operationDetail.operation)}
-            />
-          ) : null}
-        </ScrollView>
+        {operationDetail ? (
+          <StaffOperationDetail
+            detail={operationDetail}
+            onRetry={() => void openOperationDetail(operationDetail.operation)}
+          />
+        ) : null}
       </ModalShell>
     </Screen>
   );

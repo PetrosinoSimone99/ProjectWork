@@ -123,6 +123,21 @@ function operationValue(value, key) {
   return String(value);
 }
 
+/**
+ * Una riga chiave/valore del blocco, con la chiave su una colonna comune: senza
+ * una base fissa i valori di uno stesso blocco partirebbero da x diverse.
+ *
+ * Il valore restringe (`flex: 1`, `minWidth: 0`) e va a capo: un campo lungo
+ * come `reviewNote` esce dal pannello se nessuno dei due lati può restringere.
+ * `numberOfLines` qui non c'è apposta — il motivo si legge intero. Il `minWidth`
+ * della chiave è un minimo, non una misura: con il testo ingrandito la colonna
+ * si allarga invece di tagliare il nome del campo. `alignItems: 'flex-start'`
+ * tiene la chiave in cima quando il valore occupa più righe.
+ */
+const changeRowStyle = { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm };
+const changeKeyStyle = { flexShrink: 0, minWidth: 88 };
+const changeValueStyle = { flex: 1, minWidth: 0 };
+
 /** `before`/`after` come coppie chiave→valore; le chiavi restano del backend. */
 function ChangeBlock({ titolo, changes }) {
   const entries = Object.entries(changes ?? {}).filter(([key]) => !REDACTED_KEYS.test(key));
@@ -133,11 +148,13 @@ function ChangeBlock({ titolo, changes }) {
     <View style={{ gap: space.xs }}>
       <AppText variant="heading">{titolo}</AppText>
       {entries.map(([key, value]) => (
-        <View key={key} style={{ flexDirection: 'row', gap: space.sm }}>
-          <AppText variant="small" tone="secondary">
+        <View key={key} style={changeRowStyle}>
+          <AppText variant="small" tone="secondary" style={changeKeyStyle}>
             {key}
           </AppText>
-          <AppText variant="small">{operationValue(value, key)}</AppText>
+          <AppText variant="small" style={changeValueStyle}>
+            {operationValue(value, key)}
+          </AppText>
         </View>
       ))}
     </View>
