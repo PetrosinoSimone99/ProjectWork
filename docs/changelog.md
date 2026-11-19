@@ -6,6 +6,38 @@ documents/code touched.
 
 ---
 
+## 2026-11-18 — Full frontend audit: seven isolated passes, two alarm findings rejected, no verified P0
+
+Seven independent Impeccable passes — `critique`, `detect`, `audit`, `optimize`,
+`document` (verification only), `harden`, `clarify` — covered every web route and
+overlay in light and dark, three mobile widths, and the native surface from source.
+Result: **web 19/20, native 14/20**, Nielsen **23/40**, copy 3/4, robustness 3/4,
+30 design-system drift points, detector clean on 8 pages with a positive control
+proving the engine fires.
+
+Two of the loudest findings were **rejected after live verification**. The "blank
+404" is Metro compiling `+not-found` on first visit in dev mode: the page renders
+its title, sentence and button at ~15 s. "No heading structure" came from a probe
+querying `<h1>` while react-native-web emits `role="heading"` + `aria-level`;
+headings are correctly levelled on every route measured. Rejecting them is why the
+audit has **no verified P0**.
+
+What is real: an orphan `aria-level` on 11 nodes; four failure paths that lose work
+(mid-session 401 outside `edit-profile`, bell-panel action errors, the staff review
+note, a chat double-send); a credit spent with no confirmation; no completion path
+for a finished exchange; a vocabulary that names one thing several ways; and the
+native surface scored 14/20 against the web's 19/20 — the gap is the finding.
+
+### Touched
+
+`docs/audits/full-audit-2026-11-18.md`,
+`docs/audits/full-audit-2026-11-18-ship-prompt.md`, `docs/changelog.md`, and the
+raw evidence under `.impeccable/critique/evidence/frontend-2026-11-18/` (seven
+assessment reports, 51 captures, one measurement log). No `Frontend/` file,
+no `Backend/` file.
+
+---
+
 ## 2026-11-21 - One dated report moves into `audits/`, the UI triage loses two stale sentences
 
 `workflow-verification-2026-11-18.md` was the only dated artifact living outside

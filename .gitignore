@@ -55,3 +55,6 @@ auth.json
 
 # Browser verification logs (browser MCP), never committed
 /.playwright-mcp/
+
+# Impeccable tool state and raw captures: the readable evidence lives in docs/audits/evidence/
+/.impeccable/
