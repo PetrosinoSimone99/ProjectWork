@@ -42,6 +42,13 @@ tre righe a 375, tutte e sei le righe di `Dopo` raggiungibili, `scrollWidth === 
 sul corpo (310/310 a 375, 346/346 a 412) e nessuno scorrimento del documento. La scheda di
 consegna in chat avvolge la riga del servizio su due righe (266/266).
 
+**Seguito (2026-11-19, dopo la chiusura).** La frase della testata era l'ultimo pezzo che
+occupava spazio senza guadagno: quattro o cinque righe, perché ripeteva per intero le due
+descrizioni dei servizi. La testata ora dice solo «Scambio con @nome» — una riga invece di
+quattro — e lo scambio resta nella scheda di consegna, a un tocco dal bottone sotto la
+testata, e nella card degli scambi. È una rinuncia al testo, non al fatto: l'oggetto dello
+scambio non si perde, smette solo di essere ripetuto due volte sulla stessa schermata.
+
 **Cosa non è stato misurato.** Il dispositivo fisico: le quote vengono da un browser alla
 stessa misura logica, non da un iPhone. E l'altezza guadagnata dipende dal testo della
 testata, che è la descrizione del servizio e può andare su più righe.

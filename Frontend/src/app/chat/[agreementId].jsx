@@ -41,26 +41,16 @@ const FRASE_GENERICA = 'Messaggi dello scambio: accordatevi qui sui dettagli.';
 const stileColonna = { ...colonna(layout.maxContent), paddingHorizontal: space.lg };
 
 /**
- * La testata nomina lo scambio, non solo la persona: con entrambi i servizi noti
- * dice chi dà cosa e cosa riceve — «A in cambio di B» —, e la chat smette di
- * essere una conversazione senza oggetto (audit 2026-11-18, composizione). Un
- * lato mancante non si inventa.
+ * La testata nomina la controparte, e **solo** lei: «Scambio con @marco.ricci».
+ *
+ * Prima diceva anche chi dà cosa e cosa riceve, «A in cambio di B», prendendo le
+ * due descrizioni dei servizi (`audit 2026-11-18, composizione`). Su un telefono
+ * quella frase è di quattro o cinque righe — le descrizioni sono prosa, non
+ * titoli — e si mangiava 70 pt in cima alla conversazione: proprio lo spazio che
+ * i messaggi dovevano riprendersi. Lo scambio non si perde: è nella scheda di
+ * consegna, a un tocco dal bottone qui sotto, e nella card degli scambi, che lo
+ * disegna come due direzioni (`BarterPair`). La testata non lo ripete.
  */
-function senzaPuntoFinale(cosa) {
-  // La descrizione arriva con la sua punteggiatura (`services/agreements.js`):
-  // in mezzo alla frase quel punto la spezzerebbe in due («A. per B.»).
-  return cosa.replace(/\.$/, '');
-}
-
-function fraseDelloScambio(controparte, direzioni) {
-  const base = `Scambio con @${controparte}`;
-  const offre = direzioni?.offre ?? null;
-  const riceve = direzioni?.riceve ?? null;
-  if (offre?.cosa && riceve?.cosa) {
-    return `${base}: ${senzaPuntoFinale(offre.cosa)} in cambio di ${senzaPuntoFinale(riceve.cosa)}`;
-  }
-  return base;
-}
 
 /** Copy of the line under the header, per state of the sheet read. */
 const SCHEDA_IN_LETTURA = 'Carico la scheda di consegna…';
@@ -309,7 +299,7 @@ export default function ChatScreen() {
         <View style={{ ...stileColonna, gap: space.md }}>
           <PageHeader
             titolo="Chat"
-            frase={controparte === null ? FRASE_GENERICA : fraseDelloScambio(controparte, direzioni)}
+            frase={controparte === null ? FRASE_GENERICA : `Scambio con @${controparte}`}
             indietro={<BackButton />}
           />
 
