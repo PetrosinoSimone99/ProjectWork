@@ -22,6 +22,11 @@ import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/cl
  * 3. **`ricarica` ha identità stabile** (`carica` arriva da una ref): la
  *    schermata la mette dentro `useFocusEffect` e `useRefresh`, e un'identità
  *    che cambia a ogni pagina caricata riavvierebbe l'effetto in loop.
+ * 4. **Il ritorno sulla schermata passa da `aggiornaAlFocus`**, che non
+ *    ripete una pagina fresca e non riporta a pagina 1 una lista con pagine
+ *    già incollate: `ricarica` resta il comando manuale e ignora la finestra.
+ * 5. **`caricamento` descrive la prima pagina, `aggiornamento` la rilettura in
+ *    secondo piano**: le righe a schermo non spariscono mentre si rileggono.
  *
  * `carica({ page, limit })` deve rispondere `{ righe, paginazione }`: la
  * schermata traduce il nome della collezione (`users`, `reports`, …) e il resto
@@ -30,6 +35,16 @@ import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/cl
 
 /** Quante righe per pagina quando il chiamante non lo dice (il backend si ferma a 50). */
 export const DIMENSIONE_PAGINA = 20;
+
+/**
+ * Per quanto una pagina appena letta vale come «fresca».
+ *
+ * Il backend è la velocità percepita del prodotto (audit P2: mediana 4,01 s per
+ * chiamata): il ritorno su una schermata staff non deve ripagarla ogni volta.
+ * Dentro questa finestra `aggiornaAlFocus` si salta; `ricarica` — il comando
+ * manuale, il «Riprova», il pull-to-refresh — chiede sempre.
+ */
+export const FINESTRA_FRESCHEZZA_MS = 30000;
 
 /** La chiave di una riga: `chiave` quando la riga ne ha una, altrimenti `id`. */
 function chiavePredefinita(riga) {
@@ -40,6 +55,7 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
   const [voci, setVoci] = useState(null);
   const [paginazione, setPaginazione] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
+  const [aggiornamento, setAggiornamento] = useState(false);
   const [caricamentoAltri, setCaricamentoAltri] = useState(false);
   const [errore, setErrore] = useState(null);
   const [erroreAltri, setErroreAltri] = useState(null);
@@ -72,6 +88,11 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
   // ricarica può partire mentre un appendente è ancora aperto e la fine della
   // prima non deve far credere che non ci sia più niente in corso.
   const inVoloRef = useRef(0);
+  // Se una pagina è mai stata applicata, e quando: decidono se il ritorno sulla
+  // schermata può saltare la chiamata. Mai resi nello stato: un timestamp
+  // renderizzato cambierebbe a ogni risposta e riavvierebbe l'effetto in loop.
+  const haDatiRef = useRef(false);
+  const ultimaLetturaRef = useRef(0);
 
   useEffect(() => {
     caricaRef.current = carica;
@@ -88,14 +109,20 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
     [],
   );
 
-  const leggi = useCallback(async (pagina, inCoda) => {
+  const leggi = useCallback(async (pagina, inCoda, inSfondo = false) => {
     const seq = ++requestRef.current;
     inVoloRef.current += 1;
     if (inCoda) {
       setCaricamentoAltri(true);
       setErroreAltri(null);
     } else {
-      setCaricamento(true);
+      // La rilettura in secondo piano tiene le righe a schermo e vive in
+      // `aggiornamento`: nessuno svuota la lista per un ritorno sulla schermata.
+      if (inSfondo) {
+        setAggiornamento(true);
+      } else {
+        setCaricamento(true);
+      }
       // Una pagina nuova rende vecchio anche l'errore dell'appendente, e la
       // finestra a schermo non è più quella che stiamo per ricevere: finché la
       // risposta non arriva, «Carica altri» non deve poter partire.
@@ -126,6 +153,8 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
       });
       setPaginazione(nuovaPaginazione);
       paginazioneRef.current = nuovaPaginazione;
+      haDatiRef.current = true;
+      ultimaLetturaRef.current = Date.now();
       if (!inCoda) {
         // Solo una pagina 1 appena arrivata descrive la finestra a schermo.
         setFinestraPronta(true);
@@ -147,6 +176,7 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
       inVoloRef.current = Math.max(0, inVoloRef.current - 1);
       if (vivoRef.current && seq === requestRef.current) {
         setCaricamento(false);
+        setAggiornamento(false);
         setCaricamentoAltri(false);
       }
     }
@@ -154,6 +184,38 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
 
   /** La pagina 1: sostituisce quello che è a schermo (ricarica, filtro nuovo). */
   const ricarica = useCallback(() => leggi(1, false), [leggi]);
+
+  /**
+   * Se il ritorno sulla schermata può tenere quello che c'è già.
+   *
+   * Si tiene quando una pagina è già a schermo e **o** la finestra è stata
+   * allargata con «Carica altri» — tornare a pagina 1 butterebbe via quello che
+   * l'utente ha caricato — **o** la pagina è stata letta da meno di
+   * `FINESTRA_FRESCHEZZA_MS`. Legge solo ref, quindi non dipende da niente che
+   * cambi a ogni render.
+   */
+  const puoTenereLaLista = useCallback(() => {
+    if (!haDatiRef.current) {
+      return false;
+    }
+    if ((paginazioneRef.current?.pagina ?? 1) > 1) {
+      return true;
+    }
+    return Date.now() - ultimaLetturaRef.current < FINESTRA_FRESCHEZZA_MS;
+  }, []);
+
+  /**
+   * Il ritorno sulla schermata: chiede la pagina 1 solo se la copia a schermo
+   * non può restare, e in secondo piano (le righe restano, `aggiornamento` dice
+   * che si sta rileggendo). `ricarica` resta il comando manuale e chiede sempre:
+   * un «Riprova» non deve poter essere saltato da una finestra.
+   */
+  const aggiornaAlFocus = useCallback(() => {
+    if (puoTenereLaLista()) {
+      return undefined;
+    }
+    return leggi(1, false, true);
+  }, [leggi, puoTenereLaLista]);
 
   /**
    * La pagina dopo, appesa. Si ferma da sola quando non ce ne sono altre o
@@ -190,11 +252,13 @@ export function usePagedList({ carica, dimensione = DIMENSIONE_PAGINA, chiave = 
     voci,
     paginazione,
     caricamento,
+    aggiornamento,
     caricamentoAltri,
     errore,
     erroreAltri,
     erroreNonDisponibile,
     ricarica,
+    aggiornaAlFocus,
     caricaAltri,
     haAltre,
   };

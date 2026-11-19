@@ -1,6 +1,6 @@
 import { act, create } from 'react-test-renderer';
 import { ApiError } from '@/api/client';
-import { usePagedList } from '../usePagedList';
+import { FINESTRA_FRESCHEZZA_MS, usePagedList } from '../usePagedList';
 
 /**
  * `usePagedList`: la pagina 1 sostituisce, le altre si appendono senza
@@ -261,4 +261,152 @@ it('una risposta che arriva dopo lo smontaggio non scrive niente', async () => {
 
   expect(avvisi).not.toHaveBeenCalled();
   avvisi.mockRestore();
+});
+
+describe('usePagedList — il ritorno sulla schermata', () => {
+  let orologio;
+  let spiaOrologio;
+
+  beforeEach(() => {
+    orologio = 1000000;
+    spiaOrologio = jest.spyOn(Date, 'now').mockImplementation(() => orologio);
+  });
+
+  afterEach(() => {
+    spiaOrologio.mockRestore();
+  });
+
+  it('dentro la finestra il ritorno non ripete la chiamata', async () => {
+    const carica = jest
+      .fn()
+      .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }));
+    const lettura = {};
+    render(lettura, carica);
+
+    await act(async () => {
+      await lettura.ricarica();
+    });
+    orologio += 1000;
+    await act(async () => {
+      await lettura.aggiornaAlFocus();
+    });
+
+    expect(carica).toHaveBeenCalledTimes(1);
+    expect(lettura.voci).toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it('passata la finestra rilegge e non svuota le righe a schermo', async () => {
+    let risolvi;
+    const carica = jest
+      .fn()
+      .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            risolvi = resolve;
+          }),
+      );
+    const lettura = {};
+    render(lettura, carica);
+
+    await act(async () => {
+      await lettura.ricarica();
+    });
+    orologio += FINESTRA_FRESCHEZZA_MS + 1;
+    act(() => {
+      void lettura.aggiornaAlFocus();
+    });
+    await flush();
+
+    // Le righe restano, e la rilettura si dichiara in `aggiornamento`.
+    expect(lettura.voci).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(lettura.caricamento).toBe(false);
+    expect(lettura.aggiornamento).toBe(true);
+
+    await act(async () => {
+      risolvi(pagina([{ id: 9 }], { page: 1, totalPages: 1 }));
+      await Promise.resolve();
+    });
+    expect(lettura.aggiornamento).toBe(false);
+    expect(lettura.voci).toEqual([{ id: 9 }]);
+  });
+
+  it('la ricarica manuale ignora la finestra: «Riprova» chiede sempre', async () => {
+    const carica = jest
+      .fn()
+      .mockResolvedValue(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }));
+    const lettura = {};
+    render(lettura, carica);
+
+    await act(async () => {
+      await lettura.ricarica();
+    });
+    orologio += 1000;
+    await act(async () => {
+      await lettura.ricarica();
+    });
+
+    expect(carica).toHaveBeenCalledTimes(2);
+  });
+
+  it('con pagine incollate il ritorno non torna a pagina 1', async () => {
+    const carica = jest
+      .fn()
+      .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 2 }))
+      .mockResolvedValueOnce(pagina([{ id: 3 }, { id: 4 }], { page: 2, totalPages: 2 }));
+    const lettura = {};
+    render(lettura, carica);
+
+    await act(async () => {
+      await lettura.ricarica();
+    });
+    await act(async () => {
+      await lettura.caricaAltri();
+    });
+    orologio += FINESTRA_FRESCHEZZA_MS + 1;
+    await act(async () => {
+      await lettura.aggiornaAlFocus();
+    });
+
+    // La finestra caricata con «Carica altri» è quello che l'utente ha chiesto:
+    // un ritorno sulla schermata non la butta via.
+    expect(carica).toHaveBeenCalledTimes(2);
+    expect(lettura.paginazione.pagina).toBe(2);
+    expect(lettura.voci.map((riga) => riga.id)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('una risposta superata non scrive niente dopo il ritorno sulla schermata', async () => {
+    let risolviLenta;
+    const carica = jest
+      .fn()
+      .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            risolviLenta = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(pagina([{ id: 9 }], { page: 1, totalPages: 1 }));
+    const lettura = {};
+    render(lettura, carica);
+
+    await act(async () => {
+      await lettura.ricarica();
+    });
+    orologio += FINESTRA_FRESCHEZZA_MS + 1;
+    act(() => {
+      void lettura.ricarica();
+    });
+    await flush();
+    await act(async () => {
+      await lettura.aggiornaAlFocus();
+    });
+    expect(lettura.voci).toEqual([{ id: 9 }]);
+
+    await act(async () => {
+      risolviLenta(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }));
+      await Promise.resolve();
+    });
+    expect(lettura.voci).toEqual([{ id: 9 }]);
+  });
 });

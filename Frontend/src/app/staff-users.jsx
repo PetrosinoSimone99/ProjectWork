@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { FlatList, Platform, RefreshControl, View } from 'react-native';
 import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
@@ -30,7 +30,7 @@ import {
 } from '@/services/staff-users';
 import { useRefresh } from '@/hooks/useRefresh';
 import { usePagedList } from '@/hooks/usePagedList';
-import { space } from '@/theme/tokens';
+import { colonna, layout, space, useTokens } from '@/theme/tokens';
 import { puoEntrareNellAreaStaff } from '@/services/staff';
 
 
@@ -40,6 +40,32 @@ const RICERCA_ATTESA_MS = 350;
 
 /** How many rows a page brings: one size for every staff list. */
 const PAGE_SIZE = 20;
+
+/**
+ * Quanto la lista tiene montato intorno alla finestra visibile: sette
+ * schermate, cioè tre sopra e tre sotto. Il valore predefinito (21) terrebbe in
+ * memoria un elenco che l'utente non vede, e le righe qui sono alte.
+ */
+const FINESTRA_RIGHE = 7;
+
+/** Righe disegnate al primo giro: quante ne stanno in una schermata di telefono. */
+const RIGHE_AL_PRIMO_GIRO = 6;
+
+/** Righe disegnate per lotto mentre si scorre. */
+const RIGHE_PER_LOTTO = 6;
+
+/**
+ * Togliere dal disegno le righe uscite dalla finestra: su Android è un guadagno
+ * e le card qui non hanno ombre o trasformazioni che il taglio lascerebbe
+ * visibili; su iOS la stessa proprietà ha ancora casi di celle che restano
+ * bianche al ritorno, e sul web react-native-web la ignora.
+ */
+const TOGLI_RIGHE_FUORI_VISTA = Platform.OS === 'android';
+
+/** La chiave di una riga: l'id dell'utente, non la pagina in cui è arrivato. */
+function chiaveUtente(user) {
+  return String(user.id);
+}
 
 const ROLE_FILTERS = [
   { valore: null, etichetta: 'Tutti' },
@@ -56,6 +82,7 @@ const STATUS_FILTERS = [
 export default function StaffUsersScreen() {
   const { token, utente } = useAuth();
   const router = useRouter();
+  const t = useTokens();
   const callerId = utente?.id ?? null;
 
   const [actionError, setActionError] = useState(null);
@@ -130,6 +157,9 @@ export default function StaffUsersScreen() {
 
   // Il gesto nativo e «Aggiorna» del web sono lo stesso comando (audit §8.8).
   const { refreshing, onRefresh } = useRefresh(reload);
+  // Il pull-to-refresh è un gesto nativo: sul web la lista lo ignorerebbe, e lì
+  // il comando compare nella barra del menu, pubblicato da `Screen`.
+  const aggiornamentoAttivo = Platform.OS !== 'web' && typeof onRefresh === 'function';
 
   // Testo e stato li ha già applicati il server: qui resta il solo ruolo.
   const visible = useMemo(
@@ -210,6 +240,21 @@ export default function StaffUsersScreen() {
     setStatusFilter(null);
   }
 
+  /** Una riga dell'elenco: la card con i due comandi che l'utente può ricevere. */
+  function renderUserRow({ item: user }) {
+    return (
+      <View accessibilityRole="listitem">
+        <StaffUserCard
+          user={user}
+          callerId={callerId}
+          busy={busy !== null && Number(busy) === Number(user.id)}
+          onPromote={() => askPromotion(user)}
+          onStatusChange={() => askStatusChange(user)}
+        />
+      </View>
+    );
+  }
+
   // Le due uscite valgono qui come su `/staff`: senza sessione si torna al
   // login (F1), senza ruolo la sezione si dichiara riservata (F13).
   if (!token) {
@@ -234,8 +279,63 @@ export default function StaffUsersScreen() {
       : describeStatusChange(confirm.user, confirm.status)
     : '';
 
+  // Le righe non hanno un'altezza fissa: i comandi cambiano con il ruolo e con
+  // lo stato (nessuno, uno, due) e un nome lungo va a capo. `getItemLayout`
+  // dichiarerebbe un'altezza sola e i salti di posizione finirebbero fuori
+  // posto, quindi la lista non lo passa e paga il conto con una finestra
+  // piccola, lotti corti e poche righe per pagina (20).
   return (
-    <Screen scroll withBottomInset={false} refreshing={refreshing} onRefresh={onRefresh}>
+    // La lista è la pagina: `Screen` non scorre, perché una `FlatList` dentro la
+    // sua `ScrollView` sarebbe una lista virtualizzata dentro uno scroll e la
+    // virtualizzazione non funzionerebbe più. La misura la porta il contenuto
+    // della lista (`misuraAlFiglio`, la stessa regola della chat): la barra di
+    // scorrimento sta sul bordo della finestra e la rotella sopra i gutter
+    // scorre le righe (audit 2026-11-18, P1-11).
+    <Screen
+      scroll={false}
+      misuraAlFiglio
+      withBottomInset={false}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+    >
+      <FlatList
+        style={{ flex: 1 }}
+        // La colonna è il contenuto del nodo che scorre, non un suo antenato.
+        contentContainerStyle={{
+          ...colonna(layout.maxContent),
+          paddingHorizontal: space.lg,
+          gap: space.sm,
+          flexGrow: 1,
+        }}
+        data={visible}
+        keyExtractor={chiaveUtente}
+        renderItem={renderUserRow}
+        // La collezione è una lista anche per le tecnologie assistive (audit UX
+        // F19): si salta da una riga all'altra.
+        accessibilityRole="list"
+        keyboardShouldPersistTaps="handled"
+        // Filtri e conteggio scorrono con le righe: restano raggiungibili in cima
+        // e non rubano altezza alla lista su un telefono.
+        initialNumToRender={RIGHE_AL_PRIMO_GIRO}
+        maxToRenderPerBatch={RIGHE_PER_LOTTO}
+        windowSize={FINESTRA_RIGHE}
+        removeClippedSubviews={TOGLI_RIGHE_FUORI_VISTA}
+        refreshControl={
+          aggiornamentoAttivo ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={t.primary}
+              colors={[t.primary]}
+              progressBackgroundColor={t.surface}
+            />
+          ) : undefined
+        }
+        ListHeaderComponent={
+          // Il distacco fra le sezioni resta 32 (`space.xxl`): la testata si porta
+          // `space.xl` (24) perché sotto di lei il `gap` del contenuto aggiunge gli
+          // 8 che separa le righe.
+          <View style={{ gap: space.xxl, paddingBottom: space.xl }}>
       <PageHeader
         titolo="Utenti"
         frase="Rendi staff un utente o sospendi il suo account."
@@ -356,58 +456,55 @@ export default function StaffUsersScreen() {
         />
       ) : null}
       {actionError ? <Banner kind="error" message={actionError} /> : null}
-
-      {users !== null && visible.length === 0 ? (
-        <EmptyState
-          icon="people-outline"
-          title="Nessun utente da mostrare"
-          description={describeEmptyUserList({
-            filtri: serverFiltersActive,
-            ruolo: roleFilter !== null,
-          })}
-        />
-      ) : null}
-
-      {/* La collezione è una lista anche per le tecnologie assistive
-          (audit UX F19): si salta da una riga all'altra. */}
-      <View accessibilityRole="list" style={{ gap: space.sm }}>
-        {visible.map((user) => (
-          <View key={user.id} accessibilityRole="listitem">
-            <StaffUserCard
-              user={user}
-              callerId={callerId}
-              busy={busy !== null && Number(busy) === Number(user.id)}
-              onPromote={() => askPromotion(user)}
-              onStatusChange={() => askStatusChange(user)}
-            />
           </View>
-        ))}
-      </View>
+        }
+        // Lo stato vuoto è quello del filtro corrente: la lista lo disegna dove
+        // disegnerebbe le righe. Con una richiesta fallita e nessuna riga non è un
+        // elenco vuoto, quindi lì non compare: l'errore ha il suo Banner.
+        ListEmptyComponent={
+          users !== null && visible.length === 0 ? (
+            <EmptyState
+              icon="people-outline"
+              title="Nessun utente da mostrare"
+              description={describeEmptyUserList({
+                filtri: serverFiltersActive,
+                ruolo: roleFilter !== null,
+              })}
+            />
+          ) : null
+        }
 
-      {/* Ogni pagina appesa è un'altra riga letta: il bottone resta finché il
-          backend dice che ce n'è una dopo, e quando quella richiesta fallisce
-          il suo errore ha il proprio «Riprova» invece di sparire. */}
-      {hasMore && !errorMore ? (
-        <AppButton
-          label={loadingMore ? 'Carico altri…' : 'Carica altri'}
-          variant="secondary"
-          icon="chevron-down-outline"
-          loading={loadingMore}
-          onPress={() => void loadMore()}
-          accessibilityLabel="Carica altri risultati"
-          style={{ alignSelf: 'center' }}
-        />
-      ) : null}
-      {errorMore ? (
-        <Banner
-          kind="error"
-          message={errorMore}
-          etichettaAzione="Riprova"
-          iconaAzione="refresh-outline"
-          onAzione={() => void loadMore()}
-          caricamentoAzione={loadingMore}
-        />
-      ) : null}
+        // Ogni pagina appesa è un'altra riga letta: il comando resta finché il
+        // backend dice che ce n'è una dopo, e quando quella richiesta fallisce il
+        // suo errore ha il proprio «Riprova» invece di sparire.
+        ListFooterComponent={
+          hasMore || errorMore ? (
+            <View style={{ gap: space.sm, paddingTop: space.xl }}>
+              {hasMore && !errorMore ? (
+                <AppButton
+                  label={loadingMore ? 'Carico altri…' : 'Carica altri'}
+                  variant="secondary"
+                  icon="chevron-down-outline"
+                  loading={loadingMore}
+                  onPress={() => void loadMore()}
+                  accessibilityLabel="Carica altri risultati"
+                  style={{ alignSelf: 'center' }}
+                />
+              ) : null}
+              {errorMore ? (
+                <Banner
+                  kind="error"
+                  message={errorMore}
+                  etichettaAzione="Riprova"
+                  iconaAzione="refresh-outline"
+                  onAzione={() => void loadMore()}
+                  caricamentoAzione={loadingMore}
+                />
+              ) : null}
+            </View>
+          ) : null
+        }
+      />
 
       <ConfirmModal
         visible={confirm !== null}

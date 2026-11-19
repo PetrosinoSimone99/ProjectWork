@@ -55,7 +55,7 @@ function righe(renderer) {
   return trovate;
 }
 
-/** The photo, matched on the label it announces and the loader it reports on. */
+/** The image `Avatar` draws, matched on the label it announces and the loader it reports on. */
 function foto(renderer) {
   return renderer.root
     .findAll(
@@ -112,8 +112,43 @@ describe('ProfileSummary', () => {
 
     const testo = righe(renderer);
     expect(testo).toContain('?');
+    expect(foto(renderer)).toBeUndefined();
     expect(testo.some((riga) => /non indicat/i.test(riga))).toBe(false);
     expect(testo.join('\n')).not.toContain('@');
+  });
+
+  it('draws the photo through expo-image, cached and decoded at the box size', () => {
+    const renderer = renderUtente({
+      ...UTENTE,
+      immagineProfilo: 'https://example.invalid/marco.jpg',
+    });
+
+    const immagine = foto(renderer);
+    expect(immagine).toBeDefined();
+    expect(immagine.props.cachePolicy).toBe('memory-disk');
+    expect(immagine.props.contentFit).toBe('cover');
+    // The decode target is the disc (84 px), whatever the upload's own size is.
+    expect(immagine.props.style).toMatchObject({ width: 84, height: 84 });
+    // The photo fades in over the space it already occupies.
+    expect(typeof immagine.props.transition).toBe('number');
+    // Another person in the same slot is another bitmap, not the recycled one.
+    expect(immagine.props.recyclingKey).toBe('https://example.invalid/marco.jpg');
+    // The initials are the fallback, not a second identity: with a photo they are gone.
+    expect(righe(renderer)).not.toContain('MR');
+  });
+
+  it('draws the initials disc and no image when the person has no photo', () => {
+    const renderer = renderUtente(UTENTE);
+
+    expect(foto(renderer)).toBeUndefined();
+    expect(righe(renderer)).toContain('MR');
+  });
+
+  it('treats a blank address as no photo', () => {
+    const renderer = renderUtente({ ...UTENTE, immagineProfilo: '   ' });
+
+    expect(foto(renderer)).toBeUndefined();
+    expect(righe(renderer)).toContain('MR');
   });
 
   it('falls back to the initials and says the image is broken when the photo does not load', () => {

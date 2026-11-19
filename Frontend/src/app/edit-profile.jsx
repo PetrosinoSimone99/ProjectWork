@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import { useFocusEffect, useRouter, Redirect } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { getProfile, updateProfile } from '@/api';
 import { INVALID_PROFILE_MESSAGE } from '@/api/areas/profile';
 import { BackButton } from '@/components/BackButton';
+import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppInput } from '@/components/AppInput';
@@ -22,7 +23,7 @@ import {
   formattaLocalita,
 } from '@/services/italian-locations';
 import { maxLengthError, photoUrlError, requiredError } from '@/validation';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 /** Field limits, copied from `ProfileController::validateField`. */
 const LIMITS = {
@@ -96,7 +97,6 @@ function formVuoto() {
 export default function EditProfileScreen() {
   const { token, utente } = useAuth();
   const router = useRouter();
-  const t = useTokens();
 
   const [firstLoad, setFirstLoad] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -431,17 +431,11 @@ export default function EditProfileScreen() {
 
           {photoLooksValid ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-              <Image
-                source={{ uri: photoUrl }}
-                accessibilityLabel="Anteprima dell'immagine del profilo"
-                onError={() => setPhotoLoadFailed(true)}
-                onLoad={() => setPhotoLoadFailed(false)}
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: radius.card,
-                  backgroundColor: t.border,
-                }}
+              <Avatar
+                uri={photoUrl}
+                nome={utente?.nome ?? utente?.username ?? ''}
+                misura={64}
+                onErrore={() => setPhotoLoadFailed(true)}
               />
               {photoLoadFailed ? (
                 <AppText variant="small" tone="danger" style={{ flexShrink: 1 }}>

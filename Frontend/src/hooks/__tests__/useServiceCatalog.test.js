@@ -3,7 +3,7 @@ import { __focusi as focusCallbacks } from 'expo-router';
 import { getHomeCatalog } from '@/api';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
 import { nuoviFiltri } from '@/services/offer-request';
-import { useServiceCatalog } from '../useServiceCatalog';
+import { useServiceCatalog, FINESTRA_FRESCHEZZA_MS } from '../useServiceCatalog';
 
 jest.mock('expo-router', () => {
   // `useFocusEffect` needs a navigator. Here it is an effect, and each callback
@@ -370,6 +370,9 @@ describe('useServiceCatalog — the filters', () => {
 
   it('the focus reload is skipped while filters are applied', async () => {
     const lettura = {};
+    const oraFerma = Date.now();
+    const spiaOra = jest.spyOn(Date, 'now').mockReturnValue(oraFerma);
+    const oraAvanti = (ms) => spiaOra.mockReturnValue(oraFerma + ms);
     render(lettura);
     await rispondi(richieste[0], risposta([voce(1)]));
     expect(getHomeCatalog).toHaveBeenCalledTimes(1);
@@ -390,9 +393,18 @@ describe('useServiceCatalog — the filters', () => {
     await rispondi(richieste[2], risposta([voce(1)]));
     await tornaInFocus();
 
-    // Nothing applied: the focus reload is back.
+    // Niente filtri applicati: la rilettura al focus torna, ma solo dopo la
+    // finestra di freschezza — dentro la finestra il ritorno sulla tab non
+    // ripaga la lettura appena fatta (audit 2026-11-18, prestazione).
+    expect(getHomeCatalog).toHaveBeenCalledTimes(3);
+
+    oraAvanti(FINESTRA_FRESCHEZZA_MS + 1);
+    await tornaInFocus();
+
     expect(getHomeCatalog).toHaveBeenCalledTimes(4);
     expect(richieste[3].filtri).toEqual(nuoviFiltri());
     expect(richieste[3].pagina).toBe(1);
+
+    spiaOra.mockRestore();
   });
 });

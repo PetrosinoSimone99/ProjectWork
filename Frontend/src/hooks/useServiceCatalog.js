@@ -6,6 +6,17 @@ import { contaFiltri, nuoviFiltri } from '@/services/offer-request';
 import { useRefresh } from '@/hooks/useRefresh';
 
 /**
+ * Per quanto una lista appena letta vale come «fresca».
+ *
+ * Il backend è la velocità percepita del prodotto (audit P2: mediana 4,01 s per
+ * chiamata): tornare sulla tab non deve ripagarla ogni volta. Dentro questa
+ * finestra la ricarica al focus si salta. Il catalogo non è nelle famiglie dello
+ * stream (`api/stream.js`: accordi, chat, profilo, coda), quindi qui la prova
+ * che la copia a schermo è corrente è la sola età della lettura.
+ */
+export const FINESTRA_FRESCHEZZA_MS = 30000;
+
+/**
  * Lo stato del catalogo della home: filtri, richieste, paginazione («Carica
  * altri»), guardia sulle risposte fuori ordine, ricarica al focus della tab e
  * pull-to-refresh. È l'unico posto in cui la schermata parla col layer API.
@@ -26,7 +37,17 @@ import { useRefresh } from '@/hooks/useRefresh';
  *    quando **nessun filtro è applicato**. La condizione si legge dal ref dei
  *    filtri *applicati* — non dai filtri correnti — così cambiare i filtri non riavvia
  *    l'effetto e non nasce un doppio fetch.
- * 3. **`filtriApplicati` si aggiorna solo quando una risposta viene applicata**,
+ * 3. **La ricarica al focus è un ripiego, non l'unica via**: si salta quando la
+ *    lista a schermo è stata letta da meno di `FINESTRA_FRESCHEZZA_MS` e quando
+ *    ci sono pagine incollate con «Carica altri» — un ritorno sulla tab non deve
+ *    buttare via la finestra che l'utente ha già caricato. Filtri, «Riprova» e
+ *    pull-to-refresh passano da `esegui` direttamente e ignorano la regola: una
+ *    richiesta manuale è sempre una richiesta.
+ * 4. **`caricamento` è il primo caricamento (o una richiesta chiesta da un
+ *    comando), `aggiornamento` è la rilettura in secondo piano**: così nessuna
+ *    schermata svuota la lista in un ritorno sulla tab, e le due attese restano
+ *    distinguibili.
+ * 5. **`filtriApplicati` si aggiorna solo quando una risposta viene applicata**,
  *    non quando una richiesta parte: descrive quello che c'è a schermo.
  * 4. **«Riprova» ripete la richiesta fallita così com'era** (`ultimaRichiestaRef`):
  *    filtri **e** pagina. Chi ha sbagliato a filtrare azzera, chi ha avuto un
@@ -44,6 +65,7 @@ import { useRefresh } from '@/hooks/useRefresh';
 export function useServiceCatalog({ token, utenteId }) {
   const [servizi, setServizi] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
+  const [aggiornamento, setAggiornamento] = useState(false);
   const [errore, setErrore] = useState(null);
   const [paginazione, setPaginazione] = useState(null);
   const [caricamentoAltri, setCaricamentoAltri] = useState(false);
@@ -69,8 +91,15 @@ export function useServiceCatalog({ token, utenteId }) {
   // «Riprova» ripete (filtri, pagina e se era un «Carica altri»).
   const ultimaRichiestaRef = useRef({ filtri: nuoviFiltri(), pagina: 1, inCoda: false });
 
+  // Se una risposta è mai stata applicata, e quando: decidono fra primo
+  // caricamento e aggiornamento, e se il ritorno sulla tab può saltare la
+  // chiamata (`convieneRicaricare`). Mai resi nello stato: un timestamp renderizzato
+  // riavvierebbe l'effetto di fuoco a ogni risposta.
+  const haDatiRef = useRef(false);
+  const ultimaLetturaRef = useRef(0);
+
   const esegui = useCallback(
-    async (filtriRichiesti, pagina = 1, inCoda = false) => {
+    async (filtriRichiesti, pagina = 1, inCoda = false, inSfondo = false) => {
       if (!token) {
         return;
       }
@@ -78,6 +107,12 @@ export function useServiceCatalog({ token, utenteId }) {
       ultimaRichiestaRef.current = { filtri: filtriRichiesti, pagina, inCoda };
       if (inCoda) {
         setCaricamentoAltri(true);
+        setErroreAltri(null);
+      } else if (inSfondo) {
+        // Ripiego del ritorno sulla tab: la lista a schermo resta, l'attesa vive
+        // in `aggiornamento` e non spegne il pulsante «Filtra».
+        setAggiornamento(true);
+        setErrore(null);
         setErroreAltri(null);
       } else {
         setCaricamento(true);
@@ -98,6 +133,8 @@ export function useServiceCatalog({ token, utenteId }) {
         setServizi((correnti) => (inCoda ? [...(correnti ?? []), ...elenco] : elenco));
         setPaginazione(nuovaPaginazione);
         paginazioneRef.current = nuovaPaginazione;
+        haDatiRef.current = true;
+        ultimaLetturaRef.current = Date.now();
         if (!inCoda) {
           setFiltriApplicati(filtriRichiesti);
           filtriApplicatiRef.current = filtriRichiesti;
@@ -118,6 +155,7 @@ export function useServiceCatalog({ token, utenteId }) {
       } finally {
         if (seq === requestSeqRef.current) {
           setCaricamento(false);
+          setAggiornamento(false);
           setCaricamentoAltri(false);
         }
       }
@@ -125,26 +163,49 @@ export function useServiceCatalog({ token, utenteId }) {
     [token, utenteId],
   );
 
+  /**
+   * Se il ritorno sulla tab deve chiedere di nuovo.
+   *
+   * Tre no: con dei filtri applicati (i risultati non devono sparire sotto il
+   * catalogo), con pagine già incollate (tornare a pagina 1 butterebbe via
+   * quello che l'utente ha caricato) e dentro la finestra di freschezza. Legge
+   * solo ref, quindi non dipende da niente che cambi a ogni render.
+   */
+  const convieneRicaricare = useCallback(() => {
+    if (contaFiltri(filtriApplicatiRef.current) > 0) {
+      return false;
+    }
+    if ((paginazioneRef.current?.pagina ?? 1) > 1) {
+      return false;
+    }
+    if (!haDatiRef.current) {
+      return true; // primo giro: non c'è niente a schermo da tenere.
+    }
+    return Date.now() - ultimaLetturaRef.current >= FINESTRA_FRESCHEZZA_MS;
+  }, []);
+
   // La home si ricarica quando la tab torna in primo piano, **tranne** che con
-  // dei filtri applicati: i risultati non devono sparire sotto il catalogo. Da
-  // qui `azzeraFiltri()` riporta `filtriApplicati` a vuoto e la ricarica torna
-  // attiva — è il modo per rivedere il catalogo aggiornato dopo aver filtrato.
+  // dei filtri applicati, con pagine già incollate o dentro la finestra di
+  // freschezza: i risultati non devono sparire né tornare a pagina 1 sotto il
+  // catalogo. Da qui `azzeraFiltri()` riporta `filtriApplicati` a vuoto e la
+  // ricarica torna attiva — è il modo per rivedere il catalogo aggiornato dopo
+  // aver filtrato; il pull-to-refresh è il comando manuale che riparte sempre.
   useFocusEffect(
     useCallback(() => {
-      if (contaFiltri(filtriApplicatiRef.current) > 0) {
-        return undefined;
+      if (convieneRicaricare()) {
+        void esegui(filtriApplicatiRef.current, 1, false, true);
       }
-      void esegui(filtriApplicatiRef.current);
       return () => {
         // Fuori dal focus la risposta in volo non deve applicarsi alla UI.
         // La sequenza invalidata basta a scartarla, ma il suo `finally` non
-        // spegnerebbe più i flag (la seq non combacia): senza queste due righe
+        // spegnerebbe più i flag (la seq non combacia): senza queste righe
         // «Carica altri» resterebbe in spinner per sempre al ritorno sulla tab.
         requestSeqRef.current += 1;
         setCaricamento(false);
+        setAggiornamento(false);
         setCaricamentoAltri(false);
       };
-    }, [esegui]),
+    }, [esegui, convieneRicaricare]),
   );
 
   /**
@@ -254,6 +315,7 @@ export function useServiceCatalog({ token, utenteId }) {
   return {
     servizi,
     caricamento,
+    aggiornamento,
     errore,
     paginazione,
     caricamentoAltri,

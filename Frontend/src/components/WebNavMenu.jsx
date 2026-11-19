@@ -172,6 +172,13 @@ export function WebNavMenu() {
     [numeroRighe],
   );
 
+  // Driver: le uniche proprietà animate sono `opacity` e `transform`
+  // (translateY, scala), che il driver nativo sa guidare, quindi tutte e sette
+  // le animazioni usano `useNativeDriver: true` — nessuna proprietà di layout
+  // (altezza, larghezza, margini) è animata, e nessun valore è guidato da due
+  // driver diversi. Su web `react-native-web` non ha il modulo nativo: ricade
+  // sul driver JS, senza lanciare.
+
   const riferimentoContenitore = useRef(null);
   const riferimentoControllo = useRef(null);
   const riferimentiVoci = useRef([]);
@@ -201,7 +208,7 @@ export function WebNavMenu() {
         toValue: 1,
         duration: DURATA_APERTURA_RIDOTTA,
         easing: Easing.linear,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
       return;
     }
@@ -211,12 +218,12 @@ export function WebNavMenu() {
         toValue: 1,
         duration: DURATA_APERTURA_FADE,
         easing: EASING_APERTURA,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
       Animated.spring(progressoPannello, {
         toValue: 1,
         ...MOLLA_PANNELLO,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
       Animated.stagger(
         RITARDO_VOCE,
@@ -225,7 +232,7 @@ export function WebNavMenu() {
             toValue: 1,
             duration: DURATA_APERTURA_VOCE,
             easing: EASING_APERTURA,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
         ),
       ),
@@ -240,7 +247,7 @@ export function WebNavMenu() {
       toValue: 0,
       duration: movimentoRidotto ? DURATA_CHIUSURA_RIDOTTA : DURATA_CHIUSURA,
       easing: movimentoRidotto ? Easing.linear : Easing.in(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start(({ finished }) => {
       // Se nel frattempo si è riaperto, `stopAnimation` ha interrotto la
       // chiusura: `finished` è falso e la tendina resta montata.
@@ -272,7 +279,7 @@ export function WebNavMenu() {
     Animated.timing(scalaControllo, {
       toValue: SCALA_CONTROLLO_PREMUTO,
       duration: DURATA_PRESS,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [movimentoRidotto, scalaControllo]);
 
@@ -284,7 +291,7 @@ export function WebNavMenu() {
     Animated.spring(scalaControllo, {
       toValue: 1,
       ...MOLLA_CONTROLLO,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [movimentoRidotto, scalaControllo]);
 

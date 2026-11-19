@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { AgreementCard } from '@/components/AgreementCard';
 import { AppButton } from '@/components/AppButton';
@@ -15,7 +24,7 @@ import { Screen } from '@/components/Screen';
 import { useAgreements } from '@/hooks/useAgreements';
 import { counterpartOf, apreLaChat } from '@/services/agreements';
 import { formatIsoDate } from '@/services/dates';
-import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
+import { colonna, layout, ombra, radius, space, target, useTokens } from '@/theme/tokens';
 
 /**
  * The agreements tab, wired to `GET /get-agreements` (decisions 8 and 9).
@@ -47,6 +56,14 @@ import { ombra, radius, space, target, useTokens } from '@/theme/tokens';
  * the refuse are decided there: the action error is pinned above the rows so a
  * failure is read where the tap was made, not behind the screen that opened the
  * panel.
+ *
+ * One virtualised list, not three `.map` blocks inside a `ScrollView`: the
+ * pills pick the section and that section's rows are the `data` of a single
+ * `FlatList` that scrolls on its own, so the rows out of the viewport are
+ * unmounted instead of staying mounted forever (audit 2026-11-18, performance).
+ * A row is a card whose height depends on its state — an accepted exchange
+ * carries up to two more buttons and the two directions of the trade wrap — so
+ * the list tunes the batching but declares no `getItemLayout`.
  *
  * The delivery sheet is not part of this screen any more: it is written and
  * confirmed inside the chat of the agreement, so the card keeps only the phone
@@ -97,6 +114,19 @@ const BELL_PANEL_MAX_WIDTH = 420;
 
 /** Share of the window height the panel may cover, so the page stays visible. */
 const BELL_PANEL_HEIGHT_RATIO = 0.7;
+
+/**
+ * Il pull-to-refresh è un gesto nativo: sul web la stessa coppia
+ * `refreshing`/`onRefresh` la pubblica `Screen` alla barra del menu.
+ */
+const SUPPORTA_AGGIORNAMENTO = Platform.OS !== 'web';
+
+/**
+ * La misura di lettura della lista: la colonna la porta il contenuto del nodo che
+ * scorre, non la cornice (`misuraAlFiglio`), così il taglio delle righe è quello
+ * della finestra e il pull-to-refresh non resta stretto nella colonna.
+ */
+const STILE_CONTENUTO_LISTA = { ...colonna(layout.maxContent), paddingHorizontal: space.lg };
 
 /** The shared loading row of the bell panel and of every section. */
 function RigaCaricamento({ testo }) {
@@ -200,11 +230,88 @@ export default function AgreementsScreen() {
 
   const sezione = SECTIONS.find((voce) => voce.key === sezioneAttiva) ?? SECTIONS[0];
   const bucket = classificati === null ? null : classificati[sezione.key];
+  const righe = bucket ?? [];
+
+  // Tutto ciò che non è una riga di scambio sta nell'intestazione della lista:
+  // testata, banner, pill delle sezioni e descrizione della sezione attiva. Una
+  // lista sola, e i pill continuano a scegliere il suo `data`.
+  const intestazione = (
+    <View style={{ gap: space.xxl }}>
+      <PageHeader titolo="Accordi" frase="Gli scambi nati da una proposta accettata." />
+
+      {errore ? (
+        // Il messaggio e il suo ritentativo sono un elemento solo: prima erano
+        // un banner e un bottone separati, con lo stesso fatto detto due volte.
+        <Banner
+          kind="error"
+          message={errore}
+          etichettaAzione="Riprova"
+          onAzione={riprova}
+          caricamentoAzione={caricamento}
+        />
+      ) : null}
+
+      {actionError ? <Banner kind="error" message={actionError} /> : null}
+
+      {esito ? (
+        <Banner
+          kind="success"
+          message={esito}
+          // Il banner di esito si limita a sparire: l'etichetta dice l'atto
+          // (`Chiudi`), non un consenso che nessuno ha chiesto.
+          etichettaAzione="Chiudi"
+          iconaAzione="close-outline"
+          onAzione={congedaEsito}
+        />
+      ) : null}
+
+      <SectionTabs
+        sections={SECTIONS}
+        activeKey={sezione.key}
+        counts={conteggi}
+        onChange={setSezioneAttiva}
+      />
+
+      <View style={{ gap: space.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+          <AppIcon name={sezione.icon} size={18} color={t.textSecondary} />
+          <AppText variant="heading">{sezione.title}</AppText>
+        </View>
+        <AppText variant="small" tone="secondary">
+          {sezione.description}
+        </AppText>
+      </View>
+    </View>
+  );
+
+  // Caricamento, lettura non riuscita e sezione vuota restano gli stessi tre
+  // stati di prima, disegnati quando non c'è nessuna riga da mostrare.
+  const vuoto =
+    bucket === null ? (
+      errore ? (
+        <EmptyState
+          icon={sezione.icon}
+          title="Caricamento non riuscito"
+          description="Gli scambi di questa sezione non sono arrivati: usa «Riprova» in alto."
+        />
+      ) : (
+        <RigaCaricamento testo="Carico gli scambi…" />
+      )
+    ) : (
+      <EmptyState
+        icon={sezione.icon}
+        title={sezione.emptyTitle}
+        description={sezione.emptyDescription}
+      />
+    );
 
   return (
     <View style={{ flex: 1 }}>
       <Screen
-        scroll
+        // La lista scorre da sé (`misuraAlFiglio`): la cornice rinuncia ai
+        // gutter orizzontali e la misura di lettura la porta il contenuto della
+        // `FlatList`, come nella chat.
+        misuraAlFiglio
         withBottomInset={false}
         refreshing={refreshing}
         onRefresh={onRefresh}
@@ -212,81 +319,54 @@ export default function AgreementsScreen() {
         // list has to end above it, otherwise it can never be tapped.
         bottomSpacing={BELL_SIZE + BELL_MARGIN * 2}
       >
-        <PageHeader titolo="Accordi" frase="Gli scambi nati da una proposta accettata." />
-
-        {errore ? (
-          // Il messaggio e il suo ritentativo sono un elemento solo: prima erano
-          // un banner e un bottone separati, con lo stesso fatto detto due volte.
-          <Banner
-            kind="error"
-            message={errore}
-            etichettaAzione="Riprova"
-            onAzione={riprova}
-            caricamentoAzione={caricamento}
-          />
-        ) : null}
-
-        {actionError ? <Banner kind="error" message={actionError} /> : null}
-
-        {esito ? (
-          <Banner
-            kind="success"
-            message={esito}
-            // Il banner di esito si limita a sparire: l'etichetta dice l'atto
-            // (`Chiudi`), non un consenso che nessuno ha chiesto.
-            etichettaAzione="Chiudi"
-            iconaAzione="close-outline"
-            onAzione={congedaEsito}
-          />
-        ) : null}
-
-        <SectionTabs
-          sections={SECTIONS}
-          activeKey={sezione.key}
-          counts={conteggi}
-          onChange={setSezioneAttiva}
-        />
-
-        <View style={{ gap: space.sm }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-            <AppIcon name={sezione.icon} size={18} color={t.textSecondary} />
-            <AppText variant="heading">{sezione.title}</AppText>
-          </View>
-          <AppText variant="small" tone="secondary">
-            {sezione.description}
-          </AppText>
-
-          {bucket === null ? (
-            errore ? (
-              <EmptyState
-                icon={sezione.icon}
-                title="Caricamento non riuscito"
-                description="Gli scambi di questa sezione non sono arrivati: usa «Riprova» in alto."
-              />
-            ) : (
-              <RigaCaricamento testo="Carico gli scambi…" />
-            )
-          ) : bucket.length === 0 ? (
-            <EmptyState
-              icon={sezione.icon}
-              title={sezione.emptyTitle}
-              description={sezione.emptyDescription}
+        {/* Prima erano tre `.map` dentro la `ScrollView` della cornice: ogni
+            riga montava subito e restava montata anche fuori dallo schermo
+            (audit 2026-11-18, performance). `getItemLayout` non c'è di
+            proposito: l'altezza della riga non è fissa — `Apri chat` compare
+            solo su ACCEPTED e COMPLETED, `Annulla scambio` solo su ACCEPTED, e
+            le due direzioni dello scambio vanno a capo — quindi una misura
+            dichiarata sfaserebbe lo scorrimento invece di aiutarlo. */}
+        <FlatList
+          style={{ flex: 1 }}
+          data={righe}
+          keyExtractor={(accordo) => String(accordo.id)}
+          renderItem={({ item }) => (
+            <AgreementCard
+              accordo={item}
+              myUsername={myUsername}
+              onCancel={item.stato === 'ACCEPTED' ? () => annulla(item.id) : null}
+              azioneInCorso={azioneInCorso}
+              onApriChat={apreLaChat(item) ? () => router.push(`/chat/${item.id}`) : null}
             />
-          ) : (
-            bucket.map((accordo) => (
-              <AgreementCard
-                key={accordo.id}
-                accordo={accordo}
-                myUsername={myUsername}
-                onCancel={accordo.stato === 'ACCEPTED' ? () => annulla(accordo.id) : null}
-                azioneInCorso={azioneInCorso}
-                onApriChat={
-                  apreLaChat(accordo) ? () => router.push(`/chat/${accordo.id}`) : null
-                }
-              />
-            ))
           )}
-        </View>
+          ListHeaderComponent={intestazione}
+          ListEmptyComponent={vuoto}
+          contentContainerStyle={{ ...STILE_CONTENUTO_LISTA, gap: space.sm }}
+          // Quante finestre di contenuto restano montate sopra e sotto quella
+          // visibile: 5 invece delle 21 di default, perché ogni riga è una card
+          // con fino a due bottoni, non una riga di testo.
+          windowSize={5}
+          // Il primo schermo si disegna senza aspettare i batch successivi.
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          // Sicuro qui, e solo su Android: le righe non hanno figli posizionati
+          // in assoluto né trasformazioni, quindi il ritaglio libera la memoria
+          // delle card uscite dallo schermo. Sul web la lista è
+          // `react-native-web` e il ritaglio non è supportato.
+          removeClippedSubviews={Platform.OS === 'android'}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            SUPPORTA_AGGIORNAMENTO ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={t.primary}
+                colors={[t.primary]}
+                progressBackgroundColor={t.surface}
+              />
+            ) : undefined
+          }
+        />
       </Screen>
 
       <BellButton

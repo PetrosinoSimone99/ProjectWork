@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import { AppIcon } from '@/components/AppIcon';
 import { AppText } from '@/components/AppText';
+import { Avatar } from '@/components/Avatar';
 import { localitaPerDisplay } from '@/services/italian-locations';
-import { radius, space, useTokens } from '@/theme/tokens';
+import { space, useTokens } from '@/theme/tokens';
 
 /** Same disc as the own-profile screen: the two identity blocks are one shape. */
 const AVATAR = 84;
@@ -52,37 +53,15 @@ export function ProfileSummary({ utente }) {
     (username?.charAt(0) ?? '').toUpperCase() ||
     '?';
   const photoBroken = photo !== null && fotoRotta === photo;
-  const showPhoto = photo !== null && !photoBroken;
 
   return (
     <View style={{ gap: space.md }}>
       <View style={{ alignItems: 'center', gap: space.md }}>
-        {showPhoto ? (
-          <Image
-            source={{ uri: photo }}
-            accessibilityLabel="Immagine del profilo"
-            onError={() => setFotoRotta(photo)}
-            style={{ width: AVATAR, height: AVATAR, borderRadius: radius.pill }}
-          />
-        ) : (
-          <View
-            style={{
-              width: AVATAR,
-              height: AVATAR,
-              borderRadius: radius.pill,
-              backgroundColor: t.surface,
-              borderWidth: 1,
-              borderColor: t.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {/* The initials say who this is; the name below is the heading. */}
-            <AppText variant="title" tone="primary" accessibilityRole="text">
-              {initials}
-            </AppText>
-          </View>
-        )}
+        {/* The disc and the photo are Avatar's job (cache, decode size, the
+            initials as the fallback). What stays here is the sentence: a broken
+            address is a fact about this person, and only the screen knows how to
+            say it. */}
+        <Avatar uri={photo} nome={initials} misura={AVATAR} onErrore={() => setFotoRotta(photo)} />
 
         {photo !== null && photoBroken ? (
           <AppText variant="label" tone="danger" style={{ textAlign: 'center' }}>

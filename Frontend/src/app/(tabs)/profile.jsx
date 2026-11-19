@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
@@ -15,13 +15,14 @@ import { Screen } from '@/components/Screen';
 import { AppText } from '@/components/AppText';
 import { AppButton } from '@/components/AppButton';
 import { AppIcon } from '@/components/AppIcon';
+import { Avatar } from '@/components/Avatar';
 import { Banner } from '@/components/Banner';
 import { Card, Chip } from '@/components/Card';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { NotificationsSheet } from '@/components/NotificationsSheet';
 import { PageHeader } from '@/components/PageHeader';
 import { ThemeSelector } from '@/components/ThemeSelector';
-import { radius, space, target, useTokens } from '@/theme/tokens';
+import { space, target, useTokens } from '@/theme/tokens';
 
 /**
  * «Profilo»: i dati della sessione (nome, username, ruolo) **più** email,
@@ -171,7 +172,6 @@ export default function ProfileScreen() {
   const localita = profilo?.localita ?? null;
   const bio = profilo?.bio ?? null;
   const immagine = profilo?.immagineProfilo ?? null;
-  const mostraImmagine = immagine !== null && !immagineRotta;
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -218,37 +218,19 @@ export default function ProfileScreen() {
       <Card style={{ padding: 0, gap: 0 }}>
         <Banda>
           <View style={{ alignItems: 'center', gap: space.md }}>
-            {/* The pasted photo URL, when the image loads. When it does not, the
-                initials stay and the line below says it explicitly: a broken
-                image is a state, not something to hide. */}
-            {mostraImmagine ? (
-              <Image
-                source={{ uri: immagine }}
-                accessibilityLabel="Immagine del profilo"
-                onError={() => setImmagineRotta(true)}
-                style={{ width: 84, height: 84, borderRadius: radius.pill }}
-              />
-            ) : (
-              <View
-                // Iniziali con l'anello, non con il disco pieno (direzione UX, F88):
-                // l'accento resta all'azione primaria della schermata, e questa
-                // schermata non ne ha una. Il cerchio dice chi sei, non cosa fare.
-                style={{
-                  width: 84,
-                  height: 84,
-                  borderRadius: radius.pill,
-                  backgroundColor: t.surface,
-                  borderWidth: 1,
-                  borderColor: t.primary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AppText variant="title" tone="primary" accessibilityRole="text">
-                  {iniziali}
-                </AppText>
-              </View>
-            )}
+            {/* L'immagine la disegna `Avatar`: lo stesso riquadro da 84 px prima e
+                dopo il caricamento, quindi niente salto di layout; e le iniziali
+                con l'anello (direzione UX, F88) quando l'indirizzo manca o non
+                risponde, così l'accento resta all'azione primaria della schermata
+                e questa non ne ha una. L'errore torna qui perché la schermata lo
+                dice a parole: un'immagine rotta è uno stato, non una cosa da
+                nascondere. */}
+            <Avatar
+              uri={immagine}
+              nome={iniziali}
+              misura={84}
+              onErrore={() => setImmagineRotta(true)}
+            />
             {immagine !== null && immagineRotta ? (
               <AppText variant="label" tone="danger" style={{ textAlign: 'center' }}>
                 L&apos;immagine del profilo non si carica: controlla l&apos;indirizzo in «Modifica
