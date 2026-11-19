@@ -21,6 +21,8 @@
 - Residui mai misurati (tema scuro su chat/edit-profile/user, pannello notifiche in errore, ogni
   superficie nativa): il come sta in `measure-residuals.md`, accanto a questo file. Si esegue
   da una sessione nuova con una riga: "Esegui: measure-residuals.md".
+- Lavori aperti nati dalla demo (F1: `Crediti disponibili` è testo nudo su `/match`):
+  `follow-ups.md`, accanto a questo file. "Esegui: follow-ups.md".
 - First block after this one: step 1 (harden A) — nothing else unblocks while a screen can
   still eat a 2000-character note.
 
