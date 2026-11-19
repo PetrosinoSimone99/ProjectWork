@@ -237,7 +237,7 @@ export default function AgreementsScreen() {
   // lista sola, e i pill continuano a scegliere il suo `data`.
   const intestazione = (
     <View style={{ gap: space.xxl }}>
-      <PageHeader titolo="Accordi" frase="Gli scambi nati da una proposta accettata." />
+      <PageHeader titolo="Scambi" frase="Gli scambi nati da una proposta accettata." />
 
       {errore ? (
         // Il messaggio e il suo ritentativo sono un elemento solo: prima erano

@@ -6,6 +6,74 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — Frontend remediation: the audit's P1s closed in the prescribed order
+
+The 2026-11-18 audit was executed in its own order — harden, clarify, shape,
+bolder/layout/distill, optimize, adapt, audit, polish — one commit per block,
+ten commits on `andrea-frontend`. Gate at every block: `expo lint` clean,
+`tsc --noEmit` clean, `jest` from 498 to 560 tests, 46 suites.
+
+**Harden.** A draft and a way back survive a mid-session `401` (`auth-context`
+keeps the text per route, the tab layout carries `ritorno`); a chat `404` is
+terminal with a way out instead of a retry that cannot succeed; a same-frame
+double tap sends once (ref guard in the hook and in the composer); the credit
+spend asks first and names cost and balance; a failed accept/refuse speaks
+inside the bell panel; a failed staff save restores the note; the touch floor is
+44/48 per platform and the staff log rows honour it; `aria-level` follows the
+rendered role (the 11 orphans are gone); a native validation error is announced
+and the field forwards a ref.
+
+**Clarify.** One word per object in copy: `scambio`, `richiesta`, `scheda di
+consegna` with verb buttons, `descrizione` for the old `Mansione`, `Riprova` as
+the only recovery word, `Registrati` for the one act, `Chiudi` instead of seven
+`Ho capito`, `Carica altri` without the page size, no `1 di 1`, no `il server`
+talking about itself, no English row, `it-IT` clock. Identifiers untouched
+(D026).
+
+**Shape.** P1-5 closed `N/A`: `D028`/`D030` already ship the completion path —
+verified in the source, not rebuilt. P1-4 built: `BarterPair` draws the two
+directions on the card, in the sheet panel and in its confirmation, and the chat
+header names the trade. The data was already on the wire
+(`proposte[].ruolo`/`descrizioneServizio`); no endpoint was invented.
+
+**Compose.** The catalog row is one grid at every width; the chat scrolls in the
+measure child (`Screen misuraAlFiglio`); no decision point shows more than four
+options; the accent is spent once per screen (neutral masthead, neutral bell
+disc), with the closed list of allowed uses written into `DESIGN.md`.
+
+**Optimize.** `/agreements` and `/staff-users` scroll a `FlatList`; avatars go
+through `expo-image` (`Avatar`, cache + decode sizing + initials fallback + an
+`onErrore` that keeps the broken-URL guard); the always-mounted menu animates on
+the native driver; a focus refetch is a fallback behind the stream, with a 30 s
+freshness window that never blanks a list.
+
+**Adapt.** `layout` declares compact/medium/expanded and `useBreakpoint` is the
+single reader on every platform; `Screen` and `PageHeader` take the class instead
+of gating on `Platform.OS`.
+
+**Polish.** `DateField` deleted (mounted nowhere), the sheet test now asserts no
+form field at all, card surfaces single-owned, the search field capped, the four
+missing `PageHeader` subtitles written.
+
+**Verified in a browser:** the production web export served statically against
+the real backend, one Playwright context, four routes (login, catalog,
+agreements, chat) — console clean, the trade drawn as two directions, one accent
+per screen. That run found one real defect the cycle had missed (the agreements
+page header still said `Accordi` while everything else said `Scambi`) and it was
+fixed in the same commit. It is **not** a full re-score: dark `/chat`,
+`/edit-profile`, `/user/<id>`, the notifications panel's error state and every
+native surface stay unmeasured, and `rescore.md` says so.
+
+### Touched
+
+Twenty-nine files under `Frontend/src` (four new components: `BarterPair`,
+`Avatar`, `Skeleton`, plus `hooks/useBreakpoint`), their tests, and
+`docs/DESIGN.md`, `docs/frontend.md`, `docs/accessibility.md`,
+`docs/briefs/frontend-remediation-2026-11-19/` (brief, plan, re-score),
+`docs/changelog.md`. No `Backend/` file, no schema change, no new dependency.
+
+---
+
 ## 2026-11-18 — Full frontend audit: seven isolated passes, two alarm findings rejected, no verified P0
 
 Seven independent Impeccable passes — `critique`, `detect`, `audit`, `optimize`,
