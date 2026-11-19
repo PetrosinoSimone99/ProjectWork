@@ -5,8 +5,9 @@
 **Severity:** P2 — real, narrow, and it only shows where the catalog is read on the
 narrowest surface; nothing is lost or blocked, but the one row that carries the meta
 scan rhythm reads as a collision.
-**Status:** open. Not fixed in the measuring session: `residuals.md` forbids fixing a
-finding found by a measurement inside the file that found it.
+**Status:** closed 2026-11-19 by block 16 of
+`docs/briefs/frontend-remediation-2026-11-19/plan.md` — see §1.1 for the fix and
+the measurement that proves it. Not repaired in the session that measured it.
 
 ---
 
@@ -39,6 +40,37 @@ made to fit by the narrower column, and the overlap grows as the column shrinks.
 Screenshots (`Frontend/android`-independent, taken from the running web export):
 `residual-1c-412-card-chip.png` (one card, the collision visible on the chip's right
 end), `residual-1c-412-catalogo.png`, `residual-1c-375-catalogo.png`.
+
+## 1.1 The fix, and the measurement that proves it (2026-11-19)
+
+The chip kept the width of its own text because it had no reason to shrink:
+`flexShrink` is `0` by default in React Native, and the `<View style={{ maxWidth:
+'100%' }}>` around it constrained nothing the chip cared about. The chip is now a
+flex item that shrinks — `flexShrink: 1` and `minWidth: 0` on the chip, plus
+`minWidth: 0` on its text, without which a `nowrap` text stays wider than its
+box and the ellipsis never appears. `Chip` gained an optional `style` prop (the
+containment rule is the caller's, the pill's shape is still one object); no token
+changed and the padding stayed where it was.
+
+Measured again on the same static export, one Playwright context, signed in as
+`demo.staff`, 12 cards (`12 di 12 servizi` — the demo volume still carried the
+test rows from earlier sessions; it was rebuilt at the end of the same session):
+
+| Width | Chip right edge | Mode cell left edge | Clearance | Chips ellipsised |
+| --- | --- | --- | --- | --- |
+| 375 | **167.5** | 179.5 | **12** | 7 (text 151 > 111) |
+| 412 | **186** | 198 | **12** | 4 (text 151 > 129) |
+| 768 | 231.8 | 376 | 144.2 | 0 |
+| 1024 | 359.8 | 504 | 144.2 | 0 |
+
+Zero positive overlaps on 12 of 12 cards at every width; the chip's widest box
+is 134.5 px at 375 where it used to be 175; the three meta rows stay three on
+12 of 12 cards; `scrollWidth === clientWidth` at 375/412/768/1024. The full
+category is still in the card's accessible name (`Apri il servizio: Cura delle
+piante. …`) and in the DOM text (`Cura delle piante`) — the ellipsis is a paint,
+not a deletion. Screenshots `residual-16-catalogo-{375,412,768,1024}.png` in
+`docs/audits/evidence/frontend-2026-11-19/`; the structural side of the same rule
+is asserted in `Frontend/src/components/__tests__/ServiceCard.test.js`.
 
 ## 2. Where
 

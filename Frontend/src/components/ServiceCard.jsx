@@ -71,6 +71,20 @@ const stileCella = {
 const stileCellaSinistra = { ...stileCella, paddingRight: space.md };
 
 /**
+ * La pillola della categoria si accorcia dentro la mezza riga invece di
+ * allargarla.
+ *
+ * `flexShrink: 0` è il default di RN: senza questa regola la pillola teneva la
+ * larghezza del proprio testo (175 px su «Assistenza computer») e si dipingeva
+ * sopra l'icona della modalità a 375 e a 412 — 36 px e 17 px di sovrapposizione
+ * sul catalogo seminato (finding `frontend-2026-11-19-catalog-chip-overlap`).
+ * `minWidth: 0` è quello che le permette di scendere sotto la parola più lunga
+ * invece di fermarsi lì: senza, il minimo automatico del flex item è il
+ * contenuto e la pillola non si stringe.
+ */
+const stileChipNellaCella = { flexShrink: 1, minWidth: 0 };
+
+/**
  * Una cella della griglia dei dati: icona 14 e un valore su **una riga sola**,
  * con ellissi quando il valore è lungo.
  *
@@ -153,18 +167,18 @@ export function ServiceCard({ servizio, onPress }) {
                 <View style={stileCellaSinistra}>
                   {/* La pillola si accorcia dentro la sua colonna invece di
                       allargarla: più categorie su una card non spostano
-                      niente, e l'elenco intero resta nel nome accessibile. */}
-                  <View style={{ maxWidth: '100%' }}>
-                    <Chip background={t.serviceBg}>
-                      <AppText
-                        variant="caption"
-                        numberOfLines={1}
-                        style={{ color: t.serviceText, flexShrink: 1 }}
-                      >
-                        {etichettaCategoria}
-                      </AppText>
-                    </Chip>
-                  </View>
+                      niente, e l'elenco intero resta nel nome accessibile.
+                      L'ellissi la fa il testo, che deve poter scendere sotto la
+                      propria larghezza minima: da qui `minWidth: 0`. */}
+                  <Chip background={t.serviceBg} style={stileChipNellaCella}>
+                    <AppText
+                      variant="caption"
+                      numberOfLines={1}
+                      style={{ color: t.serviceText, flexShrink: 1, minWidth: 0 }}
+                    >
+                      {etichettaCategoria}
+                    </AppText>
+                  </Chip>
                 </View>
 
                 <CellaDato

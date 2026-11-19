@@ -6,6 +6,26 @@ documents/code touched.
 
 ---
 
+---
+
+## 2026-11-19 — Leftovers closed: the chip inside its column, one credit mark, the panel's quiet states, a clean database
+
+Closing session on `frontend-remediation-2026-11-19`, in the order of
+`handoff-barattolo-residuals-2026-11-19.md`: the open block, then the two holes
+the previous session declared, then the demo volume.
+
+**Block 16 — the category chip stays in its half-row.** The chip kept the width
+of its own text (`flexShrink` is `0` by default in RN) and was painted over the
+mode icon at 375 and 412. It now shrinks — `flexShrink: 1` + `minWidth: 0` on
+the chip, `minWidth: 0` on its text so the ellipsis can happen — with an
+optional `style` prop on `Chip` (shape still one object, no token change).
+Measured on the static export at 12 of 12 cards: chip right edge **167.5**
+against the mode cell's **179.5** at 375 (12 px clear, was 36 px of overlap) and
+**186** against **198** at 412 (was 17 px); 7 chips ellipsised at 375 and 4 at
+412 instead of dropping the label; 3 meta rows on 12 of 12 cards at every width;
+`scrollWidth === clientWidth` at 375/412/768/1024. Five structural assertions
+added in `ServiceCard.test.js`.
+
 ## 2026-11-19 — Frontend residuals: the measurements that were missing, one fix, one new finding
 
 A second session on the same cycle, in the order `residuals.md` fixes (measure
