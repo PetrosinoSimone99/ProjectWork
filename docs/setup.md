@@ -149,7 +149,7 @@ matter:
 | Setting | Why |
 | --- | --- |
 | `PHP_CLI_SERVER_WORKERS=4` | `php -S` is single-threaded by default: every request would queue behind the previous one |
-| `opcache.enable_cli=1` with `revalidate_freq=60` | without it every request recompiles the framework over the Windows bind mount (measured: 4–23 s per call, above the app's 10 s timeout) |
+| `opcache.enable_cli=1` with `revalidate_freq=60` | without it every request recompiles the framework over the Windows bind mount (measured: 4–23 s per call, so a screen that asks four endpoints at once outlasts any sane client budget) |
 
 Healthy state:
 
@@ -167,8 +167,11 @@ than in a script: the seed only runs on an empty volume, so there is no way to
 add the new rows to a volume that already exists.
 
 **Measured latency (2026-11-15, after `down -v` + up):** the first call after a
-start reached **7.8 s**, warm calls 2.0–2.6 s, and the client's timeout is 10 s. A
-screen opened in the first seconds after a restart can therefore show «Il servizio
+start reached **7.8 s**, warm calls 2.0–2.6 s, and the client waits 25 s
+(`REQUEST_TIMEOUT_MS`, raised from 10 s on 2026-11-19). One call after a restart
+therefore fits; what still outlasts the budget is a burst — the staff screen asks
+four endpoints at once and the first request of each new php worker pays that
+cold start (`docs/changelog.md`, 2026-11-19). Then the screen shows «Il servizio
 sta impiegando troppo tempo»: wait a moment and retry. This is the environment,
 not the app, and it is why the Playwright pass of this cycle waits for the loaded
 state instead of the frame
@@ -280,7 +283,7 @@ tables: one gate at a time, or one file per run.
 | `Unknown database barattolo` | volume initialized before the dump existed | `docker compose down -v`, then up |
 | Service form has no categories | the database was imported from the old schema-only dump | `docker compose down -v`, then up (the demo dump carries 50 categories) |
 | Agreement endpoints answer `500` | the volume still holds the old dump, which has no agreement tables | `docker compose down -v`, then up |
-| Registration cannot load categories | API slower than the 10 s client timeout (cold container, workers missing) | `docker compose up -d backend`, retry; the first call after a start is the slowest |
+| Registration cannot load categories | API slower than the 25 s client timeout (cold container, workers missing) | `docker compose up -d backend`, retry; the first call after a start is the slowest |
 | A PHP edit does not appear for a minute | `opcache.revalidate_freq=60` | wait, or `docker compose restart backend` |
 | One call blocks the next | `PHP_CLI_SERVER_WORKERS` lost (old container) | `docker compose up -d backend` |
 | Web works, phone does not | phone on another Wi-Fi, or hotspot isolating clients | same network, or set `EXPO_PUBLIC_API_URL` with the PC address |

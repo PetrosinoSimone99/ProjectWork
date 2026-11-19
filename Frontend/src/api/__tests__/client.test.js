@@ -1,8 +1,10 @@
 import {
   GENERIC_ERROR_MESSAGE,
   NETWORK_ERROR_MESSAGE,
+  REQUEST_TIMEOUT_MS,
   SESSION_EXPIRED_MESSAGE,
   TIMEOUT_ERROR_MESSAGE,
+  apiFetch,
   messageForStatus,
   setSessionExpiredHandler,
   signalSessionExpired,
@@ -59,6 +61,65 @@ describe('messageForStatus', () => {
 
   it('uses the caller fallback when a screen has its own copy', () => {
     expect(messageForStatus(418, 'Testo della schermata.')).toBe('Testo della schermata.');
+  });
+});
+
+/**
+ * `apiFetch` ha due guasti senza stato HTTP e due frasi diverse (audit UX F30):
+ * il timeout dell'app e la rete assente. Da Expo SDK 58 il `fetch` globale è
+ * quello di Expo (`expo/src/winter/runtime.native.ts`), che annulla la richiesta
+ * nativa con un `FetchError` chiamato `Error` e il testo «fetch failed: Fetch
+ * request has been canceled»: il nome dell'errore non distingue i due casi, e
+ * questi test lo fissano.
+ */
+describe('apiFetch time budget', () => {
+  const fetchOriginale = global.fetch;
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    global.fetch = fetchOriginale;
+  });
+
+  it('names the timeout when its own timer aborted the call', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    global.fetch = jest.fn(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () => {
+            reject(
+              Object.assign(new Error('fetch failed: Fetch request has been canceled'), {
+                name: 'FetchError',
+              })
+            );
+          });
+        })
+    );
+
+    const chiamata = apiFetch('staff/users?page=1&limit=20', { token: 'token' });
+    const esito = expect(chiamata).rejects.toMatchObject({
+      status: 0,
+      message: TIMEOUT_ERROR_MESSAGE,
+    });
+    jest.advanceTimersByTime(REQUEST_TIMEOUT_MS);
+    await esito;
+
+    const [, dettaglio] = console.warn.mock.calls[0];
+    expect(dettaglio.timeout).toBe(true);
+    expect(dettaglio.ms).toBeGreaterThanOrEqual(REQUEST_TIMEOUT_MS);
+    expect(dettaglio.path).toBe('staff/users?page=1&limit=20');
+  });
+
+  it('names the connection when something else canceled the call', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    global.fetch = jest.fn(() =>
+      Promise.reject(new Error('fetch failed: Network request failed'))
+    );
+
+    await expect(apiFetch('notifications?page=1&limit=1', { token: 'token' })).rejects.toMatchObject(
+      { status: 0, message: NETWORK_ERROR_MESSAGE }
+    );
   });
 });
 

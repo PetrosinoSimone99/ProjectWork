@@ -2,11 +2,15 @@ import { API_BASE_URL } from './config';
 
 /**
  * Time limit for a single call, in milliseconds.
+ *
  * `fetch` alone can hang forever on a server that does not answer, so the
- * request is aborted here. 10 s is longer than every real call of the project,
- * so it only cuts calls the server is not answering at all.
+ * request is aborted here. The budget is 25 s and was 10 s: the first PHP
+ * worker to serve a route pays 5-8 s on this stack (`docs/setup.md`), the
+ * staff screen asks four endpoints at once, and at 10 s those bursts were cut
+ * mid-flight — the screen reported an unreachable service while the server was
+ * answering (`docs/changelog.md`, 2026-11-19).
  */
-const REQUEST_TIMEOUT_MS = 10000;
+export const REQUEST_TIMEOUT_MS = 25000;
 
 /**
  * Le parole che l'app dice quando non ha niente di più preciso da dire.
@@ -115,7 +119,14 @@ export async function apiFetch(path, options = {}) {
   const { method = 'GET', body, token } = options;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Chi ha annullato lo sa solo questo file: nessun `fetch` lo dice in modo
+  // affidabile (vedi il `catch` qui sotto), quindi il timer lo annota.
+  let timedOut = false;
+  const startedAt = Date.now();
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
 
   let response;
   let text;
@@ -133,10 +144,22 @@ export async function apiFetch(path, options = {}) {
   } catch (error) {
     // Tre guasti diversi, tre frasi diverse: il timeout ha già la sua, la rete
     // assente non è «riprova» ma «guarda la connessione» (audit UX F30).
-    const messaggio =
-      error?.name === 'AbortError' ? TIMEOUT_ERROR_MESSAGE : NETWORK_ERROR_MESSAGE;
+    //
+    // Il timeout lo dice `timedOut`, non il nome dell'errore. Da Expo SDK 58
+    // `globalThis.fetch` è quello di Expo (`expo/src/winter/runtime.native.ts`)
+    // e un abort esce come `FetchError` con `name === 'Error'` e il testo
+    // «fetch failed: Fetch request has been canceled»: la vecchia prova su
+    // `AbortError` non scattava mai, e ogni timeout si presentava come
+    // connessione assente.
+    const messaggio = timedOut ? TIMEOUT_ERROR_MESSAGE : NETWORK_ERROR_MESSAGE;
     if (typeof __DEV__ === 'undefined' || __DEV__) {
-      console.warn('[api] richiesta non raggiunta', { method, path, detail: error?.message });
+      console.warn('[api] richiesta non raggiunta', {
+        method,
+        path,
+        ms: Date.now() - startedAt,
+        timeout: timedOut,
+        detail: error?.message,
+      });
     }
     throw new ApiError(0, messaggio, error?.message ?? null);
   } finally {

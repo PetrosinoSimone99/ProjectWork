@@ -341,7 +341,8 @@ Rules the client must respect:
 2. **The connection ends by itself after 30 s** (`max_seconds`). This is
    deliberate: a php worker serves one request at a time, so an endless stream
    would eat the dev server's pool. Reconnecting is normal, not an error, and
-   the 10 s client timeout of `apiFetch` must not be applied to this route.
+   the 25 s client timeout of `apiFetch` (`REQUEST_TIMEOUT_MS`) must not be
+   applied to this route.
 3. **The server is not a log.** Only rows written while the request is open (or
    after an explicit cursor) are delivered; history comes from
    `GET /notifications`, which stays the only source of the full list.

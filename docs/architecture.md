@@ -69,7 +69,7 @@ no path of its own: it is a panel opened from `/profile`
 1. A screen renders from what a hook returns.
 2. The hook calls one function from `src/api/index.js`.
 3. That function calls `apiFetch` in `api/client.js`: base URL, JSON, Bearer
-   token, 10 s timeout, `ApiError` for every failure.
+   token, 25 s timeout (`REQUEST_TIMEOUT_MS`), `ApiError` for every failure.
 4. `api/normalizers.js` turns backend payloads into the shape the screens use.
 5. Errors surface as explicit states: loading, empty, error with retry,
    "endpoint not available".

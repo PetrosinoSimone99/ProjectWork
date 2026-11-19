@@ -6,6 +6,45 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — Il budget di una chiamata passa a 25 s, e un timeout smette di accusare la connessione
+
+Sintomo riportato dall'app: tre WARN identici in un colpo solo —
+`[api] richiesta non raggiunta {"detail": "fetch failed: Fetch request has been
+canceled"}` su `staff/users`, `notifications` e `staff/services/deleted` — mentre
+a schermo compariva «Non riesco a raggiungere il servizio». Tre endpoint diversi,
+un solo guasto.
+
+**Perché succedeva.** Due cause indipendenti, entrambe verificate. La prima: il
+client annullava la chiamata a 10 s, e questo stack serve una raffica in 5–8 s per
+chiamata, perché la prima richiesta di ogni worker di `php -S` ripaga l'avvio —
+opcache in CLI è per processo e i worker sono dodici. La seconda: `client.js`
+riconosceva il timeout da `error.name === 'AbortError'`, ma da Expo SDK 58
+`globalThis.fetch` è quello di Expo (`expo/src/winter/runtime.native.ts`), che
+annulla la richiesta nativa con un `FetchError` dal nome `Error` e dal testo
+«fetch failed: Fetch request has been canceled». La prova sul nome non scattava
+mai: ogni timeout si presentava come connessione assente, e il log non lo
+distingueva.
+
+**Misurato, dai log del container** (181 chiamate dell'app a `/api`, escluse le
+healthcheck e lo stream): tutte `200`, nessuna appesa, le peggiori 8 s
+(`staff/services/deleted`), 6 s (`notifications?page=1&limit=1`), 5 s; i 30–42 s
+che si leggono sono `/api/stream`, che resta aperto 30 s per progetto. Il server
+non era guasto: era lento a ondate, e il budget di 10 s cadeva dentro l'ondata.
+
+**Cosa è cambiato.** `REQUEST_TIMEOUT_MS` va da `10000` a `25000` ed è esportato,
+così un test può misurarlo. Il timeout lo dichiara un flag `timedOut` alzato dal
+timer, non più il nome dell'errore: il messaggio a schermo ora dice «Il servizio
+sta impiegando troppo tempo» quando è il timer, e «Non riesco a raggiungere il
+servizio» solo per un guasto di rete vero. In `__DEV__` il WARN porta anche `ms`
+e `timeout`, quindi al prossimo caso il log dice da solo quale dei due è stato.
+Due test nuovi in `src/api/__tests__/client.test.js` (11 nella suite) fissano le
+due frasi, con l'errore di Expo simulato.
+
+Documenti toccati: `docs/architecture.md` (flusso dati), `docs/api.md` (stream),
+`docs/setup.md` (tabella del perché opcache e latenza misurata).
+
+---
+
 ## 2026-11-19 — La chat mobile si riprende lo schermo, e le righe smettono di tagliare i testi
 
 Due foti da iPhone (390x844 pt) hanno mostrato due difetti indipendenti. Il
