@@ -169,10 +169,10 @@ Unit tests run with jest (`npm test`, preset `jest-expo`) and
 `@testing-library/react-native` (D036): a screen test mounts with `render`, reads
 with `screen` and acts with `fireEvent`, a hook test mounts with `renderHook`.
 `react-test-renderer`'s `create`/`.root` idiom is gone and does not come back.
-The tree holds 42 test suites and 480 tests, all green: nine under `api/`
-(`stream` and `client` included), fifteen under `components/`, eight under
-`services/`, six under `hooks/` (`useEventStream` included), and one each under
-`app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
+The tree holds 49 test suites and 590 tests, all green: ten under `api/`
+(`stream`, `client` and `field-errors` included), twenty under `components/`,
+eight under `services/`, seven under `hooks/` (`useEventStream` included), and
+one each under `app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
 
 Coverage is collected only for the five files listed in `collectCoverageFrom`
 (`Frontend/package.json`): `services/agreements.js`,
@@ -186,13 +186,16 @@ hand-picked sample, not a claim about the tree: a module outside
 `collectCoverageFrom` is not counted at all, so the percentage says nothing
 about the code it does not name.
 
-`src/hooks` holds twelve `.js` files and four of them have a suite of their own
+`src/hooks` holds twelve `.js` files and six of them have a suite of their own
 (`useAgreements`, `useChat`, `useNotifications`, `useServiceCatalog`). The other
 eight have no test: `useCategories`, `useDocumentTitle`, `useReducedMotion`,
 `useRefresh`, `useSessionExpiry`, `useUserServices`, `useWebColorScheme` and
 `web-chrome`. `useChat` and `useNotifications` are tested but are not in
 `collectCoverageFrom`, so their coverage is not reported either.
 
-`npx jest` is **not** part of the gate (D019), and the suite is non-blocking, so
-a red test is a signal to fix before pushing, not a reason to weaken an
-assertion.
+`npx jest` **is** part of the gate (D031, which supersedes D019): twenty to
+thirty seconds, no Docker, no fixture. A red test blocks the push; it is never a
+reason to weaken an assertion. `testTimeout` is 15 s and not jest's 5 s: the
+migrated tests await a real mount, and a run under full CPU load (a subagent
+wave still finishing) took one suite from 4 s to 27 s wall and turned six of
+them red for a timeout that said nothing about the code.

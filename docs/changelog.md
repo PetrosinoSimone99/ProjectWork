@@ -6,6 +6,64 @@ documents/code touched.
 
 ---
 
+## 2026-11-23 — 28 test migrati, errori di campo nella registrazione, CI su Node 24
+
+Tre residui scritti, tre chiusi. Uno ha richiesto il backend, che questa parte
+normalmente non tocca.
+
+**I 28 file di test passano a `@testing-library/react-native` 14** (D036). La
+migrazione non ha cambiato un'asserzione di significato: il conteggio dei casi
+per file è identico prima e dopo, e i numeri lo dimostrano (7, 10, 15, 4, 5, 7,
+4, 6, 9, 18, 11, 10 per i componenti; 18, 6, 16, 11, 15, 14 per i sei hook; più
+`useServiceCatalog`, `auth-context` e `match`). Il fatto che nessuno si aspettava
+— e che ha cambiato l'idioma di ogni file — è che in RTL 14 **tutto è
+asincrono**: `render`, `fireEvent`, `rerender`, `unmount` e `renderHook`
+restituiscono promise, quindi un test migrato è `async` e attende il montaggio. I
+sei test di hook perdono il componente finto: `renderHook` restituisce il valore
+corrente. Le query `UNSAFE_*` non esistono più (`TestInstance` vede solo nodi
+host): dove serviva una prop di un componente, o una guardia che la piattaforma
+non farebbe scattare, c'è **un** helper locale commentato per file, mai
+un'asserzione indebolita. `react-test-renderer` esce dalle `devDependencies`;
+resta installato solo se un altro pacchetto se lo porta.
+
+**La registrazione dice quale campo è sbagliato.** `AuthController` rispondeva un
+400 unico per ogni difetto, e il modulo poteva solo mostrare una frase in fondo.
+Ora `validateRegistration()` raccoglie i nomi dei campi rifiutati e il 400
+risponde `{error, fields}`: `error` resta identico, quindi nessun client e nessun
+test esistente si rompe; `fields` nomina i sei campi anagrafici e le due sezioni
+(`offers`, `requests`). Lato app `ApiError` porta il corpo già letto (`details`),
+`api/field-errors.js` traduce i nomi nelle chiavi del modulo con l'italiano che
+l'app già possiede, e un nome che non conosciamo finisce nella frase in fondo
+invece di sparire. Il **409 non nomina niente**, ed è voluto: dire quale fra
+username ed email è occupato permetterebbe di scoprire quali account esistono —
+enumerazione, cioè una falla (D037). Il backend è in sola lettura per questa
+parte: la scrittura è stata concessa da Andrea per questo piano, e il
+manutentore backend deve leggere il diff. PHPUnit: 21 test, 303 asserzioni, verdi
+su SQLite.
+
+**La CI gira su Node 24.** Le action di prima parte salgono alle major che
+dichiarano `node24` (`actions/checkout@v5`, `actions/setup-node@v5`), una
+variabile di workflow (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`) copre le action di
+terze parti che dichiarano ancora `node20` (`shivammathur/setup-php@v2`), e il job
+frontend compila e testa sulla stessa major che gira in locale. Node 20 è fuori
+supporto da aprile 2026. Il primo run utile è il push di questi commit.
+
+*Residui:* nessuno aperto da questa sessione. Due cose restano da guardare al
+prossimo giro: il primo run della CI su Node 24 (la variabile non è verificabile
+in locale) e `docs/frontend.md`, che è stato riallineato nei numeri ma non
+riscritto.
+
+*File toccati:* `Frontend/src/components/__tests__/*` (19 file),
+`Frontend/src/hooks/__tests__/*` (7), `Frontend/src/auth/__tests__/auth-context.test.js`,
+`Frontend/src/app/(tabs)/__tests__/match.test.js`, `Frontend/package.json`,
+`Frontend/package-lock.json`, `Frontend/src/api/client.js`, `Frontend/src/api/index.js`,
+`Frontend/src/api/field-errors.js` e il suo test, `Frontend/src/app/(auth)/register.jsx`,
+`Backend/src/Controller/AuthController.php`, `Backend/tests/Functional/AuthControllerTest.php`,
+`.github/workflows/ci.yml`, `docs/api.md`, `docs/decisions.md` (D036, D037),
+`docs/frontend.md`, `docs/changelog.md`.
+
+---
+
 ## 2026-11-22 — Audit pre-push: otto finding, tre decisioni, due residui
 
 Gli otto rilievi dell'audit pre-push, uno per uno: quelli che avevano già una
