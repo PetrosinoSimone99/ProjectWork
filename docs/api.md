@@ -423,3 +423,22 @@ profile and the staff lists. A reconnect hands back the client's cursor, so a
 gap inside a session is replayed once and not twice; an app restart starts at
 the live edge and the focus reads cover the gap. `UNREAD_POLL_MS` (120 s) and
 `CHAT_POLL_MS` (60 s) remain as the fallback for a stream that is down.
+
+## Open questions for the backend
+
+One question is still open. It needs a change to this contract, so it waits for
+its own plan instead of a line of code here.
+
+**Field-specific registration errors.** `AuthController::validateRegistration()`
+answers a single generic `400` ("Required user and service fields are missing or
+invalid.") for every invalid field: the app cannot say *which* field is wrong
+and can only show a general message above the form. The limits declared on our
+side already match the backend one by one (name 50, surname 50, username 30,
+email 180, location 255, password 8), so the copy is not the problem — the
+missing piece is a `400` that names the field. The `TODO(backend)` lives in
+`src/app/(auth)/register.jsx`.
+
+Closed by reading the code rather than by asking, and kept here so nobody
+re-opens them: the service description ceiling is `varchar(255)`, not the 150
+or 100 a older proposal mentioned; and the wire carries no publication state at
+all, only the `is_suspended` boolean the app turns into "Pubblicata"/"Sospesa".

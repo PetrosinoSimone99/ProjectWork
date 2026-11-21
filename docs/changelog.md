@@ -6,6 +6,64 @@ documents/code touched.
 
 ---
 
+## 2026-11-22 — Audit pre-push: otto finding, tre decisioni, due residui
+
+Gli otto rilievi dell'audit pre-push, uno per uno. Sei chiusi con una modifica,
+due accettati per iscritto, uno rimandato a un piano suo (le chiavi d'errore
+della registrazione) e uno ridotto (la migrazione dei test).
+
+**`.vscode` non è più tracciato.** Due file di preferenze dell'editor in
+`Frontend/` mentre il `.gitignore` di root dichiarava `/.vscode/` locale: il
+pattern non copriva la sottocartella, quindi ogni modifica dell'IDE produceva un
+diff. Ora `.vscode/` è ignorato in `Frontend/.gitignore`, i due file sono fuori
+dall'indice, e l'unica estensione che serve (`expo.vscode-expo-tools`) è scritta
+in `docs/setup.md`.
+
+**La CI guarda anche il branch di lavoro.** `ci.yml` partiva solo su PR e push
+verso `main`, quindi `andrea-frontend` poteva accumulare commit senza che lint,
+tipi e test girassero: ora `andrea-frontend` è tra i `push:` e partono entrambi
+i job.
+
+**`QueueCard` non ha più ternari annidati.** La località della coda è una
+funzione a return anticipati fuori dal componente, con i tre casi coperti dal
+test: località presente, servizio da remoto, località non indicata. (Il secondo
+rilievo dell'audit su questo file, la l. 174, era un falso positivo: quello è un
+ternario piatto.)
+
+**13 simboli smettono di essere pubblici.** `toCreateBody`, `toTextOrNull`,
+`normalizeOwnedService`, `ErrorFallback`, `DIMENSIONE_PAGINA`,
+`SOGLIA_AVVISO_MINUTI`, `TICK_MS`, `SOSTANTIVI_VOCE`, `LIMITE_LOCALITA`,
+`VALORI_MODALITA`, `ROLE_LABELS`, `ACCOUNT_STATUS_LABELS`, `PREFERENZE_TEMA`:
+nessuno è codice morto (tutti usati dentro il proprio file, da 2 a 69 volte),
+nessun altro modulo e nessun test li importava. Via la parola `export`, niente
+altro.
+
+**Due `TODO(backend)` diventano fatti verificati.** Il limite della mansione non
+è né 150 né 100: `services.description` è `varchar(255)` (dump e
+`Entity/Service.php`), quindi 150 resta una scelta di prodotto sotto un tetto più
+alto. E sul filo non esiste nessuno stato di pubblicazione, solo `is_suspended`
+booleano: "Pubblicata"/"Sospesa" sono parole di interfaccia, non nomi da
+concordare. Il terzo `TODO` — le chiavi d'errore della registrazione — resta
+vero e vive ora anche in `docs/api.md`.
+
+**Tre decisioni scritte** invece che chiuse in silenzio: il token in
+`localStorage` sul web (D032, rischio accettato: JWT da un'ora, chiuderlo vuole
+un cookie `httpOnly` lato backend), le 22 advisory moderate di `npm audit`
+(D033, tutte nella catena di sviluppo, nessuna fix non-breaking esiste oggi) e
+l'igiene del repository — `Backend/.env`, `.vscode`, CI sul branch (D034).
+
+*Residui:* la migrazione dei 28 file di test da `react-test-renderer` a
+`@testing-library/react-native` e le chiavi d'errore della registrazione, che
+richiede un contratto API nuovo. Entrambi in un piano proprio.
+
+*File toccati:* `Frontend/.gitignore`, `Frontend/.vscode/*` (fuori dall'indice),
+`.github/workflows/ci.yml`, `docs/setup.md`, `docs/api.md`, `docs/decisions.md`,
+`docs/changelog.md`, `Frontend/src/components/QueueCard.jsx` e il suo test,
+`Frontend/src/services/offer-request.js`, `Frontend/src/services/staff-users.js`,
+`Frontend/src/hooks/useSessionExpiry.js`, `Frontend/src/hooks/usePagedList.js`,
+`Frontend/src/api/areas/services.js`, `Frontend/src/api/normalizers.js`,
+`Frontend/src/components/AppErrorBoundary.jsx`, `Frontend/src/theme/theme-store.js`.
+
 ## 2026-11-19 — Audit pre-push: data di una coda, due funzioni morte, `.env.example`
 
 Revisione del codice prima del push, file per file. Tre difetti veri, nessun

@@ -441,3 +441,70 @@ That is not a precondition a pre-push hook can carry.
 
 *Consequences:* the gate grows to three steps and roughly twenty extra seconds
 per push; D019 stays as written, as an appended log.
+
+## D032 — 2026-11-22 — The web token stays in `localStorage`: a risk we accept
+
+The audit flagged that `src/auth/token-store.js` keeps the JWT in
+`localStorage` on the web surface. Native has `expo-secure-store`; the browser
+has no equivalent, so the web branch of the same file writes to
+`window.localStorage`, exactly like the theme preference in
+`src/theme/theme-store.js`.
+
+- **Keep it.** The token lives one hour, there is no refresh token and no
+  long-lived session behind it: a stolen token buys at most the window that
+  remains, and every authenticated call is answered by the backend on its own.
+- **Closing it properly is a backend change.** It needs an `httpOnly`,
+  `SameSite` cookie plus CSRF protection on the state-changing routes: two
+  contracts, not a line in the frontend. Recorded as a residual rather than
+  half-done here.
+
+*Context:* the audit's "no secrets in the tree" pass was clean; this is the one
+finding where the honest answer is "known, bounded, and owned elsewhere".
+
+*Consequences:* an XSS inside the web bundle can read the token for the rest of
+its hour; no code changes, one accepted risk written down instead of
+discovered again at the next audit.
+
+## D033 — 2026-11-22 — The 22 moderate advisories are accepted, not fixed
+
+`npm audit` in `Frontend/` reports 22 moderate, all inside the tooling chain
+(`jest`, `jest-expo`, `eslint`→`test-exclude`, `expo`→`@expo/fingerprint`).
+None of them reaches the app bundle: they are the tools that lint, type-check
+and test.
+
+- **No fix exists today.** `npm audit` offers only semver-major *downgrades*
+  (jest 29, expo 52), which is worse than the finding; and the flagged range of
+  `minimatch` reaches 11.0.0, the latest published release, so there is no
+  newer healthy version to pin.
+- **No `overrides`.** Forcing `minimatch`/`glob` by hand would break
+  `test-exclude` and with it jest: the gate would go red to fix a paper finding.
+
+*Consequences:* `npm audit` stays non-zero on dev dependencies; re-run
+`cd Frontend && npm audit` when jest, jest-expo or expo ship a version outside
+the flagged ranges. Until then the gate is `expo lint`, `tsc --noEmit`, `jest`.
+
+## D034 — 2026-11-22 — Repository hygiene: `.env`, `.vscode`, and CI on the working branch
+
+Three findings from the same audit, one decision each.
+
+- **`Backend/.env` stays tracked.** It is the Symfony default file (the values
+  a fresh clone boots with) while `.env.local` is the ignored one — the
+  `copy-and-set` file the audit asked for already exists and is called `.env`.
+  Untracking it would need a manual copy per machine *and* a CI step that
+  recreates it before `composer install`, in a directory this side does not
+  write. Confirming that no real value sits inside is a question for the
+  backend maintainer: this side cannot read `.env*` at all.
+- **`Frontend/.vscode/` is untracked.** Editor settings are machine-local, the
+  root `.gitignore` already declared `/.vscode/` local but the pattern did not
+  cover the subfolder. `.vscode/` now lives in `Frontend/.gitignore`, and the
+  one extension the codebase expects is named in `docs/setup.md`.
+- **CI runs on `andrea-frontend` too.** Until now the workflow started only on
+  pulls and pushes to `main`, so the working branch could collect commits with
+  no lint, types or tests. Both jobs now run on a push to that branch: the
+  backend job is the only thing that would notice a merge of `main` that breaks
+  Symfony.
+
+*Consequences:* `git status` stops showing editor noise; a push to the working
+branch costs a few CI minutes; `.github/workflows/ci.yml` and
+`Frontend/.gitignore` change, which the backend maintainer only needs to know
+if he reads the diff.
