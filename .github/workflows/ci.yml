@@ -53,9 +53,11 @@ jobs:
             -name "*.php"); do
             php -l "$f" || exit 1
           done
+      # `phpunit.dist.xml` non si auto-scopre: la configurazione si nomina, come
+      # fanno `docs/setup.md` e il gate locale.
       - name: Run backend tests
         working-directory: Backend
-        run: php bin/phpunit
+        run: php bin/phpunit -c phpunit.dist.xml
 
   # --- Frontend Expo (React/JS): lint, tipi, test, build di controllo ---
   # `Frontend/` e' su main, quindi il job gira sempre: la vecchia guardia
