@@ -61,12 +61,19 @@ export function messageForStatus(status, fallback = GENERIC_ERROR_MESSAGE) {
 
 /** The API error: carries the HTTP status and a message ready for the UI. */
 export class ApiError extends Error {
-  constructor(status, message, raw = null) {
+  constructor(status, message, raw = null, details = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     /** Il testo originale del server, per il log: mai per lo schermo. */
     this.raw = raw;
+    /**
+     * Il corpo della risposta già letto, quando è JSON. Serve alle schermate che
+     * possono dire *quale* campo ha rifiutato il servizio (`fields`, contratto in
+     * `docs/api.md`, D037): per lo schermo resta il messaggio italiano, questo è
+     * il dato che lo rende specifico.
+     */
+    this.details = details;
   }
 }
 
@@ -182,7 +189,7 @@ export async function apiFetch(path, options = {}) {
     if (typeof __DEV__ === 'undefined' || __DEV__) {
       console.warn('[api] risposta non ok', { method, path, status: response.status, raw });
     }
-    throw new ApiError(response.status, messageForStatus(response.status), raw);
+    throw new ApiError(response.status, messageForStatus(response.status), raw, data);
   }
 
   return data;

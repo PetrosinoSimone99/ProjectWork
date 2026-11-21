@@ -100,9 +100,13 @@ async function withGenericMessage(call, endpoint) {
     return await call;
   } catch (err) {
     if (err instanceof ApiError) {
+      // `raw` e `details` viaggiano con lo status: il messaggio cambia, i dati
+      // che lo rendono specifico (i campi rifiutati) no.
       throw new ApiError(
         err.status,
         ACCESS_MESSAGES[endpoint]?.[err.status] ?? ACCESS_FALLBACK,
+        err.raw,
+        err.details,
       );
     }
     throw err;

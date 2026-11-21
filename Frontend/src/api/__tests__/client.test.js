@@ -128,6 +128,41 @@ describe('apiFetch time budget', () => {
  * stream, which does not go through `apiFetch`, calls this to reach the same
  * handler. Two levers, one handler, so the logout happens once.
  */
+describe('ApiError details', () => {
+  const fetchOriginale = global.fetch;
+
+  afterEach(() => {
+    global.fetch = fetchOriginale;
+  });
+
+  it('tiene il corpo della risposta, così la schermata può nominare il campo rifiutato', async () => {
+    const corpo = {
+      error: 'Required user and service fields are missing or invalid.',
+      fields: ['email', 'password'],
+    };
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify(corpo),
+    }));
+
+    await expect(apiFetch('auth/register', { method: 'POST', body: {} })).rejects.toMatchObject({
+      status: 400,
+      details: corpo,
+    });
+  });
+
+  it('lascia `details` vuoto quando la risposta non è JSON', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 500,
+      text: async () => 'Internal Server Error',
+    }));
+
+    await expect(apiFetch('services')).rejects.toMatchObject({ status: 500, details: null });
+  });
+});
+
 describe('signalSessionExpired', () => {
   afterEach(() => setSessionExpiredHandler(null));
 
