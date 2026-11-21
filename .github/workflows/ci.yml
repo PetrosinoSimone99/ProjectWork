@@ -7,12 +7,20 @@ on:
   push:
     branches: [main]
 
+# Least privilege: il workflow legge il repository e nient'altro (zizmor,
+# excessive-permissions).
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Il token di checkout non resta in .git/config (zizmor, artipacked).
+          persist-credentials: false
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -25,23 +33,32 @@ jobs:
         working-directory: Backend
         run: |
           mkdir -p config/jwt
-          openssl genpkey -algorithm RSA -out config/jwt/private.pem -pkeyopt rsa_keygen_bits:2048
-          openssl pkey -in config/jwt/private.pem -pubout -out config/jwt/public.pem
+          openssl genpkey -algorithm RSA -out config/jwt/private.pem \
+            -pkeyopt rsa_keygen_bits:2048
+          openssl pkey -in config/jwt/private.pem -pubout \
+            -out config/jwt/public.pem
       - name: Verify PHP syntax
         run: |
-          for f in $(find Backend/src Backend/tests Backend/migrations -name "*.php"); do
+          for f in $(find Backend/src Backend/tests Backend/migrations \
+            -name "*.php"); do
             php -l "$f" || exit 1
           done
       - name: Run backend tests
         working-directory: Backend
         run: php bin/phpunit
 
-  # --- Frontend Expo (React/JS): lint + build di controllo ---
-  # Gira solo quando Frontend/ è presente su main (cioè dopo il merge del frontend).
-  # Nota: hashFiles è ammesso solo a livello di STEP, non di job, quindi la guardia
-  # è su ogni step: finché il frontend non c'è, tutti si saltano e il job resta verde.
+  # --- Frontend Expo (React/JS): lint, tipi, test, build di controllo ---
+  # Gira solo quando Frontend/ e' presente su main (cioè dopo il merge del
+  # frontend). Nota: hashFiles è ammesso solo a livello di STEP, non di job,
+  # quindi la guardia è su ogni step: finché il frontend non c'è, tutti si
+  # saltano e il job resta verde.
+  #
+  # Gli stessi tre comandi del gate pre-push (`docs/setup.md`) più l'export
+  # web: lint, `tsc --noEmit`, `jest`. Senza jest e tsc la CI non copriva il
+  # comportamento — l'unica cosa in `Frontend/` che una PR può rompere senza
+  # che nessuno se ne accorga.
   frontend:
-    name: Frontend lint + build
+    name: Frontend lint + tipi + test + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,6 +66,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: hashFiles('Frontend/package.json') != ''
+        with:
+          persist-credentials: false
       - name: Setup Node
         uses: actions/setup-node@v4
         if: hashFiles('Frontend/package.json') != ''
@@ -62,6 +81,15 @@ jobs:
       - name: Lint
         if: hashFiles('Frontend/package.json') != ''
         run: npx expo lint
+      # `tsc --noEmit` controlla sintassi e import soltanto: `tsconfig.json`
+      # ha `allowJs` senza `checkJs`, quindi i .js/.jsx non sono tipizzati.
+      - name: Tipi e import
+        if: hashFiles('Frontend/package.json') != ''
+        run: npx tsc --noEmit
+      # `--ci` non scrive snapshot nuovi in silenzio.
+      - name: Test
+        if: hashFiles('Frontend/package.json') != ''
+        run: npx jest --ci
       - name: Build di controllo
         if: hashFiles('Frontend/package.json') != ''
         run: npx expo export --platform web
