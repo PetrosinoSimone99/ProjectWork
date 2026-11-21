@@ -1,11 +1,13 @@
 name: CI
 
-# Parte quando qualcuno apre/aggiorna una PR verso main, e a ogni push su main.
+# Parte quando qualcuno apre/aggiorna una PR verso main, a ogni push su main e a
+# ogni push sul branch di lavoro del frontend: `andrea-frontend` accumulava
+# commit senza che nessuno eseguisse lint, tipi e test.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, andrea-frontend]
 
 # Least privilege: il workflow legge il repository e nient'altro (zizmor,
 # excessive-permissions).
