@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { act, create } from 'react-test-renderer';
+import { act, render } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 import * as api from '@/api';
@@ -40,15 +40,12 @@ function Consumer() {
 }
 
 async function mountProvider() {
-  let renderer;
-  await act(async () => {
-    renderer = create(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>,
-    );
-  });
-  return renderer;
+  // Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`.
+  await render(
+    <AuthProvider>
+      <Consumer />
+    </AuthProvider>,
+  );
 }
 
 /** The handler the provider registers for an in-session 401. */

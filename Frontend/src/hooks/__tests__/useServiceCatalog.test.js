@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, renderHook } from '@testing-library/react-native';
 import { __focusi as focusCallbacks } from 'expo-router';
 import { getHomeCatalog } from '@/api';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
@@ -54,7 +54,7 @@ let richieste;
 beforeEach(() => {
   jest.clearAllMocks();
   // The callbacks of the mounts of the tests before this one are dead. Keeping
-  // them made `tornaInFocus` fire the previous renderer's effect as soon as a
+  // them made `tornaInFocus` fire the previous mount's effect as soon as a
   // test mounted more than once, and nothing failed.
   focusCallbacks.length = 0;
   richieste = [];
@@ -71,17 +71,12 @@ beforeEach(() => {
   });
 });
 
-/** Renders the hook and keeps its latest return value where the test reads it. */
-function render(lettura) {
-  function Probe({ token, utenteId }) {
-    Object.assign(lettura, useServiceCatalog({ token, utenteId }));
-    return null;
-  }
-  let renderer;
-  act(() => {
-    renderer = create(<Probe token={TOKEN} utenteId={UTENTE_ID} />);
-  });
-  return renderer;
+/**
+ * Mounts the hook with the token and the user of the test; `result.current` is
+ * its latest return value.
+ */
+function monta() {
+  return renderHook(() => useServiceCatalog({ token: TOKEN, utenteId: UTENTE_ID }));
 }
 
 /** Lets the continuations of the promises already resolved run inside `act`. */
@@ -118,33 +113,31 @@ async function tornaInFocus() {
 
 describe('useServiceCatalog — out-of-order answers', () => {
   it('drops a page response that a filter change has superseded', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     const primoCaricamento = richieste[0];
 
-    act(() => {
-      lettura.cambiaScelta('idCategoria', 3);
+    await act(async () => {
+      result.current.cambiaScelta('idCategoria', 3);
     });
     await rispondi(richieste[1], risposta([voce(3)], 1, 3));
-    expect(lettura.servizi).toEqual([voce(3)]);
+    expect(result.current.servizi).toEqual([voce(3)]);
 
     // The first page arrives late: it belongs to a request nobody wants anymore.
     await rispondi(primoCaricamento, risposta([voce(1)], 1, 9));
 
-    expect(lettura.servizi).toEqual([voce(3)]);
-    expect(lettura.paginazione).toEqual(paginazione(1, 3));
-    expect(lettura.filtriApplicati.idCategoria).toBe(3);
+    expect(result.current.servizi).toEqual([voce(3)]);
+    expect(result.current.paginazione).toEqual(paginazione(1, 3));
+    expect(result.current.filtriApplicati.idCategoria).toBe(3);
   });
 
   it('keeps the catalog on screen when a reload fails and says why', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)]));
-    expect(lettura.servizi).toEqual([voce(1)]);
+    expect(result.current.servizi).toEqual([voce(1)]);
 
     let ricarica;
     await act(async () => {
-      ricarica = lettura.onRefresh();
+      ricarica = result.current.onRefresh();
       await Promise.resolve();
     });
     expect(richieste).toHaveLength(2);
@@ -156,54 +149,52 @@ describe('useServiceCatalog — out-of-order answers', () => {
     });
 
     // A failed reload is a stale datum with a notice, never a screen that empties.
-    expect(lettura.servizi).toEqual([voce(1)]);
-    expect(lettura.errore).toBe(MESSAGGIO_500);
-    expect(lettura.refreshing).toBe(false);
-    expect(lettura.caricamento).toBe(false);
+    expect(result.current.servizi).toEqual([voce(1)]);
+    expect(result.current.errore).toBe(MESSAGGIO_500);
+    expect(result.current.refreshing).toBe(false);
+    expect(result.current.caricamento).toBe(false);
   });
 
   it('a load-more response that arrives after a filter change is discarded', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)], 1, 3));
 
-    act(() => {
-      lettura.caricaAltri();
+    await act(async () => {
+      result.current.caricaAltri();
     });
-    act(() => {
-      lettura.cambiaScelta('idCategoria', 3);
+    await act(async () => {
+      result.current.cambiaScelta('idCategoria', 3);
     });
 
     await rispondi(richieste[2], risposta([voce(3)], 1, 1));
     // The appending answer arrives late: it must not be glued onto the new list.
     await rispondi(richieste[1], risposta([voce(2)], 2, 3));
 
-    expect(lettura.servizi).toEqual([voce(3)]);
-    expect(lettura.paginazione).toEqual(paginazione(1, 1));
-    expect(lettura.filtriApplicati.idCategoria).toBe(3);
+    expect(result.current.servizi).toEqual([voce(3)]);
+    expect(result.current.paginazione).toEqual(paginazione(1, 1));
+    expect(result.current.filtriApplicati.idCategoria).toBe(3);
   });
 });
 
 describe('useServiceCatalog — failing requests', () => {
   it('retry repeats the failed request with its filters and page', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)], 1, 2));
-    act(() => {
-      lettura.cambiaScelta('idCategoria', 3);
+    await act(async () => {
+      result.current.cambiaScelta('idCategoria', 3);
     });
     await rispondi(richieste[1], risposta([voce(3)], 1, 2));
 
-    act(() => {
-      lettura.caricaAltri();
+    await act(async () => {
+      result.current.caricaAltri();
     });
     expect(richieste[2].pagina).toBe(2);
     await fallisci(richieste[2], new Error('boom'));
-    expect(lettura.erroreAltri).toBe(GENERIC_ERROR_MESSAGE);
-    expect(lettura.servizi).toEqual([voce(3)]);
+    expect(result.current.erroreAltri).toBe(GENERIC_ERROR_MESSAGE);
+    expect(result.current.servizi).toEqual([voce(3)]);
 
-    act(() => {
-      lettura.riprova();
+    await act(async () => {
+      result.current.riprova();
     });
 
     // Not the empty page one: the filters and the page that failed, as they were.
@@ -211,73 +202,70 @@ describe('useServiceCatalog — failing requests', () => {
     expect(richieste[3].pagina).toBe(2);
 
     await rispondi(richieste[3], risposta([voce(4)], 2, 2));
-    expect(lettura.servizi).toEqual([voce(3), voce(4)]);
-    expect(lettura.erroreAltri).toBe(null);
+    expect(result.current.servizi).toEqual([voce(3), voce(4)]);
+    expect(result.current.erroreAltri).toBe(null);
   });
 });
 
 describe('useServiceCatalog — the pages', () => {
   it('load more appends a copy and carries its own page', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)], 1, 3));
-    const primaPagina = lettura.servizi;
+    const primaPagina = result.current.servizi;
     expect(primaPagina).toEqual([voce(1)]);
 
-    act(() => {
-      lettura.caricaAltri();
+    await act(async () => {
+      result.current.caricaAltri();
     });
     expect(richieste[1].pagina).toBe(2);
     expect(richieste[1].filtri).toEqual(nuoviFiltri());
-    expect(lettura.caricamentoAltri).toBe(true);
+    expect(result.current.caricamentoAltri).toBe(true);
 
     await rispondi(richieste[1], risposta([voce(2)], 2, 3));
 
-    expect(lettura.servizi).toEqual([voce(1), voce(2)]);
-    expect(lettura.servizi).not.toBe(primaPagina);
+    expect(result.current.servizi).toEqual([voce(1), voce(2)]);
+    expect(result.current.servizi).not.toBe(primaPagina);
     expect(primaPagina).toEqual([voce(1)]);
-    expect(lettura.paginazione).toEqual(paginazione(2, 3));
-    expect(lettura.caricamentoAltri).toBe(false);
+    expect(result.current.paginazione).toEqual(paginazione(2, 3));
+    expect(result.current.caricamentoAltri).toBe(false);
   });
 
   it('load more does nothing when the pagination says there is no next page', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
 
     // Nothing on screen yet: no page to ask the next one from.
-    act(() => {
-      lettura.caricaAltri();
+    await act(async () => {
+      result.current.caricaAltri();
     });
     expect(getHomeCatalog).toHaveBeenCalledTimes(1);
 
     await rispondi(richieste[0], risposta([voce(1)], 1, 1));
-    act(() => {
-      lettura.caricaAltri();
+    await act(async () => {
+      result.current.caricaAltri();
     });
 
     expect(getHomeCatalog).toHaveBeenCalledTimes(1);
-    expect(lettura.caricamentoAltri).toBe(false);
+    expect(result.current.caricamentoAltri).toBe(false);
   });
 });
 
 describe('useServiceCatalog — the filters', () => {
   it('a discrete choice asks with the applied filters, not the drafted text', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)]));
 
-    act(() => {
-      lettura.applicaFiltri('idraulico');
+    await act(async () => {
+      result.current.applicaFiltri('idraulico');
     });
     await rispondi(richieste[1], risposta([voce(1)]));
-    expect(lettura.filtriApplicati.testo).toBe('idraulico');
+    expect(result.current.filtriApplicati.testo).toBe('idraulico');
 
     // Typed and sent, but its answer is still in flight: it is not applied yet.
-    act(() => {
-      lettura.applicaFiltri('fabbro');
+    await act(async () => {
+      result.current.applicaFiltri('fabbro');
     });
-    act(() => {
-      lettura.cambiaScelta('idCategoria', 7);
+    await act(async () => {
+      result.current.cambiaScelta('idCategoria', 7);
     });
 
     // The choice travels with what is on screen ('idraulico'), never with the
@@ -286,46 +274,44 @@ describe('useServiceCatalog — the filters', () => {
     expect(richieste[3].pagina).toBe(1);
 
     await rispondi(richieste[3], risposta([voce(7)]));
-    expect(lettura.filtriApplicati).toEqual({ ...nuoviFiltri(), testo: 'idraulico', idCategoria: 7 });
-    expect(lettura.filtri).toEqual({ ...nuoviFiltri(), idCategoria: 7 });
+    expect(result.current.filtriApplicati).toEqual({ ...nuoviFiltri(), testo: 'idraulico', idCategoria: 7 });
+    expect(result.current.filtri).toEqual({ ...nuoviFiltri(), idCategoria: 7 });
   });
 
   it('changing the province clears the comune', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)], 1, 3));
-    act(() => {
-      lettura.cambiaScelta('provincia', 'Milano');
+    await act(async () => {
+      result.current.cambiaScelta('provincia', 'Milano');
     });
     await rispondi(richieste[1], risposta([voce(1)], 1, 3));
-    act(() => {
-      lettura.cambiaScelta('comune', 'Milano');
+    await act(async () => {
+      result.current.cambiaScelta('comune', 'Milano');
     });
     await rispondi(richieste[2], risposta([voce(1)], 1, 3));
-    expect(lettura.filtriApplicati).toEqual({
+    expect(result.current.filtriApplicati).toEqual({
       ...nuoviFiltri(),
       provincia: 'Milano',
       comune: 'Milano',
     });
 
-    act(() => {
-      lettura.cambiaScelta('provincia', 'Torino');
+    await act(async () => {
+      result.current.cambiaScelta('provincia', 'Torino');
     });
 
     // The comuni of the old province make no sense in the new one.
     expect(richieste[3].filtri).toEqual({ ...nuoviFiltri(), provincia: 'Torino' });
-    expect(lettura.filtri).toEqual({ ...nuoviFiltri(), provincia: 'Torino' });
+    expect(result.current.filtri).toEqual({ ...nuoviFiltri(), provincia: 'Torino' });
     // One choice, one request.
     expect(richieste).toHaveLength(4);
   });
 
   it('remote is a filter like the others', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)], 1, 2));
 
-    act(() => {
-      lettura.cambiaModalita('REMOTO');
+    await act(async () => {
+      result.current.cambiaModalita('REMOTO');
     });
 
     // A request, not a local re-filter: the backend decides the list.
@@ -333,27 +319,26 @@ describe('useServiceCatalog — the filters', () => {
     expect(richieste[1].pagina).toBe(1);
 
     await rispondi(richieste[1], risposta([voce(2)], 1, 2));
-    expect(lettura.filtriApplicati.modalita).toBe('REMOTO');
-    expect(lettura.filtri.modalita).toBe('REMOTO');
-    expect(lettura.servizi).toEqual([voce(2)]);
+    expect(result.current.filtriApplicati.modalita).toBe('REMOTO');
+    expect(result.current.filtri.modalita).toBe('REMOTO');
+    expect(result.current.servizi).toEqual([voce(2)]);
   });
 
   it('clearing the filters returns to page one with none applied', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)], 1, 3));
-    act(() => {
-      lettura.cambiaScelta('idCategoria', 5);
+    await act(async () => {
+      result.current.cambiaScelta('idCategoria', 5);
     });
     await rispondi(richieste[1], risposta([voce(5)], 1, 3));
-    act(() => {
-      lettura.caricaAltri();
+    await act(async () => {
+      result.current.caricaAltri();
     });
     await rispondi(richieste[2], risposta([voce(6)], 2, 3));
-    expect(lettura.servizi).toEqual([voce(5), voce(6)]);
+    expect(result.current.servizi).toEqual([voce(5), voce(6)]);
 
-    act(() => {
-      lettura.azzeraFiltri();
+    await act(async () => {
+      result.current.azzeraFiltri();
     });
 
     expect(richieste[3].filtri).toEqual(nuoviFiltri());
@@ -362,23 +347,22 @@ describe('useServiceCatalog — the filters', () => {
     await rispondi(richieste[3], risposta([voce(1), voce(2)], 1, 3));
 
     // The glued pages are gone: the answer replaces the list, it does not extend it.
-    expect(lettura.servizi).toEqual([voce(1), voce(2)]);
-    expect(lettura.filtriApplicati).toEqual(nuoviFiltri());
-    expect(lettura.filtri).toEqual(nuoviFiltri());
-    expect(lettura.paginazione).toEqual(paginazione(1, 3));
+    expect(result.current.servizi).toEqual([voce(1), voce(2)]);
+    expect(result.current.filtriApplicati).toEqual(nuoviFiltri());
+    expect(result.current.filtri).toEqual(nuoviFiltri());
+    expect(result.current.paginazione).toEqual(paginazione(1, 3));
   });
 
   it('the focus reload is skipped while filters are applied', async () => {
-    const lettura = {};
     const oraFerma = Date.now();
     const spiaOra = jest.spyOn(Date, 'now').mockReturnValue(oraFerma);
     const oraAvanti = (ms) => spiaOra.mockReturnValue(oraFerma + ms);
-    render(lettura);
+    const { result } = await monta();
     await rispondi(richieste[0], risposta([voce(1)]));
     expect(getHomeCatalog).toHaveBeenCalledTimes(1);
 
-    act(() => {
-      lettura.cambiaScelta('idCategoria', 4);
+    await act(async () => {
+      result.current.cambiaScelta('idCategoria', 4);
     });
     await rispondi(richieste[1], risposta([voce(4)]));
 
@@ -387,8 +371,8 @@ describe('useServiceCatalog — the filters', () => {
     // Filtered results must not disappear under the catalog every time the tab opens.
     expect(getHomeCatalog).toHaveBeenCalledTimes(2);
 
-    act(() => {
-      lettura.azzeraFiltri();
+    await act(async () => {
+      result.current.azzeraFiltri();
     });
     await rispondi(richieste[2], risposta([voce(1)]));
     await tornaInFocus();

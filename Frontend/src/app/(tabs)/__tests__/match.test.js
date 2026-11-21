@@ -1,5 +1,5 @@
-import { StyleSheet, Text } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { StyleSheet } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import MatchScreen from '../match';
 import { cancelQueue, createQueue, listQueues, getProfile } from '@/api';
@@ -58,6 +58,9 @@ const BUTTON_REQUEST = 'Crea una coda per la tua ricerca';
 /** The button that confirms the request queue: the one inside the `ConfirmModal`. */
 const BUTTON_CONFIRM_REQUEST = 'Crea la coda di ricerca';
 
+/** The type the renderer gives a text node: the credit mark is walked over these. */
+const TEXT = 'Text';
+
 /** One active row of `GET /get-queues`, as the card below the buttons reads it. */
 const ACTIVE_QUEUE = {
   id: 42,
@@ -101,50 +104,68 @@ async function emit(notifica) {
 async function renderMatch({ queues = [], profile = { crediti: 1 } } = {}) {
   getProfile.mockResolvedValue(profile);
   listQueues.mockResolvedValue(queues);
-  let renderer;
-  act(() => {
-    renderer = create(<MatchScreen />);
-  });
+  // From RTL 14 `render` is async: the mount is awaited, not wrapped in `act`.
+  await render(<MatchScreen />);
   await flush();
-  return renderer;
 }
 
-/** Every pressable carrying this accessibility label. */
-function pressables(renderer, accessibilityLabel) {
-  return renderer.root.findAll(
-    (candidate) =>
-      candidate.props?.accessibilityLabel === accessibilityLabel &&
-      candidate.props?.accessibilityState !== undefined &&
-      typeof candidate.props.onPress === 'function',
-  );
+/** Every text node the screen draws, in the order it draws them. */
+function textNodes() {
+  // RTL 14 draws host elements only: `container.queryAll` is what reaches them.
+  return screen.container.queryAll((nodo) => nodo.type === TEXT);
 }
 
 /**
- * The pressable carrying this accessibility label: the node that also announces
- * the state, so the `AppButton` wrapper above it (which has no
- * `accessibilityState`) is not the one the assertions read.
+ * Every button announcing this accessibility label: the drawn nodes with the
+ * role and the name, so the components above each of them count once.
  */
-function pressable(renderer, accessibilityLabel) {
-  const node = pressables(renderer, accessibilityLabel).at(0);
+function pressables(accessibilityLabel) {
+  return screen.queryAllByRole('button', { name: accessibilityLabel });
+}
+
+/**
+ * The control carrying this accessibility label: the node that is a `button`
+ * and announces the name, so the wrapper components above the drawn node are
+ * not the ones the assertions read.
+ */
+function pressable(accessibilityLabel) {
+  const node = pressables(accessibilityLabel).at(0);
   expect(node).toBeDefined();
   return node;
 }
 
 /** Whether the button announces itself as disabled, on native and on web. */
-function isDisabled(renderer, accessibilityLabel) {
+function isDisabled(accessibilityLabel) {
   const { accessibilityState, 'aria-disabled': ariaDisabled } = pressable(
-    renderer,
     accessibilityLabel,
   ).props;
   return accessibilityState?.disabled ?? ariaDisabled;
 }
 
 /** Presses the control the way a tap would, then lets the action settle. */
-async function press(renderer, accessibilityLabel) {
-  const button = pressable(renderer, accessibilityLabel);
-  await act(async () => {
-    button.props.onPress();
-  });
+async function press(accessibilityLabel) {
+  await fireEvent.press(pressable(accessibilityLabel));
+  await flush();
+}
+
+/**
+ * The handler the control runs on press, taken from the component that
+ * received it.
+ *
+ * `fireEvent.press` dispatches the way the platform does: on a disabled control
+ * the tap is refused and never reaches `onPress`. The case below proves the
+ * screen's own guard — one action at a time — so the handler has to run anyway.
+ * RTL 14 draws host elements only and the `UNSAFE_*ByType` queries that reached
+ * the component no longer exist: `unstable_fiber` is the internal API
+ * (unstable, and for that reason confined here) RTL itself uses to find it.
+ */
+function pressHandler(node) {
+  for (let fiber = node.unstable_fiber; fiber !== null; fiber = fiber.return) {
+    if (typeof fiber.memoizedProps?.onPress === 'function') {
+      return fiber.memoizedProps.onPress;
+    }
+  }
+  return null;
 }
 
 /**
@@ -156,19 +177,19 @@ async function press(renderer, accessibilityLabel) {
  * the last of them, the label is the one that says so: one number alone is not a
  * mark, so the assertions need both.
  */
-function marchioCrediti(renderer) {
-  const etichetta = renderer.root
-    .findAllByType(Text)
-    .find((node) => node.props.children === 'Crediti disponibili');
+function marchioCrediti() {
+  const etichetta = textNodes().find(
+    (node) => node.props.children === 'Crediti disponibili',
+  );
   expect(etichetta).toBeDefined();
 
   let riga = etichetta.parent;
-  while (riga !== null && riga.findAllByType(Text).length < 2) {
+  while (riga !== null && riga.queryAll((nodo) => nodo.type === TEXT).length < 2) {
     riga = riga.parent;
   }
   expect(riga).not.toBeNull();
 
-  const testi = riga.findAllByType(Text);
+  const testi = riga.queryAll((nodo) => nodo.type === TEXT);
   const testoValore = testi[testi.length - 1];
   return {
     etichetta,
@@ -184,19 +205,18 @@ function coloreDi(node) {
 }
 
 /** The screen's own sentence for a balance at zero, as it is rendered. */
-function fraseDelSaldoZero(renderer) {
-  const frase = renderer.root
-    .findAllByType(Text)
-    .find((node) =>
+function fraseDelSaldoZero() {
+  const frase = textNodes().find(
+    (node) =>
       typeof node.props.children === 'string' &&
       node.props.children.startsWith('Senza crediti la ricerca resta spenta'),
-    );
+  );
   expect(frase).toBeDefined();
   return frase;
 }
 
 /** Every word the screen renders, in order, for the copy assertions. */
-function visibleText(renderer) {
+function visibleText() {
   const collect = (node) => {
     if (typeof node === 'string') {
       return node;
@@ -209,7 +229,7 @@ function visibleText(renderer) {
     }
     return collect(node.children);
   };
-  return collect(renderer.toJSON());
+  return collect(screen.toJSON());
 }
 
 beforeEach(() => {
@@ -240,61 +260,63 @@ describe('match — the stream', () => {
 
 describe('match — the two create actions', () => {
   it('offers both with no queue and one credit, without asking for a service first', async () => {
-    const renderer = await renderMatch();
+    await renderMatch();
 
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(false);
+    expect(isDisabled(BUTTON_OFFER)).toBe(false);
+    expect(isDisabled(BUTTON_REQUEST)).toBe(false);
   });
 
   it('says what a request queue costs, in words, next to the button', async () => {
-    expect(visibleText(await renderMatch())).toContain('Una coda di ricerca costa un credito.');
+    await renderMatch();
+
+    expect(visibleText()).toContain('Una coda di ricerca costa un credito.');
   });
 
   it('creates the queue type the button names', async () => {
-    const renderer = await renderMatch();
+    await renderMatch();
 
-    await press(renderer, BUTTON_OFFER);
+    await press(BUTTON_OFFER);
     expect(createQueue).toHaveBeenCalledWith(TOKEN, 'OFFER');
 
     // The request queue spends a credit, so it starts from the confirmation:
     // the button opens the panel and only the panel creates the queue.
-    await press(renderer, BUTTON_REQUEST);
-    await press(renderer, BUTTON_CONFIRM_REQUEST);
+    await press(BUTTON_REQUEST);
+    await press(BUTTON_CONFIRM_REQUEST);
     expect(createQueue).toHaveBeenCalledWith(TOKEN, 'REQUEST');
   });
 
   it('asks before the request queue spends a credit, and spends nothing meanwhile', async () => {
-    const renderer = await renderMatch();
+    await renderMatch();
 
-    await press(renderer, BUTTON_REQUEST);
+    await press(BUTTON_REQUEST);
 
     expect(createQueue).not.toHaveBeenCalled();
   });
 
   it('creates the request queue once when the confirmation is accepted', async () => {
-    const renderer = await renderMatch();
+    await renderMatch();
 
-    await press(renderer, BUTTON_REQUEST);
-    await press(renderer, BUTTON_CONFIRM_REQUEST);
+    await press(BUTTON_REQUEST);
+    await press(BUTTON_CONFIRM_REQUEST);
 
     expect(createQueue).toHaveBeenCalledTimes(1);
     expect(createQueue).toHaveBeenCalledWith(TOKEN, 'REQUEST');
   });
 
   it('closes only the request action at a zero balance, and says why', async () => {
-    const renderer = await renderMatch({ profile: { crediti: 0 } });
+    await renderMatch({ profile: { crediti: 0 } });
 
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(false);
-    expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
-    expect(visibleText(renderer)).toContain('Non hai crediti disponibili.');
+    expect(isDisabled(BUTTON_OFFER)).toBe(false);
+    expect(isDisabled(BUTTON_REQUEST)).toBe(true);
+    expect(visibleText()).toContain('Non hai crediti disponibili.');
   });
 
   it('closes both actions while a queue is still active', async () => {
-    const renderer = await renderMatch({ queues: [ACTIVE_QUEUE] });
+    await renderMatch({ queues: [ACTIVE_QUEUE] });
 
-    expect(isDisabled(renderer, BUTTON_OFFER)).toBe(true);
-    expect(isDisabled(renderer, BUTTON_REQUEST)).toBe(true);
-    expect(visibleText(renderer)).toContain(
+    expect(isDisabled(BUTTON_OFFER)).toBe(true);
+    expect(isDisabled(BUTTON_REQUEST)).toBe(true);
+    expect(visibleText()).toContain(
       'Hai già una coda attiva: annullala per poterne crearne un’altra.',
     );
   });
@@ -303,12 +325,18 @@ describe('match — the two create actions', () => {
     // The create call never answers: the first queue stays in flight for the
     // whole test, which is the only way to observe the guard.
     createQueue.mockReturnValue(new Promise(() => {}));
-    const renderer = await renderMatch();
+    await renderMatch();
 
-    await press(renderer, BUTTON_OFFER);
+    await press(BUTTON_OFFER);
     expect(createQueue).toHaveBeenCalledTimes(1);
 
-    await press(renderer, BUTTON_REQUEST);
+    // The second press runs the handler itself: the button is already spent, so
+    // a tap would be refused before reaching the guard this case is about.
+    const onPress = pressHandler(pressable(BUTTON_REQUEST));
+    expect(onPress).not.toBeNull();
+    await act(async () => {
+      onPress();
+    });
 
     expect(createQueue).toHaveBeenCalledTimes(1);
   });
@@ -316,43 +344,41 @@ describe('match — the two create actions', () => {
   it('draws no create action while the balance is unknown', async () => {
     // A failed `GET /profile` leaves the credit undecided: the screen says why
     // with its banner instead of guessing what the request action may do.
-    const renderer = await renderMatch({ profile: null });
+    await renderMatch({ profile: null });
 
-    expect(pressables(renderer, BUTTON_OFFER)).toHaveLength(0);
-    expect(pressables(renderer, BUTTON_REQUEST)).toHaveLength(0);
+    expect(pressables(BUTTON_OFFER)).toHaveLength(0);
+    expect(pressables(BUTTON_REQUEST)).toHaveLength(0);
   });
 
   it('draws no credit mark while the balance is unknown', async () => {
-    const renderer = await renderMatch({ profile: null });
+    await renderMatch({ profile: null });
 
     expect(
-      renderer.root
-        .findAllByType(Text)
-        .some((node) => node.props.children === 'Crediti disponibili'),
+      textNodes().some((node) => node.props.children === 'Crediti disponibili'),
     ).toBe(false);
   });
 });
 
 describe('match — the credit mark', () => {
   it('shows the balance the request confirm names, and one number only', async () => {
-    const renderer = await renderMatch({ profile: { crediti: 1 } });
-    const marchio = marchioCrediti(renderer);
+    await renderMatch({ profile: { crediti: 1 } });
+    const marchio = marchioCrediti();
 
     expect(marchio.etichetta.props.children).toBe('Crediti disponibili');
     expect(marchio.valore.props.children).toBe('1');
 
     // The confirm reads the same source (`balance`): two figures on one screen
     // would be two truths.
-    await press(renderer, BUTTON_REQUEST);
-    expect(visibleText(renderer)).toContain('Crediti disponibili: 1.');
+    await press(BUTTON_REQUEST);
+    expect(visibleText()).toContain('Crediti disponibili: 1.');
   });
 
   it('paints a zero balance in danger and says how to get a credit back', async () => {
-    const renderer = await renderMatch({ profile: { crediti: 0 } });
-    const marchio = marchioCrediti(renderer);
+    await renderMatch({ profile: { crediti: 0 } });
+    const marchio = marchioCrediti();
 
     expect(marchio.valore.props.children).toBe('0');
-    const frase = fraseDelSaldoZero(renderer);
+    const frase = fraseDelSaldoZero();
     // `t.danger` is the token `tone="danger"` resolves to: the value and the
     // sentence share it, and the label does not.
     expect(marchio.coloreValore).toBe(coloreDi(frase));
