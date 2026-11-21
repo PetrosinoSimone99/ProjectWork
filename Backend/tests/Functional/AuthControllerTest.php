@@ -259,6 +259,23 @@ class AuthControllerTest extends WebTestCase
         self::assertSame('The username or email address is already in use.', $this->responseData()['error']);
     }
 
+    public function testRegistrationCannotTellAnOccupiedUsernameFromAnOccupiedEmail(): void
+    {
+        $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData());
+        self::assertResponseStatusCodeSame(201);
+
+        $bodies = [];
+        foreach ([['email' => 'other@example.test'], ['username' => 'other.user']] as $replace) {
+            $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData($replace));
+            self::assertResponseStatusCodeSame(409);
+            $bodies[] = $this->client->getResponse()->getContent();
+        }
+
+        // Naming which of the two collided would let anyone probe the form for an account.
+        self::assertSame($bodies[0], $bodies[1]);
+        self::assertSame(['error' => 'The username or email address is already in use.'], $this->responseData());
+    }
+
     public function testRegistrationRejectsInvalidJsonAndMissingData(): void
     {
         $this->client->request('POST', '/api/auth/register', [], [], ['CONTENT_TYPE' => 'application/json'], '{not valid json');
@@ -266,6 +283,44 @@ class AuthControllerTest extends WebTestCase
 
         $this->client->jsonRequest('POST', '/api/auth/register', ['name' => 'Mario']);
         self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testRegistrationNamesEveryRejectedAccountFieldOfAnEmptyBody(): void
+    {
+        $this->client->request('POST', '/api/auth/register', [], [], ['CONTENT_TYPE' => 'application/json'], '{}');
+
+        self::assertResponseStatusCodeSame(400);
+        $response = $this->responseData();
+        self::assertSame('Required user and service fields are missing or invalid.', $response['error']);
+        self::assertSame(['name', 'surname', 'username', 'email', 'password', 'location'], $response['fields']);
+    }
+
+    public function testRegistrationNamesOnlyTheAccountFieldThatIsWrong(): void
+    {
+        foreach (['email' => 'not-an-email', 'password' => 'short'] as $field => $invalid) {
+            $this->client->jsonRequest('POST', '/api/auth/register', $this->registrationData([$field => $invalid]));
+
+            self::assertResponseStatusCodeSame(400);
+            $response = $this->responseData();
+            self::assertSame('Required user and service fields are missing or invalid.', $response['error']);
+            self::assertSame([$field], $response['fields']);
+            self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+        }
+    }
+
+    public function testRegistrationNamesAMissingServiceSection(): void
+    {
+        foreach (['offers', 'requests'] as $section) {
+            $data = $this->registrationData();
+            unset($data[$section]);
+            $this->client->jsonRequest('POST', '/api/auth/register', $data);
+
+            self::assertResponseStatusCodeSame(400);
+            $response = $this->responseData();
+            self::assertSame([$section], $response['fields']);
+            self::assertStringContainsString($section, $response['error']);
+            self::assertSame(0, $this->entityManager->getRepository(User::class)->count([]));
+        }
     }
 
     public function testUserAndStaffCanLogin(): void

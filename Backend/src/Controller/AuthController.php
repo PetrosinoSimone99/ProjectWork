@@ -27,15 +27,11 @@ class AuthController extends AbstractController
             return $this->error('The request body must contain valid JSON.', 400);
         }
 
-        $slotError = $this->serviceSlotError($data);
-        if ($slotError !== null) {
-            return $this->error($slotError, 400);
+        $validation = $this->validateRegistration($data);
+        if ($validation['values'] === null) {
+            return $this->json(['error' => $validation['message'], 'fields' => $validation['fields']], 400);
         }
-
-        $fields = $this->validateRegistration($data);
-        if ($fields === null) {
-            return $this->error('Required user and service fields are missing or invalid.', 400);
-        }
+        $fields = $validation['values'];
 
         if ($users->findOneByUsernameOrEmail($fields['username'], $fields['email']) !== null) {
             return $this->error('The username or email address is already in use.', 409);
@@ -133,8 +129,18 @@ class AuthController extends AbstractController
         return $incomplete === [] ? null : implode(' and ', $incomplete).' must contain exactly one service.';
     }
 
-    /** @return array{name: string, surname: string, username: string, email: string, password: string, location: string, offers: list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>, requests: list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>}|null */
-    private function validateRegistration(array $data): ?array
+    /**
+     * Names every rejected body field, instead of stopping at the first one, so the
+     * form can put the message under the field that carries it.
+     *
+     * Account fields are read before the service sections: a body whose name or email
+     * is already refused keeps its list short and in body order, and does not need the
+     * sections it may also be missing. A section is named as a whole (`offers`,
+     * `requests`) because the server validates it as a whole.
+     *
+     * @return array{fields: list<string>, message: string|null, values: array{name: string, surname: string, username: string, email: string, password: string, location: string, offers: list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>, requests: list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>}|null}
+     */
+    private function validateRegistration(array $data): array
     {
         $name = trim((string) ($data['name'] ?? ''));
         $surname = trim((string) ($data['surname'] ?? ''));
@@ -142,17 +148,44 @@ class AuthController extends AbstractController
         $email = trim((string) ($data['email'] ?? ''));
         $password = (string) ($data['password'] ?? '');
         $location = is_string($data['location'] ?? null) ? trim($data['location']) : '';
-        $offers = $this->validateServices($data['offers'] ?? []);
-        $requests = $this->validateServices($data['requests'] ?? []);
 
-        if ($name === '' || $surname === '' || $username === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)
-            || strlen($password) < 8 || mb_strlen($name) > 50 || mb_strlen($surname) > 50
-            || mb_strlen($username) > 30 || mb_strlen($email) > 180 || $location === ''
-            || mb_strlen($location) > 255 || $offers === null || $requests === null) {
-            return null;
+        $fields = [];
+        if ($name === '' || mb_strlen($name) > 50) {
+            $fields[] = 'name';
+        }
+        if ($surname === '' || mb_strlen($surname) > 50) {
+            $fields[] = 'surname';
+        }
+        if ($username === '' || mb_strlen($username) > 30) {
+            $fields[] = 'username';
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 180) {
+            $fields[] = 'email';
+        }
+        if (strlen($password) < 8) {
+            $fields[] = 'password';
+        }
+        if ($location === '' || mb_strlen($location) > 255) {
+            $fields[] = 'location';
+        }
+        if ($fields !== []) {
+            return ['fields' => $fields, 'message' => 'Required user and service fields are missing or invalid.', 'values' => null];
         }
 
-        return compact('name', 'surname', 'username', 'email', 'password', 'location', 'offers', 'requests');
+        $offers = $this->validateServices($data['offers'] ?? []);
+        $requests = $this->validateServices($data['requests'] ?? []);
+        if ($offers === null) {
+            $fields[] = 'offers';
+        }
+        if ($requests === null) {
+            $fields[] = 'requests';
+        }
+        if ($fields !== []) {
+            // The count check already names its sections in a sentence; keep it when it applies.
+            return ['fields' => $fields, 'message' => $this->serviceSlotError($data) ?? 'Required user and service fields are missing or invalid.', 'values' => null];
+        }
+
+        return ['fields' => [], 'message' => null, 'values' => compact('name', 'surname', 'username', 'email', 'password', 'location', 'offers', 'requests')];
     }
 
     /** @return list<array{description: string, location: string|null, isRemote: bool, isSuspended: bool, categoryIds: list<int>, categories: list<string>}>|null */
