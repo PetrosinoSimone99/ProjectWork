@@ -196,7 +196,9 @@ is cancelled and created again, and the rule that decides it is the one in
 
 ## 2. Configure the frontend
 
-`Frontend/.env.local` (not committed, gitignored):
+`Frontend/.env.local` (not committed, gitignored). `Frontend/.env.example` is
+the same two keys with the local default filled in: copy it to `.env.local` and
+change only what your machine needs.
 
 | Variable | Value | When |
 | --- | --- | --- |
