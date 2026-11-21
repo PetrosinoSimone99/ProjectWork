@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { QueueCard } from '../QueueCard';
 
@@ -20,71 +20,64 @@ const QUEUE = {
   agreementId: null,
 };
 
-function renderCard(queue, extra = {}) {
-  let renderer;
-  act(() => {
-    renderer = create(<QueueCard coda={queue} {...extra} />);
-  });
-  return renderer;
+/** From RTL 14 `render` is async: the mount is awaited, not wrapped in `act`. */
+async function renderCard(queue, extra = {}) {
+  await render(<QueueCard coda={queue} {...extra} />);
 }
 
 /** The control with this accessibility label, pressed the way a tap would. */
-function press(renderer, accessibilityLabel) {
-  const button = renderer.root
-    .findAll(
-      (node) =>
-        node.props?.accessibilityLabel === accessibilityLabel &&
-        typeof node.props.onPress === 'function',
-    )
-    .at(0);
-  expect(button).toBeDefined();
-  act(() => {
-    button.props.onPress();
-  });
+async function press(accessibilityLabel) {
+  await fireEvent.press(screen.getByLabelText(accessibilityLabel));
 }
 
 /** The controls announcing the open affordance, matched on the label prefix. */
-function withOpenLabel(renderer, hostOnly = false) {
-  return renderer.root.findAll(
+function withOpenLabel() {
+  return screen.container.queryAll(
     (node) =>
-      (!hostOnly || typeof node.type === 'string') &&
       typeof node.props?.accessibilityLabel === 'string' &&
       node.props.accessibilityLabel.startsWith(OPEN_LABEL_PREFIX),
   );
 }
 
 /** The actionable node of the open affordance: label, button role and a handler. */
-function pressOpen(renderer) {
-  const node = renderer.root
-    .findAll(
-      (node) =>
-        typeof node.props?.accessibilityLabel === 'string' &&
-        node.props.accessibilityLabel.startsWith(OPEN_LABEL_PREFIX) &&
-        node.props?.accessibilityRole === 'button' &&
-        typeof node.props.onPress === 'function',
-    )
-    .at(0);
+async function pressOpen() {
+  const node = withOpenLabel().find((nodo) => nodo.props.accessibilityRole === 'button');
   expect(node).toBeDefined();
-  act(() => {
-    node.props.onPress();
-  });
+  await fireEvent.press(node);
 }
 
-/** Buttons as they render: host elements only, so one button counts once. */
-function renderedButtons(renderer) {
-  return renderer.root.findAll(
-    (node) => typeof node.type === 'string' && node.props?.accessibilityRole === 'button',
-  );
+/** Buttons as they render: the drawn nodes with the button role, so one button counts once. */
+function renderedButtons() {
+  return screen.container.queryAll((node) => node.props?.accessibilityRole === 'button');
+}
+
+/**
+ * Whether anything the card draws is wired to this handler.
+ *
+ * RTL 14 draws host elements only, and the handler of a `Pressable` lives on the
+ * component above the node it draws: no query reaches it. `unstable_fiber` is the
+ * internal API (unstable, and for that reason confined here) that walks from a
+ * drawn node up to the components that gave it its props.
+ */
+function isWiredTo(handler) {
+  for (const node of screen.container.queryAll(() => true)) {
+    for (let fiber = node.unstable_fiber; fiber !== null; fiber = fiber.return) {
+      if (fiber.memoizedProps?.onPress === handler) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 describe('QueueCard agreement link', () => {
-  it('opens the agreement when the queue is linked', () => {
+  it('opens the agreement when the queue is linked', async () => {
     const onApri = jest.fn();
-    const renderer = renderCard({ ...QUEUE, agreementId: 7 }, { onApri });
+    await renderCard({ ...QUEUE, agreementId: 7 }, { onApri });
 
-    // The count is taken over rendered elements: the memo/function layers of
-    // the one Pressable repeat the same props, so they are not three buttons.
-    const openable = withOpenLabel(renderer, true).filter(
+    // The count is taken over the drawn nodes: the memo and function layers of
+    // the one Pressable never reach the query, so they are not three buttons.
+    const openable = withOpenLabel().filter(
       (node) => node.props?.accessibilityRole === 'button',
     );
     expect(openable).toHaveLength(1);
@@ -94,35 +87,35 @@ describe('QueueCard agreement link', () => {
     // the place and the status on the linked rows (F50).
     expect(openable[0].props.accessibilityLabel).toContain(QUEUE.descrizione);
 
-    pressOpen(renderer);
+    await pressOpen();
     expect(onApri).toHaveBeenCalledTimes(1);
   });
 
-  it('stays inert when the queue has no agreement', () => {
+  it('stays inert when the queue has no agreement', async () => {
     const onApri = jest.fn();
-    const renderer = renderCard({ ...QUEUE, agreementId: null }, { onApri });
+    await renderCard({ ...QUEUE, agreementId: null }, { onApri });
 
-    expect(withOpenLabel(renderer)).toHaveLength(0);
+    expect(withOpenLabel()).toHaveLength(0);
 
     // The cancel AppButton is always a button, so inertness means it is the
     // only one: no informational block gained the role.
-    expect(renderedButtons(renderer).map((node) => node.props.accessibilityLabel)).toEqual([
+    expect(renderedButtons().map((node) => node.props.accessibilityLabel)).toEqual([
       'Annulla questa coda',
     ]);
-    expect(renderer.root.findAll((node) => node.props?.onPress === onApri)).toHaveLength(0);
+    expect(isWiredTo(onApri)).toBe(false);
   });
 
   it('never opens the agreement from the cancel button', async () => {
     const onApri = jest.fn();
     const onAnnulla = jest.fn();
-    const renderer = renderCard({ ...QUEUE, agreementId: 7 }, { onApri, onAnnulla });
+    await renderCard({ ...QUEUE, agreementId: 7 }, { onApri, onAnnulla });
 
     // The row's cancel button only opens the confirm panel; the panel's
     // confirm is the one that reaches `onAnnulla`.
-    press(renderer, 'Annulla questa coda');
+    await press('Annulla questa coda');
     expect(onApri).not.toHaveBeenCalled();
 
-    press(renderer, 'Annulla coda');
+    await press('Annulla coda');
     await act(async () => {});
 
     expect(onAnnulla).toHaveBeenCalledTimes(1);
@@ -131,12 +124,12 @@ describe('QueueCard agreement link', () => {
 });
 
 /** The "Creata il …" lines the row draws, as the user reads them. */
-function dateLines(renderer) {
-  // Host elements only: the component layers above repeat the same string.
-  return renderer.root
-    .findAll(
+function dateLines() {
+  // `screen.container` walks the drawn nodes only: the component layers above
+  // repeat the same string, and they are not drawn.
+  return screen.container
+    .queryAll(
       (node) =>
-        typeof node.type === 'string' &&
         typeof node.props?.children === 'string' &&
         node.props.children.startsWith('Creata il'),
     )
@@ -144,54 +137,54 @@ function dateLines(renderer) {
 }
 
 describe('QueueCard creation date', () => {
-  it('dates the row with the day and the minute', () => {
+  it('dates the row with the day and the minute', async () => {
     // No `Z`: the value is read as the device's own time, so the asserted
     // minute is the one the card prints on any machine.
-    const renderer = renderCard({ ...QUEUE, creataIl: '2026-11-19T10:12:00' });
+    await renderCard({ ...QUEUE, creataIl: '2026-11-19T10:12:00' });
 
-    expect(dateLines(renderer)).toEqual(['Creata il 19 nov, 10:12']);
+    expect(dateLines()).toEqual(['Creata il 19 nov, 10:12']);
   });
 
-  it('draws no date line when the timestamp is missing or unusable', () => {
+  it('draws no date line when the timestamp is missing or unusable', async () => {
     // `null` from the normalizer, and a string the backend should never send:
     // the row omits the line instead of printing "Invalid Date".
-    expect(dateLines(renderCard({ ...QUEUE, creataIl: null }))).toEqual([]);
-    expect(dateLines(renderCard({ ...QUEUE, creataIl: 'non-una-data' }))).toEqual([]);
+    await renderCard({ ...QUEUE, creataIl: null });
+    expect(dateLines()).toEqual([]);
+    await renderCard({ ...QUEUE, creataIl: 'non-una-data' });
+    expect(dateLines()).toEqual([]);
   });
 });
 
-/** Whether a host text node of the card prints exactly this string. */
-function drawsText(renderer, text) {
+/** Whether a drawn node of the card prints exactly this string. */
+function drawsText(text) {
   return (
-    renderer.root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.children === text,
-    ).length > 0
+    screen.container.queryAll((node) => node.props?.children === text).length > 0
   );
 }
 
 describe('QueueCard place line', () => {
-  it('says the exchange is remote when the queue has no place', () => {
+  it('says the exchange is remote when the queue has no place', async () => {
     const onApri = jest.fn();
     // Linked, so the card announces its own content through the open label too.
-    const renderer = renderCard(
+    await renderCard(
       { ...QUEUE, localita: null, daRemoto: true, agreementId: 7 },
       { onApri },
     );
 
-    expect(withOpenLabel(renderer, true)[0].props.accessibilityLabel).toContain('Da remoto');
-    expect(drawsText(renderer, 'Da remoto')).toBe(true);
+    expect(withOpenLabel()[0].props.accessibilityLabel).toContain('Da remoto');
+    expect(drawsText('Da remoto')).toBe(true);
   });
 
-  it('says the place is not indicated when there is neither a place nor a mode', () => {
-    const renderer = renderCard({ ...QUEUE, localita: null, daRemoto: false });
+  it('says the place is not indicated when there is neither a place nor a mode', async () => {
+    await renderCard({ ...QUEUE, localita: null, daRemoto: false });
 
-    expect(drawsText(renderer, 'Località non indicata')).toBe(true);
+    expect(drawsText('Località non indicata')).toBe(true);
   });
 
-  it('prints the place when the queue has one, remote or not', () => {
-    const renderer = renderCard({ ...QUEUE, localita: 'Roma', daRemoto: true });
+  it('prints the place when the queue has one, remote or not', async () => {
+    await renderCard({ ...QUEUE, localita: 'Roma', daRemoto: true });
 
-    expect(drawsText(renderer, 'Roma')).toBe(true);
-    expect(drawsText(renderer, 'Da remoto')).toBe(false);
+    expect(drawsText('Roma')).toBe(true);
+    expect(drawsText('Da remoto')).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, renderHook } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { getNotifications, markNotificationRead } from '@/api/areas/notifications';
 import { ApiError } from '@/api/client';
@@ -60,40 +60,24 @@ const pagedResponse = (rows, nonLette, pageNumber, totalPages) => ({
   },
 });
 
-/** Renders the hook and keeps its latest return value where the test reads it. */
-function render(lettura) {
-  function Probe({ token }) {
-    Object.assign(lettura, useUnreadCount({ token }));
-    return null;
-  }
-  let renderer;
-  act(() => {
-    renderer = create(<Probe token={TOKEN} />);
-  });
-  return renderer;
+/**
+ * Renders the badge hook and returns what `renderHook` gives back: the value
+ * the test reads is `result.current`. From RTL 14 the mount is asynchronous,
+ * so it is awaited instead of wrapped in `act`.
+ */
+function renderUnreadCount() {
+  return renderHook(() => useUnreadCount({ token: TOKEN }));
 }
 
 /**
- * Same probe for the inbox hook. It returns `setToken` because dropping the
+ * Same mount for the inbox hook. It returns `rerender` because dropping the
  * session is the only way to reach `segnaLetteMostrate` with rows already on
  * screen, which is the case the token guard exists for.
  */
-function renderInbox(lettura, token = TOKEN) {
-  function InboxProbe({ token: corrente }) {
-    Object.assign(lettura, useNotifications({ token: corrente }));
-    return null;
-  }
-  let renderer;
-  act(() => {
-    renderer = create(<InboxProbe token={token} />);
+function renderInbox(token = TOKEN) {
+  return renderHook(({ token: corrente }) => useNotifications({ token: corrente }), {
+    initialProps: { token },
   });
-  return {
-    setToken: (nuovoToken) => {
-      act(() => {
-        renderer.update(<InboxProbe token={nuovoToken} />);
-      });
-    },
-  };
 }
 
 /** Lets the promises of the reads already started settle. */
@@ -148,21 +132,19 @@ afterEach(() => {
 
 describe('useUnreadCount — the polling of the badge', () => {
   it('moves the badge on its own after one poll interval', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await renderUnreadCount();
     await flush();
-    expect(lettura.nonLette).toBe(2);
+    expect(result.current.nonLette).toBe(2);
 
     getNotifications.mockResolvedValue(risposta(5));
     await unGiro();
 
-    expect(lettura.nonLette).toBe(5);
+    expect(result.current.nonLette).toBe(5);
     expect(getNotifications).toHaveBeenCalledWith(TOKEN, { limit: 1 });
   });
 
   it('asks again as soon as the app returns to the foreground', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await renderUnreadCount();
     await flush();
 
     AppState.currentState = 'background';
@@ -178,13 +160,12 @@ describe('useUnreadCount — the polling of the badge', () => {
     });
 
     expect(getNotifications).toHaveBeenCalledTimes(2);
-    expect(lettura.nonLette).toBe(4);
+    expect(result.current.nonLette).toBe(4);
   });
 
   it('does not ask again while the app is in the background', async () => {
     AppState.currentState = 'background';
-    const lettura = {};
-    render(lettura);
+    await renderUnreadCount();
     await flush();
     // The read on entering the screen is not a poll: the guard covers the tick.
     const lettureAllIngresso = getNotifications.mock.calls.length;
@@ -196,30 +177,26 @@ describe('useUnreadCount — the polling of the badge', () => {
   });
 
   it('stops the timer when the screen is left', async () => {
-    const lettura = {};
-    const renderer = render(lettura);
+    const { unmount } = await renderUnreadCount();
     await flush();
     const lettureAllIngresso = getNotifications.mock.calls.length;
     expect(lettureAllIngresso).toBeGreaterThan(0);
 
-    act(() => {
-      renderer.unmount();
-    });
+    await unmount();
     await unGiro(4);
 
     expect(getNotifications).toHaveBeenCalledTimes(lettureAllIngresso);
   });
 
   it('keeps the row neutral and warns in development when the count cannot be read', async () => {
-    const lettura = {};
-    render(lettura);
+    const { result } = await renderUnreadCount();
     await flush();
-    expect(lettura.nonLette).toBe(2);
+    expect(result.current.nonLette).toBe(2);
 
     getNotifications.mockRejectedValue(new Error('rete assente'));
     await unGiro();
 
-    expect(lettura.nonLette).toBeNull();
+    expect(result.current.nonLette).toBeNull();
     const messaggi = verbale.mock.calls.map((chiamata) => chiamata[0]);
     expect(
       messaggi.some((messaggio) => typeof messaggio === 'string' && messaggio.startsWith('[notifiche]')),
@@ -230,13 +207,12 @@ describe('useUnreadCount — the polling of the badge', () => {
 describe('useUnreadCount — the frames are the truth while the stream is up', () => {
   it('shows the count the frame carries and lets no poll answer overwrite it', async () => {
     mockStream.stato = { connected: true, unreadCount: 7, lastId: 12 };
-    const lettura = {};
-    render(lettura);
+    const { result } = await renderUnreadCount();
     await flush();
 
     // The read on entering the screen answers 2, the frame carried 7.
     expect(getNotifications).toHaveBeenCalledWith(TOKEN, { limit: 1 });
-    expect(lettura.nonLette).toBe(7);
+    expect(result.current.nonLette).toBe(7);
 
     getNotifications.mockResolvedValue(risposta(2));
     await unGiro();
@@ -244,40 +220,38 @@ describe('useUnreadCount — the frames are the truth while the stream is up', (
     // While the frames answer, the tick does not even ask: the poll is the
     // fallback for a stream that is down, not a second reader beside it.
     expect(getNotifications).toHaveBeenCalledTimes(1);
-    expect(lettura.nonLette).toBe(7);
+    expect(result.current.nonLette).toBe(7);
 
     // A manual read — pull-to-refresh, or coming back to the foreground — still
     // asks, and its answer still cannot overwrite the frame's count.
-    act(() => {
-      void lettura.ricarica();
+    await act(async () => {
+      void result.current.ricarica();
     });
     await flush();
     expect(getNotifications).toHaveBeenCalledTimes(2);
-    expect(lettura.nonLette).toBe(7);
+    expect(result.current.nonLette).toBe(7);
   });
 
   it('lets the poll answer write the count while the stream is not connected', async () => {
     mockStream.stato = { connected: false, unreadCount: 9, lastId: 12 };
-    const lettura = {};
     getNotifications.mockResolvedValue(risposta(1));
-    render(lettura);
+    const { result } = await renderUnreadCount();
     await flush();
 
-    expect(lettura.nonLette).toBe(1);
+    expect(result.current.nonLette).toBe(1);
 
     getNotifications.mockResolvedValue(risposta(3));
     await unGiro();
 
-    expect(lettura.nonLette).toBe(3);
+    expect(result.current.nonLette).toBe(3);
   });
 });
 describe('useNotifications — a frame re-reads the list', () => {
   it('asks for the rows again when a notification frame arrives', async () => {
-    const lettura = {};
     getNotifications.mockResolvedValue(page([row(1, false)], 1));
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
-    expect(lettura.elementi).toEqual([row(1, false)]);
+    expect(result.current.elementi).toEqual([row(1, false)]);
     const letturePrimaDelFrame = getNotifications.mock.calls.length;
     expect(letturePrimaDelFrame).toBeGreaterThan(0);
 
@@ -290,48 +264,45 @@ describe('useNotifications — a frame re-reads the list', () => {
     });
 
     expect(getNotifications).toHaveBeenCalledTimes(letturePrimaDelFrame + 1);
-    expect(lettura.elementi).toEqual([row(2, false), row(1, false)]);
-    expect(lettura.nonLette).toBe(2);
+    expect(result.current.elementi).toEqual([row(2, false), row(1, false)]);
+    expect(result.current.nonLette).toBe(2);
   });
 });
 
 describe('useNotifications — the read of the rows the panel showed', () => {
   it('marks every unread row with one request each and drops the count by two', async () => {
-    const lettura = {};
     getNotifications.mockResolvedValue(page([row(1, false), row(2, false), row(3, true)], 2));
     markNotificationRead.mockImplementation(async (token, id) => row(id, true));
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
-    expect(lettura.nonLette).toBe(2);
+    expect(result.current.nonLette).toBe(2);
 
     await act(async () => {
-      await lettura.segnaLetteMostrate();
+      await result.current.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).toHaveBeenCalledTimes(2);
     expect(markNotificationRead).toHaveBeenCalledWith(TOKEN, 1);
     expect(markNotificationRead).toHaveBeenCalledWith(TOKEN, 2);
-    expect(lettura.elementi).toEqual([row(1, true), row(2, true), row(3, true)]);
-    expect(lettura.nonLette).toBe(0);
+    expect(result.current.elementi).toEqual([row(1, true), row(2, true), row(3, true)]);
+    expect(result.current.nonLette).toBe(0);
   });
 
   it('sends no request and leaves the state alone when every row is already read', async () => {
-    const lettura = {};
     getNotifications.mockResolvedValue(page([row(1, true), row(2, true)], 0));
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
 
     await act(async () => {
-      await lettura.segnaLetteMostrate();
+      await result.current.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).not.toHaveBeenCalled();
-    expect(lettura.elementi).toEqual([row(1, true), row(2, true)]);
-    expect(lettura.nonLette).toBe(0);
+    expect(result.current.elementi).toEqual([row(1, true), row(2, true)]);
+    expect(result.current.nonLette).toBe(0);
   });
 
   it('leaves the rejected row unread and drops the count by the successes only', async () => {
-    const lettura = {};
     getNotifications.mockResolvedValue(page([row(1, false), row(2, false)], 2));
     markNotificationRead.mockImplementation(async (token, id) => {
       if (id === 2) {
@@ -339,80 +310,78 @@ describe('useNotifications — the read of the rows the panel showed', () => {
       }
       return row(id, true);
     });
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
 
     await act(async () => {
-      await lettura.segnaLetteMostrate();
+      await result.current.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).toHaveBeenCalledTimes(2);
-    expect(lettura.elementi).toEqual([row(1, true), row(2, false)]);
-    expect(lettura.nonLette).toBe(1);
+    expect(result.current.elementi).toEqual([row(1, true), row(2, false)]);
+    expect(result.current.nonLette).toBe(1);
   });
 
   it('sends no request when the token is gone', async () => {
-    const lettura = {};
     getNotifications.mockResolvedValue(page([row(1, false), row(2, false)], 2));
-    const sonda = renderInbox(lettura);
+    const { result, rerender } = await renderInbox();
     await flush();
-    expect(lettura.elementi).toHaveLength(2);
+    expect(result.current.elementi).toHaveLength(2);
 
-    sonda.setToken(null);
+    // Togliere la sessione è l'unico modo di arrivare a `segnaLetteMostrate`
+    // con righe già a schermo, che è il caso per cui esiste la guardia.
+    await rerender({ token: null });
     await act(async () => {
-      await lettura.segnaLetteMostrate();
+      await result.current.segnaLetteMostrate();
     });
 
     expect(markNotificationRead).not.toHaveBeenCalled();
-    expect(lettura.elementi).toEqual([row(1, false), row(2, false)]);
-    expect(lettura.nonLette).toBe(2);
+    expect(result.current.elementi).toEqual([row(1, false), row(2, false)]);
+    expect(result.current.nonLette).toBe(2);
   });
 });
 
 describe('useNotifications — reading every page of the inbox', () => {
   it('reads every page the response announces', async () => {
-    const lettura = {};
     getNotifications.mockImplementation(async (token, { page: pageNumber } = {}) =>
       pagedResponse([row(pageNumber, false)], 2, pageNumber, 2),
     );
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
 
     expect(getNotifications).toHaveBeenCalledTimes(2);
     expect(getNotifications).toHaveBeenCalledWith(TOKEN, { page: 1 });
     expect(getNotifications).toHaveBeenCalledWith(TOKEN, { page: 2 });
-    expect(lettura.elementi).toEqual([row(1, false), row(2, false)]);
-    expect(lettura.errore).toBeNull();
+    expect(result.current.elementi).toEqual([row(1, false), row(2, false)]);
+    expect(result.current.errore).toBeNull();
   });
 
   it('stops at NOTIFICATIONS_MAX_PAGES', async () => {
-    const lettura = {};
     getNotifications.mockImplementation(async (token, { page: pageNumber } = {}) =>
       pagedResponse([row(pageNumber, false)], 9, pageNumber, 9),
     );
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
 
     expect(getNotifications).toHaveBeenCalledTimes(NOTIFICATIONS_MAX_PAGES);
-    expect(lettura.elementi).toEqual(
+    expect(result.current.elementi).toEqual(
       Array.from({ length: NOTIFICATIONS_MAX_PAGES }, (rowOfPage, index) => row(index + 1, false)),
     );
   });
 
   it('keeps the pages that answered when a later page fails', async () => {
-    const lettura = {};
     getNotifications.mockImplementation(async (token, { page: pageNumber } = {}) => {
       if (pageNumber > 1) {
         throw new ApiError(500, 'Errore interno del server');
       }
       return pagedResponse([row(1, false)], 2, pageNumber, 2);
     });
-    renderInbox(lettura);
+    const { result } = await renderInbox();
     await flush();
 
     expect(getNotifications).toHaveBeenCalledTimes(2);
-    expect(lettura.errore).toBe('Errore interno del server');
-    expect(lettura.elementi).toEqual([row(1, false)]);
-    expect(lettura.nonLette).toBe(2);
+    expect(result.current.errore).toBe('Errore interno del server');
+    expect(result.current.elementi).toEqual([row(1, false)]);
+    expect(result.current.nonLette).toBe(2);
   });
 });

@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { renderHook } from '@testing-library/react-native';
 import { layout } from '@/theme/tokens';
 import { sizeClassForWidth, useBreakpoint } from '../useBreakpoint';
 
@@ -48,65 +48,47 @@ describe('sizeClassForWidth', () => {
 });
 
 describe('useBreakpoint', () => {
-  it('restituisce la classe della finestra corrente e la larghezza grezza', () => {
+  it('restituisce la classe della finestra corrente e la larghezza grezza', async () => {
     mockLarghezza = 768;
-    const lettura = {};
+    // Da RTL 14 `renderHook` è asincrono: il montaggio si aspetta.
+    const { result } = await renderHook(() => useBreakpoint());
 
-    function Probe() {
-      Object.assign(lettura, useBreakpoint());
-      return null;
-    }
-
-    act(() => {
-      create(<Probe />);
-    });
-
-    expect(lettura).toEqual({ classe: 'medium', larghezza: 768 });
+    expect(result.current).toEqual({ classe: 'medium', larghezza: 768 });
   });
 
-  it('cambia classe quando la finestra attraversa una soglia', () => {
+  it('cambia classe quando la finestra attraversa una soglia', async () => {
     mockLarghezza = soglie.expanded - 1;
-    const { letture, aggiorna } = monta();
+    const { letture, aggiorna } = await monta();
 
-    aggiorna(soglie.expanded);
+    await aggiorna(soglie.expanded);
 
     expect(letture.map((valore) => valore.classe)).toEqual(['medium', 'expanded']);
     expect(letture[1].larghezza).toBe(soglie.expanded);
   });
 
-  it('tiene lo stesso oggetto finché la larghezza non cambia', () => {
+  it('tiene lo stesso oggetto finché la larghezza non cambia', async () => {
     mockLarghezza = 768;
-    const { letture, aggiorna } = monta();
+    const { letture, aggiorna } = await monta();
 
-    aggiorna(768);
+    await aggiorna(768);
     expect(letture[1]).toBe(letture[0]);
 
-    aggiorna(769);
+    await aggiorna(769);
     expect(letture[2]).not.toBe(letture[0]);
   });
 });
 
 /** Monta l'hook e conserva ogni valore restituito, in ordine di render. */
-function monta() {
-  const letture = [];
-
-  function Probe() {
-    letture.push(useBreakpoint());
-    return null;
-  }
-
-  let renderer;
-  act(() => {
-    renderer = create(<Probe />);
-  });
+async function monta() {
+  const { result, rerender } = await renderHook(() => useBreakpoint());
+  const letture = [result.current];
 
   return {
     letture,
-    aggiorna: (larghezza) => {
+    aggiorna: async (larghezza) => {
       mockLarghezza = larghezza;
-      act(() => {
-        renderer.update(<Probe />);
-      });
+      await rerender();
+      letture.push(result.current);
     },
   };
 }

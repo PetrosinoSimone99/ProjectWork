@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, renderHook } from '@testing-library/react-native';
 import { ApiError, NETWORK_ERROR_MESSAGE } from '@/api/client';
 import { cancelAgreement, listAgreements, respondToAgreement } from '@/api';
 import { __focusi as focusi } from 'expo-router';
@@ -85,16 +85,12 @@ function deferred() {
 }
 
 /** Renders the hook and keeps its latest return value where the test reads it. */
-function mount(reading) {
-  function Probe() {
-    Object.assign(reading, useAgreements({ token: TOKEN, myUsername: MY_USERNAME }));
-    return null;
-  }
-  let renderer;
-  act(() => {
-    renderer = create(<Probe />);
-  });
-  return renderer;
+async function mount() {
+  // From RTL 14 `renderHook` is async: the mount is awaited, not wrapped in `act`.
+  const { result } = await renderHook(() =>
+    useAgreements({ token: TOKEN, myUsername: MY_USERNAME }),
+  );
+  return result;
 }
 
 /** Lets every promise already started settle: the mocked calls answer at once. */
@@ -122,101 +118,95 @@ describe('useAgreements — the list request', () => {
     const first = deferred();
     const second = deferred();
     listAgreements.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
 
-    act(() => {
-      reading.riprova();
+    await act(async () => {
+      result.current.riprova();
     });
     expect(listAgreements).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       second.resolve([IN_CORSO]);
     });
-    expect(reading.accordi).toEqual([IN_CORSO]);
+    expect(result.current.accordi).toEqual([IN_CORSO]);
 
     await act(async () => {
       first.resolve([DA_RISPONDERE]);
     });
 
     // The older answer arrived last and must not overwrite the newer one.
-    expect(reading.accordi).toEqual([IN_CORSO]);
+    expect(result.current.accordi).toEqual([IN_CORSO]);
   });
 
   it('drops the response in flight and stops the spinner when the tab is left', async () => {
     const pending = deferred();
     listAgreements.mockReturnValueOnce(pending.promise);
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
-    expect(reading.caricamento).toBe(true);
+    expect(result.current.caricamento).toBe(true);
 
-    act(() => {
+    await act(async () => {
       focusi[focusi.length - 1].uscita();
     });
     // Leaving the tab cannot leave a spinner behind for a response nobody wants.
-    expect(reading.caricamento).toBe(false);
+    expect(result.current.caricamento).toBe(false);
 
     await act(async () => {
       pending.resolve([DA_RISPONDERE]);
     });
-    expect(reading.accordi).toBeNull();
+    expect(result.current.accordi).toBeNull();
   });
 
   it('keeps the agreements on screen when a reload fails and says why', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
-    const mostrati = reading.accordi;
+    const mostrati = result.current.accordi;
     listAgreements.mockRejectedValueOnce(new ApiError(0, NETWORK_ERROR_MESSAGE));
 
     await act(async () => {
-      await reading.onRefresh();
+      await result.current.onRefresh();
     });
 
-    expect(reading.accordi).toEqual(mostrati);
-    expect(reading.errore).toBe(NETWORK_ERROR_MESSAGE);
-    expect(reading.refreshing).toBe(false);
+    expect(result.current.accordi).toEqual(mostrati);
+    expect(result.current.errore).toBe(NETWORK_ERROR_MESSAGE);
+    expect(result.current.refreshing).toBe(false);
   });
 
   it('leaves classificati null until the first response arrives', async () => {
     const pending = deferred();
     listAgreements.mockReturnValueOnce(pending.promise);
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
 
-    expect(reading.accordi).toBeNull();
-    expect(reading.classificati).toBeNull();
+    expect(result.current.accordi).toBeNull();
+    expect(result.current.classificati).toBeNull();
 
     await act(async () => {
       pending.resolve([DA_RISPONDERE]);
     });
 
-    expect(reading.classificati.toAnswer).toEqual([DA_RISPONDERE]);
+    expect(result.current.classificati.toAnswer).toEqual([DA_RISPONDERE]);
   });
 
   it('splits the list into the three sections once a response arrives', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
 
-    expect(reading.classificati.toAnswer.map((a) => a.id)).toEqual([11]);
-    expect(reading.classificati.sent.map((a) => a.id)).toEqual([12]);
-    expect(reading.classificati.inProgress.map((a) => a.id)).toEqual([13]);
+    expect(result.current.classificati.toAnswer.map((a) => a.id)).toEqual([11]);
+    expect(result.current.classificati.sent.map((a) => a.id)).toEqual([12]);
+    expect(result.current.classificati.inProgress.map((a) => a.id)).toEqual([13]);
     // Nothing was guessed into the closed history.
-    expect(reading.classificati.concluded).toEqual([]);
+    expect(result.current.classificati.concluded).toEqual([]);
   });
 
   it('riprova repeats the list request', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
     expect(listAgreements).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      reading.riprova();
+      result.current.riprova();
     });
 
     expect(listAgreements).toHaveBeenCalledTimes(2);
@@ -226,8 +216,7 @@ describe('useAgreements — the list request', () => {
 
 describe('useAgreements — the stream', () => {
   it('reloads the list when a proposal lands', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
     expect(listAgreements).toHaveBeenCalledTimes(1);
 
@@ -239,12 +228,11 @@ describe('useAgreements — the stream', () => {
     expect(listAgreements).toHaveBeenCalledTimes(2);
     expect(listAgreements).toHaveBeenNthCalledWith(2, TOKEN);
     // The frame carried no row: what the screen draws is the list it re-read.
-    expect(reading.accordi).toEqual([DA_RISPONDERE, INVIATO, IN_CORSO]);
+    expect(result.current.accordi).toEqual([DA_RISPONDERE, INVIATO, IN_CORSO]);
   });
 
   it('ignores a frame that does not belong to the agreements tab', async () => {
-    const reading = {};
-    mount(reading);
+    await mount();
     await settle();
 
     await act(async () => {
@@ -256,8 +244,7 @@ describe('useAgreements — the stream', () => {
   });
 
   it('reloads the list when an agreement completes', async () => {
-    const reading = {};
-    mount(reading);
+    await mount();
     await settle();
 
     // The backend writes `agreement_completed`; the normaliser hands it over
@@ -276,87 +263,83 @@ describe('useAgreements — the two actions', () => {
   it('names the agreement the action is flying on', async () => {
     const flight = deferred();
     respondToAgreement.mockReturnValueOnce(flight.promise);
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
 
     let inVolo;
-    act(() => {
-      inVolo = reading.rispondi(7, true);
+    await act(async () => {
+      inVolo = result.current.rispondi(7, true);
     });
 
-    expect(reading.azioneInCorso).toEqual({ id: 7, nome: 'accetta' });
+    expect(result.current.azioneInCorso).toEqual({ id: 7, nome: 'accetta' });
 
     await act(async () => {
       flight.resolve(undefined);
       await inVolo;
     });
 
-    expect(reading.azioneInCorso).toBeNull();
+    expect(result.current.azioneInCorso).toBeNull();
   });
 
   it('reloads the list after an action that worked and says what happened', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
     expect(listAgreements).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      await reading.rispondi(7, true);
+      await result.current.rispondi(7, true);
     });
     expect(respondToAgreement).toHaveBeenCalledWith(TOKEN, 7, true);
-    expect(reading.esito).toBe('Proposta accettata: lo scambio ora è in «In corso».');
+    expect(result.current.esito).toBe('Proposta accettata: lo scambio ora è in «In corso».');
     expect(listAgreements).toHaveBeenCalledTimes(2);
 
     await act(async () => {
-      await reading.rispondi(8, false);
+      await result.current.rispondi(8, false);
     });
     expect(respondToAgreement).toHaveBeenLastCalledWith(TOKEN, 8, false);
-    expect(reading.esito).toBe('Proposta rifiutata.');
+    expect(result.current.esito).toBe('Proposta rifiutata.');
     expect(listAgreements).toHaveBeenCalledTimes(3);
 
     await act(async () => {
-      await reading.annulla(9);
+      await result.current.annulla(9);
     });
     expect(cancelAgreement).toHaveBeenCalledWith(TOKEN, 9);
-    expect(reading.esito).toBe('Scambio annullato.');
+    expect(result.current.esito).toBe('Scambio annullato.');
     expect(listAgreements).toHaveBeenCalledTimes(4);
-    expect(reading.azioneInCorso).toBeNull();
+    expect(result.current.azioneInCorso).toBeNull();
   });
 
   it('keeps the list and lands the failure in actionError when an action fails', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
-    const mostrati = reading.accordi;
+    const mostrati = result.current.accordi;
     respondToAgreement.mockRejectedValueOnce(new ApiError(409, 'Conflitto: aggiorna e riprova.'));
 
     await act(async () => {
-      await reading.rispondi(7, true);
+      await result.current.rispondi(7, true);
     });
 
-    expect(reading.actionError).toBe('Conflitto: aggiorna e riprova.');
-    expect(reading.accordi).toEqual(mostrati);
-    expect(reading.esito).toBeNull();
-    expect(reading.azioneInCorso).toBeNull();
+    expect(result.current.actionError).toBe('Conflitto: aggiorna e riprova.');
+    expect(result.current.accordi).toEqual(mostrati);
+    expect(result.current.esito).toBeNull();
+    expect(result.current.azioneInCorso).toBeNull();
     // A failed action does not pretend to have changed anything: no reload.
     expect(listAgreements).toHaveBeenCalledTimes(1);
   });
 
   it('refuses an action without a whole id', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
 
     await act(async () => {
-      await reading.rispondi(4.5, true);
+      await result.current.rispondi(4.5, true);
     });
 
     expect(respondToAgreement).not.toHaveBeenCalled();
-    expect(reading.actionError).toBe(
+    expect(result.current.actionError).toBe(
       'Operazione non disponibile: ricarica la schermata e riprova.',
     );
-    expect(reading.azioneInCorso).toBeNull();
+    expect(result.current.azioneInCorso).toBeNull();
     expect(listAgreements).toHaveBeenCalledTimes(1);
   });
 });
@@ -384,10 +367,9 @@ describe("useAgreements — il ritorno sulla tab", () => {
   });
 
   it("tiene le righe a schermo: l'attesa è un aggiornamento, non un caricamento", async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
-    expect(reading.accordi).toHaveLength(3);
+    expect(result.current.accordi).toHaveLength(3);
 
     // Fuori dalla finestra: il ritorno chiede davvero, e la risposta tarda.
     orologio += FINESTRA_FRESCHEZZA_MS + 1;
@@ -398,20 +380,19 @@ describe("useAgreements — il ritorno sulla tab", () => {
 
     expect(listAgreements).toHaveBeenCalledTimes(2);
     // Le righe di prima sono ancora lì, e lo spinner del primo caricamento no.
-    expect(reading.accordi).toHaveLength(3);
-    expect(reading.caricamento).toBe(false);
-    expect(reading.aggiornamento).toBe(true);
+    expect(result.current.accordi).toHaveLength(3);
+    expect(result.current.caricamento).toBe(false);
+    expect(result.current.aggiornamento).toBe(true);
 
     await act(async () => {
       pending.resolve([IN_CORSO]);
     });
-    expect(reading.aggiornamento).toBe(false);
-    expect(reading.accordi).toEqual([IN_CORSO]);
+    expect(result.current.aggiornamento).toBe(false);
+    expect(result.current.accordi).toEqual([IN_CORSO]);
   });
 
   it('dentro la finestra, con lo stream che ha già parlato, non richiede niente', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
 
     // Un frame gestito è la prova che lo stream tiene aggiornata la lista.
@@ -425,12 +406,11 @@ describe("useAgreements — il ritorno sulla tab", () => {
     await rifocalizza();
 
     expect(listAgreements).toHaveBeenCalledTimes(2);
-    expect(reading.aggiornamento).toBe(false);
+    expect(result.current.aggiornamento).toBe(false);
   });
 
   it('senza nessun frame dello stream la finestra non basta: la lettura si ripete', async () => {
-    const reading = {};
-    mount(reading);
+    await mount();
     await settle();
     expect(listAgreements).toHaveBeenCalledTimes(1);
 
@@ -442,8 +422,7 @@ describe("useAgreements — il ritorno sulla tab", () => {
   });
 
   it('«Riprova» e il gesto di aggiornamento ignorano la finestra', async () => {
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
     await act(async () => {
       mockStreamHandler(notifica('AGREEMENT_RESPONSE', { agreementId: 11 }));
@@ -453,12 +432,12 @@ describe("useAgreements — il ritorno sulla tab", () => {
 
     orologio += 1000;
     await act(async () => {
-      reading.riprova();
+      result.current.riprova();
     });
     expect(listAgreements).toHaveBeenCalledTimes(3);
 
     await act(async () => {
-      await reading.onRefresh();
+      await result.current.onRefresh();
     });
     expect(listAgreements).toHaveBeenCalledTimes(4);
   });
@@ -466,14 +445,13 @@ describe("useAgreements — il ritorno sulla tab", () => {
   it('una risposta vecchia non sovrascrive quella arrivata dopo il ritorno sulla tab', async () => {
     const lenta = deferred();
     const veloce = deferred();
-    const reading = {};
-    mount(reading);
+    const result = await mount();
     await settle();
     expect(listAgreements).toHaveBeenCalledTimes(1);
 
     listAgreements.mockReturnValueOnce(lenta.promise).mockReturnValueOnce(veloce.promise);
-    act(() => {
-      void reading.riprova();
+    await act(async () => {
+      void result.current.riprova();
     });
     orologio += 1000;
     await rifocalizza();
@@ -482,12 +460,12 @@ describe("useAgreements — il ritorno sulla tab", () => {
     await act(async () => {
       veloce.resolve([IN_CORSO]);
     });
-    expect(reading.accordi).toEqual([IN_CORSO]);
+    expect(result.current.accordi).toEqual([IN_CORSO]);
 
     // La richiesta superata arriva adesso: non scrive.
     await act(async () => {
       lenta.resolve([INVIATO]);
     });
-    expect(reading.accordi).toEqual([IN_CORSO]);
+    expect(result.current.accordi).toEqual([IN_CORSO]);
   });
 });

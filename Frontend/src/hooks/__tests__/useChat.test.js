@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, renderHook } from '@testing-library/react-native';
 import {
   getAgreementChat,
   getMostRecentMessageId,
@@ -47,17 +47,12 @@ const messaggio = (id, chatId = CHAT_ID) => ({
   inviatoIl: '2026-11-16T10:00:00+00:00',
 });
 
-/** Renders the hook and keeps its latest return value where the test reads it. */
-function monta(lettura) {
-  function Probe({ token, agreementId }) {
-    Object.assign(lettura, useChat({ token, agreementId }));
-    return null;
-  }
-  let renderer;
-  act(() => {
-    renderer = create(<Probe token={TOKEN} agreementId={AGREEMENT_ID} />);
-  });
-  return renderer;
+/**
+ * Mounts the hook with the token and the agreement of the test; `result.current`
+ * is its latest return value.
+ */
+function montaChat() {
+  return renderHook(() => useChat({ token: TOKEN, agreementId: AGREEMENT_ID }));
 }
 
 /** Lets every promise of one poll settle: the mocked calls resolve immediately. */
@@ -104,8 +99,7 @@ afterEach(() => {
 
 describe('useChat — the polling cursor', () => {
   it('asks beyond the newest message it already shows', async () => {
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
@@ -120,8 +114,7 @@ describe('useChat — the polling cursor', () => {
   });
 
   it('re-reads the history when the counterpart wrote in this chat', async () => {
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
@@ -133,8 +126,7 @@ describe('useChat — the polling cursor', () => {
   });
 
   it('ignores a new message that belongs to another chat', async () => {
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
@@ -148,8 +140,7 @@ describe('useChat — the polling cursor', () => {
   it('seeds an empty chat once, then polls from that id', async () => {
     getAgreementChat.mockResolvedValue({ chatId: CHAT_ID, messaggi: [] });
     getMostRecentMessageId.mockResolvedValue(30);
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -164,16 +155,13 @@ describe('useChat — the polling cursor', () => {
   });
 
   it('stops the timer when the screen is left', async () => {
-    const lettura = {};
-    const renderer = monta(lettura);
+    const { unmount } = await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
     expect(getNewChatMessages).toHaveBeenCalledTimes(0);
 
-    act(() => {
-      renderer.unmount();
-    });
+    await unmount();
     jest.advanceTimersByTime(CHAT_POLL_MS * 4);
 
     expect(getNewChatMessages).toHaveBeenCalledTimes(0);
@@ -185,14 +173,13 @@ describe('useChat — an agreement that no longer exists', () => {
     getAgreementChat.mockRejectedValue(
       new ApiError(404, 'Non trovo più questo accordo: potrebbe essere stato cancellato.'),
     );
-    const lettura = {};
-    monta(lettura);
+    const { result } = await montaChat();
     await unCarica();
 
     // Terminale: nessuna frase d'errore da riprovare, uno stato da cui uscire.
-    expect(lettura.nonTrovata).toBe(true);
-    expect(lettura.errore).toBeNull();
-    expect(lettura.caricamento).toBe(false);
+    expect(result.current.nonTrovata).toBe(true);
+    expect(result.current.errore).toBeNull();
+    expect(result.current.caricamento).toBe(false);
 
     // Nessun ritentativo da solo: senza `chatId` il poll non parte, e la
     // lettura resta una sola.
@@ -200,54 +187,51 @@ describe('useChat — an agreement that no longer exists', () => {
 
     expect(getAgreementChat).toHaveBeenCalledTimes(1);
     expect(getNewChatMessages).not.toHaveBeenCalled();
-    expect(lettura.errore).toBeNull();
+    expect(result.current.errore).toBeNull();
   });
 
   it('turns `nonTrovata` back off when a read succeeds', async () => {
     getAgreementChat.mockRejectedValueOnce(new ApiError(404, 'Non trovo più questo accordo.'));
-    const lettura = {};
-    monta(lettura);
+    const { result } = await montaChat();
     await unCarica();
-    expect(lettura.nonTrovata).toBe(true);
+    expect(result.current.nonTrovata).toBe(true);
 
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
 
-    expect(lettura.nonTrovata).toBe(false);
-    expect(lettura.errore).toBeNull();
-    expect(lettura.chatId).toBe(CHAT_ID);
+    expect(result.current.nonTrovata).toBe(false);
+    expect(result.current.errore).toBeNull();
+    expect(result.current.chatId).toBe(CHAT_ID);
   });
 
   it('keeps `errore` and the retry path when the read fails with a 500', async () => {
     const guasto = new ApiError(500, 'Il server non ha restituito la chat: riprova.');
     getAgreementChat.mockRejectedValueOnce(guasto);
-    const lettura = {};
-    monta(lettura);
+    const { result } = await montaChat();
     await unCarica();
 
-    expect(lettura.nonTrovata).toBe(false);
-    expect(lettura.errore).toBe(guasto.message);
+    expect(result.current.nonTrovata).toBe(false);
+    expect(result.current.errore).toBe(guasto.message);
 
     // Il `Riprova` dello schermo passa da `ricarica`: la strada resta aperta.
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
 
     expect(getAgreementChat).toHaveBeenCalledTimes(2);
-    expect(lettura.errore).toBeNull();
-    expect(lettura.nonTrovata).toBe(false);
-    expect(lettura.chatId).toBe(CHAT_ID);
+    expect(result.current.errore).toBeNull();
+    expect(result.current.nonTrovata).toBe(false);
+    expect(result.current.chatId).toBe(CHAT_ID);
   });
 
   it('leaves a network failure on `errore`, not on `nonTrovata`', async () => {
     getAgreementChat.mockRejectedValueOnce(new ApiError(0, 'Non riesco a raggiungere il servizio.'));
-    const lettura = {};
-    monta(lettura);
+    const { result } = await montaChat();
     await unCarica();
 
-    expect(lettura.nonTrovata).toBe(false);
-    expect(lettura.errore).toBe('Non riesco a raggiungere il servizio.');
+    expect(result.current.nonTrovata).toBe(false);
+    expect(result.current.errore).toBe('Non riesco a raggiungere il servizio.');
   });
 });
 
@@ -259,15 +243,14 @@ describe('useChat — the send guard', () => {
         concludi = resolve;
       }),
     );
-    const lettura = {};
-    monta(lettura);
+    const { result } = await montaChat();
     await unCarica();
 
     let primo;
     let secondo;
-    act(() => {
-      primo = lettura.invia('ci vediamo domani');
-      secondo = lettura.invia('ci vediamo domani');
+    await act(async () => {
+      primo = result.current.invia('ci vediamo domani');
+      secondo = result.current.invia('ci vediamo domani');
     });
 
     // Il ref, non lo stato: nel frame nessuno dei due ha ancora ri-renderizzato.
@@ -283,24 +266,23 @@ describe('useChat — the send guard', () => {
 
     await expect(primo).resolves.toBe(true);
     await expect(secondo).resolves.toBe(false);
-    expect(lettura.inviando).toBe(false);
+    expect(result.current.inviando).toBe(false);
   });
 
   it('sends again once the first send has resolved', async () => {
     sendChatMessage.mockResolvedValue(true);
-    const lettura = {};
-    monta(lettura);
+    const { result } = await montaChat();
     await unCarica();
 
     let primo;
     await act(async () => {
-      primo = await lettura.invia('uno');
+      primo = await result.current.invia('uno');
     });
     expect(primo).toBe(true);
 
     let secondo;
     await act(async () => {
-      secondo = await lettura.invia('due');
+      secondo = await result.current.invia('due');
     });
 
     // Il ref si è riabbassato nel `finally`: il messaggio dopo non è bloccato.
@@ -321,8 +303,7 @@ describe('useChat — the stream', () => {
   });
 
   it('asks for the new messages as soon as a frame of this chat arrives', async () => {
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
@@ -338,8 +319,7 @@ describe('useChat — the stream', () => {
   });
 
   it('ignores a frame of another chat', async () => {
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
@@ -351,8 +331,7 @@ describe('useChat — the stream', () => {
   });
 
   it('ignores a frame of another type', async () => {
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });
@@ -370,8 +349,7 @@ describe('useChat — the stream', () => {
         risolvi = resolve;
       }),
     );
-    const lettura = {};
-    monta(lettura);
+    await montaChat();
     await act(async () => {
       await Promise.resolve();
     });

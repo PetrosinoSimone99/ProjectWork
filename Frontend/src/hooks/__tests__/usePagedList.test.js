@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, renderHook } from '@testing-library/react-native';
 import { ApiError } from '@/api/client';
 import { FINESTRA_FRESCHEZZA_MS, usePagedList } from '../usePagedList';
 
@@ -7,8 +7,9 @@ import { FINESTRA_FRESCHEZZA_MS, usePagedList } from '../usePagedList';
  * ripetere righe, una risposta superata non scrive niente, `haAltre` chiude la
  * lista all'ultima pagina.
  *
- * Il probe rende l'hook e tiene il suo ultimo valore dove il test lo legge: il
- * contratto è quello che torna, non lo stato interno.
+ * Il test monta l'hook con `renderHook` e legge `result.current`: il contratto
+ * è quello che torna, non lo stato interno. Da RTL 14 il montaggio è
+ * asincrono, quindi si aspetta.
  */
 
 /** Una risposta del backend già normalizzata: `{righe, paginazione}`. */
@@ -17,26 +18,14 @@ const pagina = (righe, { page = 1, totalPages = 1 } = {}) => ({
   paginazione: { pagina: page, limite: 2, elementiTotali: totalPages * 2, pagineTotali: totalPages },
 });
 
-/** Il probe: rende l'hook e scrive il suo ultimo valore in `lettura`. */
-function Probe({ carica, lettura }) {
-  Object.assign(lettura, usePagedList({ carica, dimensione: 2 }));
-  return null;
-}
-
 /**
- * Monta il probe e torna anche il modo di cambiarne la `carica`, che è quello
+ * Monta l'hook e torna anche il modo di cambiarne la `carica`, che è quello
  * che cambia davvero quando la schermata cambia ricerca o filtro.
  */
-function render(lettura, carica) {
-  let renderer;
-  act(() => {
-    renderer = create(<Probe carica={carica} lettura={lettura} />);
+function renderPagedList(carica) {
+  return renderHook(({ carica: corrente }) => usePagedList({ carica: corrente, dimensione: 2 }), {
+    initialProps: { carica },
   });
-  const aggiorna = (nuovaCarica) =>
-    act(() => {
-      renderer.update(<Probe carica={nuovaCarica} lettura={lettura} />);
-    });
-  return { renderer, aggiorna };
 }
 
 /** Lascia atterrare le promesse già partite. */
@@ -57,21 +46,20 @@ it('la pagina nuova sostituisce e la successiva si appende', async () => {
     .fn()
     .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 3 }))
     .mockResolvedValueOnce(pagina([{ id: 3 }, { id: 4 }], { page: 2, totalPages: 3 }));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
-  expect(lettura.voci).toEqual([{ id: 1 }, { id: 2 }]);
-  expect(lettura.haAltre).toBe(true);
+  expect(result.current.voci).toEqual([{ id: 1 }, { id: 2 }]);
+  expect(result.current.haAltre).toBe(true);
 
   await act(async () => {
-    await lettura.caricaAltri();
+    await result.current.caricaAltri();
   });
   // La seconda pagina si aggiunge, la prima resta.
-  expect(lettura.voci).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]);
-  expect(lettura.paginazione.pagina).toBe(2);
+  expect(result.current.voci).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]);
+  expect(result.current.paginazione.pagina).toBe(2);
   expect(carica).toHaveBeenLastCalledWith({ page: 2, limit: 2 });
 });
 
@@ -80,31 +68,29 @@ it('una riga già letta non si ripete quando la finestra si sposta', async () =>
     .fn()
     .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 2 }))
     .mockResolvedValueOnce(pagina([{ id: 2 }, { id: 3 }], { page: 2, totalPages: 2 }));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
   await act(async () => {
-    await lettura.caricaAltri();
+    await result.current.caricaAltri();
   });
 
-  expect(lettura.voci.map((riga) => riga.id)).toEqual([1, 2, 3]);
+  expect(result.current.voci.map((riga) => riga.id)).toEqual([1, 2, 3]);
 });
 
 it("all'ultima pagina haAltre è falso e caricaAltri non chiede niente", async () => {
   const carica = jest.fn().mockResolvedValueOnce(pagina([{ id: 1 }], { page: 2, totalPages: 2 }));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
-  expect(lettura.haAltre).toBe(false);
+  expect(result.current.haAltre).toBe(false);
 
   await act(async () => {
-    await lettura.caricaAltri();
+    await result.current.caricaAltri();
   });
   expect(carica).toHaveBeenCalledTimes(1);
 });
@@ -125,65 +111,62 @@ it('una risposta superata da una ricarica non si appende alla lista nuova', asyn
     )
     // la ricarica che la supera
     .mockResolvedValueOnce(pagina([{ id: 9 }], { page: 1, totalPages: 2 }));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
   // Nessun `await`: la richiesta parte e resta aperta.
-  act(() => {
-    void lettura.caricaAltri();
+  await act(async () => {
+    void result.current.caricaAltri();
   });
   await flush();
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
-  expect(lettura.voci).toEqual([{ id: 9 }]);
+  expect(result.current.voci).toEqual([{ id: 9 }]);
 
   // La pagina vecchia arriva adesso: è superata, non deve toccare niente.
   await act(async () => {
     risolviAppendente();
     await Promise.resolve();
   });
-  expect(lettura.voci).toEqual([{ id: 9 }]);
-  expect(lettura.paginazione.pagina).toBe(1);
+  expect(result.current.voci).toEqual([{ id: 9 }]);
+  expect(result.current.paginazione.pagina).toBe(1);
 });
 
 it('un errore di rete diventa il messaggio italiano di ApiError', async () => {
   const carica = jest
     .fn()
     .mockRejectedValueOnce(new ApiError(403, 'Questa azione non è permessa con il tuo ruolo.'));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
 
-  expect(lettura.errore).toBe('Questa azione non è permessa con il tuo ruolo.');
-  expect(lettura.erroreNonDisponibile).toBe(false);
-  expect(lettura.caricamento).toBe(false);
+  expect(result.current.errore).toBe('Questa azione non è permessa con il tuo ruolo.');
+  expect(result.current.erroreNonDisponibile).toBe(false);
+  expect(result.current.caricamento).toBe(false);
 });
 
 it('un endpoint assente è dichiarato non disponibile, non un guasto', async () => {
   const carica = jest.fn().mockRejectedValueOnce(new ApiError(404, 'Not found.'));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
 
   // La schermata mostra «non disponibile» e non un «Riprova» che non può riuscire.
-  expect(lettura.erroreNonDisponibile).toBe(true);
+  expect(result.current.erroreNonDisponibile).toBe(true);
   // Il tentativo dopo azzera il giudizio prima di chiedere: un «non disponibile»
   // vecchio non deve restare a schermo mentre la richiesta è in volo.
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
-  expect(lettura.erroreNonDisponibile).toBe(false);
-  expect(lettura.errore).toBe(null);
+  expect(result.current.erroreNonDisponibile).toBe(false);
+  expect(result.current.errore).toBe(null);
 });
 
 it('una ricarica fallita non lascia «Carica altri» a chiedere la pagina dopo', async () => {
@@ -191,22 +174,21 @@ it('una ricarica fallita non lascia «Carica altri» a chiedere la pagina dopo',
     .fn()
     .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 3 }))
     .mockRejectedValueOnce(new ApiError(500, 'Il servizio non risponde.'));
-  const lettura = {};
-  render(lettura, carica);
+  const { result } = await renderPagedList(carica);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
-  expect(lettura.haAltre).toBe(true);
+  expect(result.current.haAltre).toBe(true);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
   // Le righe a schermo sono ancora quelle di prima, ma la finestra descritta in
   // memoria non è più quella richiesta: appendere salterebbe le pagine 1 e 2.
-  expect(lettura.haAltre).toBe(false);
+  expect(result.current.haAltre).toBe(false);
   await act(async () => {
-    await lettura.caricaAltri();
+    await result.current.caricaAltri();
   });
   expect(carica).toHaveBeenCalledTimes(2);
 });
@@ -216,19 +198,18 @@ it('cambiata la richiesta, il bottone non appende la pagina della finestra vecch
     .fn()
     .mockResolvedValueOnce(pagina([{ id: 1 }], { page: 1, totalPages: 2 }));
   const secondaRichiesta = jest.fn().mockResolvedValue(pagina([{ id: 7 }], { page: 1, totalPages: 2 }));
-  const lettura = {};
-  const { aggiorna } = render(lettura, primaRichiesta);
+  const { result, rerender } = await renderPagedList(primaRichiesta);
 
   await act(async () => {
-    await lettura.ricarica();
+    await result.current.ricarica();
   });
-  expect(lettura.haAltre).toBe(true);
+  expect(result.current.haAltre).toBe(true);
 
   // La ricerca è cambiata ma la pagina 1 del nuovo insieme non è ancora partita
   // (i 350 ms di debounce): il tocco non deve mescolare i due insiemi.
-  aggiorna(secondaRichiesta);
+  await rerender({ carica: secondaRichiesta });
   await act(async () => {
-    await lettura.caricaAltri();
+    await result.current.caricaAltri();
   });
 
   expect(secondaRichiesta).not.toHaveBeenCalled();
@@ -243,17 +224,14 @@ it('una risposta che arriva dopo lo smontaggio non scrive niente', async () => {
         risolvi = resolve;
       }),
   );
-  const lettura = {};
-  const { renderer } = render(lettura, carica);
+  const { result, unmount } = await renderPagedList(carica);
   const avvisi = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-  act(() => {
-    void lettura.ricarica();
+  await act(async () => {
+    void result.current.ricarica();
   });
   await flush();
-  act(() => {
-    renderer.unmount();
-  });
+  await unmount();
   await act(async () => {
     risolvi(pagina([{ id: 1 }]));
     await Promise.resolve();
@@ -280,19 +258,18 @@ describe('usePagedList — il ritorno sulla schermata', () => {
     const carica = jest
       .fn()
       .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }));
-    const lettura = {};
-    render(lettura, carica);
+    const { result } = await renderPagedList(carica);
 
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
     orologio += 1000;
     await act(async () => {
-      await lettura.aggiornaAlFocus();
+      await result.current.aggiornaAlFocus();
     });
 
     expect(carica).toHaveBeenCalledTimes(1);
-    expect(lettura.voci).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(result.current.voci).toEqual([{ id: 1 }, { id: 2 }]);
   });
 
   it('passata la finestra rilegge e non svuota le righe a schermo', async () => {
@@ -306,44 +283,42 @@ describe('usePagedList — il ritorno sulla schermata', () => {
             risolvi = resolve;
           }),
       );
-    const lettura = {};
-    render(lettura, carica);
+    const { result } = await renderPagedList(carica);
 
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
     orologio += FINESTRA_FRESCHEZZA_MS + 1;
-    act(() => {
-      void lettura.aggiornaAlFocus();
+    await act(async () => {
+      void result.current.aggiornaAlFocus();
     });
     await flush();
 
     // Le righe restano, e la rilettura si dichiara in `aggiornamento`.
-    expect(lettura.voci).toEqual([{ id: 1 }, { id: 2 }]);
-    expect(lettura.caricamento).toBe(false);
-    expect(lettura.aggiornamento).toBe(true);
+    expect(result.current.voci).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(result.current.caricamento).toBe(false);
+    expect(result.current.aggiornamento).toBe(true);
 
     await act(async () => {
       risolvi(pagina([{ id: 9 }], { page: 1, totalPages: 1 }));
       await Promise.resolve();
     });
-    expect(lettura.aggiornamento).toBe(false);
-    expect(lettura.voci).toEqual([{ id: 9 }]);
+    expect(result.current.aggiornamento).toBe(false);
+    expect(result.current.voci).toEqual([{ id: 9 }]);
   });
 
   it('la ricarica manuale ignora la finestra: «Riprova» chiede sempre', async () => {
     const carica = jest
       .fn()
       .mockResolvedValue(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }));
-    const lettura = {};
-    render(lettura, carica);
+    const { result } = await renderPagedList(carica);
 
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
     orologio += 1000;
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
 
     expect(carica).toHaveBeenCalledTimes(2);
@@ -354,25 +329,24 @@ describe('usePagedList — il ritorno sulla schermata', () => {
       .fn()
       .mockResolvedValueOnce(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 2 }))
       .mockResolvedValueOnce(pagina([{ id: 3 }, { id: 4 }], { page: 2, totalPages: 2 }));
-    const lettura = {};
-    render(lettura, carica);
+    const { result } = await renderPagedList(carica);
 
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
     await act(async () => {
-      await lettura.caricaAltri();
+      await result.current.caricaAltri();
     });
     orologio += FINESTRA_FRESCHEZZA_MS + 1;
     await act(async () => {
-      await lettura.aggiornaAlFocus();
+      await result.current.aggiornaAlFocus();
     });
 
     // La finestra caricata con «Carica altri» è quello che l'utente ha chiesto:
     // un ritorno sulla schermata non la butta via.
     expect(carica).toHaveBeenCalledTimes(2);
-    expect(lettura.paginazione.pagina).toBe(2);
-    expect(lettura.voci.map((riga) => riga.id)).toEqual([1, 2, 3, 4]);
+    expect(result.current.paginazione.pagina).toBe(2);
+    expect(result.current.voci.map((riga) => riga.id)).toEqual([1, 2, 3, 4]);
   });
 
   it('una risposta superata non scrive niente dopo il ritorno sulla schermata', async () => {
@@ -387,26 +361,25 @@ describe('usePagedList — il ritorno sulla schermata', () => {
           }),
       )
       .mockResolvedValueOnce(pagina([{ id: 9 }], { page: 1, totalPages: 1 }));
-    const lettura = {};
-    render(lettura, carica);
+    const { result } = await renderPagedList(carica);
 
     await act(async () => {
-      await lettura.ricarica();
+      await result.current.ricarica();
     });
     orologio += FINESTRA_FRESCHEZZA_MS + 1;
-    act(() => {
-      void lettura.ricarica();
+    await act(async () => {
+      void result.current.ricarica();
     });
     await flush();
     await act(async () => {
-      await lettura.aggiornaAlFocus();
+      await result.current.aggiornaAlFocus();
     });
-    expect(lettura.voci).toEqual([{ id: 9 }]);
+    expect(result.current.voci).toEqual([{ id: 9 }]);
 
     await act(async () => {
       risolviLenta(pagina([{ id: 1 }, { id: 2 }], { page: 1, totalPages: 1 }));
       await Promise.resolve();
     });
-    expect(lettura.voci).toEqual([{ id: 9 }]);
+    expect(result.current.voci).toEqual([{ id: 9 }]);
   });
 });

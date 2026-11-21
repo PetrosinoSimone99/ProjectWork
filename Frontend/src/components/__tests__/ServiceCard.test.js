@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { StyleSheet } from 'react-native';
+import { render, screen } from '@testing-library/react-native';
 
 import { AppIcon } from '../AppIcon';
 import { ServiceCard } from '../ServiceCard';
@@ -37,12 +37,9 @@ const SERVIZIO = {
   pubblicatoIl: '2026-11-02T09:00:00+00:00',
 };
 
-function render(servizio = SERVIZIO) {
-  let renderer;
-  act(() => {
-    renderer = create(<ServiceCard servizio={servizio} onPress={jest.fn()} />);
-  });
-  return renderer;
+/** Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`. */
+async function renderCard(servizio = SERVIZIO) {
+  await render(<ServiceCard servizio={servizio} onPress={jest.fn()} />);
 }
 
 /** Lo stile risolto di un nodo: le stesse regole che finiscono sul DOM. */
@@ -51,17 +48,17 @@ function stile(nodo) {
 }
 
 /** La pillola: l'unica scatola arrotondata a pillola della card. */
-function pillola(renderer) {
-  const nodo = renderer.root
-    .findAll((candidato) => candidato.type === View)
+function pillola() {
+  const nodo = screen.container
+    .queryAll((candidato) => candidato.type === 'View')
     .find((vista) => stile(vista).borderRadius === radius.pill);
   expect(nodo).toBeDefined();
   return nodo;
 }
 
 /** Il testo dentro la pillola, cioè l'etichetta della categoria. */
-function etichettaDellaPillola(renderer) {
-  const nodo = pillola(renderer).findAll((candidato) => candidato.type === Text).at(0);
+function etichettaDellaPillola() {
+  const nodo = pillola().queryAll((candidato) => candidato.type === 'Text').at(0);
   expect(nodo).toBeDefined();
   return nodo;
 }
@@ -71,9 +68,9 @@ function etichettaDellaPillola(renderer) {
  * l'allineamento, senza padding né sfondo. Sono tre per costruzione (categoria
  * e modalità, luogo e data, autore) e la stessa forma in ogni card.
  */
-function righeDati(renderer) {
-  return renderer.root.findAll((candidato) => {
-    if (candidato.type !== View) {
+function righeDati() {
+  return screen.container.queryAll((candidato) => {
+    if (candidato.type !== 'View') {
       return false;
     }
     const regole = stile(candidato);
@@ -86,16 +83,46 @@ function righeDati(renderer) {
 }
 
 /** Ogni stringa disegnata, in ordine di render. */
-function testi(renderer) {
-  return renderer.root
-    .findAllByType(Text)
+function testi() {
+  return screen.container
+    .queryAll((candidato) => candidato.type === 'Text')
     .map((nodo) => nodo.props.children)
     .filter((figlio) => typeof figlio === 'string');
 }
 
+/**
+ * I nomi delle icone che la card ha disegnato, in ordine di render.
+ *
+ * RTL 14 disegna solo elementi host, e `AppIcon` qui è sostituito da un
+ * componente che non rende nulla: nessuna query lo raggiunge. `unstable_fiber`
+ * è l'API interna (instabile, e per questo confinata qui) con cui si scende dai
+ * nodi disegnati ai componenti compositi che li hanno prodotti.
+ */
+function nomiDelleIcone() {
+  const nomi = [];
+  const raccogli = (fibra) => {
+    for (let corrente = fibra; corrente !== null; corrente = corrente.sibling) {
+      if (corrente.type === AppIcon) {
+        nomi.push(corrente.memoizedProps?.name);
+      }
+      if (corrente.child !== null) {
+        raccogli(corrente.child);
+      }
+    }
+  };
+
+  let cima = screen.container.queryAll(() => true)[0].unstable_fiber;
+  while (cima?.return) {
+    cima = cima.return;
+  }
+  raccogli(cima?.child ?? cima);
+  return nomi;
+}
+
 describe('ServiceCard — la pillola dentro la mezza riga', () => {
-  it('si accorcia nella colonna invece di allargarla', () => {
-    const regole = stile(pillola(render()));
+  it('si accorcia nella colonna invece di allargarla', async () => {
+    await renderCard();
+    const regole = stile(pillola());
 
     // `flexShrink: 0` è il default di RN: senza questo la pillola torna larga
     // quanto il proprio testo e ricomincia a dipingersi sopra l'icona.
@@ -103,9 +130,9 @@ describe('ServiceCard — la pillola dentro la mezza riga', () => {
     expect(regole.minWidth).toBe(0);
   });
 
-  it('lascia al testo l’ellissi, senza perdere l’etichetta intera', () => {
-    const renderer = render();
-    const etichetta = etichettaDellaPillola(renderer);
+  it('lascia al testo l’ellissi, senza perdere l’etichetta intera', async () => {
+    await renderCard();
+    const etichetta = etichettaDellaPillola();
     const regole = stile(etichetta);
 
     expect(etichetta.props.children).toBe('Assistenza computer');
@@ -116,8 +143,8 @@ describe('ServiceCard — la pillola dentro la mezza riga', () => {
     expect(regole.flexShrink).toBe(1);
   });
 
-  it('tiene tutte le categorie nel nome accessibile anche quando la pillola ne mostra una riga', () => {
-    const renderer = render({
+  it('tiene tutte le categorie nel nome accessibile anche quando la pillola ne mostra una riga', async () => {
+    await renderCard({
       ...SERVIZIO,
       categorie: [
         { id: 4, nome: 'Assistenza computer' },
@@ -125,33 +152,31 @@ describe('ServiceCard — la pillola dentro la mezza riga', () => {
       ],
     });
 
-    expect(etichettaDellaPillola(renderer).props.children).toBe(
+    expect(etichettaDellaPillola().props.children).toBe(
       'Assistenza computer · Cura delle piante',
     );
-    const etichettaCard = renderer.root.findAll(
-      (candidato) => typeof candidato.props.accessibilityLabel === 'string',
-    ).at(0);
+    const etichettaCard = screen.container
+      .queryAll((candidato) => typeof candidato.props.accessibilityLabel === 'string')
+      .at(0);
     expect(etichettaCard.props.accessibilityLabel).toContain(
       'Assistenza computer · Cura delle piante',
     );
   });
 
-  it('tiene tre righe di dati, e la modalità resta una parola accanto all’icona', () => {
-    const renderer = render();
+  it('tiene tre righe di dati, e la modalità resta una parola accanto all’icona', async () => {
+    await renderCard();
 
-    expect(righeDati(renderer)).toHaveLength(3);
-    expect(testi(renderer)).toContain('in presenza');
+    expect(righeDati()).toHaveLength(3);
+    expect(testi()).toContain('in presenza');
   });
 });
 
 describe('ServiceCard — l’icona che la pillola copriva', () => {
-  it('distingue la modalità con l’icona e con la parola', () => {
-    const inPresenza = render().root
-      .findAllByType(AppIcon)
-      .map((icona) => icona.props.name);
-    const daRemoto = render({ ...SERVIZIO, daRemoto: true }).root
-      .findAllByType(AppIcon)
-      .map((icona) => icona.props.name);
+  it('distingue la modalità con l’icona e con la parola', async () => {
+    await renderCard();
+    const inPresenza = nomiDelleIcone();
+    await renderCard({ ...SERVIZIO, daRemoto: true });
+    const daRemoto = nomiDelleIcone();
 
     expect(inPresenza).toContain('people-outline');
     expect(daRemoto).toContain('videocam-outline');

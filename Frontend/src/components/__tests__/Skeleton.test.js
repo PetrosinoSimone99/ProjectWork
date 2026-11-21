@@ -1,39 +1,36 @@
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { render, screen } from '@testing-library/react-native';
 
 import { Skeleton, SkeletonLista } from '../Skeleton';
 
-/** Renders a tree with every update inside act. */
-function render(elemento) {
-  let renderer;
-  act(() => {
-    renderer = create(elemento);
-  });
-  return renderer;
-}
+/**
+ * Da RTL 14 `render` è asincrono e il container vede i soli nodi host: il tipo di
+ * una `View` è la stringa `'View'`, non il componente importato. Gli helper qui
+ * sotto leggono quindi `screen`, che l'ultimo `render` ha appena riempito.
+ */
 
 /** Every drawn `View`, with its style flattened: the only nodes that exist. */
-function viste(renderer) {
-  return renderer.root.findAll((node) => node.type === View).map((node) => ({
-    props: node.props,
-    stile: StyleSheet.flatten(node.props.style ?? {}),
+function viste() {
+  return screen.container.queryAll((nodo) => nodo.type === 'View').map((nodo) => ({
+    props: nodo.props,
+    stile: StyleSheet.flatten(nodo.props.style ?? {}),
   }));
 }
 
 /** The grey blocks: a childless `View` with its own height and corner radius. */
-function blocchi(renderer) {
-  return viste(renderer).filter(
+function blocchi() {
+  return viste().filter(
     (vista) => vista.stile.height !== undefined && vista.stile.borderRadius !== undefined,
   );
 }
 
 /** The list rows: the bordered containers, one per placeholder row. */
-function righe(renderer) {
-  return viste(renderer).filter((vista) => vista.stile.borderWidth === 1);
+function righe() {
+  return viste().filter((vista) => vista.stile.borderWidth === 1);
 }
 
 /** Every string drawn anywhere in the tree, in render order. */
-function testi(renderer) {
+function testi() {
   const trovate = [];
   const visita = (nodo) => {
     if (typeof nodo === 'string') {
@@ -48,27 +45,32 @@ function testi(renderer) {
       nodo.children.forEach(visita);
     }
   };
-  visita(renderer.toJSON());
+  visita(screen.toJSON());
   return trovate;
 }
 
 /** The decorative roots: the nodes declaring themselves hidden to assistive tech. */
-function decorativi(renderer) {
-  return renderer.root.findAll((node) => node.props?.['aria-hidden'] === true);
+function decorativi() {
+  return screen.container.queryAll((nodo) => nodo.props?.['aria-hidden'] === true);
 }
 
 describe('Skeleton — un blocco per riga', () => {
-  it('disegna un blocco solo quando non si chiede altro', () => {
-    expect(blocchi(render(<Skeleton />))).toHaveLength(1);
+  it('disegna un blocco solo quando non si chiede altro', async () => {
+    await render(<Skeleton />);
+
+    expect(blocchi()).toHaveLength(1);
   });
 
-  it('disegna un blocco per ogni riga richiesta', () => {
-    expect(blocchi(render(<Skeleton righe={4} />))).toHaveLength(4);
+  it('disegna un blocco per ogni riga richiesta', async () => {
+    await render(<Skeleton righe={4} />);
+
+    expect(blocchi()).toHaveLength(4);
   });
 
-  it('porta la larghezza, l’altezza e il raggio richiesti su ogni blocco', () => {
-    const disegnati = blocchi(render(<Skeleton righe={2} larghezza={120} altezza={20} raggio={4} />));
+  it('porta la larghezza, l’altezza e il raggio richiesti su ogni blocco', async () => {
+    await render(<Skeleton righe={2} larghezza={120} altezza={20} raggio={4} />);
 
+    const disegnati = blocchi();
     expect(disegnati).toHaveLength(2);
     disegnati.forEach((blocco) => {
       expect(blocco.stile.width).toBe(120);
@@ -77,17 +79,20 @@ describe('Skeleton — un blocco per riga', () => {
     });
   });
 
-  it('stringe altezza e distanza nella variante compatta', () => {
-    const normale = blocchi(render(<Skeleton />))[0];
-    const compatta = blocchi(render(<Skeleton compatta />))[0];
+  it('stringe altezza e distanza nella variante compatta', async () => {
+    await render(<Skeleton />);
+    const normale = blocchi()[0];
+    await render(<Skeleton compatta />);
+    const compatta = blocchi()[0];
 
     expect(compatta.stile.height).toBeLessThan(normale.stile.height);
   });
 });
 
 describe('Skeleton — decorativo e muto', () => {
-  it('si nasconde all’albero accessibile sia da nativo sia sul web', () => {
-    const [radice] = decorativi(render(<Skeleton righe={2} />));
+  it('si nasconde all’albero accessibile sia da nativo sia sul web', async () => {
+    await render(<Skeleton righe={2} />);
+    const [radice] = decorativi();
 
     expect(radice).toBeDefined();
     expect(radice.props.accessible).toBe(false);
@@ -96,17 +101,20 @@ describe('Skeleton — decorativo e muto', () => {
     expect(radice.props['aria-hidden']).toBe(true);
   });
 
-  it('non disegna nessun testo, quindi non ha niente da annunciare', () => {
-    expect(testi(render(<Skeleton righe={3} />))).toEqual([]);
-    expect(testi(render(<SkeletonLista righe={2} />))).toEqual([]);
+  it('non disegna nessun testo, quindi non ha niente da annunciare', async () => {
+    await render(<Skeleton righe={3} />);
+    expect(testi()).toEqual([]);
+
+    await render(<SkeletonLista righe={2} />);
+    expect(testi()).toEqual([]);
   });
 });
 
 describe('Skeleton — nessuna animazione', () => {
-  it('non porta opacità né valori animati: i blocchi sono fermi', () => {
-    const disegnati = viste(render(<SkeletonLista righe={3} />));
+  it('non porta opacità né valori animati: i blocchi sono fermi', async () => {
+    await render(<SkeletonLista righe={3} />);
 
-    disegnati.forEach((vista) => {
+    viste().forEach((vista) => {
       expect(vista.stile.opacity).toBeUndefined();
       // Un valore animato è un oggetto (un `Animated.Value`): qui ogni
       // proprietà di stile è un numero o una stringa, cioè un disegno fermo.
@@ -122,13 +130,13 @@ describe('Skeleton — nessuna animazione', () => {
       .spyOn(AccessibilityInfo, 'addEventListener')
       .mockReturnValue({ remove: () => {} });
 
-    const fermo = JSON.stringify(render(<SkeletonLista righe={3} />).toJSON());
-    let ridotto;
-    await act(async () => {
-      ridotto = create(<SkeletonLista righe={3} />);
-    });
+    await render(<SkeletonLista righe={3} />);
+    const fermo = JSON.stringify(screen.toJSON());
 
-    expect(JSON.stringify(ridotto.toJSON())).toBe(fermo);
+    await render(<SkeletonLista righe={3} />);
+    const ridotto = screen.toJSON();
+
+    expect(JSON.stringify(ridotto)).toBe(fermo);
 
     lettura.mockRestore();
     iscrizione.mockRestore();
@@ -136,19 +144,25 @@ describe('Skeleton — nessuna animazione', () => {
 });
 
 describe('SkeletonLista — la sagoma della lista', () => {
-  it('disegna una riga per ogni riga richiesta e tre per default', () => {
-    expect(righe(render(<SkeletonLista />))).toHaveLength(3);
-    expect(righe(render(<SkeletonLista righe={2} />))).toHaveLength(2);
+  it('disegna una riga per ogni riga richiesta e tre per default', async () => {
+    await render(<SkeletonLista />);
+    expect(righe()).toHaveLength(3);
+
+    await render(<SkeletonLista righe={2} />);
+    expect(righe()).toHaveLength(2);
   });
 
-  it('dà a ogni riga il tondo e due righe di testo, come una riga vera', () => {
-    const renderer = render(<SkeletonLista righe={2} />);
+  it('dà a ogni riga il tondo e due righe di testo, come una riga vera', async () => {
+    await render(<SkeletonLista righe={2} />);
+
     // Due righe: il tondo (40×40 a pillola) e i due blocchi di testo, per ognuna.
-    expect(blocchi(renderer)).toHaveLength(2 * 3);
-    expect(blocchi(renderer).filter((blocco) => blocco.stile.width === 40)).toHaveLength(2);
+    expect(blocchi()).toHaveLength(2 * 3);
+    expect(blocchi().filter((blocco) => blocco.stile.width === 40)).toHaveLength(2);
   });
 
-  it('è nascosta all’albero accessibile', () => {
-    expect(decorativi(render(<SkeletonLista righe={2} />)).length).toBeGreaterThan(0);
+  it('è nascosta all’albero accessibile', async () => {
+    await render(<SkeletonLista righe={2} />);
+
+    expect(decorativi().length).toBeGreaterThan(0);
   });
 });

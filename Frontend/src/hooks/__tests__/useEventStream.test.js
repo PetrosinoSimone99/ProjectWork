@@ -1,4 +1,4 @@
-import { act, create } from 'react-test-renderer';
+import { act, renderHook } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { startEventStream } from '@/api/stream';
 import {
@@ -45,32 +45,22 @@ const riga = (tipo, dati = {}) => ({
 });
 
 /** Frames and closures arrive outside React's own events. */
-function emetti(fn) {
-  act(() => {
+async function emetti(fn) {
+  await act(async () => {
     fn();
   });
 }
 
 /** The handler a subscriber receives, plus the state it renders from. */
-function Monta({ onEvento }) {
+function useStatoStream(onEvento) {
   const stato = useStreamState();
   useStreamEvent(onEvento);
-  Object.assign(lettura.stato, stato);
-  return null;
+  return stato;
 }
 
-const lettura = { stato: {} };
-
+/** Mounts one subscriber inside the provider; `result.current` is the state it renders from. */
 function monta(onEvento) {
-  let renderer;
-  act(() => {
-    renderer = create(
-      <EventStreamProvider>
-        <Monta onEvento={onEvento} />
-      </EventStreamProvider>,
-    );
-  });
-  return renderer;
+  return renderHook(() => useStatoStream(onEvento), { wrapper: EventStreamProvider });
 }
 
 beforeEach(() => {
@@ -87,21 +77,21 @@ afterEach(() => {
 });
 
 describe('EventStreamProvider', () => {
-  it('opens exactly one connection for the app, with no cursor on the first try', () => {
-    monta(jest.fn());
+  it('opens exactly one connection for the app, with no cursor on the first try', async () => {
+    await monta(jest.fn());
     expect(startEventStream).toHaveBeenCalledTimes(1);
     expect(ultima().token).toBe('jwt');
     expect(ultima().after).toBeNull();
   });
 
-  it('hands a notification row to every subscriber and keeps the cursor', () => {
+  it('hands a notification row to every subscriber and keeps the cursor', async () => {
     const evento = jest.fn();
-    monta(evento);
+    const { result } = await monta(evento);
 
-    emetti(() => ultima().onFrame({ type: 'hello', lastId: 11, nonLette: 2 }));
-    expect(lettura.stato).toMatchObject({ connected: true, unreadCount: 2, lastId: 11 });
+    await emetti(() => ultima().onFrame({ type: 'hello', lastId: 11, nonLette: 2 }));
+    expect(result.current).toMatchObject({ connected: true, unreadCount: 2, lastId: 11 });
 
-    emetti(() =>
+    await emetti(() =>
       ultima().onFrame({
         type: 'notification',
         notifica: riga('CHAT_MESSAGE', { chatId: 3 }),
@@ -111,47 +101,47 @@ describe('EventStreamProvider', () => {
     );
     expect(evento).toHaveBeenCalledTimes(1);
     expect(evento.mock.calls[0][0].tipo).toBe('CHAT_MESSAGE');
-    expect(lettura.stato).toMatchObject({ connected: true, unreadCount: 3, lastId: 12 });
+    expect(result.current).toMatchObject({ connected: true, unreadCount: 3, lastId: 12 });
 
     // The server closes at 30 s; the next connection must resume from the cursor.
-    emetti(() => ultima().onClose({ reason: 'eof' }));
-    act(() => {
+    await emetti(() => ultima().onClose({ reason: 'eof' }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_RECONNECT_MS);
     });
     expect(startEventStream).toHaveBeenCalledTimes(2);
     expect(ultima().after).toBe(12);
   });
 
-  it('keeps the stream reported as up across the planned close', () => {
-    monta(jest.fn());
-    emetti(() => ultima().onFrame({ type: 'hello', lastId: 4, nonLette: 5 }));
+  it('keeps the stream reported as up across the planned close', async () => {
+    const { result } = await monta(jest.fn());
+    await emetti(() => ultima().onFrame({ type: 'hello', lastId: 4, nonLette: 5 }));
 
     // The 30 s close is the server doing its job. Reporting it as down would
     // hand the badge its two-minute-old poll answer twice a minute.
-    emetti(() => ultima().onClose({ reason: 'eof' }));
-    expect(lettura.stato).toMatchObject({ connected: true, unreadCount: 5, lastId: 4 });
+    await emetti(() => ultima().onClose({ reason: 'eof' }));
+    expect(result.current).toMatchObject({ connected: true, unreadCount: 5, lastId: 4 });
   });
 
-  it('advances the cursor over a frame it cannot draw, and delivers nothing', () => {
+  it('advances the cursor over a frame it cannot draw, and delivers nothing', async () => {
     const evento = jest.fn();
-    monta(evento);
-    emetti(() => ultima().onFrame({ type: 'hello', lastId: 4, nonLette: 5 }));
+    const { result } = await monta(evento);
+    await emetti(() => ultima().onFrame({ type: 'hello', lastId: 4, nonLette: 5 }));
 
-    emetti(() => ultima().onFrame({ type: 'cursor', lastId: 9 }));
+    await emetti(() => ultima().onFrame({ type: 'cursor', lastId: 9 }));
     expect(evento).not.toHaveBeenCalled();
-    expect(lettura.stato.lastId).toBe(9);
+    expect(result.current.lastId).toBe(9);
 
-    emetti(() => ultima().onClose({ reason: 'eof' }));
-    act(() => {
+    await emetti(() => ultima().onClose({ reason: 'eof' }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_RECONNECT_MS);
     });
     expect(ultima().after).toBe(9);
   });
 
-  it('does not ask for the count again: a frame without one keeps the last', () => {
-    monta(jest.fn());
-    emetti(() => ultima().onFrame({ type: 'hello', lastId: 1, nonLette: 4 }));
-    emetti(() =>
+  it('does not ask for the count again: a frame without one keeps the last', async () => {
+    const { result } = await monta(jest.fn());
+    await emetti(() => ultima().onFrame({ type: 'hello', lastId: 1, nonLette: 4 }));
+    await emetti(() =>
       ultima().onFrame({
         type: 'notification',
         notifica: riga('MATCH_CREATED'),
@@ -159,47 +149,47 @@ describe('EventStreamProvider', () => {
         lastId: 2,
       }),
     );
-    expect(lettura.stato.unreadCount).toBe(4);
+    expect(result.current.unreadCount).toBe(4);
   });
 
-  it('backs off on fault, doubles the wait, and a hello resets it', () => {
-    monta(jest.fn());
+  it('backs off on fault, doubles the wait, and a hello resets it', async () => {
+    await monta(jest.fn());
 
-    emetti(() => ultima().onError({ status: 0 }));
-    act(() => {
+    await emetti(() => ultima().onError({ status: 0 }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_BACKOFF_MS);
     });
     expect(startEventStream).toHaveBeenCalledTimes(2);
 
-    emetti(() => ultima().onError({ status: 0 }));
-    act(() => {
+    await emetti(() => ultima().onError({ status: 0 }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_BACKOFF_MS);
     });
     // The second wait is twice the first: one second was not enough for this one.
     expect(startEventStream).toHaveBeenCalledTimes(2);
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_BACKOFF_MS);
     });
     expect(startEventStream).toHaveBeenCalledTimes(3);
 
     // A connection that answers resets the wait to the base, not to 4 s.
-    emetti(() => ultima().onFrame({ type: 'hello', lastId: 5, nonLette: 0 }));
-    emetti(() => ultima().onClose({ reason: 'eof' }));
-    act(() => {
+    await emetti(() => ultima().onFrame({ type: 'hello', lastId: 5, nonLette: 0 }));
+    await emetti(() => ultima().onClose({ reason: 'eof' }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_RECONNECT_MS);
     });
-    emetti(() => ultima().onError({ status: 0 }));
-    act(() => {
+    await emetti(() => ultima().onError({ status: 0 }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_BACKOFF_MS);
     });
     expect(startEventStream).toHaveBeenCalledTimes(5);
   });
 
-  it('stops at the ceiling instead of waiting forever to grow', () => {
-    monta(jest.fn());
+  it('stops at the ceiling instead of waiting forever to grow', async () => {
+    await monta(jest.fn());
     for (let i = 0; i < 12; i += 1) {
-      emetti(() => ultima().onError({ status: 0 }));
-      act(() => {
+      await emetti(() => ultima().onError({ status: 0 }));
+      await act(async () => {
         jest.advanceTimersByTime(STREAM_BACKOFF_MAX_MS);
       });
     }
@@ -207,69 +197,56 @@ describe('EventStreamProvider', () => {
     expect(startEventStream.mock.calls.length).toBeGreaterThanOrEqual(13);
   });
 
-  it('does not retry an expired session', () => {
-    monta(jest.fn());
-    emetti(() => ultima().onError({ status: 401 }));
-    act(() => {
+  it('does not retry an expired session', async () => {
+    await monta(jest.fn());
+    await emetti(() => ultima().onError({ status: 401 }));
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_BACKOFF_MAX_MS);
     });
     expect(startEventStream).toHaveBeenCalledTimes(1);
   });
 
-  it('holds no connection while the app is in the background', () => {
+  it('holds no connection while the app is in the background', async () => {
     const cambi = [];
     jest.spyOn(AppState, 'addEventListener').mockImplementation((_tipo, handler) => {
       cambi.push(handler);
       return { remove: jest.fn() };
     });
-    monta(jest.fn());
+    await monta(jest.fn());
     expect(startEventStream).toHaveBeenCalledTimes(1);
 
-    act(() => {
+    await act(async () => {
       cambi.forEach((handler) => handler('background'));
     });
     expect(ultima().chiusa).toHaveBeenCalledTimes(1);
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(STREAM_BACKOFF_MAX_MS * 4);
     });
     expect(startEventStream).toHaveBeenCalledTimes(1);
 
-    act(() => {
+    await act(async () => {
       cambi.forEach((handler) => handler('active'));
     });
     expect(startEventStream).toHaveBeenCalledTimes(2);
   });
 
-  it('closes the connection when the session ends', () => {
-    const renderer = monta(jest.fn());
+  it('closes the connection when the session ends', async () => {
+    const { result, rerender } = await monta(jest.fn());
     const prima = ultima();
     mockToken = null;
-    act(() => {
-      renderer.update(
-        <EventStreamProvider>
-          <Monta onEvento={jest.fn()} />
-        </EventStreamProvider>,
-      );
-    });
+    await rerender();
     expect(prima.chiusa).toHaveBeenCalledTimes(1);
-    expect(lettura.stato).toMatchObject({ connected: false, unreadCount: null });
+    expect(result.current).toMatchObject({ connected: false, unreadCount: null });
   });
 });
 
 describe('outside a provider', () => {
-  it('delivers nothing and reports a neutral state, so a screen still works', () => {
+  it('delivers nothing and reports a neutral state, so a screen still works', async () => {
     const evento = jest.fn();
-    const letturaLocale = {};
-    function Solo({ onEvento }) {
-      Object.assign(letturaLocale, useStreamState());
-      useStreamEvent(onEvento);
-      return null;
-    }
-    act(() => {
-      create(<Solo onEvento={evento} />);
-    });
-    expect(letturaLocale).toEqual({ connected: false, unreadCount: null, lastId: null });
+    const { result } = await renderHook(() => useStatoStream(evento));
+
+    expect(result.current).toEqual({ connected: false, unreadCount: null, lastId: null });
     expect(evento).not.toHaveBeenCalled();
   });
 });

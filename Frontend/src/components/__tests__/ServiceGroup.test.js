@@ -1,5 +1,4 @@
-import { Text } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { render, screen } from '@testing-library/react-native';
 
 import { ServiceGroup } from '../ServiceGroup';
 
@@ -15,62 +14,74 @@ const SERVIZI = [1, 2, 3, 4, 5].map((n) => ({
   descrizione: `Servizio ${n}`,
 }));
 
-function render(props) {
-  let renderer;
-  act(() => {
-    renderer = create(<ServiceGroup titolo="Offre" icona="pricetag-outline" {...props} />);
-  });
-  return renderer;
+function renderGruppo(props) {
+  // Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`.
+  return render(<ServiceGroup titolo="Offre" icona="pricetag-outline" {...props} />);
+}
+
+/**
+ * Le righe di testo disegnate, lette dai nodi host: RTL 14 non raggiunge più il
+ * componente `AppText`, ma il `Text` che disegna porta ancora i figli come stringa.
+ */
+function figliDiTesto() {
+  return screen.container
+    .queryAll((nodo) => typeof nodo.props?.children === 'string')
+    .map((nodo) => nodo.props.children);
 }
 
 /** The row lines, recognised by the `- ` the group puts in front of each. */
-function righe(renderer) {
-  return renderer.root
-    .findAllByType(Text)
-    .map((node) => node.props.children)
-    .filter((child) => typeof child === 'string' && child.startsWith('- '));
+function righe() {
+  return figliDiTesto().filter((child) => child.startsWith('- '));
 }
 
 /** The «e N altre» line, if the group drew one. */
-function contatore(renderer) {
-  return renderer.root
-    .findAllByType(Text)
-    .map((node) => node.props.children)
-    .filter((child) => typeof child === 'string' && /^e \d+ altr[ae]$/.test(child));
+function contatore() {
+  return figliDiTesto().filter((child) => /^e \d+ altr[ae]$/.test(child));
 }
 
 describe('ServiceGroup — the rows it is allowed to draw', () => {
-  it('caps at three rows and counts the rest when no limit is given', () => {
-    const renderer = render({ servizi: SERVIZI });
+  it('caps at three rows and counts the rest when no limit is given', async () => {
+    await renderGruppo({ servizi: SERVIZI });
 
-    expect(righe(renderer)).toHaveLength(3);
-    expect(contatore(renderer)).toEqual(['e 2 altre']);
+    expect(righe()).toHaveLength(3);
+    expect(contatore()).toEqual(['e 2 altre']);
   });
 
-  it('draws every row and no counter when the limit is null', () => {
-    const renderer = render({ servizi: SERVIZI, limite: null });
+  it('draws every row and no counter when the limit is null', async () => {
+    await renderGruppo({ servizi: SERVIZI, limite: null });
 
-    expect(righe(renderer)).toHaveLength(5);
-    expect(contatore(renderer)).toHaveLength(0);
+    expect(righe()).toHaveLength(5);
+    expect(contatore()).toHaveLength(0);
   });
 
-  it('draws nothing for an empty or absent list', () => {
-    expect(render({ servizi: [] }).toJSON()).toBeNull();
-    expect(render({ servizi: undefined }).toJSON()).toBeNull();
+  it('draws nothing for an empty or absent list', async () => {
+    await renderGruppo({ servizi: [] });
+    expect(screen.toJSON()).toBeNull();
+
+    await renderGruppo({ servizi: undefined });
+    expect(screen.toJSON()).toBeNull();
   });
 
-  it('treats a limit of zero or less as no limit at all', () => {
+  it('treats a limit of zero or less as no limit at all', async () => {
     // A cap that hides the rows it claims to show is not a cap: the caller
     // either truncates for real or shows everything.
-    expect(righe(render({ servizi: SERVIZI, limite: 0 }))).toHaveLength(5);
-    expect(contatore(render({ servizi: SERVIZI, limite: -2 }))).toHaveLength(0);
+    await renderGruppo({ servizi: SERVIZI, limite: 0 });
+    expect(righe()).toHaveLength(5);
+    await renderGruppo({ servizi: SERVIZI, limite: -2 });
+    expect(contatore()).toHaveLength(0);
   });
 
-  it('draws one line per row by default and the whole description on request', () => {
-    const numeriDiRiga = (renderer) =>
-      renderer.root.findAllByType(Text).filter((node) => node.props.numberOfLines !== undefined);
+  it('draws one line per row by default and the whole description on request', async () => {
+    // Il limite di righe è una prop del `Text` disegnato: si legge da lì.
+    const numeriDiRiga = () =>
+      screen.container.queryAll(
+        (nodo) => nodo.type === 'Text' && nodo.props.numberOfLines !== undefined,
+      );
 
-    expect(numeriDiRiga(render({ servizi: SERVIZI }))[0].props.numberOfLines).toBe(1);
-    expect(numeriDiRiga(render({ servizi: SERVIZI, righe: null }))).toHaveLength(0);
+    await renderGruppo({ servizi: SERVIZI });
+    expect(numeriDiRiga()[0].props.numberOfLines).toBe(1);
+
+    await renderGruppo({ servizi: SERVIZI, righe: null });
+    expect(numeriDiRiga()).toHaveLength(0);
   });
 });
