@@ -56,37 +56,14 @@ const MESSAGGI_PER_CAMPO = {
 
 /**
  * I nomi rifiutati (`["email", "password"]`) diventano la mappa degli errori del
- * modulo. Un nome sconosciuto viene ignorato: la frase in fondo al modulo resta
- * il posto dove finisce tutto ciò che non ha un campo.
+ * modulo, più il numero di quelli che un posto nel modulo non ce l'hanno. Una
+ * sola implementazione: la usano sia il test della mappa sia la schermata, così
+ * le due non possono divergere.
  */
-export function erroriDiCampoDaServer(fields) {
-  if (!Array.isArray(fields)) {
-    return {};
-  }
-  const errori = {};
-  fields.forEach((nome) => {
-    const voce = typeof nome === 'string' ? MESSAGGI_PER_CAMPO[nome] : undefined;
-    if (voce) {
-      errori[voce.chiave] = voce.messaggio;
-    }
-  });
-  return errori;
-}
-
-/**
- * Il rifiuto del server, diviso in quello che si può mettere sotto un campo e
- * quello che resta una frase in fondo al modulo.
- *
- * `messaggio` è `null` quando tutti i campi nominati dal server hanno un posto
- * nel modulo: in quel caso la frase generica sarebbe solo rumore sopra un errore
- * che l'utente sta già guardando. Un corpo senza `fields` (o un errore che non
- * viene dal server) tiene la frase, come prima.
- */
-export function esitoRifiutoRegistrazione(details, messaggio) {
-  const campi = Array.isArray(details?.fields) ? details.fields : null;
+function mappaErrori(fields) {
   const errori = {};
   let nonMappati = 0;
-  (campi ?? []).forEach((nome) => {
+  (Array.isArray(fields) ? fields : []).forEach((nome) => {
     const voce = typeof nome === 'string' ? MESSAGGI_PER_CAMPO[nome] : undefined;
     if (voce) {
       errori[voce.chiave] = voce.messaggio;
@@ -94,6 +71,33 @@ export function esitoRifiutoRegistrazione(details, messaggio) {
       nonMappati += 1;
     }
   });
+  return { errori, nonMappati };
+}
 
-  return { errori, messaggio: campi && nonMappati === 0 ? null : messaggio };
+/**
+ * I nomi rifiutati (`["email", "password"]`) diventano la mappa degli errori del
+ * modulo. Un nome sconosciuto viene ignorato: la frase in fondo al modulo resta
+ * il posto dove finisce tutto ciò che non ha un campo.
+ */
+export function erroriDiCampoDaServer(fields) {
+  return mappaErrori(fields).errori;
+}
+
+/**
+ * Il rifiuto del server, diviso in quello che si può mettere sotto un campo e
+ * quello che resta una frase in fondo al modulo.
+ *
+ * `messaggio` è `null` quando il server nomina almeno un campo e tutti hanno un
+ * posto nel modulo: in quel caso la frase generica sarebbe solo rumore sopra un
+ * errore che l'utente sta già guardando. Un corpo senza `fields`, un elenco
+ * vuoto (non nomina niente: non c'è niente da mostrare sotto un campo) o un
+ * errore che non viene dal server tengono la frase, come prima.
+ */
+export function esitoRifiutoRegistrazione(details, messaggio) {
+  const campi = Array.isArray(details?.fields) ? details.fields : null;
+  const { errori, nonMappati } = mappaErrori(campi);
+
+  const tuttiMappati = campi !== null && campi.length > 0 && nonMappati === 0;
+
+  return { errori, messaggio: tuttiMappati ? null : messaggio };
 }

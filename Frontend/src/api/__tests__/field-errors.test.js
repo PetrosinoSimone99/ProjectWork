@@ -76,6 +76,13 @@ describe('esitoRifiutoRegistrazione', () => {
     expect(esito.messaggio).toBe(MESSAGGIO);
   });
 
+  it('tiene la frase quando l elenco e vuoto: non c e niente da mettere sotto un campo', () => {
+    expect(esitoRifiutoRegistrazione({ fields: [] }, MESSAGGIO)).toEqual({
+      errori: {},
+      messaggio: MESSAGGIO,
+    });
+  });
+
   it('lascia tutto com era quando il server non nomina nessun campo', () => {
     expect(esitoRifiutoRegistrazione(null, MESSAGGIO)).toEqual({ errori: {}, messaggio: MESSAGGIO });
     expect(esitoRifiutoRegistrazione({}, MESSAGGIO)).toEqual({ errori: {}, messaggio: MESSAGGIO });
