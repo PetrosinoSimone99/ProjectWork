@@ -134,21 +134,6 @@ export function aggiornaVoce(voce, campo, valore) {
 }
 
 /**
- * Copia dell'elenco con una voce vuota in coda, dello stesso tipo dell'ultima.
- * Il chiamante non la invoca oltre `LIMITE_VOCI`: il limite è della schermata,
- * che disabilita il pulsante; qui non si tronca in silenzio.
- */
-export function aggiungiVoce(voci) {
-  const ultima = voci[voci.length - 1];
-  if (!ultima) {
-    throw new Error(
-      "aggiungiVoce richiede almeno una voce: il tipo della nuova arriva dall'ultima.",
-    );
-  }
-  return [...voci, nuovaVoce(ultima.tipo)];
-}
-
-/**
  * Il tetto è raggiunto: nessuna voce nuova di questo tipo. Un elenco può
  * superare `LIMITE_VOCI` (voci pubblicate prima del tetto o da un altro
  * client), quindi il tetto blocca chi **aggiunge**, non chi elenca: la
@@ -320,13 +305,6 @@ export function senzaChiave(oggetto, chiave) {
   const copia = { ...oggetto };
   delete copia[chiave];
   return copia;
-}
-
-/** Copia dell'oggetto senza tutte le chiavi che cominciano con un prefisso. */
-export function senzaPrefisso(oggetto, prefisso) {
-  return Object.fromEntries(
-    Object.entries(oggetto).filter(([chiave]) => !chiave.startsWith(prefisso)),
-  );
 }
 
 // ---------------------------------------------------------------------------
