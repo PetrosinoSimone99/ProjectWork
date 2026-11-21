@@ -5,6 +5,7 @@ import { AppIcon } from './AppIcon';
 import { AppText } from './AppText';
 import { Card, Chip } from './Card';
 import { ConfirmModal } from './ConfirmModal';
+import { formatIsoDateTime } from '@/services/dates';
 import { queueStatusLabel, queueTypeLabel } from '@/services/queues';
 import { localitaPerDisplay } from '@/services/italian-locations';
 import { space, useTokens } from '@/theme/tokens';
@@ -90,6 +91,10 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
       : 'Località non indicata';
 
   const confirmMessage = cancelConfirmMessage(coda);
+  // The date goes through `services/dates.js` like every other date in the app:
+  // a missing or malformed value comes back `null` and the line is not drawn,
+  // instead of printing "Invalid Date" inside an Italian row.
+  const createdLabel = formatIsoDateTime(coda.creataIl);
 
   // One pressable around the informational blocks only when there is somewhere
   // to go: a linked agreement and a caller able to take it there. The cancel
@@ -121,7 +126,9 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
         </AppText>
       </Chip>
 
-      {coda.creataIl ? <AppText variant="small" tone="secondary">{'Creata il ' + new Date(coda.creataIl).toLocaleString('it-IT')}</AppText> : null}
+      {createdLabel ? (
+        <AppText variant="small" tone="secondary">{`Creata il ${createdLabel}`}</AppText>
+      ) : null}
       {coda.descrizione ? (
         <AppText numberOfLines={2}>{coda.descrizione}</AppText>
       ) : null}

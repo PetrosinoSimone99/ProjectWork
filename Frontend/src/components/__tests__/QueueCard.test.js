@@ -129,3 +129,33 @@ describe('QueueCard agreement link', () => {
     expect(onApri).not.toHaveBeenCalled();
   });
 });
+
+/** The "Creata il …" lines the row draws, as the user reads them. */
+function dateLines(renderer) {
+  // Host elements only: the component layers above repeat the same string.
+  return renderer.root
+    .findAll(
+      (node) =>
+        typeof node.type === 'string' &&
+        typeof node.props?.children === 'string' &&
+        node.props.children.startsWith('Creata il'),
+    )
+    .map((node) => node.props.children);
+}
+
+describe('QueueCard creation date', () => {
+  it('dates the row with the day and the minute', () => {
+    // No `Z`: the value is read as the device's own time, so the asserted
+    // minute is the one the card prints on any machine.
+    const renderer = renderCard({ ...QUEUE, creataIl: '2026-11-19T10:12:00' });
+
+    expect(dateLines(renderer)).toEqual(['Creata il 19 nov, 10:12']);
+  });
+
+  it('draws no date line when the timestamp is missing or unusable', () => {
+    // `null` from the normalizer, and a string the backend should never send:
+    // the row omits the line instead of printing "Invalid Date".
+    expect(dateLines(renderCard({ ...QUEUE, creataIl: null }))).toEqual([]);
+    expect(dateLines(renderCard({ ...QUEUE, creataIl: 'non-una-data' }))).toEqual([]);
+  });
+});
