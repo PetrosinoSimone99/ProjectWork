@@ -159,3 +159,32 @@ describe('QueueCard creation date', () => {
     expect(dateLines(renderCard({ ...QUEUE, creataIl: 'non-una-data' }))).toEqual([]);
   });
 });
+
+/** Whether a host text node of the card prints exactly this string. */
+function drawsText(renderer, text) {
+  return (
+    renderer.root.findAll(
+      (node) => typeof node.type === 'string' && node.props?.children === text,
+    ).length > 0
+  );
+}
+
+describe('QueueCard place line', () => {
+  it('says the exchange is remote when the queue has no place', () => {
+    const onApri = jest.fn();
+    // Linked, so the card announces its own content through the open label too.
+    const renderer = renderCard(
+      { ...QUEUE, localita: null, daRemoto: true, agreementId: 7 },
+      { onApri },
+    );
+
+    expect(withOpenLabel(renderer, true)[0].props.accessibilityLabel).toContain('Da remoto');
+    expect(drawsText(renderer, 'Da remoto')).toBe(true);
+  });
+
+  it('says the place is not indicated when there is neither a place nor a mode', () => {
+    const renderer = renderCard({ ...QUEUE, localita: null, daRemoto: false });
+
+    expect(drawsText(renderer, 'Località non indicata')).toBe(true);
+  });
+});

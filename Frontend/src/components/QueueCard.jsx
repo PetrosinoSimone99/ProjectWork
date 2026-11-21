@@ -75,6 +75,24 @@ function cancelConfirmMessage(coda) {
   return 'Annullando questa coda non appare più nel match.';
 }
 
+/**
+ * The place line of the row.
+ *
+ * Same rule as the service detail: the location when there is one, the mode
+ * when the service is remote, and "not indicated" when neither says anything.
+ * One early return per case, because they are three different sentences and
+ * not three branches of the same one.
+ */
+function descrizioneLuogo(coda) {
+  if (coda.localita) {
+    return localitaPerDisplay(coda.localita);
+  }
+  if (coda.daRemoto === true) {
+    return 'Da remoto';
+  }
+  return 'Località non indicata';
+}
+
 export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) {
   const t = useTokens();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -82,13 +100,7 @@ export function QueueCard({ coda, occupata = false, onAnnulla, onApri = null }) 
   const typeColor = (TYPE_COLORS[coda.tipo] ?? NEUTRAL_COLORS)(t);
   const statusColor = (STATUS_COLORS[coda.stato] ?? NEUTRAL_COLORS)(t);
 
-  // Same rule as the service detail: the location when there is one, the mode
-  // when the service is remote, and "not indicated" when neither says anything.
-  const place = coda.localita
-    ? localitaPerDisplay(coda.localita)
-    : coda.daRemoto === true
-      ? 'Da remoto'
-      : 'Località non indicata';
+  const place = descrizioneLuogo(coda);
 
   const confirmMessage = cancelConfirmMessage(coda);
   // The date goes through `services/dates.js` like every other date in the app:
