@@ -560,11 +560,17 @@ read `Backend/`; Andrea granted permission for this plan (2026-11-23).
   stable contract, a sentence is not, and duplicating every message in PHP would
   guarantee the two copies drift.
 - **`409` keeps one sentence and names nothing.** "The username or email address
-  is already in use" is identical whichever of the two collided. Telling them
-  apart would let anyone probe the form to learn whether an account exists —
-  account enumeration, the one finding of this plan that a reviewer would call a
-  hole rather than an unfinished feature. The same reason is why the app never
-  pre-checks a username against the server.
+  is already in use" is identical whichever of the two collided, so one probe
+  cannot answer "does this username exist?" separately from "does this email
+  exist?". The same reason is why the app never pre-checks a username against
+  the server.
+- **What that does not buy, said out loud.** The sentence still tells the caller
+  that *one* of the two values is taken, so registration remains a way to test
+  whether a given address is registered. Closing that needs a throttle or a
+  confirmation flow that answers the same for a new and a used address — product
+  work on the backend, not a line of this contract. The choice here is the
+  smaller one: one piece of information instead of two, and the gap written down
+  instead of claimed closed.
 - **The message lands under the field, not in a banner.** A name the app does
   not recognise still reaches the user, in the sentence above the buttons: an
   error is never dropped for lack of a mapping.

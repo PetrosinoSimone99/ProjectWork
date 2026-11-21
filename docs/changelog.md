@@ -13,9 +13,10 @@ normalmente non tocca.
 
 **I 28 file di test passano a `@testing-library/react-native` 14** (D036). La
 migrazione non ha cambiato un'asserzione di significato: il conteggio dei casi
-per file è identico prima e dopo, e i numeri lo dimostrano (7, 10, 15, 4, 5, 7,
-4, 6, 9, 18, 11, 10 per i componenti; 18, 6, 16, 11, 15, 14 per i sei hook; più
-`useServiceCatalog`, `auth-context` e `match`). Il fatto che nessuno si aspettava
+per file è identico prima e dopo, e i numeri lo dimostrano, contando i blocchi
+`it`/`test` e non i casi che `it.each` espande (7, 10, 15, 4, 5, 7, 4, 6, 9, 18,
+11, 10 per i componenti; 18, 6, 16, 11, 15, 14 per i sei hook; più
+`useServiceCatalog` 11, `auth-context` 4 e `match` 13). Il fatto che nessuno si aspettava
 — e che ha cambiato l'idioma di ogni file — è che in RTL 14 **tutto è
 asincrono**: `render`, `fireEvent`, `rerender`, `unmount` e `renderHook`
 restituiscono promise, quindi un test migrato è `async` e attende il montaggio. I
@@ -35,8 +36,11 @@ test esistente si rompe; `fields` nomina i sei campi anagrafici e le due sezioni
 `api/field-errors.js` traduce i nomi nelle chiavi del modulo con l'italiano che
 l'app già possiede, e un nome che non conosciamo finisce nella frase in fondo
 invece di sparire. Il **409 non nomina niente**, ed è voluto: dire quale fra
-username ed email è occupato permetterebbe di scoprire quali account esistono —
-enumerazione, cioè una falla (D037). Il backend è in sola lettura per questa
+username ed email è occupato aggiungerebbe un'informazione che nessun modulo deve
+regalare (D037). Resta vero che il 409 dice comunque che *uno* dei due valori è
+occupato: chiuderlo del tutto vuole un limite di frequenza o una conferma via
+mail, lavoro di prodotto lato backend, e D037 lo scrive invece di darlo per
+chiuso. Il backend è in sola lettura per questa
 parte: la scrittura è stata concessa da Andrea per questo piano, e il
 manutentore backend deve leggere il diff. PHPUnit: 21 test, 303 asserzioni, verdi
 su SQLite.

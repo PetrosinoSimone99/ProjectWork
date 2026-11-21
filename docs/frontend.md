@@ -169,8 +169,8 @@ Unit tests run with jest (`npm test`, preset `jest-expo`) and
 `@testing-library/react-native` (D036): a screen test mounts with `render`, reads
 with `screen` and acts with `fireEvent`, a hook test mounts with `renderHook`.
 `react-test-renderer`'s `create`/`.root` idiom is gone and does not come back.
-The tree holds 49 test suites and 590 tests, all green: ten under `api/`
-(`stream`, `client` and `field-errors` included), twenty under `components/`,
+The tree holds 50 test suites and 592 tests, all green: eleven under `api/`
+(`stream`, `client`, `index` and `field-errors` included), twenty under `components/`,
 eight under `services/`, seven under `hooks/` (`useEventStream` included), and
 one each under `app/(tabs)/`, `auth/`, `navigation/` and `validation/`.
 

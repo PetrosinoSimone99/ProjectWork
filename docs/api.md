@@ -440,21 +440,31 @@ side's reach (permission granted by Andrea; recorded in
 
 - `error` is unchanged and stays: any other client keeps working, and every
   existing test still reads it.
-- `fields` lists the rejected names, in the order the request carries them. When
-  a service section is the only thing wrong, `error` keeps its own sentence
-  (`offers and requests must contain exactly one service.`): the generic text is
-  returned only for the account fields, which used to produce it in every case.
-  only names that can appear are `name`, `surname`, `username`, `email`,
-  `password`, `location`, `offers`, `requests`: the account fields plus the two
-  service sections, which the backend validates as a whole (exactly one entry,
-  a non-empty description of at most 255 characters, at least one category).
+- `fields` lists the rejected names. The only names that can appear are `name`,
+  `surname`, `username`, `email`, `password`, `location`, `offers`, `requests`:
+  the six account fields, in that fixed order, followed by the two service
+  sections. A section is named as a whole, because the backend validates it as a
+  whole (exactly one entry, a non-empty description of at most 255 characters,
+  at least one category).
+- `error` stays generic when the account fields are the ones at fault. When a
+  section is what is wrong, it keeps its own sentence instead — `offers must
+  contain exactly one service.` for one section, `offers and requests must
+  contain exactly one service.` for both — so an older client still learns
+  something from the text alone.
 - The app maps those names onto its own keys and puts the Italian message it
   already owns under the matching field; a name it does not recognise ends up in
   the message above the buttons, never dropped.
 - **`409` does not name anything.** "The username or email address is already in
   use" is one sentence, identical whichever of the two collided: saying which one
-  is occupied turns the form into a way to enumerate accounts (D037). The same
-  reason is why the app does not pre-check a username against the server.
+  is occupied would let anyone probe the form for a single answer instead of two
+  (D037). The same reason is why the app does not pre-check a username against
+  the server.
+- **What that sentence does not close.** A `409` still tells the client that *an*
+  account with one of the two values exists, so registration stays a way to test
+  whether a given email is registered. Closing that needs rate limiting or a
+  different sign-up flow (a confirmation mail that never says "already
+  registered"), which is backend product work outside this contract and outside
+  this plan.
 
 Closed by reading the code rather than by asking, and kept here so nobody
 re-opens them: the service description ceiling is `varchar(255)`, not the 150
