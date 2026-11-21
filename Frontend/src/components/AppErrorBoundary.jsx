@@ -33,7 +33,7 @@ export class AppErrorBoundary extends Component {
   }
 }
 
-export function ErrorFallback({ onRetry }) {
+function ErrorFallback({ onRetry }) {
   const t = useTokens();
   const router = useRouter();
   // onRetry first: navigating with a live error would repaint the fallback on the new screen.

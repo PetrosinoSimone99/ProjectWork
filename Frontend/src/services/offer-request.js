@@ -15,9 +15,11 @@ import { formattaLocalita, formattaProvinciaPerFiltro } from '@/services/italian
 export const TIPI_VOCE = { OFFERTA: 'OFFERTA', RICERCA: 'RICERCA' };
 
 /**
- * Limite del testo della mansione.
- * TODO(backend): confermare — la proposta ai colleghi (Parte 19) usa
- * `mansione VARCHAR(150)`, mentre `descrizione_servizio` è `VARCHAR(100)`.
+ * Limite del testo della mansione. La colonna che lo riceve è
+ * `services.description varchar(255)` (`Context_and_DB_V2/barattolo_15112026.sql`),
+ * dichiarata `#[ORM\Column(length: 255)]` in `Backend/src/Entity/Service.php`:
+ * il tetto vero è 255, e 150 è una scelta di prodotto sotto quel tetto — non un
+ * vincolo di schema da concordare.
  */
 export const LIMITE_MANSIONE = 150;
 
@@ -39,7 +41,7 @@ export const LIMITE_VOCI = 1;
  * Con un tetto di 1 la differenza non è un dettaglio di stile: «1 offerte»
  * è sbagliato, e la frase del limite non può più stampare la costante nuda.
  */
-export const SOSTANTIVI_VOCE = {
+const SOSTANTIVI_VOCE = {
   [TIPI_VOCE.OFFERTA]: { singolare: 'offerta', plurale: 'offerte' },
   [TIPI_VOCE.RICERCA]: { singolare: 'ricerca', plurale: 'ricerche' },
 };
@@ -61,12 +63,15 @@ function sostantivoVoce(tipo, quanti) {
  * dataset sa comporre è 65 caratteri, quindi il limite è oggi irraggiungibile:
  * resta come rete di sicurezza se il dataset cambiasse.
  */
-export const LIMITE_LOCALITA = 100;
+const LIMITE_LOCALITA = 100;
 
 /**
- * Gli stati di pubblicazione di una voce.
- * TODO(backend): i valori veri non sono decisi — `barattolo.js` li normalizza,
- * quindi il giorno in cui i colleghi scelgono altri nomi cambia una funzione sola.
+ * Gli stati di pubblicazione di una voce: vocabolario di interfaccia, non un
+ * campo del contratto. Sul filo il backend manda `is_suspended` booleano
+ * (`services.is_suspended`, `isSuspended` in `Backend/src/Entity/Service.php`),
+ * quindi «Pubblicata» e «Sospesa» sono due parole nostre derivate da quel
+ * booleano: nascono in un posto solo, `normalizeOwnedService` di
+ * `src/api/normalizers.js`, e se cambiano cambia quella funzione sola.
  */
 export const STATI_PUBBLICAZIONE = { PUBBLICATA: 'PUBBLICATA', SOSPESA: 'SOSPESA' };
 
@@ -332,7 +337,7 @@ export function senzaChiave(oggetto, chiave) {
  * filtro), `'REMOTO'` = solo da remoto (`isRemote=true`), `'PRESENZA'` = solo
  * in presenza (`isRemote=false`).
  */
-export const VALORI_MODALITA = { TUTTE: '', REMOTO: 'REMOTO', PRESENZA: 'PRESENZA' };
+const VALORI_MODALITA = { TUTTE: '', REMOTO: 'REMOTO', PRESENZA: 'PRESENZA' };
 
 export const SCELTE_FILTRO_MODALITA = [
   { valore: VALORI_MODALITA.TUTTE, etichetta: 'Tutti' },

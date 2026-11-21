@@ -34,7 +34,7 @@ import { ApiError, GENERIC_ERROR_MESSAGE, isEndpointUnavailable } from '@/api/cl
  */
 
 /** Quante righe per pagina quando il chiamante non lo dice (il backend si ferma a 50). */
-export const DIMENSIONE_PAGINA = 20;
+const DIMENSIONE_PAGINA = 20;
 
 /**
  * Per quanto una pagina appena letta vale come «fresca».

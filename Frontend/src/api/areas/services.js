@@ -91,7 +91,7 @@ function entryLocation(entry) {
  * location}`. `isSuspended` is not sent — a new service is published and the
  * backend defaults it to `false`.
  */
-export function toCreateBody(entry) {
+function toCreateBody(entry) {
   return {
     type: contractType(entry?.tipo),
     description: String(entry?.mansione ?? '').trim(),

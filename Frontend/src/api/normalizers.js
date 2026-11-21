@@ -24,7 +24,7 @@ export function toIntegerOrNull(value) {
 }
 
 /** Trimmed, non-empty string or `null`. */
-export function toTextOrNull(value) {
+function toTextOrNull(value) {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
 
@@ -245,7 +245,7 @@ export function normalizeCatalog(response, viewerId) {
  * future multi-category UI (the home no longer ranks locally: D021).
  * `isSuspended -> stato` (`PUBBLICATA`/`SOSPESA`).
  */
-export function normalizeOwnedService(row) {
+function normalizeOwnedService(row) {
   if (!row || typeof row !== 'object') {
     return null;
   }

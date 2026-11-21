@@ -10,7 +10,7 @@ export const PREFERENZA_TEMA = {
   SCURO: 'scuro',
 };
 
-export const PREFERENZE_TEMA = Object.values(PREFERENZA_TEMA);
+const PREFERENZE_TEMA = Object.values(PREFERENZA_TEMA);
 
 /**
  * Stesso schema di `auth/token-store.js`: SecureStore su native, localStorage sul

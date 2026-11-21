@@ -19,9 +19,9 @@ export const ROLES = { USER: 'ROLE_USER', STAFF: 'ROLE_STAFF' };
 /** The two account statuses of `User::STATUS_*`. */
 export const ACCOUNT_STATUSES = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
 
-export const ROLE_LABELS = { [ROLES.USER]: 'Utente', [ROLES.STAFF]: 'Staff' };
+const ROLE_LABELS = { [ROLES.USER]: 'Utente', [ROLES.STAFF]: 'Staff' };
 
-export const ACCOUNT_STATUS_LABELS = {
+const ACCOUNT_STATUS_LABELS = {
   [ACCOUNT_STATUSES.ACTIVE]: 'Attivo',
   [ACCOUNT_STATUSES.INACTIVE]: 'Sospeso',
 };

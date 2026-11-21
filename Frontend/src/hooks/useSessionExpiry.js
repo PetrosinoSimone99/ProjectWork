@@ -10,7 +10,7 @@ import { tokenExpiresAt } from '@/auth/token-store';
  * l'avviso non promette niente e non ha azioni: serve solo a non farsi
  * sorprendere dal ritorno al login (`30-frontend/sessione-e-token.md`).
  */
-export const SOGLIA_AVVISO_MINUTI = 5;
+const SOGLIA_AVVISO_MINUTI = 5;
 
 /**
  * Ogni quanto si ricalcola il tempo che manca.
@@ -19,7 +19,7 @@ export const SOGLIA_AVVISO_MINUTI = 5;
  * tick più fitto non cambierebbe quello che si legge. Non si legge l'orologio al
  * render ma dentro i callback, così non ci sono render a cascata.
  */
-export const TICK_MS = 30_000;
+const TICK_MS = 30_000;
 
 /** Millisecondi di un minuto: un nome per un numero che altrimenti sarebbe magico. */
 const MS_PER_MINUTO = 60_000;
