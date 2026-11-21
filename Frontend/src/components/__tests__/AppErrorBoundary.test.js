@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { AppErrorBoundary } from '../AppErrorBoundary';
 
@@ -48,48 +48,36 @@ afterEach(() => {
   consoleErrorSpy.mockRestore();
 });
 
-/** Renders the boundary around `child` with every update inside act. */
-function renderBounded(child) {
-  let renderer;
-  act(() => {
-    renderer = create(<AppErrorBoundary>{child}</AppErrorBoundary>);
-  });
-  return renderer;
+/** Mounts the boundary around `child`; from RTL 14 the mount is awaited. */
+async function renderBounded(child) {
+  return await render(<AppErrorBoundary>{child}</AppErrorBoundary>);
 }
 
-/** How many nodes carry the recovered child's label (composite + host). */
-function recoveredCount(renderer) {
-  return renderer.root.findAll((node) => node.props?.accessibilityLabel === 'recovered')
+/** How many nodes carry the recovered child's label (RTL 14 keeps host nodes only). */
+function recoveredCount() {
+  return screen.container.queryAll((nodo) => nodo.props?.accessibilityLabel === 'recovered')
     .length;
 }
 
 /** The control carrying this accessibility label, pressed the way a tap would. */
-function press(renderer, accessibilityLabel) {
-  const control = renderer.root
-    .findAll(
-      (node) =>
-        node.props?.accessibilityLabel === accessibilityLabel &&
-        typeof node.props.onPress === 'function',
-    )
-    .at(0);
+async function press(accessibilityLabel) {
+  const control = screen.getAllByRole('button', { name: accessibilityLabel }).at(0);
   expect(control).toBeDefined();
-  act(() => {
-    control.props.onPress();
-  });
+  await fireEvent.press(control);
 }
 
 describe('AppErrorBoundary fallback', () => {
-  it('shows the Italian fallback with an alert role instead of a blank tree when a child throws', () => {
-    const renderer = renderBounded(<Exploding />);
+  it('shows the Italian fallback with an alert role instead of a blank tree when a child throws', async () => {
+    await renderBounded(<Exploding />);
 
-    const json = renderer.toJSON();
+    const json = screen.toJSON();
     expect(json).not.toBeNull();
     const rendered = JSON.stringify(json);
     expect(rendered).toContain('Qualcosa non ha funzionato');
     expect(rendered).toContain('Riprova');
     expect(rendered).toContain('Torna ai servizi');
 
-    const alerts = renderer.root.findAll((node) => node.props?.accessibilityRole === 'alert');
+    const alerts = screen.container.queryAll((nodo) => nodo.props?.accessibilityRole === 'alert');
     expect(alerts.length).toBeGreaterThan(0);
 
     // The boundary logs in dev, and __DEV__ is true under jest.
@@ -100,42 +88,40 @@ describe('AppErrorBoundary fallback', () => {
     );
   });
 
-  it('remounts the children on Riprova after a crash that happened once they were mounted', () => {
-    const renderer = renderBounded(<Gated />);
-    expect(recoveredCount(renderer)).toBeGreaterThan(0);
+  it('remounts the children on Riprova after a crash that happened once they were mounted', async () => {
+    const { rerender } = await renderBounded(<Gated />);
+    expect(recoveredCount()).toBeGreaterThan(0);
     expect(mounts).toHaveLength(1);
 
     // A crash on a later render: the mounted child is torn down and replaced.
     shouldCrash = true;
-    act(() => {
-      renderer.update(
-        <AppErrorBoundary>
-          <Gated />
-        </AppErrorBoundary>,
-      );
-    });
-    expect(recoveredCount(renderer)).toBe(0);
+    await rerender(
+      <AppErrorBoundary>
+        <Gated />
+      </AppErrorBoundary>,
+    );
+    expect(recoveredCount()).toBe(0);
     expect(mounts).toHaveLength(1);
 
     // The condition is gone: a retry brings the children back as a fresh mount.
     shouldCrash = false;
-    press(renderer, 'Riprova');
+    await press('Riprova');
 
-    expect(recoveredCount(renderer)).toBeGreaterThan(0);
+    expect(recoveredCount()).toBeGreaterThan(0);
     expect(mounts).toHaveLength(2);
   });
 
-  it('navigates to the services home when Torna ai servizi is pressed', () => {
-    const renderer = renderBounded(<Exploding />);
+  it('navigates to the services home when Torna ai servizi is pressed', async () => {
+    await renderBounded(<Exploding />);
 
-    press(renderer, 'Torna ai servizi');
+    await press('Torna ai servizi');
 
     expect(mockRouter.replace).toHaveBeenCalledWith('/');
   });
 
-  it('never puts the error message or the stack on screen', () => {
-    const renderer = renderBounded(<Exploding />);
+  it('never puts the error message or the stack on screen', async () => {
+    await renderBounded(<Exploding />);
 
-    expect(JSON.stringify(renderer.toJSON())).not.toContain('boom');
+    expect(JSON.stringify(screen.toJSON())).not.toContain('boom');
   });
 });

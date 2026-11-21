@@ -1,6 +1,5 @@
-import { act, create } from 'react-test-renderer';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
-import { AppButton } from '../AppButton';
 import { EntryCard } from '../EntryCard';
 
 /**
@@ -31,84 +30,81 @@ const VOCE = {
 
 const CATEGORIE = [{ id: 3, nome: 'Riparazioni' }];
 
-function render(extra = {}) {
-  let renderer;
-  act(() => {
-    renderer = create(
-      <EntryCard
-        voce={VOCE}
-        categorie={CATEGORIE}
-        onModifica={jest.fn()}
-        {...extra}
-      />,
-    );
-  });
-  return renderer;
+async function renderVoce(extra = {}) {
+  // Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`.
+  await render(
+    <EntryCard
+      voce={VOCE}
+      categorie={CATEGORIE}
+      onModifica={jest.fn()}
+      {...extra}
+    />,
+  );
 }
 
-/** The actions the card draws, by their visible label. */
-function etichette(renderer) {
-  return renderer.root.findAllByType(AppButton).map((bottone) => bottone.props.label);
-}
-
-/** The action with this label, as a reader meets it: one button, one state. */
-function pulsante(renderer, etichetta) {
-  const nodo = renderer.root
-    .findAllByType(AppButton)
-    .find((bottone) => bottone.props.label === etichetta);
-  expect(nodo).toBeDefined();
-  return nodo;
+/**
+ * The action with this label, as a reader meets it: one button, one state.
+ *
+ * La card disegna un comando solo, quindi il bottone è quello: `Modifica` è la
+ * parola che si legge dentro, il nome accessibile viaggia con la voce su cui
+ * agisce (`Modifica un'offerta: …`).
+ */
+function pulsante() {
+  return screen.getByRole('button');
 }
 
 describe('EntryCard — one action, not three', () => {
-  it('draws «Modifica» and none of the controls the product rule removed', () => {
-    const renderer = render();
+  it('draws «Modifica» and none of the controls the product rule removed', async () => {
+    await renderVoce();
 
-    expect(etichette(renderer)).toEqual(['Modifica']);
-    expect(etichette(renderer)).not.toContain('Elimina');
-    expect(etichette(renderer)).not.toContain('Sospendi');
-    expect(etichette(renderer)).not.toContain('Ripubblica');
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByText('Modifica')).toBeTruthy();
+    expect(screen.queryByText('Elimina')).toBeNull();
+    expect(screen.queryByText('Sospendi')).toBeNull();
+    expect(screen.queryByText('Ripubblica')).toBeNull();
   });
 
-  it('hands the entry to «Modifica»', () => {
+  it('hands the entry to «Modifica»', async () => {
     const onModifica = jest.fn();
-    const renderer = render({ onModifica });
+    await renderVoce({ onModifica });
 
-    act(() => {
-      pulsante(renderer, 'Modifica').props.onPress();
-    });
+    await fireEvent.press(pulsante());
 
     expect(onModifica).toHaveBeenCalledWith(VOCE);
   });
 });
 
 describe('EntryCard — one word for the free text of a service', () => {
-  it('calls it a description, in the row and in its fallback', () => {
-    const conTesto = JSON.stringify(render().toJSON());
+  it('calls it a description, in the row and in its fallback', async () => {
+    await renderVoce();
+    const conTesto = JSON.stringify(screen.toJSON());
     expect(conTesto).not.toContain('Mansione');
 
-    const senzaTesto = JSON.stringify(render({ voce: { ...VOCE, mansione: '   ' } }).toJSON());
+    await renderVoce({ voce: { ...VOCE, mansione: '   ' } });
+    const senzaTesto = JSON.stringify(screen.toJSON());
     expect(senzaTesto).toContain('Descrizione non indicata');
     expect(senzaTesto).not.toContain('Mansione');
   });
 });
 
 describe('EntryCard — what the two reasons switch off', () => {
-  it('leaves «Modifica» enabled when no reason is given', () => {
-    expect(pulsante(render(), 'Modifica').props.disabled).toBe(false);
+  it('leaves «Modifica» enabled when no reason is given', async () => {
+    await renderVoce();
+    expect(pulsante()).not.toBeDisabled();
   });
 
-  it('switches «Modifica» off when the categories are missing', () => {
-    expect(pulsante(render({ modificaDisabilitata: true }), 'Modifica').props.disabled).toBe(true);
+  it('switches «Modifica» off when the categories are missing', async () => {
+    await renderVoce({ modificaDisabilitata: true });
+    expect(pulsante()).toBeDisabled();
   });
 
-  it('switches «Modifica» off while a write is in flight', () => {
-    expect(pulsante(render({ azioniDisabilitate: true }), 'Modifica').props.disabled).toBe(true);
+  it('switches «Modifica» off while a write is in flight', async () => {
+    await renderVoce({ azioniDisabilitate: true });
+    expect(pulsante()).toBeDisabled();
   });
 
-  it('switches «Modifica» off on a row the server has not given an id to', () => {
-    const renderer = render({ voce: { ...VOCE, id: null } });
-
-    expect(pulsante(renderer, 'Modifica').props.disabled).toBe(true);
+  it('switches «Modifica» off on a row the server has not given an id to', async () => {
+    await renderVoce({ voce: { ...VOCE, id: null } });
+    expect(pulsante()).toBeDisabled();
   });
 });

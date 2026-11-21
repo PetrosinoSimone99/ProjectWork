@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { StyleSheet } from 'react-native';
+import { render, screen } from '@testing-library/react-native';
 
 import { MessageBubble } from '../MessageBubble';
 import { formatIsoDateTime } from '@/services/dates';
@@ -38,24 +38,21 @@ function TokenProbe() {
   return null;
 }
 
-function renderBolla(messaggio, extra = {}) {
-  let renderer;
-  act(() => {
-    renderer = create(
-      <>
-        <MessageBubble messaggio={messaggio} myUsername={MIO_USERNAME} {...extra} />
-        <TokenProbe />
-      </>,
-    );
-  });
-  return renderer;
+async function renderBolla(messaggio, extra = {}) {
+  // From RTL 14 `render` is async: the mount is awaited, not wrapped in `act`.
+  await render(
+    <>
+      <MessageBubble messaggio={messaggio} myUsername={MIO_USERNAME} {...extra} />
+      <TokenProbe />
+    </>,
+  );
 }
 
 /** Flattened styles of the two views: the row container and the bubble itself. */
-function stili(renderer) {
-  const views = renderer.root
-    .findAllByType(View)
-    .map((node) => StyleSheet.flatten(node.props.style ?? {}));
+function stili() {
+  const views = screen.container
+    .queryAll((nodo) => nodo.type === 'View')
+    .map((nodo) => StyleSheet.flatten(nodo.props.style ?? {}));
   return {
     // The container only aligns; the bubble is the one carrying a fill.
     contenitore: views.find((stile) => stile.alignItems && stile.backgroundColor === undefined),
@@ -64,65 +61,65 @@ function stili(renderer) {
 }
 
 /** Every string drawn inside the bubble, in render order: name, text, time. */
-function testiRenderati(renderer) {
-  return renderer.root
-    .findAllByType(Text)
-    .map((node) => node.props.children)
+function testiRenderati() {
+  return screen.container
+    .queryAll((nodo) => nodo.type === 'Text')
+    .map((nodo) => nodo.props.children)
     .filter((child) => typeof child === 'string');
 }
 
 /** The style of the drawn text with this exact content. */
-function stileDelTesto(renderer, contenuto) {
-  const nodo = renderer.root
-    .findAllByType(Text)
-    .find((node) => node.props.children === contenuto);
+function stileDelTesto(contenuto) {
+  const nodo = screen.container
+    .queryAll((nodo) => nodo.type === 'Text')
+    .find((nodo) => nodo.props.children === contenuto);
   expect(nodo).toBeDefined();
   return StyleSheet.flatten(nodo.props.style ?? {});
 }
 
 describe('MessageBubble own vs other', () => {
-  it('draws the own message on the right over the service tokens, named Tu', () => {
-    const renderer = renderBolla(MESSAGGIO);
-    const { contenitore, bolla } = stili(renderer);
+  it('draws the own message on the right over the service tokens, named Tu', async () => {
+    await renderBolla(MESSAGGIO);
+    const { contenitore, bolla } = stili();
 
     expect(contenitore.alignItems).toBe('flex-end');
     expect(bolla.backgroundColor).toBe(tokens.serviceBg);
     // The own bubble carries ink, not an outline.
     expect(bolla.borderWidth).toBe(0);
-    expect(stileDelTesto(renderer, MESSAGGIO.testo).color).toBe(tokens.serviceText);
-    expect(testiRenderati(renderer)).toContain('Tu');
-    expect(testiRenderati(renderer)).not.toContain(`@${MESSAGGIO.autore}`);
+    expect(stileDelTesto(MESSAGGIO.testo).color).toBe(tokens.serviceText);
+    expect(testiRenderati()).toContain('Tu');
+    expect(testiRenderati()).not.toContain(`@${MESSAGGIO.autore}`);
   });
 
-  it('draws the other side on the left over surface with the input border, named @autore', () => {
-    const renderer = renderBolla({ ...MESSAGGIO, autore: 'altro' });
-    const { contenitore, bolla } = stili(renderer);
+  it('draws the other side on the left over surface with the input border, named @autore', async () => {
+    await renderBolla({ ...MESSAGGIO, autore: 'altro' });
+    const { contenitore, bolla } = stili();
 
     expect(contenitore.alignItems).toBe('flex-start');
     expect(bolla.backgroundColor).toBe(tokens.surface);
     expect(bolla.borderColor).toBe(tokens.borderInput);
     expect(bolla.borderWidth).toBe(1);
-    expect(stileDelTesto(renderer, MESSAGGIO.testo).color).toBe(tokens.text);
-    expect(testiRenderati(renderer)).toContain('@altro');
-    expect(testiRenderati(renderer)).not.toContain('Tu');
+    expect(stileDelTesto(MESSAGGIO.testo).color).toBe(tokens.text);
+    expect(testiRenderati()).toContain('@altro');
+    expect(testiRenderati()).not.toContain('Tu');
   });
 
-  it('draws no name at all when the author is missing', () => {
-    const renderer = renderBolla({ ...MESSAGGIO, autore: null });
-    const disegnati = testiRenderati(renderer);
+  it('draws no name at all when the author is missing', async () => {
+    await renderBolla({ ...MESSAGGIO, autore: null });
+    const disegnati = testiRenderati();
 
     // No invented placeholder: neither a handle nor a "Tu" guess.
     expect(disegnati.some((testo) => testo.startsWith('@'))).toBe(false);
     expect(disegnati).not.toContain('Tu');
     expect(disegnati).toContain(MESSAGGIO.testo);
     // A null author is never the session user, so the row stays on the left.
-    expect(stili(renderer).contenitore.alignItems).toBe('flex-start');
+    expect(stili().contenitore.alignItems).toBe('flex-start');
   });
 });
 
 describe('MessageBubble time', () => {
-  it('shows the formatted time in the small secondary role when inviatoIl is present', () => {
-    const renderer = renderBolla(MESSAGGIO);
+  it('shows the formatted time in the small secondary role when inviatoIl is present', async () => {
+    await renderBolla(MESSAGGIO);
     const ora = formatIsoDateTime(MESSAGGIO.inviatoIl);
 
     // The formatter itself is covered by `src/services/__tests__/dates.test.js`; here it only has to
@@ -131,20 +128,20 @@ describe('MessageBubble time', () => {
     expect(ora).toContain(':');
     expect(ora).not.toContain('T');
 
-    const disegnati = testiRenderati(renderer);
+    const disegnati = testiRenderati();
     expect(disegnati).toContain(ora);
     expect(disegnati).not.toContain(MESSAGGIO.inviatoIl);
 
-    const stileOra = stileDelTesto(renderer, ora);
+    const stileOra = stileDelTesto(ora);
     expect(stileOra.color).toBe(tokens.textSecondary);
     expect(stileOra.fontSize).toBe(13);
   });
 
-  it('draws no time when inviatoIl is missing', () => {
-    const renderer = renderBolla({ ...MESSAGGIO, inviatoIl: null });
+  it('draws no time when inviatoIl is missing', async () => {
+    await renderBolla({ ...MESSAGGIO, inviatoIl: null });
 
     // Name and text only: nothing that could read as a clock.
-    expect(testiRenderati(renderer)).toEqual(['Tu', MESSAGGIO.testo]);
+    expect(testiRenderati()).toEqual(['Tu', MESSAGGIO.testo]);
   });
 });
 
@@ -153,12 +150,12 @@ describe('MessageBubble long text', () => {
     'Una riga che non sta tutta in una volta e deve tornare a capo dentro la bolla.\n' +
     'Seconda riga, più lunga della prima, che continua a scorrere nella colonna della chat.';
 
-  it('keeps the whole message, newlines included, inside the bubble', () => {
-    const renderer = renderBolla({ ...MESSAGGIO, testo: LUNGO });
-    const { bolla } = stili(renderer);
+  it('keeps the whole message, newlines included, inside the bubble', async () => {
+    await renderBolla({ ...MESSAGGIO, testo: LUNGO });
+    const { bolla } = stili();
 
     // The full string arrives intact: the line breaks are the message's own.
-    expect(testiRenderati(renderer)).toContain(LUNGO);
+    expect(testiRenderati()).toContain(LUNGO);
 
     // The bubble caps to the column instead of claiming a fixed width, so the
     // text wraps inside it and never widens past the chat column.

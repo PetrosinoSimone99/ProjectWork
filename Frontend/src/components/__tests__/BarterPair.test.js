@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { StyleSheet } from 'react-native';
+import { render, screen } from '@testing-library/react-native';
 
 import { BarterPair } from '../BarterPair';
 
@@ -12,41 +12,39 @@ const DIREZIONI = {
   riceve: { chi: 'luca', cosa: 'Lezione di chitarra' },
 };
 
-function render(props) {
-  let renderer;
-  act(() => {
-    renderer = create(<BarterPair {...props} />);
-  });
-  return renderer;
+async function renderCoppia(props = {}) {
+  // Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`.
+  await render(<BarterPair {...props} />);
 }
 
-/** Ogni stringa disegnata, in ordine di render. */
-function testi(renderer) {
-  return renderer.root
-    .findAllByType(Text)
-    .map((node) => node.props.children)
+/**
+ * Ogni stringa disegnata, in ordine di render.
+ *
+ * `.*` non è una ricerca: è il modo di chiedere alla libreria tutti i nodi di
+ * testo, che è quello che serve qui (`getAllByText` vuole comunque un matcher).
+ */
+function testi() {
+  return screen
+    .getAllByText(/.*/)
+    .map((nodo) => nodo.props.children)
     .filter((child) => typeof child === 'string');
 }
 
 /** Le righe: le due viste che portano il nome accessibile della direzione. */
-function righe(renderer) {
-  return renderer.root.findAll(
-    (node) => node.type === View && typeof node.props.accessibilityLabel === 'string',
-  );
+function righe() {
+  return screen.getAllByLabelText(/.+/);
 }
 
 /** Lo stile del testo disegnato con questo esatto contenuto. */
-function stileDelTesto(renderer, contenuto) {
-  const nodo = renderer.root.findAllByType(Text).find((node) => node.props.children === contenuto);
-  expect(nodo).toBeDefined();
-  return StyleSheet.flatten(nodo.props.style ?? {});
+function stileDelTesto(contenuto) {
+  return StyleSheet.flatten(screen.getByText(contenuto).props.style ?? {});
 }
 
 describe('BarterPair — le due direzioni', () => {
-  it('disegna due righe, Offre prima di Riceve, con nome e cosa per ognuna', () => {
-    const renderer = render({ direzioni: DIREZIONI });
+  it('disegna due righe, Offre prima di Riceve, con nome e cosa per ognuna', async () => {
+    await renderCoppia({ direzioni: DIREZIONI });
 
-    expect(testi(renderer)).toEqual([
+    expect(testi()).toEqual([
       'Offre',
       '@marta',
       DIREZIONI.offre.cosa,
@@ -57,22 +55,22 @@ describe('BarterPair — le due direzioni', () => {
 
     // La direzione sta nell'etichetta e arriva allo screen reader con la riga:
     // chi offre e cosa, chi riceve e cosa.
-    expect(righe(renderer).map((riga) => riga.props.accessibilityLabel)).toEqual([
+    expect(righe().map((riga) => riga.props.accessibilityLabel)).toEqual([
       `Offre @marta: ${DIREZIONI.offre.cosa}`,
       `Riceve @luca: ${DIREZIONI.riceve.cosa}`,
     ]);
   });
 
-  it('non inventa niente quando cosa manca e non raddoppia la chiocciola', () => {
-    const renderer = render({
+  it('non inventa niente quando cosa manca e non raddoppia la chiocciola', async () => {
+    await renderCoppia({
       direzioni: {
         offre: { chi: '@marta', cosa: null },
         riceve: { chi: 'luca', cosa: 'Lezione di chitarra' },
       },
     });
 
-    expect(testi(renderer)).toEqual(['Offre', '@marta', 'Riceve', '@luca', 'Lezione di chitarra']);
-    expect(righe(renderer).map((riga) => riga.props.accessibilityLabel)).toEqual([
+    expect(testi()).toEqual(['Offre', '@marta', 'Riceve', '@luca', 'Lezione di chitarra']);
+    expect(righe().map((riga) => riga.props.accessibilityLabel)).toEqual([
       'Offre @marta',
       'Riceve @luca: Lezione di chitarra',
     ]);
@@ -80,36 +78,45 @@ describe('BarterPair — le due direzioni', () => {
 });
 
 describe('BarterPair — i lati che non ci sono', () => {
-  it('disegna una riga sola quando un lato è null', () => {
-    const senzaOfferta = render({ direzioni: { offre: null, riceve: DIREZIONI.riceve } });
-    expect(testi(senzaOfferta)).toEqual(['Riceve', '@luca', DIREZIONI.riceve.cosa]);
-    expect(righe(senzaOfferta)).toHaveLength(1);
+  it('disegna una riga sola quando un lato è null', async () => {
+    await renderCoppia({ direzioni: { offre: null, riceve: DIREZIONI.riceve } });
+    const senzaOfferta = testi();
+    expect(senzaOfferta).toEqual(['Riceve', '@luca', DIREZIONI.riceve.cosa]);
+    expect(righe()).toHaveLength(1);
 
-    const senzaRicevuta = render({ direzioni: { offre: DIREZIONI.offre, riceve: null } });
-    expect(testi(senzaRicevuta)).toEqual(['Offre', '@marta', DIREZIONI.offre.cosa]);
-    expect(righe(senzaRicevuta)).toHaveLength(1);
+    await renderCoppia({ direzioni: { offre: DIREZIONI.offre, riceve: null } });
+    const senzaRicevuta = testi();
+    expect(senzaRicevuta).toEqual(['Offre', '@marta', DIREZIONI.offre.cosa]);
+    expect(righe()).toHaveLength(1);
   });
 
-  it('non disegna niente quando mancano tutti e due i lati', () => {
-    expect(render({ direzioni: { offre: null, riceve: null } }).toJSON()).toBeNull();
-    expect(render({ direzioni: {} }).toJSON()).toBeNull();
-    expect(render({}).toJSON()).toBeNull();
+  it('non disegna niente quando mancano tutti e due i lati', async () => {
+    await renderCoppia({ direzioni: { offre: null, riceve: null } });
+    expect(screen.toJSON()).toBeNull();
+
+    await renderCoppia({ direzioni: {} });
+    expect(screen.toJSON()).toBeNull();
+
+    await renderCoppia({});
+    expect(screen.toJSON()).toBeNull();
   });
 });
 
 describe('BarterPair — la variante compatta', () => {
-  it('tiene gli stessi due testi e li disegna più piccoli', () => {
-    const ampia = render({ direzioni: DIREZIONI });
-    const compatta = render({ direzioni: DIREZIONI, compatta: true });
+  it('tiene gli stessi due testi e li disegna più piccoli', async () => {
+    await renderCoppia({ direzioni: DIREZIONI });
+    const testiAmpia = testi();
+    const stileNomeAmpia = stileDelTesto('@marta');
+    const stileCosaAmpia = stileDelTesto(DIREZIONI.offre.cosa);
+
+    await renderCoppia({ direzioni: DIREZIONI, compatta: true });
 
     // Nessun testo in meno: la card racconta lo stesso scambio.
-    expect(testi(compatta)).toEqual(testi(ampia));
+    expect(testi()).toEqual(testiAmpia);
 
-    expect(stileDelTesto(compatta, '@marta').fontSize).toBeLessThan(
-      stileDelTesto(ampia, '@marta').fontSize,
-    );
-    expect(stileDelTesto(compatta, DIREZIONI.offre.cosa).fontSize).toBeLessThan(
-      stileDelTesto(ampia, DIREZIONI.offre.cosa).fontSize,
+    expect(stileDelTesto('@marta').fontSize).toBeLessThan(stileNomeAmpia.fontSize);
+    expect(stileDelTesto(DIREZIONI.offre.cosa).fontSize).toBeLessThan(
+      stileCosaAmpia.fontSize,
     );
   });
 });

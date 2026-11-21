@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { act, create } from 'react-test-renderer';
+import { StyleSheet } from 'react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { etichettaTipo, iconaTipo, NotificationRow, quandoNotifica } from '../NotificationRow';
 import { radius, useTokens } from '@/theme/tokens';
@@ -109,45 +109,36 @@ const NOTIFICA = {
   letta: true,
 };
 
-function renderRiga(notifica, extra = {}) {
-  let renderer;
-  act(() => {
-    renderer = create(
-      <>
-        <NotificationRow notifica={notifica} {...extra} />
-        <TokenProbe />
-      </>,
-    );
-  });
-  return renderer;
+/** Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`. */
+async function renderRiga(notifica, extra = {}) {
+  await render(
+    <>
+      <NotificationRow notifica={notifica} {...extra} />
+      <TokenProbe />
+    </>,
+  );
+}
+
+/** Le scatole `View` disegnate, dalla più esterna: gli stili si leggono da lì. */
+function viste() {
+  return screen.container.queryAll((node) => node.type === 'View');
 }
 
 /** The control with this accessibility label, pressed the way a tap would. */
-function premi(renderer, accessibilityLabel) {
-  const pulsante = renderer.root
-    .findAll(
-      (node) =>
-        node.props?.accessibilityLabel === accessibilityLabel &&
-        typeof node.props.onPress === 'function',
-    )
-    .at(0);
-  expect(pulsante).toBeDefined();
-  act(() => {
-    pulsante.props.onPress();
-  });
+async function premi(accessibilityLabel) {
+  await fireEvent.press(screen.getByLabelText(accessibilityLabel));
 }
 
 describe('NotificationRow rendering', () => {
-  it('keeps the surface on an unread row and marks it with the primary border and a leading dot', () => {
-    const renderer = renderRiga({ ...NOTIFICA, letta: false });
-    const stile = StyleSheet.flatten(renderer.root.findAllByType(View)[0].props.style);
+  it('keeps the surface on an unread row and marks it with the primary border and a leading dot', async () => {
+    await renderRiga({ ...NOTIFICA, letta: false });
+    const stile = StyleSheet.flatten(screen.root.props.style);
 
     expect(stile.backgroundColor).toBe(tokens.surface);
     expect(stile.backgroundColor).not.toBe(tokens.serviceBg);
     expect(stile.borderColor).toBe(tokens.primary);
 
-    const pallino = renderer.root
-      .findAllByType(View)
+    const pallino = viste()
       .map((node) => StyleSheet.flatten(node.props.style ?? {}))
       .find((style) => style.width === 8 && style.height === 8);
     expect(pallino).toBeDefined();
@@ -156,48 +147,43 @@ describe('NotificationRow rendering', () => {
 
     // A read row keeps the same surface with the decorative border: the state
     // is the border and the dot, never a fill.
-    const letta = renderRiga(NOTIFICA);
-    const stileLetto = StyleSheet.flatten(letta.root.findAllByType(View)[0].props.style);
+    await renderRiga(NOTIFICA);
+    const stileLetto = StyleSheet.flatten(screen.root.props.style);
     expect(stileLetto.backgroundColor).toBe(tokens.surface);
     expect(stileLetto.borderColor).toBe(tokens.border);
   });
 
-  it('marks an unread row with the words "Non letta", which a read row never shows', () => {
+  it('marks an unread row with the words "Non letta", which a read row never shows', async () => {
     // The border and the dot are colour: the words are the state a reader who
     // cannot see the colour, or who listens to a row that cannot be opened,
     // still gets (WCAG 1.4.1).
-    const nonLetta = renderRiga({ ...NOTIFICA, letta: false });
-    expect(
-      nonLetta.root.findAll((node) => node.props?.children === 'Non letta').length,
-    ).toBeGreaterThan(0);
+    await renderRiga({ ...NOTIFICA, letta: false });
+    expect(screen.getAllByText('Non letta').length).toBeGreaterThan(0);
 
-    const letta = renderRiga(NOTIFICA);
-    expect(letta.root.findAll((node) => node.props?.children === 'Non letta')).toHaveLength(0);
+    await renderRiga(NOTIFICA);
+    expect(screen.queryAllByText('Non letta')).toHaveLength(0);
   });
 
-  it('fires the delete callback only from the confirm panel', () => {
+  it('fires the delete callback only from the confirm panel', async () => {
     const onElimina = jest.fn();
-    const renderer = renderRiga(NOTIFICA, { onElimina });
+    await renderRiga(NOTIFICA, { onElimina });
 
-    premi(renderer, 'Elimina questa notifica');
+    await premi('Elimina questa notifica');
     expect(onElimina).not.toHaveBeenCalled();
 
-    premi(renderer, 'Elimina');
+    await premi('Elimina');
     expect(onElimina).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves the row untouched when the panel is dismissed with "No, torna indietro"', () => {
+  it('leaves the row untouched when the panel is dismissed with "No, torna indietro"', async () => {
     const onElimina = jest.fn();
-    const renderer = renderRiga({ ...NOTIFICA, messaggio: 'Riga da non perdere.' }, { onElimina });
+    await renderRiga({ ...NOTIFICA, messaggio: 'Riga da non perdere.' }, { onElimina });
 
-    premi(renderer, 'Elimina questa notifica');
-    premi(renderer, 'No, torna indietro');
+    await premi('Elimina questa notifica');
+    await premi('No, torna indietro');
 
     expect(onElimina).not.toHaveBeenCalled();
-    const testoDellaRiga = renderer.root.findAll(
-      (node) => node.props?.children === 'Riga da non perdere.',
-    );
-    expect(testoDellaRiga.length).toBeGreaterThan(0);
+    expect(screen.getByText('Riga da non perdere.')).toBeTruthy();
   });
 });
 
@@ -205,62 +191,54 @@ describe('NotificationRow rendering', () => {
  * The open affordance of the row: the informational block is a button only
  * for an integer `agreementId`, and only the screen's `onApri` can fire it.
  */
-const PREFISSO_APRI = 'Apri lo scambio di questa notifica';
+const FILTRO_APRI = /^Apri lo scambio di questa notifica/;
 
 /** The one actionable node exposing the open affordance: label, button role and a handler. */
-function nodiApri(renderer) {
-  return renderer.root.findAll(
-    (node) =>
-      typeof node.props?.accessibilityLabel === 'string' &&
-      node.props.accessibilityLabel.startsWith(PREFISSO_APRI) &&
-      node.props?.accessibilityRole === 'button' &&
-      typeof node.props.onPress === 'function',
-  );
+function nodiApri() {
+  return screen.queryAllByRole('button', { name: FILTRO_APRI });
 }
 
-function premiApri(renderer) {
-  const nodo = nodiApri(renderer).at(0);
+async function premiApri() {
+  const nodo = nodiApri()[0];
   expect(nodo).toBeDefined();
-  act(() => {
-    nodo.props.onPress();
-  });
+  await fireEvent.press(nodo);
 }
 
 describe('NotificationRow opening', () => {
-  it('opens the agreement when the notification carries an integer id', () => {
+  it('opens the agreement when the notification carries an integer id', async () => {
     const onApri = jest.fn();
-    const renderer = renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
+    await renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
 
-    expect(nodiApri(renderer)).toHaveLength(1);
+    expect(nodiApri()).toHaveLength(1);
     // The name carries the row's own text: a `button` makes its descendants
     // presentational, so a fixed label silences the message on the only rows
     // that can be opened (F50, the same fix `ServiceCard` needed).
-    expect(nodiApri(renderer)[0].props.accessibilityLabel).toContain(NOTIFICA.messaggio);
+    expect(nodiApri()[0].props.accessibilityLabel).toContain(NOTIFICA.messaggio);
 
-    premiApri(renderer);
+    await premiApri();
     expect(onApri).toHaveBeenCalledTimes(1);
   });
 
-  it('carries the unread state in the open label, and leaves a read row without it', () => {
+  it('carries the unread state in the open label, and leaves a read row without it', async () => {
     const onApri = jest.fn();
-    const nonLetta = renderRiga(
+    await renderRiga(
       { ...NOTIFICA, letta: false, dati: { agreementId: 12 } },
       { onApri },
     );
 
-    expect(nodiApri(nonLetta)).toHaveLength(1);
+    expect(nodiApri()).toHaveLength(1);
     // The header row sits inside the `button`, so it is presentational: the
     // words reach the reader only through the open label. The type, the date
     // and the message stay in it, untouched.
-    expect(nodiApri(nonLetta)[0].props.accessibilityLabel).toContain('Non letta');
-    expect(nodiApri(nonLetta)[0].props.accessibilityLabel).toContain(NOTIFICA.messaggio);
+    expect(nodiApri()[0].props.accessibilityLabel).toContain('Non letta');
+    expect(nodiApri()[0].props.accessibilityLabel).toContain(NOTIFICA.messaggio);
 
-    const letta = renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
-    expect(nodiApri(letta)).toHaveLength(1);
-    expect(nodiApri(letta)[0].props.accessibilityLabel).not.toContain('Non letta');
+    await renderRiga({ ...NOTIFICA, dati: { agreementId: 12 } }, { onApri });
+    expect(nodiApri()).toHaveLength(1);
+    expect(nodiApri()[0].props.accessibilityLabel).not.toContain('Non letta');
   });
 
-  it('stays inert when the id is missing, null or a string', () => {
+  it('stays inert when the id is missing, null or a string', async () => {
     const onApri = jest.fn();
     const casi = [
       { ...NOTIFICA },
@@ -269,20 +247,17 @@ describe('NotificationRow opening', () => {
     ];
 
     for (const notifica of casi) {
-      const renderer = renderRiga(notifica, { onApri });
+      await renderRiga(notifica, { onApri });
 
-      const conEtichetta = renderer.root.findAll(
-        (node) =>
-          typeof node.props?.accessibilityLabel === 'string' &&
-          node.props.accessibilityLabel.startsWith(PREFISSO_APRI),
-      );
+      const conEtichetta = screen.queryAllByLabelText(FILTRO_APRI);
       expect(conEtichetta).toHaveLength(0);
-      // The host nodes under `Pressable` re-expose its accessibility props, so
-      // the open affordance is asserted on the actionable node: label, button
+      // The open affordance is asserted on the actionable node: label, button
       // role and handler together — the button role alone also belongs to the
       // action buttons, which must keep rendering untouched.
-      expect(nodiApri(renderer)).toHaveLength(0);
-      expect(renderer.root.findAll((node) => node.props?.onPress === onApri)).toHaveLength(0);
+      expect(nodiApri()).toHaveLength(0);
+      // Con un id non valido la riga non ha nessun gestore dietro il tocco: il
+      // tocco sul messaggio non arriva a `onApri` (la riga è tutta contenuto).
+      await fireEvent.press(screen.getByText(NOTIFICA.messaggio));
     }
 
     expect(onApri).not.toHaveBeenCalled();
@@ -290,9 +265,9 @@ describe('NotificationRow opening', () => {
 });
 
 
-it('shows a single-line preview from the chat notification payload', () => {
-  const renderer = renderRiga({ ...NOTIFICA, tipo: 'CHAT_MESSAGE', dati: { message: 'Ciao\n  a tutti' } });
-  expect(renderer.root.findAll((node) => node.props?.children === 'Ciao a tutti').length).toBeGreaterThan(0);
+it('shows a single-line preview from the chat notification payload', async () => {
+  await renderRiga({ ...NOTIFICA, tipo: 'CHAT_MESSAGE', dati: { message: 'Ciao\n  a tutti' } });
+  expect(screen.getByText('Ciao a tutti')).toBeTruthy();
 });
 
 /**
@@ -309,9 +284,9 @@ const MESSAGGIO_DEL_SERVIZIO = 'Your report has been reviewed and confirmed.';
 const PAROLE_INGLESI = /\b(the|your|has|been|and|are|was|were|will|you|with|from)\b/i;
 
 /** Ogni stringa che la riga scrive o annuncia, meno il testo che arriva dal servizio. */
-function paroleDellaRiga(renderer) {
-  return renderer.root
-    .findAll(
+function paroleDellaRiga() {
+  return screen.container
+    .queryAll(
       (node) =>
         typeof node.props?.children === 'string' ||
         typeof node.props?.accessibilityLabel === 'string',
@@ -323,21 +298,21 @@ function paroleDellaRiga(renderer) {
 }
 
 describe('NotificationRow — la voce è italiana', () => {
-  it('non scrive una sola frase inglese: l’unica inglese è quella del servizio', () => {
-    const renderer = renderRiga({
+  it('non scrive una sola frase inglese: l’unica inglese è quella del servizio', async () => {
+    await renderRiga({
       ...NOTIFICA,
       tipo: 'REPORT_REVIEWED',
       messaggio: MESSAGGIO_DEL_SERVIZIO,
       dati: { agreementId: 12 },
     });
 
-    expect(paroleDellaRiga(renderer).join(' ')).not.toMatch(PAROLE_INGLESI);
+    expect(paroleDellaRiga().join(' ')).not.toMatch(PAROLE_INGLESI);
   });
 
-  it('dice la sua frase italiana quando il servizio non manda testo', () => {
-    const renderer = renderRiga({ ...NOTIFICA, tipo: 'REPORT_REVIEWED', messaggio: null });
+  it('dice la sua frase italiana quando il servizio non manda testo', async () => {
+    await renderRiga({ ...NOTIFICA, tipo: 'REPORT_REVIEWED', messaggio: null });
 
-    const scritte = paroleDellaRiga(renderer);
+    const scritte = paroleDellaRiga();
     expect(scritte).toContain('Notifica senza testo.');
     expect(scritte.join(' ')).not.toMatch(PAROLE_INGLESI);
   });

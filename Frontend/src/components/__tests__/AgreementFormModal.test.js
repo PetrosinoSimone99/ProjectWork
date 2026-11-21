@@ -1,5 +1,4 @@
-import { act, create } from 'react-test-renderer';
-import { TextInput } from 'react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { ApiError } from '@/api/client';
 import { consumaBozza, salvaBozza } from '@/auth/auth-context';
@@ -49,101 +48,93 @@ const ACCORDO = {
   schede: [MIA_SCHEDA, ALTRA_SCHEDA],
 };
 
-function render(props = {}) {
-  let renderer;
-  act(() => {
-    renderer = create(
-      <AgreementFormModal
-        visible
-        onClose={jest.fn()}
-        accordo={ACCORDO}
-        myUsername="andrea"
-        onInvia={jest.fn().mockResolvedValue(undefined)}
-        {...props}
-      />,
-    );
-  });
-  return renderer;
+function renderPanel(props = {}) {
+  // Da RTL 14 `render` è asincrono: il montaggio si aspetta, non si avvolge in `act`.
+  return render(
+    <AgreementFormModal
+      visible
+      onClose={jest.fn()}
+      accordo={ACCORDO}
+      myUsername="andrea"
+      onInvia={jest.fn().mockResolvedValue(undefined)}
+      {...props}
+    />,
+  );
 }
 
-/** The one input of the panel. */
-function campoDescrizione(renderer) {
-  const campi = renderer.root.findAllByType(TextInput);
+/**
+ * The one input of the panel.
+ *
+ * RTL 14 tiene solo i nodi host: il campo non si cerca più per tipo `AppInput`,
+ * ma per l'unico `TextInput` che `AppInput` disegna.
+ */
+function campoDescrizione() {
+  const campi = screen.container.queryAll((nodo) => nodo.type === 'TextInput');
   expect(campi).toHaveLength(1);
   return campi[0];
 }
 
-function scrivi(renderer, testo) {
-  act(() => {
-    campoDescrizione(renderer).props.onChangeText(testo);
-  });
+async function scrivi(testo) {
+  await fireEvent.changeText(campoDescrizione(), testo);
 }
 
-function premi(renderer, accessibilityLabel) {
-  const controllo = renderer.root
-    .findAll(
-      (node) =>
-        node.props?.accessibilityLabel === accessibilityLabel &&
-        typeof node.props.onPress === 'function',
-    )
-    .at(0);
+async function premi(accessibilityLabel) {
+  const controllo = screen.queryAllByRole('button', { name: accessibilityLabel }).at(0);
   expect(controllo).toBeDefined();
-  act(() => {
-    controllo.props.onPress();
-  });
+  await fireEvent.press(controllo);
 }
 
-function testoVisibile(renderer, testo) {
-  return renderer.root.findAll((node) => node.props?.children === testo).length > 0;
+function testoVisibile(testo) {
+  return screen.queryAllByText(testo).length > 0;
 }
 
 describe('AgreementFormModal — what the person reads', () => {
-  it('prints the two timestamps the backend wrote, as GG/MM/AAAA HH:MM', () => {
-    const renderer = render();
+  it('prints the two timestamps the backend wrote, as GG/MM/AAAA HH:MM', async () => {
+    await renderPanel();
 
-    expect(testoVisibile(renderer, 'Inizio:')).toBe(true);
-    expect(testoVisibile(renderer, formatIsoDateTimeNumeric(MIA_SCHEDA.inizio))).toBe(true);
-    expect(testoVisibile(renderer, 'Fine:')).toBe(true);
+    expect(testoVisibile('Inizio:')).toBe(true);
+    expect(testoVisibile(formatIsoDateTimeNumeric(MIA_SCHEDA.inizio))).toBe(true);
+    expect(testoVisibile('Fine:')).toBe(true);
     // The end date exists only after the recipient confirms.
-    expect(testoVisibile(renderer, '—')).toBe(true);
+    expect(testoVisibile('—')).toBe(true);
   });
 
-  it('shows the service the sender already published, in the product words', () => {
-    const renderer = render();
+  it('shows the service the sender already published, in the product words', async () => {
+    await renderPanel();
 
-    expect(testoVisibile(renderer, 'Offerta: Riparazione biciclette')).toBe(true);
+    expect(testoVisibile('Offerta: Riparazione biciclette')).toBe(true);
     // The other side's row is not this panel's business.
-    expect(testoVisibile(renderer, 'Ricerca: Lezione di chitarra')).toBe(false);
+    expect(testoVisibile('Ricerca: Lezione di chitarra')).toBe(false);
   });
 
-  it('offers one field only: the description, capped at the backend limit', () => {
-    const renderer = render();
+  it('offers one field only: the description, capped at the backend limit', async () => {
+    await renderPanel();
 
-    expect(campoDescrizione(renderer).props.multiline).toBe(true);
-    expect(campoDescrizione(renderer).props.maxLength).toBe(NOTE_MAX_LENGTH);
+    expect(campoDescrizione().props.multiline).toBe(true);
+    expect(campoDescrizione().props.maxLength).toBe(NOTE_MAX_LENGTH);
     expect(NOTE_MAX_LENGTH).toBe(500);
   });
 });
 
 describe('AgreementFormModal — un nome per una cosa', () => {
-  it('chiama scheda di consegna ciò che si scrive, e il comando che chiude lo dice', () => {
-    const renderer = render();
+  it('chiama scheda di consegna ciò che si scrive, e il comando che chiude lo dice', async () => {
+    await renderPanel();
 
-    expect(testoVisibile(renderer, 'Scheda di consegna')).toBe(true);
+    expect(testoVisibile('Scheda di consegna')).toBe(true);
     expect(
-      renderer.root.findAll(
-        (node) => node.props?.accessibilityLabel === 'Chiudi la scheda di consegna',
+      screen.container.queryAll(
+        (nodo) => nodo.props?.accessibilityLabel === 'Chiudi la scheda di consegna',
       ),
     ).not.toHaveLength(0);
   });
 
   // Lo scambio si chiama «scambio»: nessun testo visibile del pannello nomina
   // «accordo» ciò che la persona sta scrivendo (audit 2026-11-18, copy §3).
-  it('non nomina mai «accordo» ciò che si sta scrivendo', () => {
-    const renderer = render();
-    const testi = renderer.root
-      .findAll((node) => typeof node.props?.children === 'string')
-      .map((node) => node.props.children);
+  it('non nomina mai «accordo» ciò che si sta scrivendo', async () => {
+    await renderPanel();
+    const testi = screen.container
+      .queryAll((nodo) => typeof nodo.props?.children === 'string')
+      .map((nodo) => nodo.props.children);
 
     expect(testi.length).toBeGreaterThan(0);
     expect(testi.filter((testo) => /accordo/i.test(testo))).toEqual([]);
@@ -151,28 +142,26 @@ describe('AgreementFormModal — un nome per una cosa', () => {
 });
 
 describe('AgreementFormModal — sending the sheet', () => {
-  it('refuses an empty description without calling the API', () => {
+  it('refuses an empty description without calling the API', async () => {
     const onInvia = jest.fn().mockResolvedValue(undefined);
-    const renderer = render({ onInvia });
+    await renderPanel({ onInvia });
 
-    scrivi(renderer, '   ');
-    premi(renderer, 'Invia la scheda');
+    await scrivi('   ');
+    await premi('Invia la scheda');
 
     expect(onInvia).not.toHaveBeenCalled();
     expect(
-      testoVisibile(renderer, 'Scrivi la descrizione della scheda: da 1 a 500 caratteri.'),
+      testoVisibile('Scrivi la descrizione della scheda: da 1 a 500 caratteri.'),
     ).toBe(true);
   });
 
   it('sends the agreement id and the trimmed note, then closes', async () => {
     const onInvia = jest.fn().mockResolvedValue(undefined);
     const onClose = jest.fn();
-    const renderer = render({ onInvia, onClose });
+    await renderPanel({ onInvia, onClose });
 
-    scrivi(renderer, '  Ci vediamo in piazza alle 10.  ');
-    await act(async () => {
-      premi(renderer, 'Invia la scheda');
-    });
+    await scrivi('  Ci vediamo in piazza alle 10.  ');
+    await premi('Invia la scheda');
 
     expect(onInvia).toHaveBeenCalledWith({
       agreementId: 3,
@@ -191,50 +180,46 @@ describe('AgreementFormModal — sending the sheet', () => {
         ),
       );
     const onClose = jest.fn();
-    const renderer = render({ onInvia, onClose });
+    await renderPanel({ onInvia, onClose });
 
-    scrivi(renderer, 'Ci vediamo in piazza alle 10.');
-    await act(async () => {
-      premi(renderer, 'Invia la scheda');
-    });
+    await scrivi('Ci vediamo in piazza alle 10.');
+    await premi('Invia la scheda');
 
     expect(onClose).not.toHaveBeenCalled();
     expect(
-      testoVisibile(renderer, 'L’altra persona ha già inviato la sua scheda: tocca a te accettarla o rifiutarla.'),
+      testoVisibile('L’altra persona ha già inviato la sua scheda: tocca a te accettarla o rifiutarla.'),
     ).toBe(true);
     // The typed text is still there: a rejected send does not cost the draft.
-    expect(campoDescrizione(renderer).props.value).toBe('Ci vediamo in piazza alle 10.');
+    expect(campoDescrizione().props.value).toBe('Ci vediamo in piazza alle 10.');
   });
 
   it('falls back to its own sentence when the failure carries no API message', async () => {
-    const renderer = render({ onInvia: jest.fn().mockRejectedValue(new Error('boom')) });
+    await renderPanel({ onInvia: jest.fn().mockRejectedValue(new Error('boom')) });
 
-    scrivi(renderer, 'Ci vediamo in piazza alle 10.');
-    await act(async () => {
-      premi(renderer, 'Invia la scheda');
-    });
+    await scrivi('Ci vediamo in piazza alle 10.');
+    await premi('Invia la scheda');
 
-    expect(testoVisibile(renderer, 'Non è stato possibile inviare la scheda. Riprova.')).toBe(true);
+    expect(testoVisibile('Non è stato possibile inviare la scheda. Riprova.')).toBe(true);
   });
 
   // Audit 2026-11-18, P1-1: una sessione scaduta a metà testo riporta qui, e la
   // descrizione riparte dalla bozza dell'accordo. Niente lo annuncia: il testo
   // è semplicemente già nel campo.
-  it('riapre con il testo scritto prima che la sessione scadesse', () => {
+  it('riapre con il testo scritto prima che la sessione scadesse', async () => {
     const chiave = chiaveBozzaAccordo(ACCORDO.id);
     salvaBozza(chiave, 'Ci vediamo in piazza alle 10.');
 
-    const renderer = render();
+    const { unmount } = await renderPanel();
 
-    expect(campoDescrizione(renderer).props.value).toBe('Ci vediamo in piazza alle 10.');
+    expect(campoDescrizione().props.value).toBe('Ci vediamo in piazza alle 10.');
     expect(
-      renderer.root.findAll(
-        (node) => typeof node.props?.children === 'string' && /bozza/i.test(node.props.children),
+      screen.container.queryAll(
+        (nodo) => typeof nodo.props?.children === 'string' && /bozza/i.test(nodo.props.children),
       ),
     ).toHaveLength(0);
 
     // Il pannello si smonta come quando la rotta se ne va: nessun timer resta in volo.
-    act(() => renderer.unmount());
+    await unmount();
     consumaBozza(chiave);
   });
 });
