@@ -8,9 +8,9 @@ documents/code touched.
 
 ## 2026-11-22 — Audit pre-push: otto finding, tre decisioni, due residui
 
-Gli otto rilievi dell'audit pre-push, uno per uno. Sei chiusi con una modifica,
-due accettati per iscritto, uno rimandato a un piano suo (le chiavi d'errore
-della registrazione) e uno ridotto (la migrazione dei test).
+Gli otto rilievi dell'audit pre-push, uno per uno: quelli che avevano già una
+risposta si chiudono qui, gli altri restano per iscritto o rimandati al loro
+piano.
 
 **`.vscode` non è più tracciato.** Due file di preferenze dell'editor in
 `Frontend/` mentre il `.gitignore` di root dichiarava `/.vscode/` locale: il
@@ -22,7 +22,11 @@ in `docs/setup.md`.
 **La CI guarda anche il branch di lavoro.** `ci.yml` partiva solo su PR e push
 verso `main`, quindi `andrea-frontend` poteva accumulare commit senza che lint,
 tipi e test girassero: ora `andrea-frontend` è tra i `push:` e partono entrambi
-i job.
+i job. Nel farlo è caduta anche la guardia che rendeva il job frontend un
+no-op: `if: hashFiles('Frontend/package.json') != ''` stava pure sullo step di
+checkout, e su un runner appena avviato il workspace è vuoto, quindi
+`hashFiles` valeva `''`, il checkout si saltava e con lui tutti gli step — verde
+senza aver eseguito niente. `Frontend/` è su `main` da tempo: guardia tolta.
 
 **`QueueCard` non ha più ternari annidati.** La località della coda è una
 funzione a return anticipati fuori dal componente, con i tre casi coperti dal

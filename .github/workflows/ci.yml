@@ -50,10 +50,11 @@ jobs:
         run: php bin/phpunit
 
   # --- Frontend Expo (React/JS): lint, tipi, test, build di controllo ---
-  # Gira solo quando Frontend/ e' presente su main (cioè dopo il merge del
-  # frontend). Nota: hashFiles è ammesso solo a livello di STEP, non di job,
-  # quindi la guardia è su ogni step: finché il frontend non c'è, tutti si
-  # saltano e il job resta verde.
+  # `Frontend/` e' su main, quindi il job gira sempre: la vecchia guardia
+  # `if: hashFiles('Frontend/package.json') != ''` impediva al job di esistere,
+  # perché su un runner appena avviato il workspace e' vuoto e `hashFiles` vale
+  # `''` anche sullo step di checkout — il job usciva verde senza aver eseguito
+  # niente.
   #
   # Gli stessi tre comandi del gate pre-push (`docs/setup.md`) più l'export
   # web: lint, `tsc --noEmit`, `jest`. Senza jest e tsc la CI non copriva il
@@ -67,31 +68,24 @@ jobs:
         working-directory: Frontend
     steps:
       - uses: actions/checkout@v4
-        if: hashFiles('Frontend/package.json') != ''
         with:
           persist-credentials: false
       - name: Setup Node
         uses: actions/setup-node@v4
-        if: hashFiles('Frontend/package.json') != ''
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: Frontend/package-lock.json
       - name: Installa dipendenze
-        if: hashFiles('Frontend/package.json') != ''
         run: npm ci
       - name: Lint
-        if: hashFiles('Frontend/package.json') != ''
         run: npx expo lint
       # `tsc --noEmit` controlla sintassi e import soltanto: `tsconfig.json`
       # ha `allowJs` senza `checkJs`, quindi i .js/.jsx non sono tipizzati.
       - name: Tipi e import
-        if: hashFiles('Frontend/package.json') != ''
         run: npx tsc --noEmit
       # `--ci` non scrive snapshot nuovi in silenzio.
       - name: Test
-        if: hashFiles('Frontend/package.json') != ''
         run: npx jest --ci
       - name: Build di controllo
-        if: hashFiles('Frontend/package.json') != ''
         run: npx expo export --platform web

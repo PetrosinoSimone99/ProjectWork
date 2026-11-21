@@ -502,7 +502,10 @@ Three findings from the same audit, one decision each.
   pulls and pushes to `main`, so the working branch could collect commits with
   no lint, types or tests. Both jobs now run on a push to that branch: the
   backend job is the only thing that would notice a merge of `main` that breaks
-  Symfony.
+  Symfony. The `if: hashFiles('Frontend/package.json') != ''` guard the job
+  carried since the frontend was not yet on `main` is gone with it: it sat on
+  the checkout step too, where the workspace is still empty on a fresh runner,
+  so the whole job was skipped and reported green.
 
 *Consequences:* `git status` stops showing editor noise; a push to the working
 branch costs a few CI minutes; `.github/workflows/ci.yml` and
