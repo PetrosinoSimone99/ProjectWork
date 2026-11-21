@@ -492,8 +492,10 @@ Three findings from the same audit, one decision each.
   `copy-and-set` file the audit asked for already exists and is called `.env`.
   Untracking it would need a manual copy per machine *and* a CI step that
   recreates it before `composer install`, in a directory this side does not
-  write. Confirming that no real value sits inside is a question for the
-  backend maintainer: this side cannot read `.env*` at all.
+  write. **Confirmed by the backend maintainer on 2026-11-22: no real value
+  sits inside it.** This side cannot read `.env*` at all, so the check was his
+  to make, and it closes the only finding of the audit that could have been an
+  exposed secret.
 - **`Frontend/.vscode/` is untracked.** Editor settings are machine-local, the
   root `.gitignore` already declared `/.vscode/` local but the pattern did not
   cover the subfolder. `.vscode/` now lives in `Frontend/.gitignore`, and the
