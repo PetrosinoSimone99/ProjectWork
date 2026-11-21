@@ -211,6 +211,11 @@ does not stop the build, it keeps the value and says which one to fix.
 There is no fake-data switch any more: the app always talks to the real
 backend.
 
+The editor is not configured in the repository: `.vscode/` is ignored, here and
+at the root. The one extension this codebase expects is
+`expo.vscode-expo-tools` (`code --install-extension expo.vscode-expo-tools`);
+any other editor setting is a local choice.
+
 ## 3. Run the frontend
 
 ```bash
