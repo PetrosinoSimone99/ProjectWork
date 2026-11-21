@@ -14,12 +14,20 @@ on:
 permissions:
   contents: read
 
+# Le action della CI girano su Node 24, non su Node 20 (fuori supporto da
+# aprile 2026). Le action di prima parte sono salite alle major che dichiarano
+# gia' `node24`; questa variabile copre le action di terze parti che dichiarano
+# ancora `node20` (`shivammathur/setup-php`), cosi' non ne resta nessuna sul
+# runtime vecchio. Primo run utile: il push di questo commit.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Il token di checkout non resta in .git/config (zizmor, artipacked).
           persist-credentials: false
@@ -67,13 +75,14 @@ jobs:
       run:
         working-directory: Frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          # Stessa major di Node che gira in locale: una versione sola in casa.
+          node-version: 24
           cache: npm
           cache-dependency-path: Frontend/package-lock.json
       - name: Installa dipendenze
