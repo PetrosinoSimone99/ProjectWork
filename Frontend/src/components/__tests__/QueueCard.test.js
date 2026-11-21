@@ -187,4 +187,11 @@ describe('QueueCard place line', () => {
 
     expect(drawsText(renderer, 'Località non indicata')).toBe(true);
   });
+
+  it('prints the place when the queue has one, remote or not', () => {
+    const renderer = renderCard({ ...QUEUE, localita: 'Roma', daRemoto: true });
+
+    expect(drawsText(renderer, 'Roma')).toBe(true);
+    expect(drawsText(renderer, 'Da remoto')).toBe(false);
+  });
 });
