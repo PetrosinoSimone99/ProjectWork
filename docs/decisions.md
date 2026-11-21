@@ -546,3 +546,33 @@ new test born in the old idiom.
 rendered tree; a `props` assertion becomes a query, so some helpers change name
 while the assertions stay. `react-test-renderer` stops being a package this side
 declares.
+
+## D037 — 2026-11-23 — A registration error names the field, never the account
+
+The registration form could not say which field the server had refused:
+`AuthController::validateRegistration()` answered one generic `400` for all of
+them. Naming the field is a contract change, and this side may normally only
+read `Backend/`; Andrea granted permission for this plan (2026-11-23).
+
+- **The `400` carries `fields`, a list of rejected names** (`name`, `surname`,
+  `username`, `email`, `password`, `location`, `offers`, `requests`) next to the
+  `error` string it already carried. The app owns the Italian copy: a name is a
+  stable contract, a sentence is not, and duplicating every message in PHP would
+  guarantee the two copies drift.
+- **`409` keeps one sentence and names nothing.** "The username or email address
+  is already in use" is identical whichever of the two collided. Telling them
+  apart would let anyone probe the form to learn whether an account exists —
+  account enumeration, the one finding of this plan that a reviewer would call a
+  hole rather than an unfinished feature. The same reason is why the app never
+  pre-checks a username against the server.
+- **The message lands under the field, not in a banner.** A name the app does
+  not recognise still reaches the user, in the sentence above the buttons: an
+  error is never dropped for lack of a mapping.
+
+*Context:* every limit the server enforces was already copied on this side
+(name 50, surname 50, username 30, email 180, location 255, password 8), so the
+copy was never the gap — the missing piece was the name of the field.
+
+*Consequences:* a failed registration points at the field to fix; the contract
+grows one optional key and nothing else; `Backend/src/Controller/AuthController.php`
+and its functional test change, which the backend maintainer should read.

@@ -424,19 +424,34 @@ gap inside a session is replayed once and not twice; an app restart starts at
 the live edge and the focus reads cover the gap. `UNREAD_POLL_MS` (120 s) and
 `CHAT_POLL_MS` (60 s) remain as the fallback for a stream that is down.
 
-## Open questions for the backend
+## Registration errors, and the questions that stay closed
 
-One question is still open. It needs a change to this contract, so it waits for
-its own plan instead of a line of code here.
+**No question is open.** The last one — a `400` that names the field — was
+closed on 2026-11-23 by changing `AuthController`, which is normally out of this
+side's reach (permission granted by Andrea; recorded in
+`docs/changelog.md`).
 
-**Field-specific registration errors.** `AuthController::validateRegistration()`
-answers a single generic `400` ("Required user and service fields are missing or
-invalid.") for every invalid field: the app cannot say *which* field is wrong
-and can only show a general message above the form. The limits declared on our
-side already match the backend one by one (name 50, surname 50, username 30,
-email 180, location 255, password 8), so the copy is not the problem — the
-missing piece is a `400` that names the field. The `TODO(backend)` lives in
-`src/app/(auth)/register.jsx`.
+### `400` on `POST /api/auth/register`: the `fields` list
+
+```json
+{ "error": "Required user and service fields are missing or invalid.",
+  "fields": ["email", "password"] }
+```
+
+- `error` is unchanged and stays: any other client keeps working, and every
+  existing test still reads it.
+- `fields` lists the rejected names, in the order the request carries them. The
+  only names that can appear are `name`, `surname`, `username`, `email`,
+  `password`, `location`, `offers`, `requests`: the account fields plus the two
+  service sections, which the backend validates as a whole (exactly one entry,
+  a non-empty description of at most 255 characters, at least one category).
+- The app maps those names onto its own keys and puts the Italian message it
+  already owns under the matching field; a name it does not recognise ends up in
+  the message above the buttons, never dropped.
+- **`409` does not name anything.** "The username or email address is already in
+  use" is one sentence, identical whichever of the two collided: saying which one
+  is occupied turns the form into a way to enumerate accounts (D037). The same
+  reason is why the app does not pre-check a username against the server.
 
 Closed by reading the code rather than by asking, and kept here so nobody
 re-opens them: the service description ceiling is `varchar(255)`, not the 150
