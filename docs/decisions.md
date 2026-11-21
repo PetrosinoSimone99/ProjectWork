@@ -513,3 +513,36 @@ Three findings from the same audit, one decision each.
 branch costs a few CI minutes; `.github/workflows/ci.yml` and
 `Frontend/.gitignore` change, which the backend maintainer only needs to know
 if he reads the diff.
+
+## D036 — 2026-11-23 — The tests move to `@testing-library/react-native` 14
+
+`react-test-renderer` is deprecated by React, and all 28 test files were written
+against it: 68 `create(`, 218 `act(`, 50 `.root.`, 15 `toJSON`. The suite was
+green, so this was never an emergency — it was a residual that grew with every
+new test born in the old idiom.
+
+- **The target is `@testing-library/react-native` 14 with its own renderer
+  (`test-renderer`), not RTL 13.** 13 still lists `react-test-renderer` as a
+  peer, so it would have moved the call sites and kept the deprecated package
+  underneath. 14 asks for `react >=19`, `react-native >=0.78`, `jest >=29`: the
+  tree has 19.3.0, 0.88.1 and 30.5.
+- **The jest preset never imported the package.** `@react-native/jest-preset`
+  sets `IS_REACT_ACT_ENVIRONMENT` / `IS_REACT_NATIVE_TEST_ENVIRONMENT` in
+  `jest/setup.js` and nothing else; `jest/renderer.js` (the file that does
+  `import TestRenderer from 'react-test-renderer'`) is not part of `setupFiles`.
+  `react-test-renderer` can therefore leave our `devDependencies`; if some other
+  package keeps it inside `node_modules`, that is its declaration, not ours.
+- **Nothing else changes.** Same cases per file — the migration rewrites how a
+  test mounts and queries, never what it asserts. A case that disappears is a
+  defect: the check is the `it(`/`test(` count per file next to the green run.
+- **Hooks mount with `renderHook`.** Six of the 28 files are hook suites built
+  around a fake host component; RTL ships the function that component was
+  imitating.
+
+*Context:* measured on 2026-11-23, baseline `npx jest --silent` was 48 suites,
+580 tests, 0 snapshots, 35 s — the numbers the migration must preserve.
+
+*Consequences:* tests read the screen by text and role instead of walking the
+rendered tree; a `props` assertion becomes a query, so some helpers change name
+while the assertions stay. `react-test-renderer` stops being a package this side
+declares.

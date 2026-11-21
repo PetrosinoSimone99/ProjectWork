@@ -165,7 +165,10 @@ Both must pass before any push. `tsc` reads JavaScript and catches syntax
 errors; it does not type-check JavaScript, so it is a syntax net, not a type
 check.
 
-Unit tests run with jest (`npm test`, preset `jest-expo`, no other test library).
+Unit tests run with jest (`npm test`, preset `jest-expo`) and
+`@testing-library/react-native` (D036): a screen test mounts with `render`, reads
+with `screen` and acts with `fireEvent`, a hook test mounts with `renderHook`.
+`react-test-renderer`'s `create`/`.root` idiom is gone and does not come back.
 The tree holds 42 test suites and 480 tests, all green: nine under `api/`
 (`stream` and `client` included), fifteen under `components/`, eight under
 `services/`, six under `hooks/` (`useEventStream` included), and one each under
