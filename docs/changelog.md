@@ -6,6 +6,62 @@ documents/code touched.
 
 ---
 
+## 2026-11-19 — Audit pre-push: data di una coda, due funzioni morte, `.env.example`
+
+Revisione del codice prima del push, file per file. Tre difetti veri, nessun
+altro trovato: nessun segreto nell'albero, `.gitignore` completo, nessun
+`console.log` di debug, nessun `catch` vuoto, nessuna uguaglianza lasca, ogni
+`setInterval`/`setTimeout` ha la sua pulizia.
+
+**`QueueCard` stampava la data con `new Date()` crudo.** Era l'unico punto di
+`src/` fuori da `services/dates.js` a formattare una data (a parte
+`token-store.js`, che ha un motivo suo). Due conseguenze: la forma era
+`19/11/2026, 10:12:33` — secondi compresi, diversa da ogni altra riga dell'app — e
+un valore mancante o malformato non aveva guardia, quindi la card avrebbe
+stampato «Invalid Date» in mezzo a una frase italiana. Ora passa da
+`formatIsoDateTime`, che torna `null` e la riga non si disegna. Due casi nuovi in
+`QueueCard.test.js` (data valida, data inutilizzabile).
+
+**Due funzioni morte in `services/offer-request.js`**: `aggiungiVoce` e
+`senzaPrefisso`. Restavano dal tempo del tetto a cinque voci — con `LIMITE_VOCI =
+1` il comando «aggiungi voce» non esiste più, e `grep` su tutto l'albero trovava
+solo la definizione. Rimosse con i loro commenti.
+
+**`Frontend/.env.example`**: mancava. `docs/setup.md` descriveva le due
+variabili ma chi arrivava nuovo doveva comporre il file a mano; ora c'è il
+template e il setup lo nomina. Nello stesso passaggio è uscita una riga
+`example` rimasta in `Frontend/.gitignore`, che ignorava quel nome ovunque.
+
+**`npm audit fix` (senza `--force`), 30 vulnerabilità → 22.** Le tre gravi erano
+transitive del toolchain e nessuna finisce nel bundle: `shell-quote` 1.10.0 →
+1.12.0 (critica, command injection nella CLI di `expo`), `brace-expansion`
+5.0.9 → 5.0.13 (alta), `zod` 3.25.76 → 4.6.7 (alta, major transitiva di
+`expo`/`@expo/fingerprint`, che già dichiara la compatibilità). `package.json`
+non cambia: 539 righe in più e 335 in meno sono risoluzioni transitive, 1393
+pacchetti contro 1381. Restano 22 moderate (`glob`, `minimatch`) sotto jest ed
+expo: si chiudono solo con `--force`, cioè con un major di jest. Ripristino:
+`git checkout Frontend/package-lock.json`. Verificato dopo il salto: suite,
+lint, `tsc` e `npx expo export --platform web` (che usa proprio la CLI di expo,
+cioè il consumatore di `zod`).
+
+**`README.md` di root**: erano sei righe con i nomi del team. Ora dice cosa fa il
+prodotto, le sei aree dell'app, lo stack, l'albero del repository, l'avvio rapido
+(stack Docker, `.env.example`, `npx expo start`), i comandi dei test, la mappa di
+`docs/` e la squadra. Nessuna licenza dichiarata: `Frontend/LICENSE` è il file
+MIT del template Expo, e il README lo dice invece di lasciarlo credere.
+
+**CI**: il job `frontend` faceva lint e `expo export`, non `jest` né `tsc` —
+cioè non copriva il comportamento, l'unica cosa che una PR può rompere in
+`Frontend/` senza che nessuno se ne accorga. Aggiunti `npx tsc --noEmit` e
+`npx jest --ci` (che non scrive snapshot in silenzio) più, per igiene,
+`permissions: contents: read` e `persist-credentials: false` sui due checkout.
+Le tre righe lunghe del job backend sono state spezzate: il file è ora LF e
+valida. I trigger restano `pull_request` e `push` su `main`.
+
+Gate: lint pulito, `tsc --noEmit` pulito, 48 suite e 577 test verdi.
+
+---
+
 ## 2026-11-19 — Il materiale di lavoro dell'agente esce dal repository
 
 `AGENTS.md`, `docs/audits/` (226 file) e `docs/briefs/` (51 file) non sono più
