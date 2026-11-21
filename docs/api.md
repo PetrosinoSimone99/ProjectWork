@@ -440,7 +440,10 @@ side's reach (permission granted by Andrea; recorded in
 
 - `error` is unchanged and stays: any other client keeps working, and every
   existing test still reads it.
-- `fields` lists the rejected names, in the order the request carries them. The
+- `fields` lists the rejected names, in the order the request carries them. When
+  a service section is the only thing wrong, `error` keeps its own sentence
+  (`offers and requests must contain exactly one service.`): the generic text is
+  returned only for the account fields, which used to produce it in every case.
   only names that can appear are `name`, `surname`, `username`, `email`,
   `password`, `location`, `offers`, `requests`: the account fields plus the two
   service sections, which the backend validates as a whole (exactly one entry,
