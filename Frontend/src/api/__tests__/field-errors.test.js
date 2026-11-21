@@ -1,4 +1,4 @@
-import { erroriDiCampoDaServer } from '../field-errors';
+import { erroriDiCampoDaServer, esitoRifiutoRegistrazione } from '../field-errors';
 
 /**
  * I campi rifiutati dal servizio diventano gli errori del modulo di
@@ -50,5 +50,34 @@ describe('erroriDiCampoDaServer', () => {
 
   it('dice quanti caratteri servono per la password, non solo che non va', () => {
     expect(erroriDiCampoDaServer(['password']).password).toMatch(/8 caratteri/);
+  });
+});
+
+/**
+ * Il rifiuto diviso in due: ciò che si sistema sotto un campo e ciò che resta
+ * una frase in fondo. Un errore che il modulo sa già dove mettere non deve
+ * comparire due volte.
+ */
+describe('esitoRifiutoRegistrazione', () => {
+  const MESSAGGIO = 'La richiesta non è valida: controlla i dati e riprova.';
+
+  it('non ripete in fondo il messaggio quando tutti i campi hanno un posto', () => {
+    const esito = esitoRifiutoRegistrazione({ fields: ['email', 'password'] }, MESSAGGIO);
+
+    expect(Object.keys(esito.errori).sort()).toEqual(['email', 'password']);
+    expect(esito.messaggio).toBeNull();
+  });
+
+  it('tiene la frase in fondo per il nome che non sa dove mettere', () => {
+    const esito = esitoRifiutoRegistrazione({ fields: ['email', 'birthdate'] }, MESSAGGIO);
+
+    expect(esito.errori.email).toMatch(/email/i);
+    expect(Object.keys(esito.errori)).toHaveLength(1);
+    expect(esito.messaggio).toBe(MESSAGGIO);
+  });
+
+  it('lascia tutto com era quando il server non nomina nessun campo', () => {
+    expect(esitoRifiutoRegistrazione(null, MESSAGGIO)).toEqual({ errori: {}, messaggio: MESSAGGIO });
+    expect(esitoRifiutoRegistrazione({}, MESSAGGIO)).toEqual({ errori: {}, messaggio: MESSAGGIO });
   });
 });

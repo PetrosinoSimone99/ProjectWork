@@ -72,3 +72,28 @@ export function erroriDiCampoDaServer(fields) {
   });
   return errori;
 }
+
+/**
+ * Il rifiuto del server, diviso in quello che si può mettere sotto un campo e
+ * quello che resta una frase in fondo al modulo.
+ *
+ * `messaggio` è `null` quando tutti i campi nominati dal server hanno un posto
+ * nel modulo: in quel caso la frase generica sarebbe solo rumore sopra un errore
+ * che l'utente sta già guardando. Un corpo senza `fields` (o un errore che non
+ * viene dal server) tiene la frase, come prima.
+ */
+export function esitoRifiutoRegistrazione(details, messaggio) {
+  const campi = Array.isArray(details?.fields) ? details.fields : null;
+  const errori = {};
+  let nonMappati = 0;
+  (campi ?? []).forEach((nome) => {
+    const voce = typeof nome === 'string' ? MESSAGGI_PER_CAMPO[nome] : undefined;
+    if (voce) {
+      errori[voce.chiave] = voce.messaggio;
+    } else {
+      nonMappati += 1;
+    }
+  });
+
+  return { errori, messaggio: campi && nonMappati === 0 ? null : messaggio };
+}

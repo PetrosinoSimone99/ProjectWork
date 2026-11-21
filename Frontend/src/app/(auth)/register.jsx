@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/auth-context';
 import { ApiError, GENERIC_ERROR_MESSAGE } from '@/api/client';
+import { esitoRifiutoRegistrazione } from '@/api/field-errors';
 import { getCategories } from '@/api';
 import {
   TIPI_VOCE,
@@ -52,9 +53,10 @@ import { space } from '@/theme/tokens';
 
 /**
  * Limiti anagrafici: **copia dichiarata** del backend Symfony, `AuthController::validateRegistration()`
- * (`mb_strlen` sul valore trimmato), verificati il 24 settembre 2026. La fonte unica non esiste
- * ancora: è la richiesta di `temp/gruppo-2-domande/22-regole-condivise-e-errori-per-campo.md` (piano 12).
- * TODO(backend): farli arrivare dal backend e restituire nei 400 il campo sbagliato.
+ * (`mb_strlen` sul valore trimmato). Restano qui perché servono a fermare il
+ * modulo prima dell'invio, non a sostituire il server: il server li controlla
+ * comunque, e quando li rifiuta li nomina (`fields`, contratto in `docs/api.md`,
+ * D037) — la copia può invecchiare, la risposta no.
  */
 const LIMITE_NOME = 50; // AuthController.php, validateRegistration()
 const LIMITE_COGNOME = 50;
@@ -312,7 +314,20 @@ export default function RegisterScreen() {
       // ragione documentate nel login (`login.jsx`).
       router.replace('/');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE);
+      // Il server nomina i campi che ha rifiutato (`fields`): quelli vanno sotto
+      // il loro campo, e la frase in fondo resta solo per ciò che non ha un
+      // campo — un errore di rete, oppure un nome che non conosciamo. Il 409 non
+      // nomina niente, ed è voluto: dire quale fra username ed email è occupato
+      // permetterebbe di scoprire quali account esistono (D037).
+      const messaggio = err instanceof ApiError ? err.message : GENERIC_ERROR_MESSAGE;
+      const esito = esitoRifiutoRegistrazione(
+        err instanceof ApiError ? err.details : null,
+        messaggio,
+      );
+      if (Object.keys(esito.errori).length > 0) {
+        setFieldErrors(esito.errori);
+      }
+      setError(esito.messaggio);
     } finally {
       setSubmitting(false);
     }
