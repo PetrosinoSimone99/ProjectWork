@@ -251,7 +251,16 @@ export default function RegisterScreen() {
         posizione === indice ? aggiornaVoce(voce, campo, valore) : voce,
       ),
     );
-    setFieldErrors((correnti) => senzaChiave(correnti, `${chiave}.${indice}.${campo}`));
+    // Il rifiuto del server su una voce parla della voce intera (`offers`,
+    // `requests`) e il modulo lo disegna sulla descrizione: il primo carattere
+    // digitato in qualunque campo della riga lo toglie, altrimenti il rosso
+    // resterebbe mentre l'utente sta già correggendo.
+    setFieldErrors((correnti) =>
+      senzaChiave(
+        senzaChiave(correnti, `${chiave}.${indice}.${campo}`),
+        `${chiave}.${indice}.mansione`,
+      ),
+    );
   }
 
   // Le stesse regole del submit, applicate prima: un pulsante attivo su un
