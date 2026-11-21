@@ -95,6 +95,9 @@ describe('ServiceDetailModal — "Segnala"', () => {
     );
 
     // A disabled button never reaches the handler: the tap cannot look broken.
+    // The press is what makes the assertion mean something — RTL refuses it,
+    // and the handler stays uncalled.
+    await fireEvent.press(pulsante(ETICHETTA_SEGNALA));
     expect(onReport).not.toHaveBeenCalled();
     await unmount();
   });
